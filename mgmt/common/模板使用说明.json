@@ -1,0 +1,125 @@
+{
+  "name": "示例-用户管理-新建用户",
+  "api_id": "post_/path",
+  "version": 1,
+  "is_run_pre_apis": "no",
+  "is_run_post_apis": "no",
+  "is_parallel": "no",
+  "is_use_env_config": "yes",
+  "env": {
+    "protocol": "http",
+    "host": "X.X.X.X:8089",
+    "prepath": "/prefix"
+  },
+  "api": {
+    "description": "新建用户",
+    "module": "用户管理",
+    "app": "appName",
+    "method": "post",
+    "path": "/path",
+    "pre_apis": [],
+    "param_apis": [],
+    "post_apis": []
+  },
+  "single": {
+    "header": {
+      "Content-Type": "multipart/form-data"
+    },
+    "query": {},
+    "path": {},
+    "body": {
+      "uuid": "{self}",
+      "condition": "{\"children\":[{\"logicOperator\":\"&&\",\"property\":\"watchlist/customList\",\"operator\":\"==\",\"value\":\"1\",\"type\":\"alias\",\"description\":\"\",\"propertyDataType\":\"\",\"children\":[],\"describe\":\"是否命中名单\",\"params\":[{\"name\":\"calcField\",\"type\":\"string\",\"value\":\"S_DC_VS_NAME\"},{\"name\":\"definitionList\",\"type\":\"string\",\"value\":\"{nameList}\"},{\"name\":\"conditionValue\",\"type\":\"int\",\"value\":\"1\"}]}],\"logicOperator\":\"&&\"}"
+    }
+  },
+  "multi": {
+    "query": {},
+    "path": {},
+    "body": {
+      "description": [
+        "{Rune(128)}",
+        "{Str(64)}",
+        "{Int(10,100)}"
+      ],
+      "displayName": [
+        "{Date(-2)}",
+        "{Date(2)}",
+        "{Timestamp(-2)}"
+      ],
+      "name": [
+        "{IDNo}",
+        "{Name}",
+        "{Address}",
+        "{BankNo}"
+      ]
+    }
+  },
+  "assert": [
+    {
+      "type": "equal",
+      "source": "code",
+      "value": 200
+    },
+    {
+      "type": "!=",
+      "source": "code",
+      "value": 200
+    },
+    {
+      "type": ">=",
+      "source": "data-total",
+      "value": 1
+    },
+    {
+      "type": "contain",
+      "source": "data-contents*productDesc",
+      "value": "待删除的产品描述"
+    },
+    {
+      "type": "!in",
+      "source": "data-contents*productName",
+      "value": "删除"
+    },
+    {
+      "type": "not_contain",
+      "source": "data-contents*productName",
+      "value": "产品"
+    },
+    {
+      "type": "re",
+      "source": "message",
+      "value": "成功|重复|已存在"
+    },
+    {
+      "type": "output",
+      "source": "data-contents*uuid",
+      "value": "uuid"
+    },
+    {
+      "type": "output",
+      "source": "data-contents*uuid",
+      "value": "ProductUuid"
+    }
+  ],
+  "output": {
+    "uuid": [
+      "xxx1",
+      "xxx2"
+    ]
+  },
+  "test_result": [
+    "pass",
+    "fail",
+    "untest"
+  ],
+  "urls": [
+    "http://X.X.X.X:8089/prefix/path"
+  ],
+  "requests": [
+    "{\"curPage\":\"1\",\"endEntryTime\":\"1627095420000\",\"pageSize\":\"10\",\"searchOption\":\"{}\"startEntryTime\":\"1626749820000\",\"timeType\":\"1\"}"
+  ],
+  "response": [
+    "response1",
+    "response2"
+  ]
+}

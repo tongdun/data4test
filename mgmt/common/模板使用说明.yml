@@ -1,0 +1,118 @@
+---
+# 用例信息
+name: 示例-用户管理-新建用户 # 数据用例名称，e.g.: 类型-模块-用例， 类型：功能/性能/异常/内置/……， 模块：用户管理/规则管理/……
+api_id: post_/path        # 用例ID, method_path组合，后续做数据联动使用，数据统计使用
+version: 1.0              # 数据用例版本，后续可以进行数据升级
+is_run_pre_apis: "no"     # 是否跑前置用例，选项：yes / no,  默认 no， 功能未开发
+is_run_post_apis: "no"    # 是否跑后置用例，选项：yes / no,  默认 no， 功能未开发
+is_parallel: "no"         # 是否并行跑数据，选项：yes / no,  默认 no，
+is_use_env_config: "yes"  # 是否使用公共环境，选项：yes / no,  默认 yes
+
+# 环境信息
+env:
+  protocol: http        # http 或 https，请求协议
+  host: X.X.X.X:8088    # 环境IP 或 环境域名 或 环境IP:端口
+  prepath: /prefix      # 路由前缀，公共部分可以抽出来
+
+# API 基本信息
+api:
+  description: 新建用户   # API用途
+  module: 用户管理        # API所属模块
+  app: appName           # API所属应用
+  method: post           # （注意：保证正确） API请求方法
+  path: /path            # （注意：保证正确）API请求路由，路由前缀抽离到prepath下时或公共环境中已定义prepath时，这里无需再写路由前缀
+  pre_apis: []           # 调试时，依赖前置用例时，可以把关联前置文件写上，功能未充分验证
+  param_apis: []         # 调试时，依赖其他用例的参数时，可以把关联文件写上，功能未充分验证
+  post_apis: []          # 调试时，测试跑完后需要跑的用例，可以把关联文件写上，功能未充分验证
+
+# 定义单值参数，如果is_use_env_config值为no, 需要定义此处的 header
+single:
+  header:
+    Content-Type: multipart/form-data   # 如果api为导入文件功能，需要把Content-Type定义为multipart/form-data进行公用环境值的覆盖，优化级：数据文件>应用配置>产品配置
+  query: {}                             # GET请求时，请求参数定义，只定义一个值，共用的参数放在这里，无需反复定义
+  path: {}                              # PATH 变量参数定义，只定义一个值
+  body: 
+    uuid: '{self}'                      # '{self}'代表该值从依赖用例的输出参数中获取
+    condition: '{"children":[{"logicOperator":"&&","property":"test","operator":"==","value":"1","type":"alias","description":"","propertyDataType":"","children":[],"describe":"测试","params":[{"name":"calcField","type":"string","value":""},{"name":"definitionList","type":"string","value":"{nameList}"},{"name":"conditionValue","type":"int","value":"1"}]}],"logicOperator":"&&"}'  # {nameList} 代表字符串里有需替换的变更，nameList为 ouput 中输出的参数名字，在前置的用例中有定义同名变量，即会替换
+
+# 定义多值参数
+multi:
+  query: {}                   # GET请求时，请求参数定义，定义的值为列表
+  path: {}                    # PATH 变更参数定义，定义的值为列表
+  body:
+    description:              # 定义多值时，取各项定义的个数最少的数据，一一对应
+    - '{Rune(128)}'    # 获取设置长度的汉字
+    - '{Str(64)}'      # 获取设置长度的字符串
+    - '{Int(10,100)}'  # 获取设置范围内的整数
+    displayName:
+    - '{Date(-2)}'      # 获取两天前的日期
+    - '{Date(2)}'       # 获取两天后的日期
+    - '{Timestamp(-2)}' # 获取两天前的时间戳
+    name:
+    - '{IDNo}'          # 获取身份证字符串
+    - '{Name}'          # 获取名字字符串
+    - '{Address}'       # 获取地址字符串
+    - '{BankNo}'        # 获取银行卡号字符串
+
+# 断言，数据校验，根据需要写不同类型的断言，不写断言，只要返回为200，即算 PASS
+assert:
+- type: equal   # 验证code的值等于200
+  source: code    # 返回的json信息，取key为code的值
+  value: 200 
+- type: "!=" # 验证code的值不等于200
+  source: code    # 返回的json信息，取key为code的值
+  value: 200 
+- type: ">="    # 验证source字段大于等于1
+  source: data-total     # 返回的json信息，data字典-取出productDesc的值
+  value: 1
+- type:  contain
+  source: data-contents*productDesc  # 返回的json信息，data字典-content字典-字典列表，取出productDesc的值, 并校验是否包含 value中的值
+  value: 待删除的产品描述
+- type: "!in"   # 验证取到的productName的值包含删除
+  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值, 不包含 value 中的值
+  value: 删除
+- type: not_contain   # 验证取到的productName的值不包含删除
+  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值
+  value: 产品
+- type: re
+  source: message
+  value: 成功|重复|已存在
+- type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
+  source: data-contents*uuid
+  value: uuid
+- type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
+  source: data-contents*uuid
+  value: ProductUuid
+# 数据执行后的动作
+action:
+  - type: sleep
+    value: 1    // 表示等待1秒种，时间可根据需要自动设置，单位为秒
+  - type: create_csv
+    value: name:number    // 生成文件名:生成的数据条数，默认生成10条
+  - type: create_xls
+    value: name:number    // 生成文件名:生成的数据条数, 默认生成10条
+# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
+output:
+  uuid:
+  - XXX
+  - XXX
+
+# 测试结果：pass, fail, untest, 自动生成，断言全部符合要求设为pass, 请求若返回非200，直接置为 fail, 如果执行次数测试为0，测置为 untest
+# 保留最新测试结果
+test_result:
+- pass
+- fail
+- untest
+
+# 请求 URL，自动生成， 保留最新测试结果
+urls:
+- http://X.X.X.X:8089/prefix/path
+
+# 请求数据，body, query, 自动生成, 保留最新测试结果
+requests:
+  - '{"curPage":"1","endEntryTime":"1627095420000","pageSize":"10","searchOption":"{}"startEntryTime":"1626749820000","timeType":"1"}'
+
+# 返回信息, 自动生成， 保留最新测试结果
+response:
+- "response1"
+- "response2"
