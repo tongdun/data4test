@@ -1,0 +1,94 @@
+name: 示例-用户管理-新建用户
+version: 1
+api_id: post_/path
+is_run_pre_apis: "no"
+is_run_post_apis: "no"
+is_parallel: "no"
+is_use_env_config: "yes"
+env:
+  protocol: http
+  host: X.X.X.X:8089
+  prepath: /prefix
+api:
+  description: 新建用户
+  module: 用户管理
+  app: appName
+  method: post
+  path: /path
+  pre_apis: []
+  param_apis: []
+  post_apis: []
+single:
+  header:
+    Content-Type: multipart/form-data
+  path: {}
+  query: {}
+  body:
+    condition: '{"children":[{"logicOperator":"&&","property":"watchlist/customList","operator":"==","value":"1","type":"alias","description":"","propertyDataType":"","children":[],"describe":"是否命中名单","params":[{"name":"calcField","type":"string","value":"S_DC_VS_NAME"},{"name":"definitionList","type":"string","value":"{nameList}"},{"name":"conditionValue","type":"int","value":"1"}]}],"logicOperator":"&&"}'
+    uuid: '{self}'
+multi:
+  path: {}
+  query: {}
+  body:
+    description:
+    - '{Rune(128)}'
+    - '{Str(64)}'
+    - '{Int(10,100)}'
+    displayName:
+    - '{Date(-2)}'
+    - '{Date(2)}'
+    - '{Timestamp(-2)}'
+    name:
+    - '{IDNo}'
+    - '{Name}'
+    - '{Address}'
+    - '{BankNo}'
+action:
+- type: sleep
+  value: 1    // 表示等待1秒种，时间可根据需要自动设置，单位为秒
+- type: create_csv
+  value: name:number    // 生成文件名:生成的数据条数，默认生成10条
+- type: create_xls
+  value: name:number    // 生成文件名:生成的数据条数, 默认生成10条
+assert:
+- source: code
+  type: equal
+  value: 200
+- source: code
+  type: '!='
+  value: 200
+- source: data-total
+  type: '>='
+  value: 1
+- source: data-contents*productDesc
+  type: contain
+  value: 待删除的产品描述
+- source: data-contents*productName
+  type: '!in'
+  value: 删除
+- source: data-contents*productName
+  type: not_contain
+  value: 产品
+- source: message
+  type: re
+  value: 成功|重复|已存在
+- source: data-contents*uuid
+  type: output
+  value: uuid
+- source: data-contents*uuid
+  type: output
+  value: ProductUuid
+output:
+  uuid:
+  - XXX
+  - XXX
+test_result:
+- pass
+- fail
+- untest
+urls:
+- http://X.X.X.X:8089/creditApi/loanProduct/pageProductList
+request: []
+response:
+- response1
+- response2

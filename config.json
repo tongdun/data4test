@@ -1,0 +1,53 @@
+
+{
+	"custom_foot_html": "./html/tongdun.html",
+	"footer_info": "./html/tongdun.html",
+	"open_admin_api": true,
+	"database": {
+		"default":{
+			"host": "127.0.0.1",
+			"port": "3306",
+			"user": "root",
+			"pwd": "zaq1@WSX",
+			"name": "data4test",
+			"max_idle_con": 5,
+			"max_open_con": 10,
+			"driver": "mysql",
+			"parse_time": true
+		}
+	},
+	"app_id": "uPkhI73C0y3p",
+	"language": "cn",
+	"prefix": "admin",
+	"theme": "sword",
+	"store": {
+		"path": "./mgmt/upload",
+		"prefix": "uploads"
+	},
+	"title": "Data4Test",
+	"logo": "Data4Test",
+	"mini_logo": "DT",
+	"index": "/",
+	"login_url": "/login",
+	"debug": true,
+	"sql_log": false,
+	"env": "local",
+	"info_log": "./mgmt/log/info.log",
+	"error_log": "./mgmt/log/error.log",
+	"access_log": "./mgmt/log/access.log",
+	"session_life_time": 7200,
+	"file_upload_engine": {
+		"name": "local"
+	},
+	"login_title": "Data4Test",
+	"login_logo": "Data4Test",
+	"auth_user_table": "goadmin_users",
+	"bootstrap_file_path": "./bootstrap.go",
+	"go_mod_file_path": "./go.mod",
+	"asset_root_path": "./public/",
+	"file_base_path": "./mgmt",
+	"server_port": 9088,
+	"log_level": "debug",
+	"cicd_host": "X.X.X.X:8088",
+	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1"
+}
