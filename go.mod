@@ -4,13 +4,10 @@ go 1.16
 
 require (
 	github.com/GoAdminGroup/components v0.0.2 // indirect
-	//github.com/GoAdminGroup/filemanager v0.0.6 // indirect
 	github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9
-	//github.com/GoAdminGroup/go-admin v1.2.23
 	github.com/GoAdminGroup/go-admin v1.2.24
 	github.com/GoAdminGroup/librarian v0.0.5
 	github.com/GoAdminGroup/themes v0.0.43
-	github.com/JosingCai/filemanager v0.0.6
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/PuerkitoBio/goquery v1.7.1
 	github.com/antlabs/deepcopy v0.0.5 // indirect
@@ -61,4 +58,6 @@ require (
 	syreclabs.com/go/faker v1.2.3 // indirect
 )
 
-replace github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => /Users/josing/go/src/github.com/GoAdminGroup/filemanager
+replace (
+    github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => github.com/JosingCai/filemanager v0.0.8
+)
