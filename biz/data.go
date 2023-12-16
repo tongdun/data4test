@@ -720,6 +720,18 @@ func BakOldVer(id, afterTxt, fileName string) (err error) {
 	return
 }
 
+func ModifyEditedData(id, fileName string) (err error) {
+	var dbData SceneDataRecord
+	models.Orm.Table(" scene_data_test_history").Where("id = ?", id).Find(&dbData)
+	dirName := GetHistoryDataDirName(fileName)
+	dbData.Content = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, fileName, fileName)
+	err = models.Orm.Table("scene_data_test_history").Where("id = ?", id).Update(&dbData).Error
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+	return
+}
+
 func SyncSceneData() (newTag, modTag int, err error) {
 	dirHandle, err := ioutil.ReadDir(DataBasePath)
 	if err != nil {

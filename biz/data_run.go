@@ -482,7 +482,7 @@ func (dataFile DataFile) GetBody(lang string, depOutVars map[string][]interface{
 	return
 }
 
-func (dataFile DataFile) CreatActionData(lang string, depOutVars map[string][]interface{}) (err error) {
+func (dataFile DataFile) CreateActionData(lang string, depOutVars map[string][]interface{}) (err error) {
 	if len(dataFile.Action) > 0 {
 		fileName := ""
 		dataCount := 0
@@ -691,7 +691,7 @@ func (dataFile DataFile) CreatActionData(lang string, depOutVars map[string][]in
 	return
 }
 
-func (dataFile DataFile) CreatActionDataOrderByKey(lang string, depOutVars map[string][]interface{}) (err error) {
+func (dataFile DataFile) CreateDataOrderByKey(lang string, depOutVars map[string][]interface{}) (err error) {
 	var isCreateCSV, isCreateXLS, isCreateHiveSQL bool
 	var csvValue, xlsValue, hiveSQLValue interface{}
 
@@ -716,7 +716,7 @@ func (dataFile DataFile) CreatActionDataOrderByKey(lang string, depOutVars map[s
 		tmpValue, _ := Interface2Str(csvValue)
 		strList := strings.Split(tmpValue, ":")
 		if len(strList) == 0 {
-			err = fmt.Errorf("creat_csv的值未定义，请先定义")
+			err = fmt.Errorf("create_csv的值未定义，请先定义")
 			return
 		}
 		if !strings.Contains(strList[0], ".csv") {
@@ -921,6 +921,233 @@ func (dataFile DataFile) CreatActionDataOrderByKey(lang string, depOutVars map[s
 		_ = WriteDataInCSV(filePath, sqlStr)
 	}
 
+	return
+}
+
+func (dataFile DataFile) RecordDataOrderByKey(bodys []map[string]interface{}) (err error) {
+	if len(bodys) == 0 {
+		return
+	}
+
+	var isRecordCSV, isRecordXLS bool
+	var csvValue, xlsValue interface{}
+
+	if len(dataFile.Action) > 0 {
+		for _, item := range dataFile.Action {
+			if item.Type == "record_csv" {
+				isRecordCSV = true
+				csvValue = item.Value
+			} else if item.Type == "record_xls" || item.Type == "record_excel" || item.Type == "record_xlsx" {
+				isRecordXLS = true
+				xlsValue = item.Value
+			}
+		}
+	}
+
+	if isRecordCSV {
+		fileName := ""
+		tmpValue, _ := Interface2Str(csvValue)
+		if len(tmpValue) == 0 {
+			err = fmt.Errorf("record_csv的值未定义，请先定义")
+			return
+		} else {
+			if !strings.Contains(tmpValue, ".csv") {
+				fileName = fmt.Sprintf("%s.csv", tmpValue)
+			} else {
+				fileName = tmpValue
+			}
+		}
+
+		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
+		var keyList []string
+		tmpBody := make(map[string]interface{})
+		splitTag := ","
+
+		tmpBody = bodys[0]
+		for k, v := range tmpBody {
+			keyList = append(keyList, k)
+			vStr, _ := Interface2Str(v)
+			if strings.Contains(vStr, ",") {
+				splitTag = "|"
+			}
+		}
+		sort.Strings(keyList)
+
+		_, err := os.Stat(filePath)
+		if os.IsNotExist(err) {
+			keyStr := ""
+			for index, k := range keyList {
+				if index == 0 {
+					keyStr = k
+				} else {
+					keyStr = fmt.Sprintf("%s%s%s", keyStr, splitTag, k)
+				}
+
+			}
+			tStr := fmt.Sprintf("%s\n", keyStr)
+			_ = WriteDataInCSV(filePath, tStr)
+
+		}
+
+		for _, item := range bodys {
+			valueStr := ""
+			for _, key := range keyList {
+				if len(valueStr) == 0 {
+					valueStr = fmt.Sprintf("%v", item[key])
+				} else {
+					valueStr = fmt.Sprintf("%s%s%s", valueStr, splitTag, item[key])
+				}
+			}
+			tStr := fmt.Sprintf("%s\n", valueStr)
+			_ = WriteDataInCSV(filePath, tStr)
+		}
+
+	}
+
+	if isRecordXLS {
+		fileName := ""
+		tmpValue, _ := Interface2Str(xlsValue)
+		if len(tmpValue) == 0 {
+			err = fmt.Errorf("record_excel的值未定义，请先定义")
+			return
+		}
+		if !(strings.Contains(tmpValue, ".xlsx") || strings.Contains(tmpValue, ".xls")) {
+			fileName = fmt.Sprintf("%s.xlsx", tmpValue)
+		} else {
+			fileName = tmpValue
+		}
+		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
+		var keyList []string
+		tmpBody := make(map[string]interface{})
+
+		tmpBody = bodys[0]
+		for k, _ := range tmpBody {
+			keyList = append(keyList, k)
+		}
+		sort.Strings(keyList)
+
+		_, err := os.Stat(filePath)
+		if os.IsNotExist(err) {
+			for _, k := range keyList {
+				keyList = append(keyList, k)
+			}
+			_ = WriteDataInXls(filePath, keyList)
+		}
+
+		for _, item := range bodys {
+			var valueList []string
+			for _, key := range keyList {
+				vStr, _ := Interface2Str(item[key])
+				valueList = append(valueList, vStr)
+			}
+			_ = WriteDataInXls(filePath, valueList)
+		}
+
+	}
+
+	return
+}
+
+func (dataFile DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error) {
+	if len(bodys) == 0 {
+		return
+	}
+
+	var isRecordFile bool
+	var fileValue interface{}
+
+	if len(dataFile.Action) > 0 {
+		for _, item := range dataFile.Action {
+			if item.Type == "modify_file" {
+				isRecordFile = true
+				fileValue = item.Value
+				break // 如有多文件模板需要修改，到时再变更代码支持
+			}
+		}
+	}
+
+	if isRecordFile {
+		var templateName, targetName string
+		tmpValue, _ := Interface2Str(fileValue)
+		if len(tmpValue) == 0 {
+			err = fmt.Errorf("modify_file的值未定义，请先定义")
+			Logger.Error("%s", err)
+			return
+		}
+
+		tmps := strings.Split(tmpValue, ":") // name.xml:name_{uniValueVarName}.xml
+
+		tmpBody := make(map[string]interface{})
+		tmpBody = bodys[0]
+
+		if len(tmps) >= 2 {
+			templateName = tmps[0]
+			targetName = tmps[1]
+			comReg := regexp.MustCompile(`\{(.+)\}`)
+			comMatch := comReg.FindAllSubmatch([]byte(targetName), -1)
+			if len(comMatch) > 0 {
+				for i := range comMatch {
+					var ret string
+					dataName := string(comMatch[i][1])
+					rawStrDef := string(comMatch[i][0])
+					if _, ok := tmpBody[dataName]; ok {
+						ret, _ = Interface2Str(tmpBody[dataName])
+						targetName = strings.Replace(targetName, rawStrDef, ret, -1)
+					} else {
+						err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
+						Logger.Error("%s", err)
+						return
+					}
+				}
+			} else {
+				Logger.Warning("[%s] 没有需替换的数据，请核对~", targetName)
+			}
+		} else {
+			err = fmt.Errorf("modify_file的值未定义完整，请先定义， e.g: name.xml:name_{uniValueVarName}.xml")
+			Logger.Error("%s", err)
+			return
+		}
+
+		templateFilePath := fmt.Sprintf("%s/%s", UploadBasePath, templateName)
+		targetFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, targetName)
+
+		content, errTmp := ioutil.ReadFile(templateFilePath)
+		if errTmp != nil {
+			err = fmt.Errorf("Error: %s, filePath: %s", errTmp, templateFilePath)
+			Logger.Error("%s", err)
+			return
+		}
+
+		strByte := []byte(content)
+		newStr := string(content)
+		// 匹配字符串
+		comReg := regexp.MustCompile(`\{(.+)\}`)
+		comMatch := comReg.FindAllSubmatch(strByte, -1)
+		if len(comMatch) > 0 {
+			for i := range comMatch {
+				var ret string
+				dataName := string(comMatch[i][1])
+				rawStrDef := string(comMatch[i][0])
+				if _, ok := tmpBody[dataName]; ok {
+					ret, _ = Interface2Str(tmpBody[dataName])
+				} else {
+					err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
+					Logger.Error("%s", err)
+					return
+				}
+
+				if len(ret) > 0 {
+					newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+				}
+			}
+			err = ioutil.WriteFile(targetFilePath, []byte(newStr), 0644)
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+		} else {
+			Logger.Warning("[%s] 没有需要替换的数据，如有需要，请先进行占位符定义", templateFilePath)
+		}
+	}
 	return
 }
 

@@ -1,13 +1,15 @@
-### 概览
+### 文件说明
 - 概览: README.md
 - 架构图: arch/arch.md
-- 方案设计: design/blue_print.md
-- 排期计划: plan/plan.md
-- 数据库设计: design/db_design.md
-- 依赖关系设计: design/relation_design.md
-- 场景设计: design/scene_design.md
-- 参数设计: design/parameter_design.md
-- 断言设计: design/assert_design.md
-- Mock设计: design/mock_design.md
+- 系统蓝图: design/blue_print.md
+- 模糊测试说明: design/relation_design.md
+- 场景测试说明: design/scene_design.md
+- 参数应用说明: design/parameter_design.md
+- 断言应用说明: design/assert_design.md
+- Mock应用说明: design/mock_design.md
+- 性能测试设计: design/perf_design.md
+- 开发待办: plan/todo.md
 - 开发须知: development/must_know.md
+- 开发环境部署: development/dev_env.md
+- 数据库设计: design/db_design.md
 - 更新记录: update/change_log.md

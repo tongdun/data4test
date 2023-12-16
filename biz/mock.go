@@ -3,14 +3,25 @@ package biz
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 )
 
-func GetFileContent(name string) (content string) {
-	fileName := fmt.Sprintf("%s/%s", UploadBasePath, name)
+func GetFileContent(lang, name string) (content string) {
+	fileName := fmt.Sprintf("%s/%s", DownloadBasePath, name)
 	contentTmp, errTmp := ioutil.ReadFile(fileName)
-	content = string(contentTmp)
-	if errTmp != nil {
-		Logger.Error("%s", errTmp)
+	if os.IsNotExist(errTmp) {
+		fileName := fmt.Sprintf("%s/%s", UploadBasePath, name)
+		contentTmp, subErr := ioutil.ReadFile(fileName)
+		if os.IsNotExist(subErr) {
+			if errTmp != nil {
+				Logger.Error("%s", errTmp)
+			}
+			return
+		}
+		content = string(contentTmp)
+	} else {
+		content = string(contentTmp)
 	}
+	content = GetSpecialStr(lang, content)
 	return
 }

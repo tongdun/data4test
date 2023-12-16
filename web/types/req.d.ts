@@ -126,7 +126,6 @@ declare namespace Req {
         preApis: RelatedApiListModel[]
         postApis: RelatedApiListModel[]
         otherConfigs: OtherConfigListModel[]
-        // bodyMode: string
     }
 
     interface ApiHistorySaveModel {

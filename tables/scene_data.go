@@ -198,19 +198,25 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	formList.AddField("文件名", "file_name", db.Longtext, form.Url).
 		FieldHelpMsg(fileNameHelp)
 
-	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n")
-	formList.AddField("执行次数", "run_time", db.Int, form.Number).FieldDefault("1")
+	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
+		FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n")
+	formList.AddField("执行次数", "run_time", db.Int, form.Number).
+		FieldDefault("1")
 	formList.AddField("测试结果", "result", db.Varchar, form.Text)
 	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
 	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
 	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
-		FieldDefault(userName).FieldDisplayButCanNotEditWhenCreate().FieldDisplayButCanNotEditWhenUpdate()
+		FieldDefault(userName).
+		FieldDisplayButCanNotEditWhenCreate().
+		FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
 	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
 	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
-		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
+		FieldHide().
+		FieldDisableWhenCreate().
+		FieldDisableWhenUpdate()
 	formList.SetTable("scene_data").SetTitle("数据列表").SetDescription("数据列表")
 
 	formList.SetPostHook(func(values form2.Values) (err error) {

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table border :columns="actionTableColumns" :data="actionTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="actionTableColumns" :data="actionTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" border></Table>
   </div>
 </template>
 
@@ -18,7 +18,7 @@ export default class ActionList extends Vue {
   @Prop() actionListData: Req.ActionListModel[]
 
   actionTableData: any[] = []
-  actionType: string[] = ["sleep", "create_csv", "create_excel", "create_xlsx", "create_hive_table_sql"]
+  actionType: string[] = ["sleep", "create_csv", "create_excel", "create_xlsx", "record_csv", "record_xls", "record_excel", "record_xlsx", "modify_file","create_hive_table_sql"]
 
   actionTableColumns: any[] = [
     {

@@ -1,0 +1,11 @@
+<User>
+    <user category="CHILDREN">
+        <name>{name}</name>
+        <mobile>{mobile}</mobile>
+        <idcard>{certid}</idcard>
+        <email>{email}</email>
+        <age>{age}</age>
+        <remak1>此处的变量占位符名称为请求接口中body参数的变量名称</remak1>
+        <remak2>通过Mock接口http://{IP}:{PORT}/mock/file/recod_{uniVarName}_template.xml，即可获取记录的测试数据</remak2>
+    </user>
+</User>

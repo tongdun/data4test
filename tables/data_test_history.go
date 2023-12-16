@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
+	form2 "github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/icon"
@@ -157,6 +158,13 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
 	formList.SetTable("scene_data_test_history").SetTitle("数据测试历史").SetDescription("场景数据测试历史")
+
+	formList.SetPostHook(func(values form2.Values) (err error) {
+		fileName := values["content"][0]
+		id := values["id"][0]
+		err = biz.ModifyEditedData(id, fileName)
+		return
+	})
 
 	return senceDataTestHistory
 }

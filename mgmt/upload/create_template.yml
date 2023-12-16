@@ -1,0 +1,7 @@
+namae: '{Name}'
+mobile: '{Mobile}'
+email: '{Email}'
+idcard: '{IDNo}'
+age: '{Age}'
+remak1: 此处的变量占位符名称为mgmt/doc/file/design/paramter_design.md文件中设计的全部名称
+remak2: "通过Mock接口http://{IP}:{PORT}/mock/file/create_template.json?lang=en请求，占位符即会生成，返回对应的测试数据"

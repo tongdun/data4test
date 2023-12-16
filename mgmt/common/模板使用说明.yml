@@ -34,7 +34,7 @@ single:
   body: 
     uuid: '{self}'                      # '{self}'代表该值从依赖用例的输出参数中获取
     condition: '{"children":[{"logicOperator":"&&","property":"test","operator":"==","value":"1","type":"alias","description":"","propertyDataType":"","children":[],"describe":"测试","params":[{"name":"calcField","type":"string","value":""},{"name":"definitionList","type":"string","value":"{nameList}"},{"name":"conditionValue","type":"int","value":"1"}]}],"logicOperator":"&&"}'  # {nameList} 代表字符串里有需替换的变更，nameList为 ouput 中输出的参数名字，在前置的用例中有定义同名变量，即会替换
-
+    vaLue: '{FlowType}'   # 在'系统参数'菜单下，进行参数定义定义，支持多语种定
 # 定义多值参数
 multi:
   query: {}                   # GET请求时，请求参数定义，定义的值为列表
@@ -77,6 +77,9 @@ assert:
 - type: re
   source: message
   value: 成功|重复|已存在
+- type: re
+  source: message
+  value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
 - type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
   source: data-contents*uuid
   value: uuid

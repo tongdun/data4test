@@ -1,0 +1,11 @@
+#### 目录说明
+- mgmt/api: 自动生成或单独上传，放置swagger文件，与应用名称保持一致，e.g：exampleApp.json
+- mgmt/case: 放置测试用例文件，e.g: TEST_V1.0.0_测试用例.xmind, 与产品名称保持一致，e.g: 示例产品.xmind
+- mgmt/common: 放置公用文件，e.g: 模板使用说明.yml
+- mgmt/data: 数据用例的存储目录
+- mgmt/upload: 数据用例中需上传文件的存储目录
+- mgmt/doc: 系统设计的详情说明以及使用说明
+- mgmt/log: 目录下的文件自动生成，为系统运行的日志信息
+- mgmt/old: 目录下的文件自动生成，为数据用例变更升级保留的历史版本信息
+- mgmt/history: 目录下的文件自动生成，为数据用例执行的历史记录
+- mgmt/download: 动作数据生成保存目录，数据用例测试下载的文件的保存目录(todo)

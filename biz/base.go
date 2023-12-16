@@ -13,7 +13,7 @@ var (
 	LOG_LEVEL    string
 	CICD_HOST    string
 	SWAGGER_PATH string
-	//HOST_IP      string
+	HOST_IP      string
 )
 
 var (
@@ -28,7 +28,6 @@ var (
 	CommonFilePath   string
 	ApiFilePath      string
 	CaseFilePath     string
-	HOST_IP          string
 )
 
 type Config struct {

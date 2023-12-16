@@ -1,8 +1,7 @@
 ##### 支持的Mock路径由
-- http://{IP}:{PORT}/mock/file/name.xml 可返回上传文件下name.xml的内容，原样返回
-- http://{IP}:{PORT}/mock/data/slow?sleep=N  N为整数，表示等待的时间，模拟真实三方请求返回有延迟的情况，可返回JSON格式的数据
+- http://{IP}:{PORT}/mock/file/name.xml?lang=en 可返回上传文件下name.xml的内容，如果有占位符，会生成对应特征的数据,lang不传默认中文
 - http://{IP}:{PORT}/mock/data/quick  可返回JSON格式的数据，内容如下
-
+- http://{IP}:{PORT}/mock/data/slow?sleep=N  N为整数，表示等待的时间，模拟真实三方请求返回有延迟的情况，可返回JSON格式的数据
 ##### 支持的样例信息，各项信息是随机的：
 ```
 {
@@ -17,5 +16,19 @@
     sex: "XXX",
     weight: "XX",
     yesOrNo: "XX"
+}
+```
+
+- http://{IP}:{PORT}/mock/data/certid/:idno  传入大陆的身份证件号码，可返回基本信息
+```
+{
+     "city": "XX",
+     "sex": "XX",
+     "code": "XXXXX",
+     "birthday": "XX",
+     "district": "X",
+     "province": "XXXXX",
+     "address": "XX市XX市XX路XX号XX小区XX单元XX室",
+     "country": "中国",
 }
 ```

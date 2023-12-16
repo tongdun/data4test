@@ -7,8 +7,8 @@
 		"default":{
 			"host": "127.0.0.1",
 			"port": "3306",
-			"user": "root",
-			"pwd": "zaq1@WSX",
+			"user": "username",
+			"pwd": "password",
 			"name": "data4test",
 			"max_idle_con": 5,
 			"max_open_con": 10,

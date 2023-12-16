@@ -35,21 +35,21 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(160)
 	info.AddField("任务模式", "task_mode", db.Enum).
-		FieldFilterable().FieldDisplay(func(model types.FieldModel) interface{} {
-		if model.Value == "cron" {
-			return "自定义"
-		}
-		if model.Value == "once" {
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "cron" {
+				return "自定义"
+			}
+			if model.Value == "once" {
+				return "一次"
+			}
+			if model.Value == "day" {
+				return "每天"
+			}
+			if model.Value == "week" {
+				return "每周"
+			}
 			return "一次"
-		}
-		if model.Value == "day" {
-			return "每天"
-		}
-		if model.Value == "week" {
-			return "每周"
-		}
-		return "一次"
-	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
+		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
 		{Value: "cron", Text: "自定义"},
 		{Value: "once", Text: "一次"},
 		{Value: "day", Text: "每天"},
@@ -65,15 +65,15 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldHide()
 
 	info.AddField("是否并发", "threading", db.Enum).
-		FieldFilterable().FieldDisplay(func(model types.FieldModel) interface{} {
-		if model.Value == "yes" {
-			return "是"
-		}
-		if model.Value == "no" {
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "yes" {
+				return "是"
+			}
+			if model.Value == "no" {
+				return "否"
+			}
 			return "否"
-		}
-		return "否"
-	}).FieldEditAble(editType.Switch).FieldEditOptions(types.FieldOptions{
+		}).FieldEditAble(editType.Switch).FieldEditOptions(types.FieldOptions{
 		{Value: "yes", Text: "是"},
 		{Value: "no", Text: "否"},
 	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
@@ -82,15 +82,15 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	})
 
 	info.AddField("任务类型", "task_type", db.Enum).
-		FieldFilterable().FieldDisplay(func(model types.FieldModel) interface{} {
-		if model.Value == "data" {
-			return "数据"
-		}
-		if model.Value == "scene" {
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "data" {
+				return "数据"
+			}
+			if model.Value == "scene" {
+				return "场景"
+			}
 			return "场景"
-		}
-		return "场景"
-	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
+		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
 		{Value: "data", Text: "数据"},
 		{Value: "scene", Text: "场景"},
 	}).FieldWidth(60)
@@ -103,21 +103,21 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products).FieldWidth(120)
 
 	info.AddField("任务状态", "task_status", db.Enum).
-		FieldFilterable().FieldDisplay(func(model types.FieldModel) interface{} {
-		if model.Value == "running" {
-			return "运行中"
-		}
-		if model.Value == "stopped" {
-			return "已暂停"
-		}
-		if model.Value == "finished" {
-			return "已结束"
-		}
-		if model.Value == "not_started" {
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "running" {
+				return "运行中"
+			}
+			if model.Value == "stopped" {
+				return "已暂停"
+			}
+			if model.Value == "finished" {
+				return "已结束"
+			}
+			if model.Value == "not_started" {
+				return "未开始"
+			}
 			return "未开始"
-		}
-		return "未开始"
-	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
+		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "running", Text: "运行中"},
 		{Value: "stopped", Text: "已暂停"},
 		{Value: "finished", Text: "已结束"},

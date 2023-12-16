@@ -531,7 +531,9 @@ func (playbook Playbook) RunPlaybookContent(product string, privateParameter map
 	}
 
 	bodys, bodyList, err := sceneFile.GetBody(lang, outputDict)
-	_ = sceneFile.CreatActionDataOrderByKey(lang, outputDict)
+	_ = sceneFile.CreateDataOrderByKey(lang, outputDict) // 执行动作：create_xxx
+	_ = sceneFile.RecordDataOrderByKey(bodys)            // 执行动作：record_xxx
+	_ = sceneFile.ModifyFileWithData(bodys)              // 执行动作：modify_file
 
 	if err != nil {
 		Logger.Debug("outputDict: %v", outputDict)
@@ -1348,15 +1350,19 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 		}
 	}
 
-	var result string
+	runResp.TestResult = "pass"
 	for k := range playbook.Apis {
 		playbook.Tag = k
 		result, historyApi, errTmp := playbook.RunPlaybookContent(playbook.Product, privateParameter, "console")
 		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 		if errTmp != nil || result != "pass" {
 			runResp.TestResult = result
-			runResp.FailReason = fmt.Sprintf("%s", errTmp)
-			err = errTmp
+
+			if errTmp != nil {
+				err = errTmp
+				runResp.FailReason = fmt.Sprintf("%s", errTmp)
+			}
+
 			runResp.LastFile = historyApi
 			playbook.LastFile = historyApi
 			goto Record
@@ -1370,12 +1376,12 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 		if errTmp != nil {
 			err = errTmp
 		}
-	} else {
-		runResp.TestResult = result
 	}
 
 	if runResp.TestResult != "pass" {
-		runResp.FailReason = fmt.Sprintf("%s", err)
+		if err != nil {
+			runResp.FailReason = fmt.Sprintf("%s", err)
+		}
 		runResp.LastFile = path.Base(playbook.LastFile)
 	}
 

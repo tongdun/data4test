@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/gin-contrib/pprof"
-	//_ "github.com/mkevac/debugcharts"  
+	//_ "github.com/mkevac/debugcharts"
 	//_ "net/http/pprof"
 
 	_ "github.com/GoAdminGroup/go-admin/adapter/gin" // web framework adapter
@@ -611,8 +611,6 @@ func startServer() {
 		json.Unmarshal([]byte(c.PostForm("preApis")), &apiDataSave.PreApis)
 		json.Unmarshal([]byte(c.PostForm("postApis")), &apiDataSave.PostApis)
 
-		//json.Unmarshal([]byte(c.PostForm("product")), &apiDataSave.Envs)
-
 		reqDataResps, err := biz.RunApiDebugData(apiDataSave)
 		data := make(map[string]interface{})
 		if err != nil {
@@ -701,7 +699,8 @@ func startServer() {
 	// Mock数据
 	r.GET("/mock/file/:name", func(c *gin.Context) {
 		fileName := c.Param("name")
-		data := biz.GetFileContent(fileName)
+		lang := c.Query("lang")
+		data := biz.GetFileContent(lang, fileName)
 		c.String(http.StatusOK, data)
 	})
 

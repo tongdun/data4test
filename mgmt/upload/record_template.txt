@@ -1,0 +1,1 @@
+我叫{ame},今年{age},毕业{worktime}年了，我在{company}工作，很高兴认识大家~
