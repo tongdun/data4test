@@ -60,17 +60,8 @@
 #### 特征数据自动生成：
 - {Date}   生成当前日期  2006-01-02
 - {Time}   生成当前日期,带时分秒 2006-01-02 10:59:05
-- {Name}   生成姓名
-- {BankNo}  生成银行卡号
-- {Address}  生成地址
-- {Email}    生成邮箱
-- {IDNo}     生成身份证号
-- {Mobile}   生成手机号
-- {Province}  生成省份
-- {City}      生成城市
 - {DeviceType}
 - {QQ}       生成QQ号
-- {Sex}      生成性别
 - {Age}      生成年龄
 - {Diploma}   生成学历
 - {IntStr10}  生成长度为10的数字字符串
