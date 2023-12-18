@@ -10,7 +10,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -79,91 +78,6 @@ func RepeatRunPlaybook(id, mode, product, source string) (err error) {
 				return
 			}
 		}
-	}
-	return
-}
-
-func (dbScene DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err error) {
-	playbook, err := dbScene.GetPlaybook()
-
-	var runApis []string
-	var tag int
-	if len(playbook.LastFile) != 0 {
-		index := GetSliceIndex(playbook.Apis, playbook.LastFile)
-		if index != -1 {
-			runApis = playbook.Apis[index:]
-			tag = index
-		} else {
-			runApis = playbook.Apis
-		}
-	}
-
-	// 数据置为最初状态
-	if mode != "continue" {
-		runApis = playbook.Apis
-		tag = 0
-	}
-
-	if err != nil {
-		return
-	}
-	isPass := 0
-	var lastFile string
-
-	privateParameter := dbProduct.GetPrivateParameter()
-	for k := range runApis {
-		playbook.Tag = tag + k
-		subResult, historyApi, err1 := playbook.RunPlaybookContent(dbProduct.Name, privateParameter, source)
-		if err1 != nil {
-			Logger.Error("%s", err1)
-		}
-		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
-		if subResult == "fail" {
-			isPass++
-			err = playbook.WritePlaybookResult(dbScene.Id, subResult, historyApi, dbProduct.Name, source, dbProduct.EnvType, err1)
-			if err != nil {
-				Logger.Error("%s", err)
-			}
-			return
-
-		}
-
-		if err1 != nil {
-			err = err1
-			err = playbook.WritePlaybookResult(dbScene.Id, subResult, runApis[k], dbProduct.Name, source, dbProduct.EnvType, err1)
-			if err != nil {
-				Logger.Error("%s", err)
-			}
-			return
-		}
-
-		if isPass != 0 {
-			Logger.Debug("isPass: %d", isPass)
-			lastFile = runApis[k]
-		}
-
-	}
-
-	var result string
-	if isPass != 0 {
-		result = "fail"
-	} else {
-		result = "pass"
-		lastFile = ""
-	}
-
-	if dbScene.SceneType == 2 {
-		result, err = CompareResult(playbook.Apis, mode)
-	}
-
-	err = playbook.WritePlaybookResult(dbScene.Id, result, lastFile, dbProduct.Name, source, dbProduct.EnvType, err)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	if result != "pass" {
-		err = fmt.Errorf("test %v", result)
 	}
 	return
 }
@@ -255,204 +169,8 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 	return
 }
 
-func (sceneFile DataFile) GetPlUrlQuery(envConfig EnvConfig, depOutVars map[string][]interface{}) (pathUrls []string, err error) {
-	var rawUrl string
-	envInfo := []string{envConfig.Protocol, "://", envConfig.Ip, envConfig.Prepath, sceneFile.Api.Path}
-	sceneInfo := []string{sceneFile.Env.Protocol, "://", sceneFile.Env.Host, envConfig.Prepath, sceneFile.Api.Path}
-	tag := 0
-	for i := 0; i < len(envInfo); i++ {
-		if sceneFile.IsUseEnvConfig == "no" {
-			if len(sceneInfo[i]) == 0 && i != 3 {
-				tag++
-			}
-			rawUrl = rawUrl + sceneInfo[i]
-		} else {
-			if len(envInfo[i]) == 0 && i != 3 {
-				tag++
-			}
-			rawUrl = rawUrl + envInfo[i]
-		}
-	}
-
-	if tag != 0 {
-		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s，", rawUrl)
-		err = err1
-		Logger.Error("%s", err)
-		return
-	}
-
-	var rawUrls []string
-	if strings.Contains(rawUrl, "{") {
-		if sceneFile.Single.Path == nil && sceneFile.Multi.Path == nil {
-			err = fmt.Errorf("未进行Path变量定义，请先定义")
-			Logger.Error("%s", err)
-			return
-		}
-		pathVarsReg := regexp.MustCompile(`{[:alpha]]+}`)
-		var pathVars []string
-		pathVars = pathVarsReg.FindAllString(rawUrl, -1)
-		for _, v := range pathVars {
-			str1 := v[1 : len(v)-1]
-			var tag int
-			tag = 0
-			if value, ok := sceneFile.Single.Path[str1]; ok {
-				valueStr, _ := Interface2Str(value)
-				url := strings.Replace(rawUrl, v, valueStr, -1)
-				rawUrls = append(rawUrls, url)
-				tag = tag + 1
-			}
-
-			if values, ok := sceneFile.Multi.Path[str1]; ok {
-				for _, value := range values {
-					valueStr, _ := Interface2Str(value)
-					url := strings.Replace(rawUrl, v, valueStr, -1)
-					rawUrls = append(rawUrls, url)
-				}
-				tag = tag + 1
-			}
-
-			if tag == 0 {
-				err = fmt.Errorf("未找到Path:%s变量的定义值，请先进行定义", v)
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	} else {
-		rawUrls = append(rawUrls, rawUrl)
-	}
-
-	var queryStr string
-	var multiQuerys []string
-
-	var lang string
-	contentTypeRaw, _ := Interface2Str(sceneFile.Single.Header["Content-Type"])
-	if strings.Contains(contentTypeRaw, "lang=en") {
-		lang = "en"
-	}
-
-	if len(sceneFile.Single.Query) > 0 {
-		var tag int
-		tag = 0
-
-		for k, v := range sceneFile.Single.Query {
-			if v == "{self}" {
-			SingleLoop:
-				for sk, sv := range depOutVars {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", sk, sv[0])
-						queryStr = tmpStr
-					} else {
-						tag = tag + 1
-						tmpStr := fmt.Sprintf("%s=%s", sk, sv[0])
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-					Logger.Debug("queryStr: %s", queryStr)
-					break SingleLoop
-				}
-			} else {
-				strK, err1 := Interface2Str(v)
-				if err1 != nil {
-					err = err1
-					Logger.Error("%s", err)
-					return
-				}
-
-				t, subV, allDef := GetStrType(strK, lang)
-				if t == 2 {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", k, subV)
-						queryStr = tmpStr
-					} else {
-						tmpStr := fmt.Sprintf("%s=%s", k, subV)
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-				} else if t == 3 {
-					for defKey, defValue := range allDef {
-						var tmpStrV string
-						if value, ok := depOutVars[defKey]; ok {
-							tmpStrV, _ = Interface2Str(value[0])
-						} else {
-							err = fmt.Errorf("未找到变量定义，请先关联进行定义")
-							Logger.Error("%s", err)
-							return
-						}
-						newStr := strings.Replace(strK, defValue, tmpStrV, -1)
-						if tag == 0 {
-							tmpStr := fmt.Sprintf("%s=%s", k, newStr)
-							queryStr = tmpStr
-						} else {
-							tmpStr := fmt.Sprintf("%s=%s", k, newStr)
-							queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-						}
-					}
-				} else {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", k, v)
-						queryStr = tmpStr
-					} else {
-						tmpStr := fmt.Sprintf("%s=%s", k, v)
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-				}
-				tag = tag + 1
-				Logger.Debug("queryStr: %s", queryStr)
-			}
-
-		}
-
-	}
-
-	if len(sceneFile.Multi.Query) > 0 {
-		tag := 0
-		for k, v := range sceneFile.Multi.Query {
-			for _, sv := range v {
-				if len(queryStr) > 0 {
-					tmpStr := fmt.Sprintf("%s&%s=%s", queryStr, k, sv)
-					if tag == 0 {
-						multiQuerys = append(multiQuerys, tmpStr)
-					} else {
-						for lk, lv := range multiQuerys {
-							tmpLstr := fmt.Sprintf("%s&%s", lv, tmpStr)
-							multiQuerys[lk] = tmpLstr
-						}
-					}
-					tag = tag + 1
-				} else {
-					tmpStr := fmt.Sprintf("%s=%s", k, sv)
-					if tag == 0 {
-						multiQuerys = append(multiQuerys, tmpStr)
-					} else {
-						for lk, lv := range multiQuerys {
-							tmpLstr := fmt.Sprintf("%s&%s", lv, tmpStr)
-							multiQuerys[lk] = tmpLstr
-						}
-					}
-					tag = tag + 1
-				}
-			}
-		}
-	} else {
-		if len(queryStr) > 0 {
-			multiQuerys = append(multiQuerys, queryStr)
-		}
-	}
-
-	if len(multiQuerys) > 0 {
-		for _, v := range rawUrls {
-			for _, sv := range multiQuerys {
-				tmpUrl := fmt.Sprintf("%s?%s", v, sv)
-				pathUrls = append(pathUrls, tmpUrl)
-			}
-		}
-	} else {
-		pathUrls = append(pathUrls, rawUrls...)
-	}
-	Logger.Info("urlQuerys: %+v", pathUrls)
-	return pathUrls, err
-}
-
-func (playbook Playbook) RunPlaybookContent(product string, privateParameter map[string]interface{}, source string) (result, historyApi string, err error) {
-	filePath := playbook.Apis[playbook.Tag]
+func (p Playbook) RunPlaybookContent(product string, privateParameter map[string]interface{}, source string) (result, historyApi string, err error) {
+	filePath := p.Apis[p.Tag]
 
 	var sceneFile DataFile
 
@@ -484,7 +202,7 @@ func (playbook Playbook) RunPlaybookContent(product string, privateParameter map
 	}
 
 	if len(product) == 0 {
-		product = playbook.Product
+		product = p.Product
 	}
 
 	envConfig, err := GetEnvConfig(product, "scene")
@@ -521,7 +239,7 @@ func (playbook Playbook) RunPlaybookContent(product string, privateParameter map
 		return
 	}
 
-	outputDict, err := playbook.GetPalybookDepParams(privateParameter)
+	outputDict, err := p.GetPalybookDepParams(privateParameter)
 	querys, err := sceneFile.GetQuery(lang, outputDict)
 	if err != nil {
 		Logger.Debug("filePath: %v", filePath)
@@ -687,7 +405,7 @@ func (playbook Playbook) RunPlaybookContent(product string, privateParameter map
 		}
 	}
 
-	result, dst, err1 := sceneFile.GetResult(lang, source, filePath, header, playbook.IsThread, resList, outputDict, errs)
+	result, dst, err1 := sceneFile.GetResult(lang, source, filePath, header, p.IsThread, resList, outputDict, errs)
 	b, _ := IsStrEndWithTimeFormat(filePath)
 	if b {
 		dst = filePath
@@ -704,50 +422,6 @@ func (playbook Playbook) RunPlaybookContent(product string, privateParameter map
 		}
 	}
 
-	return
-}
-
-func (dbScene DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFileAfter string) {
-	tmps := strings.Split(lastFile, "/")
-	lastFileName := tmps[len(tmps)-1]
-	if len(lastFile) > 0 {
-		if strings.HasSuffix(lastFileName, ".yml") {
-			lastFileAfter = strings.Replace(tmps[len(tmps)-1], ".yml", fmt.Sprintf("_%s.yml", batchTag), -1)
-		} else if strings.HasSuffix(lastFileName, ".json") {
-			lastFileAfter = strings.Replace(tmps[len(tmps)-1], ".json", fmt.Sprintf("_%s.json", batchTag), -1)
-		}
-	} else {
-		lastFileAfter = " " // 用空格字符串刷新数据
-	}
-
-	apiList := GetListFromHtml(dbScene.ApiList)
-	lastFileTag := len(apiList)
-	for index, item := range apiList {
-		var apiAfter, dirName string
-		if item == lastFileName {
-			lastFileTag = index
-		}
-		if index > lastFileTag {
-			if index == 0 {
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item)
-			} else {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, item, item)
-			}
-		} else {
-			if strings.HasSuffix(item, ".yml") {
-				dirName = strings.Split(item, ".yml")[0]
-				apiAfter = strings.Replace(item, ".yml", fmt.Sprintf("_%s.yml", batchTag), -1)
-			} else if strings.HasSuffix(item, ".json") {
-				dirName = strings.Split(item, ".json")[0]
-				apiAfter = strings.Replace(item, ".json", fmt.Sprintf("_%s.json", batchTag), -1)
-			}
-			if index == 0 {
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s/%s\">%s</a>", dirName, apiAfter, apiAfter)
-			} else {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s/%s\">%s</a>", apiStr, dirName, apiAfter, apiAfter)
-			}
-		}
-	}
 	return
 }
 
@@ -951,26 +625,6 @@ func UpdateSceneRecord(sceneRecode DbSceneRecord) (err error) {
 	return
 }
 
-func (dbScene DbScene) GetPlaybook() (playbook Playbook, err error) {
-	var filePaths []string
-	var filePath string
-	fileNames := GetListFromHtml(dbScene.ApiList)
-	for _, fileName := range fileNames {
-		if len(fileName) == 0 {
-			continue
-		}
-		fileName = strings.Replace(fileName, "\n", "", -1)
-		filePath = fmt.Sprintf("%s/%s", DataBasePath, fileName)
-		filePaths = append(filePaths, filePath)
-	}
-
-	playbook.Apis = filePaths
-	playbook.Name = dbScene.Name
-	playbook.LastFile = dbScene.LastFile
-	playbook.Product = dbScene.Product
-	return
-}
-
 func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	var dbScene DbScene
 	var filePaths []string
@@ -1030,17 +684,6 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct DbProduct, err 
 	return
 }
 
-func (dbProduct DbProduct) GetPrivateParameter() (privateParameter map[string]interface{}) {
-	privateParameter = make(map[string]interface{})
-	if len(dbProduct.PrivateParameter) > 2 {
-		err := json.Unmarshal([]byte(dbProduct.PrivateParameter), &privateParameter)
-		if err != nil {
-			Logger.Error("%s", err)
-		}
-	}
-	return
-}
-
 func GetProductInfo(product string) (dbProduct DbProduct, err error) {
 	models.Orm.Table("product").Where("product = ?", product).Find(&dbProduct)
 	if len(dbProduct.Name) == 0 {
@@ -1049,9 +692,9 @@ func GetProductInfo(product string) (dbProduct DbProduct, err error) {
 	return
 }
 
-func (playbook Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) (outputDict map[string][]interface{}, err error) {
+func (p Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) (outputDict map[string][]interface{}, err error) {
 	var preApis []string
-	for _, item := range playbook.HistoryApis {
+	for _, item := range p.HistoryApis {
 		fullPathApi := fmt.Sprintf("%s/%s", HistoryBasePath, item)
 		preApis = append(preApis, fullPathApi)
 	}
@@ -1100,8 +743,8 @@ func (playbook Playbook) GetPalybookDepParams(privateParameter map[string]interf
 		}
 	}
 
-	if len(playbook.Apis) == 1 {
-		selfApi := playbook.Apis[playbook.Tag]
+	if len(p.Apis) == 1 {
+		selfApi := p.Apis[p.Tag]
 		var selfScene DataFile
 		var otherApis []string
 		content, err1 := ioutil.ReadFile(selfApi)
@@ -1244,14 +887,21 @@ func ImportPlaybook(id string) (newCount, oldCount int, err error) {
 
 func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err error) {
 	var dbScene DbScene
-	models.Orm.Table("playbook").Where("name = ? and product = ?", name, product).Find(&dbScene)
+	if len(product) == 0 {
+		models.Orm.Table("playbook").Where("name = ?", name).Find(&dbScene)
+	} else {
+		models.Orm.Table("playbook").Where("name = ? and product = ?", name, product).Find(&dbScene)
+	}
 	if len(dbScene.Name) == 0 {
-		err = fmt.Errorf("未找到[%v]场景，请核对", name)
-		Logger.Error("%s", err)
-		return
+		models.Orm.Table("playbook").Where("name = ?", name).Find(&dbScene)
+		if len(dbScene.Name) == 0 {
+			err = fmt.Errorf("未找到[%v]场景，请核对", name)
+			Logger.Warning("%s", err)
+			return
+		}
 	}
 	sceneInfo.Name = name
-	sceneInfo.Product = product
+	sceneInfo.Product = dbScene.Product
 	sceneInfo.RunNum = dbScene.RunTime
 	if dbScene.SceneType == 2 {
 		sceneInfo.SceneType = "比较"
@@ -1267,6 +917,15 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 		sceneInfo.DataList = append(sceneInfo.DataList, dataModel)
 	}
 
+	return
+}
+
+func GetAllPlaybook() (names []string, err error) {
+	models.Orm.Table("playbook").Order("created_at desc").Group("name").Pluck("name", &names)
+	if len(names) == 0 {
+		Logger.Warning("暂无场景数据")
+		return
+	}
 	return
 }
 

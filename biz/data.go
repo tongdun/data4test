@@ -13,6 +13,63 @@ import (
 	"strings"
 )
 
+func GetRunTimeData(id string) (dataInfo DbSceneData, appInfo EnvConfig, err error) {
+	models.Orm.Table("scene_data").Where("id = ?", id).Find(&dataInfo)
+	if len(dataInfo.ApiId) == 0 {
+		err = fmt.Errorf("未找到对应的场景数据，请核对:%s", id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	models.Orm.Table("env_config").Where("app = ?", dataInfo.App).Find(&appInfo)
+
+	return
+}
+
+func GetFilePath(id string) (app, filePath string, err error) {
+	var dbSceneData DbSceneData
+	s, _ := strconv.Atoi(id)
+	models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
+	if len(dbSceneData.ApiId) == 0 {
+		err = fmt.Errorf("未找到对应[%v]的场景数据，请核对", s)
+		Logger.Error("%s", err)
+		return
+	}
+	filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
+	app = dbSceneData.App
+	_, err = os.Stat(filePath)
+
+	content := GetStrFromHtml(dbSceneData.Content)
+
+	if os.IsNotExist(err) {
+		var df DataFile
+		var dataInfo []byte
+		var err1 error
+		if strings.HasSuffix(filePath, ".json") {
+			err = json.Unmarshal([]byte(content), &df)
+			df.Version = 1
+			dataInfo, err1 = json.MarshalIndent(df, "", "    ")
+		} else {
+			err = yaml.Unmarshal([]byte(content), &df)
+			df.Version = 1
+			dataInfo, err1 = yaml.Marshal(df)
+		}
+
+		if err1 != nil {
+			Logger.Error("%s", err1)
+			err = err1
+			return
+		}
+		err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
+		if err2 != nil {
+			Logger.Error("%s", err2)
+			err = err2
+			return
+		}
+	}
+	return
+}
+
 func CreateSceneDataFromRaw(id, mode string) (err error) {
 	var apiDefinition ApiDefinition
 	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDefinition)
@@ -904,5 +961,154 @@ func CreateFileByFileName(filePath string) (err error) {
 		return err2
 	}
 
+	return
+}
+
+func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFileAfter string) {
+	tmps := strings.Split(lastFile, "/")
+	lastFileName := tmps[len(tmps)-1]
+	if len(lastFile) > 0 {
+		if strings.HasSuffix(lastFileName, ".yml") {
+			lastFileAfter = strings.Replace(tmps[len(tmps)-1], ".yml", fmt.Sprintf("_%s.yml", batchTag), -1)
+		} else if strings.HasSuffix(lastFileName, ".json") {
+			lastFileAfter = strings.Replace(tmps[len(tmps)-1], ".json", fmt.Sprintf("_%s.json", batchTag), -1)
+		}
+	} else {
+		lastFileAfter = " " // 用空格字符串刷新数据
+	}
+
+	apiList := GetListFromHtml(ds.ApiList)
+	lastFileTag := len(apiList)
+	for index, item := range apiList {
+		var apiAfter, dirName string
+		if item == lastFileName {
+			lastFileTag = index
+		}
+		if index > lastFileTag {
+			if index == 0 {
+				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item)
+			} else {
+				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, item, item)
+			}
+		} else {
+			if strings.HasSuffix(item, ".yml") {
+				dirName = strings.Split(item, ".yml")[0]
+				apiAfter = strings.Replace(item, ".yml", fmt.Sprintf("_%s.yml", batchTag), -1)
+			} else if strings.HasSuffix(item, ".json") {
+				dirName = strings.Split(item, ".json")[0]
+				apiAfter = strings.Replace(item, ".json", fmt.Sprintf("_%s.json", batchTag), -1)
+			}
+			if index == 0 {
+				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s/%s\">%s</a>", dirName, apiAfter, apiAfter)
+			} else {
+				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s/%s\">%s</a>", apiStr, dirName, apiAfter, apiAfter)
+			}
+		}
+	}
+	return
+}
+
+func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err error) {
+	playbook, err := ds.GetPlaybook()
+
+	var runApis []string
+	var tag int
+	if len(playbook.LastFile) != 0 {
+		index := GetSliceIndex(playbook.Apis, playbook.LastFile)
+		if index != -1 {
+			runApis = playbook.Apis[index:]
+			tag = index
+		} else {
+			runApis = playbook.Apis
+		}
+	}
+
+	// 数据置为最初状态
+	if mode != "continue" {
+		runApis = playbook.Apis
+		tag = 0
+	}
+
+	if err != nil {
+		return
+	}
+	isPass := 0
+	var lastFile string
+
+	privateParameter := dbProduct.GetPrivateParameter()
+	for k := range runApis {
+		playbook.Tag = tag + k
+		subResult, historyApi, err1 := playbook.RunPlaybookContent(dbProduct.Name, privateParameter, source)
+		if err1 != nil {
+			Logger.Error("%s", err1)
+		}
+		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
+		if subResult == "fail" {
+			isPass++
+			err = playbook.WritePlaybookResult(ds.Id, subResult, historyApi, dbProduct.Name, source, dbProduct.EnvType, err1)
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+			return
+
+		}
+
+		if err1 != nil {
+			err = err1
+			err = playbook.WritePlaybookResult(ds.Id, subResult, runApis[k], dbProduct.Name, source, dbProduct.EnvType, err1)
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+			return
+		}
+
+		if isPass != 0 {
+			Logger.Debug("isPass: %d", isPass)
+			lastFile = runApis[k]
+		}
+
+	}
+
+	var result string
+	if isPass != 0 {
+		result = "fail"
+	} else {
+		result = "pass"
+		lastFile = ""
+	}
+
+	if ds.SceneType == 2 {
+		result, err = CompareResult(playbook.Apis, mode)
+	}
+
+	err = playbook.WritePlaybookResult(ds.Id, result, lastFile, dbProduct.Name, source, dbProduct.EnvType, err)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	if result != "pass" {
+		err = fmt.Errorf("test %v", result)
+	}
+	return
+}
+
+func (ds DbScene) GetPlaybook() (playbook Playbook, err error) {
+	var filePaths []string
+	var filePath string
+	fileNames := GetListFromHtml(ds.ApiList)
+	for _, fileName := range fileNames {
+		if len(fileName) == 0 {
+			continue
+		}
+		fileName = strings.Replace(fileName, "\n", "", -1)
+		filePath = fmt.Sprintf("%s/%s", DataBasePath, fileName)
+		filePaths = append(filePaths, filePath)
+	}
+
+	playbook.Apis = filePaths
+	playbook.Name = ds.Name
+	playbook.LastFile = ds.LastFile
+	playbook.Product = ds.Product
 	return
 }

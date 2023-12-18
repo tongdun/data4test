@@ -381,6 +381,21 @@ func startServer() {
 		c.JSON(http.StatusOK, data)
 	})
 
+	r.GET("/sceneList", func(c *gin.Context) {
+		data := make(map[string]interface{})
+		dataList, err := biz.GetAllPlaybook()
+		if err != nil {
+			data["code"] = 400
+			data["msg"] = "获取关联场景失败"
+		} else {
+			data["code"] = 200
+			data["msg"] = "操作成功"
+			data["data"] = dataList
+		}
+
+		c.JSON(http.StatusOK, data)
+	})
+
 	r.GET("/sceneList/:name", func(c *gin.Context) {
 		name := c.Param("name")
 		product := c.Query("product")

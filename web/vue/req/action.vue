@@ -14,7 +14,6 @@ import _ from 'lodash'
 export default class ActionList extends Vue {
   @Prop() isActions: boolean
   @Prop() isSending: boolean = false
-  // @Prop() contentType: string
   @Prop() actionListData: Req.ActionListModel[]
 
   actionTableData: any[] = []

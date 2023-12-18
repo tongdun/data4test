@@ -594,50 +594,7 @@ func GetProductsTableCount() (contents []map[string]types.InfoItem, headers type
 	}
 
 	for _, item := range infos {
-		content := make(map[string]types.InfoItem)
-
-		itemHtml := template.HTML(item)
-		content["产品名称"] = types.InfoItem{Content: itemHtml}
-		var appList []ProductApps
-		var allCount, passCount, failCount, unknownCount int
-
-		models.Orm.Table("product").Where("product = ?", item).Select("apps").Find(&appList)
-		appArray := strings.Split(appList[0].Apps, ",")
-		itemCountHtml := template.HTML(fmt.Sprintf("%d", len(appArray)))
-		content["应用个数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("playbook").Where("product = ?", item).Count(&allCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
-		content["场景个数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("playbook").Where("product = ? and result = ?", item, "pass").Count(&passCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-		content["场景状态成功数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("playbook").Where("product = ? and result = ?", item, "fail").Count(&failCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-		content["场景状态失败数"] = types.InfoItem{Content: itemCountHtml}
-
-		unknownCount = allCount - passCount - failCount
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownCount))
-		content["场景状态未知数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("scene_test_history").Where("product = ?", item).Count(&allCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
-		content["历史执行总数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("scene_test_history").Where("product = ? and result = ?", item, "pass").Count(&passCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-		content["历史执行成功数"] = types.InfoItem{Content: itemCountHtml}
-
-		models.Orm.Table("scene_test_history").Where("product = ? and result = ?", item, "fail").Count(&failCount)
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-		content["历史执行失败数"] = types.InfoItem{Content: itemCountHtml}
-
-		unknownCount = allCount - passCount - failCount
-		itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownCount))
-		content["历史执行未知数"] = types.InfoItem{Content: itemCountHtml}
-
+		content := GetSumOfProduct(item)
 		contents = append(contents, content)
 
 	}
@@ -935,8 +892,60 @@ func GetProductAppTableCount(appName string) (contents []map[string]types.InfoIt
 		unknownRunCount = allRunCount - passRunCount - failRunCount
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownRunCount))
 		content["历史执行未知数"] = types.InfoItem{Content: itemCountHtml}
-		
+
 		contents = append(contents, content)
 	}
+	return
+}
+
+func GetSumOfProduct(name string) (content map[string]types.InfoItem) {
+	itemHtml := template.HTML(name)
+	content = make(map[string]types.InfoItem)
+	content["产品名称"] = types.InfoItem{Content: itemHtml}
+	var allCount, passCount, failCount, unknownCount int
+
+	var appList []string
+	models.Orm.Table("product").Where("product = ?", name).Pluck("apps", &appList)
+	appNum := 0
+	if len(appList) > 0 {
+		if len(appList[0]) > 0 {
+			appArray := strings.Split(appList[0], ",")
+			appNum = len(appArray)
+		}
+	}
+	itemCountHtml := template.HTML(fmt.Sprintf("%d", appNum))
+	content["应用个数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("playbook").Where("product = ?", name).Count(&allCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
+	content["场景个数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("playbook").Where("product = ? and result = ?", name, "pass").Count(&passCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
+	content["场景状态成功数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("playbook").Where("product = ? and result = ?", name, "fail").Count(&failCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
+	content["场景状态失败数"] = types.InfoItem{Content: itemCountHtml}
+
+	unknownCount = allCount - passCount - failCount
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownCount))
+	content["场景状态未知数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("scene_test_history").Where("product = ?", name).Count(&allCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
+	content["历史执行总数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "pass").Count(&passCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
+	content["历史执行成功数"] = types.InfoItem{Content: itemCountHtml}
+
+	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "fail").Count(&failCount)
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
+	content["历史执行失败数"] = types.InfoItem{Content: itemCountHtml}
+
+	unknownCount = allCount - passCount - failCount
+	itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownCount))
+	content["历史执行未知数"] = types.InfoItem{Content: itemCountHtml}
 	return
 }

@@ -430,7 +430,9 @@
                     <Form-item>
                       <Row type="flex">
                         <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Input v-model="sceneSave.name" :disabled="isSending" :placeholder="$t('scene.nameTips')" style="width:50%;"></Input>
+                          <Select v-model="sceneSave.name" :placeholder="$t('scene.nameTips')" allow-create clearable filterable style="width:50%;" @on-create="onAddPlaybook"  @on-change="getSceneByName">
+                            <Option v-for="item in playbookOptions" :key="item" :value="item" allow-create>{{ item }}</Option>
+                          </Select>
                           <Select v-model="sceneSave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
                             <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
                           </Select>
@@ -741,6 +743,7 @@ export default class Tab extends Vue {
   historyMenu: any[] = []
   sceneHistoryMenu: any[] = []
   appOptions: string[] = []
+  playbookOptions: string[] = []
 
   defMethodOptions: string[] = ["get", "post", "put", "delete"]
   defApiOptions: string[] = []
@@ -1512,6 +1515,7 @@ export default class Tab extends Vue {
     this.getSceneHistoryMenu();
     this.getEnvList();
     this.getDataFileList();
+    this.getPlaybookList();
   }
 
   setDomainMode(value) {
@@ -1797,6 +1801,18 @@ export default class Tab extends Vue {
     }
   }
 
+  async getPlaybookList() {
+    if (this.playbookOptions.length===0) {
+      let result = await API.get<Req.ResponseModel[]>('/sceneList')
+      if (result.data && result.data.length > 0) {
+        this.playbookOptions = []
+        _.forEach(result.data, v => {
+          this.playbookOptions = this.playbookOptions.concat(v+'')
+        })
+      }
+    }
+  }
+
   async getMenu() {
     if (this.domainMode === "run") {
       let result = await API.get<Req.ResponseModel[]>('/allMenu?app='+this.apiRunSave.app)
@@ -2044,6 +2060,11 @@ export default class Tab extends Vue {
     this.getDataDetail()
   }
 
+  getSceneByName(val) {
+    this.sceneSave.name = val
+    this.getPlaybookDetail()
+  }
+
   selectScene(val) {
     this.sceneSave.name = val
     this.getSceneDetail()
@@ -2086,7 +2107,6 @@ export default class Tab extends Vue {
   }
 
   selectHistoryDate(val) {
-    // this.historyRunSave. = val[0]
     this.selectDate = val[0]
     this.getHistoryMenu()
   }
@@ -2243,6 +2263,23 @@ export default class Tab extends Vue {
       this.sceneSave.runNum = result.data['runNum']
     }
   }
+
+  async getPlaybookDetail() {
+    let name = this.sceneSave.name
+    let result = await API.get< Req.RelatedApiListModel[]>('/sceneList/'+name)
+    if (result.code === 200) {
+      if (result.data) {
+        this.sceneSave.dataList = []
+        _.forEach(result.data['dataList'], v => {
+          this.sceneSave.dataList = this.sceneSave.dataList.concat(v)
+        })
+        this.sceneSave.type = result.data['type']
+        this.sceneSave.runNum = result.data['runNum']
+        this.sceneSave.product = result.data['product']
+      }
+    }
+  }
+
 
   async getHistoryDetail() {
       let result = await API.get<Req.ResponseModel[]>('/historyList?fileName='+this.historyRunSave.fileName)
@@ -3132,6 +3169,10 @@ export default class Tab extends Vue {
 
   onAddApp(val) {
     this.appOptions.push(val)
+  }
+
+  onAddPlaybook(val) {
+    this.playbookOptions.push(val)
   }
 
   onAddModule(val) {

@@ -77,6 +77,10 @@ type SceneInfoModel struct {
 	DataList  []DepDataModel `json:"dataList"`
 }
 
+type PlaybookInfoModel struct {
+	Name string `json:"name"`
+}
+
 type ApiDefSaveModel struct {
 	App        string        `json:"app"`
 	Module     string        `json:"module"`

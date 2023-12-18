@@ -16,7 +16,6 @@ import (
 )
 
 func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
-
 	components := tmpl.Default()
 	colComp := components.Col()
 	apiMethods, apiCounts, colors, labels := biz.GetAPITypeCount("all", "")
@@ -41,8 +40,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		SetFooter(`<p class="text-center"><a href="/admin/info/api_definition" class="uppercase1">查看全部接口</a></p>`).
 		GetContent()
 	col1 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger1).GetContent()
-
-
 	infos, counts, colors, labels := biz.GetAPISpecCount("all", "")
 	pie2 := chartjs.Pie().
 		SetHeight(120).
@@ -66,7 +63,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	col2 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger2).GetContent()
-
 	infos, counts, colors, labels = biz.GetAutoAPICount("all", "")
 	pie3 := chartjs.Pie().
 		SetHeight(120).
@@ -94,7 +90,7 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 	row1 := components.Row().SetContent(col1 + col2 + col3).GetContent()
 
 	line1 := chartjs.Line()
-	title, monthLable, infos, monthCounts := biz.GetAppSceneDataRunCount()
+	title, monthLable, infos, monthCounts := biz.GetAppSceneDataRunCount() // 统计耗时8s
 	var lineChart1 template.HTML
 	if len(infos) == 1 {
 		lineChart1 = line1.
@@ -214,7 +210,7 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	boxcol1 := colComp.SetContent(box1).SetSize(types.SizeMD(8)).GetContent()
-	infos, counts, colors, labels = biz.GetAppAPIRunCount()
+	infos, counts, colors, labels = biz.GetAppAPIRunCount() // 统计耗时2s
 	pie4 := chartjs.Pie().
 		SetHeight(120).
 		SetLabels(infos).
@@ -238,12 +234,10 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 
 	col4 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger4).GetContent()
 
-
-	row2 := components.Row().SetContent(boxcol1+col4).GetContent()
+	row2 := components.Row().SetContent(boxcol1 + col4).GetContent()
 
 	line2 := chartjs.Line()
-	title, monthLable, infos, monthCounts = biz.GetProductSceneRunCount()
-	//biz.Logger.Debug("title: %v, monthLable: %v, infos: %v, monthCounts: %v",title, monthLable, infos, monthCounts)
+	title, monthLable, infos, monthCounts = biz.GetProductSceneRunCount() // 统计耗时6s
 	var lineChart2 template.HTML
 	if len(infos) == 1 {
 		lineChart2 = line2.
@@ -297,33 +291,33 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 			DSLineTension(0.1).
 			GetContent()
 	} else if len(infos) == 4 {
-	lineChart2 = line2.
-		SetID("sceneChart").
-		SetHeight(320).
-		SetTitle(title).
-		SetLabels(monthLable).
-		AddDataSet(infos[0]).
-		DSData(monthCounts[0]).
-		DSFill(false).
-		DSBorderColor("rgb(255, 205, 86)").
-		DSLineTension(0.1).
-		AddDataSet(infos[1]).
-		DSData(monthCounts[1]).
-		DSFill(false).
-		DSBorderColor("rgb(54, 162, 235)").
-		DSLineTension(0.1).
-		AddDataSet(infos[2]).
-		DSData(monthCounts[2]).
-		DSFill(false).
-		DSBorderColor("rgb(238,232,170)").
-		DSLineTension(0.1).
-		AddDataSet(infos[3]).
-		DSData(monthCounts[3]).
-		DSFill(false).
-		DSBorderColor("rgba(60,141,188,1)").
-		DSLineTension(0.1).
-		GetContent()
-	}  else if len(infos) >= 5 {
+		lineChart2 = line2.
+			SetID("sceneChart").
+			SetHeight(320).
+			SetTitle(title).
+			SetLabels(monthLable).
+			AddDataSet(infos[0]).
+			DSData(monthCounts[0]).
+			DSFill(false).
+			DSBorderColor("rgb(255, 205, 86)").
+			DSLineTension(0.1).
+			AddDataSet(infos[1]).
+			DSData(monthCounts[1]).
+			DSFill(false).
+			DSBorderColor("rgb(54, 162, 235)").
+			DSLineTension(0.1).
+			AddDataSet(infos[2]).
+			DSData(monthCounts[2]).
+			DSFill(false).
+			DSBorderColor("rgb(238,232,170)").
+			DSLineTension(0.1).
+			AddDataSet(infos[3]).
+			DSData(monthCounts[3]).
+			DSFill(false).
+			DSBorderColor("rgba(60,141,188,1)").
+			DSLineTension(0.1).
+			GetContent()
+	} else if len(infos) >= 5 {
 		lineChart2 = line2.
 			SetID("sceneChart").
 			SetHeight(320).
@@ -363,8 +357,7 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	boxcol2 := colComp.SetContent(box2).SetSize(types.SizeMD(8)).GetContent()
-
-	infos, counts, colors, labels = biz.GetSceneRunCount()
+	infos, counts, colors, labels = biz.GetSceneRunCount() // 统计耗时2s
 	pie5 := chartjs.Pie().
 		SetHeight(120).
 		SetLabels(infos).
@@ -384,9 +377,8 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		SetFooter(`<p class="text-center"><a href="/admin/info/sence_test_history" class="uppercase3">查看全部历史场景记录</a></p>`).
 		GetContent()
 	col5 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger5).GetContent()
-	row3 := components.Row().SetContent(boxcol2+col5).GetContent()
-
-	contents, headers := biz.GetProductsTableCount()
+	row3 := components.Row().SetContent(boxcol2 + col5).GetContent()
+	contents, headers := biz.GetProductsTableCount() // 统计耗时2s
 	tableProduct := components.Table().SetInfoList(contents).SetThead(headers).GetContent()
 	boxInfo := components.Box().
 		WithHeadBorder().
@@ -397,7 +389,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 	tableCol := colComp.SetSize(types.SizeMD(12)).SetContent(boxInfo).GetContent()
 	row4 := components.Row().SetContent(tableCol).GetContent()
-
 	contents, headers = biz.GetAppsTableCount()
 	tableApp := components.Table().SetInfoList(contents).SetThead(headers).GetContent()
 	boxAppInfo := components.Box().
@@ -409,7 +400,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 	tableAppCol := colComp.SetSize(types.SizeMD(12)).SetContent(boxAppInfo).GetContent()
 	row5 := components.Row().SetContent(tableAppCol).GetContent()
-
 
 	infos, counts, colors, labels = biz.GetSceneResultCount()
 	pie6 := chartjs.Pie().
@@ -434,7 +424,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	col6 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger6).GetContent()
-
 	infos, counts, colors, labels = biz.GetSceneDataResultCount()
 	pie7 := chartjs.Pie().
 		SetHeight(120).
@@ -458,7 +447,6 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	col7 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger7).GetContent()
-
 	infos, counts, colors, labels = biz.GetScheduleTypeCount()
 	pie8 := chartjs.Pie().
 		SetHeight(120).
@@ -482,10 +470,9 @@ func GetDashBoardContent(ctx *gin.Context) (types.Panel, error) {
 		GetContent()
 
 	col8 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger8).GetContent()
-	row6 := components.Row().SetContent(col6+col7+col8).GetContent()
-
+	row6 := components.Row().SetContent(col6 + col7 + col8).GetContent()
 	return types.Panel{
-		Content:     row1+row2+row3+row6+row5+row4,
+		Content:     row1 + row2 + row3 + row6 + row5 + row4,
 		Title:       "统计报告",
 		Description: "全局",
 	}, nil

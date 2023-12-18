@@ -295,8 +295,4 @@ declare namespace Req {
         Raw: string
         Unparsed: string[] // Raw text of unparsed attribute-value pairs
     }
-
-    interface JsonModel {
-        [key: string]: any
-    }
 }
