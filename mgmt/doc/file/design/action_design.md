@@ -25,5 +25,11 @@
   value: name.xml:{phoneno}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
 ```
 
+#### modify_file动作模板文件示例
+- [JSON类型](../../../upload/record_template.json)
+- [XML类型](../../../upload/record_template.xml)
+- [TXT类型](../../../upload/record_template.txt)
+- [YAML类型](../../../upload/record_template.yml)
+
 ##### 后续
 - 可以根据需要进行更多动作的开发
