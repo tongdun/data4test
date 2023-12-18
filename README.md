@@ -50,7 +50,7 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 [生产环境部署](./deploy/README.md)
 
 #### 开发环境
-[开发环境部署](./mgmt/doc/dev_env.md)
+[开发环境部署](./mgmt/doc/file/development/dev_env.md)
 
 #### 开发须知
 - [变更须知](./mgmt/doc/file/development/must_know.md)
@@ -81,7 +81,7 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 
 #### 近长期规划
 - [长期规划](./mgmt/doc/file/plan/blue_print.md)
-- [近期规划](./mgmt/doc/file/plan/plan.md)
+- [近期规划](./mgmt/doc/file/plan/todo.md)
 - [性能测试](./mgmt/doc/file/design/perf_design.md)  待增强，或集成k6或Jmeter或其他
 
 
