@@ -303,7 +303,9 @@
                           </Select>
                           <Input v-model="dataRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
                           <Input v-model="dataRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
-                          <Input v-model="dataRunSave.dataDesc" :disabled="isSending" :placeholder="$t('api.dataDescTips')" style="width:30%;"></Input>
+                         <Select v-model="dataRunSave.dataDesc" :placeholder="$t('api.dataDescTips')" allow-create clearable filterable style="width:30%;" @on-create="onAddDataDesc" @on-change="getDataByName">
+                            <Option v-for="item in dataDescOptions" :key="item" :value="item">{{ item }}</Option>
+                          </Select>
                         </Col>
                       </Row>
                       <br>
@@ -2630,6 +2632,126 @@ export default class Tab extends Vue {
         }
       }
     }
+  }
+
+  async getDataByName(val) {
+    let dataDesc = val
+
+    this.reqDataRespList.response = ""
+
+    if (!dataDesc) {
+      return
+    }
+    let result
+    result = await API.get<Req.ResponseModel[]>('/dataList'+"?dataDesc="+dataDesc)
+    if (result.data["path"].length===0) {
+      return
+    }
+
+
+    if (result.data["prefix"].length > 0 ) {
+      this.dataRunSave.prefix = result.data["prefix"]
+    }
+
+    if (this.dataRunSave.app.length===0) {
+      this.dataRunSave.app = result.data["app"]
+    }
+
+    this.dataRunSave.method = result.data["method"]
+    if (this.runMethodOptions.indexOf(this.dataRunSave.method)<0) {
+      this.runMethodOptions.push(this.dataRunSave.method)
+    }
+
+    this.dataRunSave.path = result.data["app"]
+    if (this.appOptions.indexOf(this.dataRunSave.app)<0) {
+      this.appOptions.push(this.dataRunSave.path)
+    }
+      this.dataRunSave.path = result.data["path"]
+      if (this.runApiOptions.indexOf(this.dataRunSave.path)<0) {
+        this.runApiOptions.push(this.dataRunSave.path)
+      }
+
+      this.dataRunSave.apiDesc = result.data["apiDesc"]
+      if (this.runApiDescOptions.indexOf(this.dataRunSave.apiDesc)<0) {
+        this.runApiDescOptions.push(this.dataRunSave.apiDesc)
+      }
+
+      this.dataRunSave.module = result.data["module"]
+      if (this.runModuleOptions.indexOf(this.dataRunSave.module)<0) {
+        this.runModuleOptions.push(this.dataRunSave.module)
+      }
+
+      this.dataRunSave.pathVars = []
+      if (result.data["pathVars"]) {
+        _.forEach(result.data["pathVars"], v => {
+          this.dataRunSave.pathVars = this.dataRunSave.pathVars.concat(v)
+
+        })
+      }
+
+      this.dataRunSave.queryVars = []
+      if (result.data["queryVars"]) {
+        _.forEach(result.data["queryVars"], v => {
+          this.dataRunSave.queryVars = this.dataRunSave.queryVars.concat(v)
+        })
+      }
+
+      this.dataRunSave.bodyVars = []
+      if (result.data["bodyVars"]) {
+        _.forEach(result.data["bodyVars"], v => {
+          this.dataRunSave.bodyVars = this.dataRunSave.bodyVars.concat(v)
+        })
+      }
+      this.dataRunSave.bodyMode = result.data["bodyMode"]
+
+      this.dataRunSave.headerVars = []
+      if (result.data["headerVars"]) {
+        _.forEach(result.data["headerVars"], v => {
+          this.dataRunSave.headerVars = this.dataRunSave.headerVars.concat(v)
+        })
+      }
+
+      this.dataRunSave.respVars = []
+      if (result.data["respVars"]) {
+        _.forEach(result.data["respVars"], v => {
+          this.dataRunSave.respVars = this.dataRunSave.respVars.concat(v)
+        })
+      }
+
+      this.dataRunSave.actions = []
+      if (result.data["actions"]) {
+        _.forEach(result.data["actions"], v => {
+          this.dataRunSave.actions = this.dataRunSave.actions.concat(v)
+        })
+      }
+
+      this.dataRunSave.asserts = []
+      if (result.data["asserts"]) {
+        _.forEach(result.data["asserts"], v => {
+          this.dataRunSave.asserts = this.dataRunSave.asserts.concat(v)
+        })
+      }
+
+      this.dataRunSave.preApis = []
+      if (result.data["preApis"]) {
+        _.forEach(result.data["preApis"], v => {
+          this.dataRunSave.preApis = this.dataRunSave.preApis.concat(v)
+        })
+      }
+
+      this.dataRunSave.postApis = []
+      if (result.data["postApis"]) {
+        _.forEach(result.data["postApis"], v => {
+          this.dataRunSave.postApis = this.dataRunSave.postApis.concat(v)
+        })
+      }
+
+      this.dataRunSave.otherConfigs = []
+      if (result.data["otherConfig"]) {
+        _.forEach(result.data["otherConfig"], v => {
+          this.dataRunSave.otherConfigs = this.dataRunSave.otherConfigs.concat(v)
+        })
+      }
   }
 
   async getApiDataDetail() {

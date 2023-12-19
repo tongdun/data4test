@@ -175,13 +175,26 @@ func startServer() {
 		data := make(map[string]interface{})
 		if len(dataDesc) == 0 {
 			appList := biz.GetDataList()
-			data["data"] = appList
+			if len(appList) == 0 {
+				data["code"] = 400
+				data["msg"] = "未关联到数据"
+			} else {
+				data["data"] = appList
+				data["code"] = 200
+				data["msg"] = "操作成功"
+			}
 		} else {
 			dataInfo := biz.GetDataInfoByDataDesc("", "", "", dataDesc)
-			data["data"] = dataInfo
+			if len(dataInfo.Path) == 0 {
+				data["code"] = 400
+				data["msg"] = "未关联到数据"
+			} else {
+				data["data"] = dataInfo
+				data["code"] = 200
+				data["msg"] = "操作成功"
+			}
 		}
-		data["code"] = 200
-		data["msg"] = "操作成功"
+
 		c.JSON(http.StatusOK, data)
 	})
 
@@ -721,7 +734,8 @@ func startServer() {
 
 	r.GET("/mock/systemParameter/:name", func(c *gin.Context) {
 		name := c.Param("name")
-		data := biz.GetValueFromSysParameter("", name)
+		lang := c.Query("lang")
+		data := biz.GetValueFromSysParameter(lang, name)
 		c.String(http.StatusOK, data)
 	})
 
