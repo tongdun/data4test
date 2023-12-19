@@ -44,3 +44,4 @@
      "country": "中国",
 }
 ```
+- http://{IP}:{PORT}/mock/systemParameter/:name?lang=en  传入系统参数中的名称，随机返回定义值列表中的一个值，支持多语种
