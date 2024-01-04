@@ -9,6 +9,8 @@
 
 ##### 使用示例：
 ```action:
+- type: sleep
+  value: 1    // 表示等待1秒种，时间可根据需要自动设置，单位为秒
 - type: create_csv
   value: all_type_data_10w:100000    // 冒号前是文件名称，冒号后是数据数量，数量不写默认生成100条
 - type: create_xls
@@ -18,7 +20,7 @@
 - type: record_csv
   value: name.csv   // 把当前请求的body数据记录到name.csv中
 - type: record_xls
-  value: name.xls   // 把当前请求的body数据记录到name.csv中
+  value: name.xls   // 把当前请求的body数据记录到name.xls中
 - type: modify_file
   value: name.xml:name_{certid}.xml  // 冒号前为模板文件，需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录
 - type: modify_file

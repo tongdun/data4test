@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table :columns="assertTableColumns" :data="assertTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" border></Table>
+    <Table :columns="assertTableColumns" :data="assertTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -8,6 +8,7 @@
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { CreateElement } from 'vue'
 import _ from 'lodash'
+import API from "../../ts/api";
 // import moment from 'moment'
 
 @Component
@@ -18,54 +19,58 @@ export default class AssertList extends Vue {
   @Prop() assertListData: Req.AssertListModel[]
 
   assertTableData: any[] = []
-  assertType: string[] = ["re", "=", "!=", ">", ">=", "<", "<=", "in", "!in", "output", "sum", "avg", "count", "not_in", "equal", "not_equal", "contain", "not_contain", "null", "not_null", "regexp"]
+  assertType: string[] = ["re", "output", "output_re","=", "!=", ">", ">=", "<", "<=", "in", "!in", "sum", "avg", "count", "not_in", "equal", "not_equal", "contain", "not_contain", "null", "not_null", "regexp"]
+  typeOptions: string[] = []
+  sourceOptions: string[] = []
+  valueOptions: string[] = []
+  assertResultOptions: string[] = []
 
   assertTableColumns: any[] = [
     {
       title: '',
       key: 'type',
-      width: 150,
+      width: 140,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
-          props: {
-            value: params.row.type,
-            transfer: true,
-            filterable: true,
-            data: this.getOptions('type'),
-            'filter-method': this.onFilterMethod
-          },
-          on: {
-            'on-change': (value: string) => {
-              this.onChange(params.index, 'type', value)
-            }
-          }
-        },
-         this.assertType.map((item) => {
-           return h('Option', {
-              props: {value: item}
-           }, item)
-         })
+              props: {
+                value: params.row.type,
+                transfer: true,
+                filterable: true,
+                data: this.getOptions('type'),
+                'filter-method': this.onFilterMethod
+              },
+              on: {
+                'on-change': (value: string) => {
+                  this.onChange(params.index, 'type', value)
+                }
+              }
+            },
+            this.assertType.map((item) => {
+              return h('Option', {
+                props: {value: item}
+              }, item)
+            })
         )
       }
     },
     {
       title: '',
-      width: 250,
+      // width: 450,
       key: 'source',
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
-              props: {
-                value: params.row.source,
-                transfer: true,
-                data: this.getOptions('source'),
-                'filter-method': this.onFilterMethod
-              },
-              on: {
-                'on-change': (value: string) => {
-                  this.onChange(params.index, 'source', value)
-                }
-              }
-            })
+          props: {
+            value: params.row.source,
+            transfer: true,
+            data: this.getOptions('source'),
+            'filter-method': this.onFilterMethod
+          },
+          on: {
+            'on-change': (value: string) => {
+              this.onChange(params.index, 'source', value)
+            }
+          }
+        })
       }
     },
     {
@@ -77,15 +82,23 @@ export default class AssertList extends Vue {
               props: {
                 value: params.row.value,
                 transfer: true,
+                filterable: true,
+                'filter-method': this.onFilterMethod,
                 data: this.getOptions("value"),
-                'filter-method': this.onFilterMethod
+                'allow-create': true,
+                'on-create': this.onAddAssertTemplateValue(params.row.value)
               },
               on: {
                 'on-change': (value: string) => {
                   this.onChange(params.index, 'value', value)
                 }
               }
-            }
+            },
+            this.valueOptions.map((item) => {
+              return h('Option', {
+                props: {label: item, value: item}
+              }, item)
+            })
         )
       }
     },
@@ -123,10 +136,7 @@ export default class AssertList extends Vue {
     }
   ]
 
-  typeOptions: string[] = []
-  sourceOptions: string[] = []
-  valueOptions: string[] = []
-  assertResultOptions: string[] = []
+
 
   created() {
     this.onLocale()
@@ -144,12 +154,18 @@ export default class AssertList extends Vue {
 
   mounted() {
     this.syncTableData()
-    // this.onRunListDataChange()
+    this.getAssertTemplateList()
   }
 
   @Watch('assertListData')
   onListDataChange() {
     this.syncTableData()
+  }
+
+  onAddAssertTemplateValue(val) {
+    if (this.valueOptions.indexOf(val)<0) {
+      this.valueOptions.push(val)
+    }
   }
 
   onFilterMethod(value: string, option: string) {
@@ -158,6 +174,7 @@ export default class AssertList extends Vue {
 
   onAdd() {
     this.assertListData.push({
+      isDisable: false,
       type: '',
       source: '',
       value: '',
@@ -188,6 +205,20 @@ export default class AssertList extends Vue {
     this.$emit('onChange')
   }
 
+  onSelect(selection: Req.AssertListModel[]) {
+    _.forEach(this.assertListData, p => {
+      p.isDisable = true
+
+      let s = _.find(selection, function(s) {
+        return p.value === s.value
+      })
+      if (s) {
+        p.isDisable = false
+      }
+    })
+    this.$emit('onChange')
+  }
+
   getOptions(type: 'type' | 'source' | 'value' | 'assertResult') {
     if (type==='type') {
       return this.typeOptions
@@ -199,6 +230,13 @@ export default class AssertList extends Vue {
       return this.assertResultOptions
     }
 
+  }
+
+  async getAssertTemplateList() {
+    let result = await API.get<Req.ResponseModel[]>('/assertTemplateList')
+    if (result.data) {
+      this.valueOptions = result.data.map(item => (item['name']));
+    }
   }
 
   syncTableData() {

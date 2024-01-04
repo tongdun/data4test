@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table border :columns="headerTableColumns" :data="headerTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="headerTableColumns" :data="headerTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" border></Table>
   </div>
 </template>
 
@@ -51,7 +51,7 @@ export default class HeaderList extends Vue {
     {
       title: '',
       width: 250,
-      key: 'source',
+      // key: 'source',
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
           props: {
@@ -70,7 +70,7 @@ export default class HeaderList extends Vue {
     },
     {
       title: '',
-      key: 'value',
+      // key: 'value',
       width: 250,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {

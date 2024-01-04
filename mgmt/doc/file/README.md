@@ -2,11 +2,13 @@
 - 概览: README.md
 - 架构图: arch/arch.md
 - 系统蓝图: design/blue_print.md
+- 功能模块: function/module_function.md
 - 模糊测试说明: design/relation_design.md
 - 场景测试说明: design/scene_design.md
 - 参数应用说明: design/parameter_design.md
 - 断言应用说明: design/assert_design.md
 - Mock应用说明: design/mock_design.md
+- 测试用例说明: design/testcase_design.md
 - 性能测试设计: design/perf_design.md
 - 开发待办: plan/todo.md
 - 开发须知: development/must_know.md

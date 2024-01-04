@@ -280,6 +280,43 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 	return
 }
 
+func (sceneAssert SceneAssert) GetOutputRe(raw []byte) (keyName string, values []interface{}, err error) {
+	// 如果校验类型不是 ouput ，则直接返回
+	if sceneAssert.Type != "output_re" {
+		return
+	}
+
+	// 如果返回的数据为空，则直接返回
+	if len(raw) == 0 {
+		err = fmt.Errorf("无返回信息，无法解析输出参数")
+		Logger.Error("%s", err)
+		return
+	}
+
+	keyName, err = Interface2Str(sceneAssert.Value)
+	if err != nil {
+		err = fmt.Errorf("正则取值定义未定义输出变量名，请核对~")
+		Logger.Error("%s", err)
+	}
+
+	// 解析定义的校验参数
+	sourceStr, err := Interface2Str(sceneAssert.Source)
+	comReg := regexp.MustCompile(sourceStr)
+	comMatch := comReg.FindAllSubmatch(raw, -1)
+	if len(comMatch) > 0 {
+		for i := range comMatch {
+			value := string(comMatch[i][1])
+			values = append(values, value)
+		}
+	} else {
+		err = fmt.Errorf("source: %s, value: %s, 正则取值定义与实际返回信息未匹配上，请核对~", sourceStr, keyName)
+		Logger.Error("%s", err)
+		return
+	}
+
+	return
+}
+
 func (sceneAssert SceneAssert) SpecialAssertValue(data map[string]interface{}) (outputDict map[string][]interface{}, err error) {
 	//支持断言非output的下标取值运算
 
@@ -621,6 +658,17 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 			Logger.Error("%s", err)
 			return
 		}
+	}
+	return
+}
+
+func GetAssertTemplateList() (depAssertTmpList []DepAssertModel) {
+	var values []string
+	models.Orm.Table("assert_template").Order("created_at desc").Pluck("name", &values)
+	for _, item := range values {
+		var depAssert DepAssertModel
+		depAssert.Name = fmt.Sprintf("{%s}", item)
+		depAssertTmpList = append(depAssertTmpList, depAssert)
 	}
 	return
 }

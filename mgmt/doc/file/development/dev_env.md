@@ -17,3 +17,8 @@
 
 ##### 登录
 - 默认用户：admin/ admin
+
+##### 其他
+- 产品列表若使用Xmind导入用例功能，环境需先安装xmind2case
+- xmind2case安装：https://pypi.org/project/xmind2case/
+- xmind文件使用比较老版本的Xmind软件保存，最新的xmind2case解析不出来

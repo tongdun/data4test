@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table :columns="actionTableColumns" :data="actionTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" border></Table>
+    <Table :columns="actionTableColumns" :data="actionTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -14,6 +14,7 @@ import _ from 'lodash'
 export default class ActionList extends Vue {
   @Prop() isActions: boolean
   @Prop() isSending: boolean = false
+  // @Prop() contentType: string
   @Prop() actionListData: Req.ActionListModel[]
 
   actionTableData: any[] = []
@@ -23,7 +24,7 @@ export default class ActionList extends Vue {
     {
       title: '',
       key: 'type',
-      width: 150,
+      width: 200,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
               props: {
@@ -50,7 +51,6 @@ export default class ActionList extends Vue {
     {
       title: '',
       key: 'value',
-      width: 500,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
               props: {

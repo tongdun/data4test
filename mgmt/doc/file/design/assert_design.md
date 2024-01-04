@@ -19,9 +19,15 @@
 - re:  正则匹配
 - regex:  正则匹配
 - regexp:  正则匹配
+- output_re:   正则匹配 ()匹配到的值取出来，如果匹配到多个值，均会进行提取
+   - e.g.1:  {type: output_re, source: '\\"taskId\\":\\"([0-9]+)\\"', value: taskId}  
+     定义输出变量，(.+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+   - e.g.2:  {type: output_re, source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"', value: taskId}  
+     定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+
 
 ##### 字段值断言类型
-- output: {type: output, source: data-contents*uuid, value: uuid}, 定义输出变量，提供给其他 API依赖使用
+- output: {type: output, source: data-contents*uuid, value: uuid}, 定义输出变量，提供给其他接口依赖使用
 - equal: {type: equal, source: data-total, value: 0}
 - not_equal: {type: not_equal, source: code, value: 200}
 - contain: {type: contain, source: message, value: 已存在}

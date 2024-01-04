@@ -17,7 +17,7 @@ const message: i18nModel = {
         isDisable: false,
         name: '参数名',
         valueType: '参数类型',
-        isMust: '是否必填',
+        isMust: '必填',
         testValue: '测试值',
         egValue: '示例值',
         desc: '描述'

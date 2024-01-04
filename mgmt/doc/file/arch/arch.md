@@ -5,6 +5,7 @@
 - 后台数据管理框架：GoAdmin  v1.2.23
 - UI组件库：Iview v2.7.4
 - 控制台开发框架：Vue 2.5.2
+- 控制台前端：在goman的前端框架上进行二次开发
 
 #### 架构图  
 <img src="./image/arch.jpg">

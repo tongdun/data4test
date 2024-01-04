@@ -1,680 +1,680 @@
 <template>
   <div class="layout">
     <div class="layout-content">
-            <Tabs :animated="false" :tab="tab.id" name="top" value="run" @on-click="setDomainMode">
-              <Tab-pane :label="defLabel" name="def" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectApiDetail"
-                      @on-open-change="selectDefModule"
+      <Tabs :animated="false" :tab="tab.id" name="top" value="run" @on-click="setDomainMode">
+        <Tab-pane :label="defLabel" name="def" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectApiDetail"
+                @on-open-change="selectDefModule"
+            >
+              <Submenu v-for="item in menuData" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <i :class="'iconfont '+item.icon"></i>
+                  <span>{{item.title}}</span>
+                </template>
+                <template v-for="list1 in item.children">
+                  <Submenu v-if="list1.children&&list1.children.length!==0" :name="list1.name">
+                    <template slot="title">
+                      <i :class="'iconfont '+'11'"></i>
+                      <span>{{list1.title}}</span>
+                    </template>
+                    <MenuItem
+                        v-for="list2 in list1.children"
+                        :key="list2.name"
+                        :name="list2.name">
+                      {{list2.title}}
+                    </MenuItem>
+                  </Submenu>
+                  <MenuItem
+                      v-else
+                      :name="list1.name"
+                      class="noChildmenuitem"
                   >
-                    <Submenu v-for="item in menuData" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <i :class="'iconfont '+item.icon"></i>
-                        <span>{{item.title}}</span>
-                      </template>
-                      <template v-for="list1 in item.children">
-                        <Submenu v-if="list1.children&&list1.children.length!==0" :name="list1.name">
-                          <template slot="title">
-                            <i :class="'iconfont '+'11'"></i>
-                            <span>{{list1.title}}</span>
-                          </template>
-                          <MenuItem
-                              v-for="list2 in list1.children"
-                              :key="list2.name"
-                              :name="list2.name">
-                            {{list2.title}}
-                          </MenuItem>
-                        </Submenu>
-                        <MenuItem
-                            v-else
-                            :name="list1.name"
-                            class="noChildmenuitem"
-                        >
-                          <i :class="'iconfont '+'11'"></i>
-                          &nbsp;&nbsp;&nbsp;
-                          {{ list1.title }}
-                        </MenuItem>
-                      </template>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                <Form>
-                  <Form-item>
-                    <Row type="flex">
-                      <Col :lg="21" :md="20" :sm="19" :xs="18">
-                        <Select v-model="apiDefSave.app" :placeholder="$t('api.appTips')" clearable style="width:10%;">
-                          <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                        <Input v-model="apiDefSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
-                        <Input v-model="apiDefSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
-                      </Col>
-                    </Row>
-                    <br>
-                    <Row type="flex">
-                      <Col :lg="21" :md="20" :sm="19" :xs="18">
-                        <Select v-model="apiDefSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:9%;" @on-create="onAddMethod">
-                          <Option v-for="item in defMethodOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                        <Input v-model="apiDefSave.prefix" :placeholder="$t('api.prefixTips')" disabled style="width:10%;"></Input>
-                        <Input v-model="apiDefSave.path" :disabled="isSending" :placeholder="$t('api.urlTips')" style="width:70%;"></Input>
-                      </Col>
-                      <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                        <Button-group>
-                          <Button :disabled="isSending" :icon="saveIcon" class="layout-button-left" type="primary" @click="onDefSave">{{$t('buttonTitle.apiSave')}}</Button>
-                        </Button-group>
-                      </Col>
-                    </Row>
-                  </Form-item>
-                  <Form-item>
-                    <Card style="width:100%;">
-                      <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                      <div>
-                        <Tabs :animated="false" name="child-name" tab="def" type="line" value="Body">
-                          <Tab-pane v-model="apiDefSave.pathVars" :label="defPathLabel" name="Path" tab="child-name">
-                            <DefList :defListData="apiDefSave.pathVars" :isSending="isSending"></DefList>
-                          </Tab-pane>
-                          <Tab-pane v-model="apiDefSave.queryVars" :label="defQuerysLabel" name="Query" tab="child-name">
-                            <DefList :defListData="apiDefSave.queryVars" :isSending="isSending"></DefList>
-                          </Tab-pane>
-                          <Tab-pane v-model="apiDefSave.bodyVars" :label="defBodyLabel" name="Body" tab="child-name">
-                            <div style="padding-bottom:10px;">
-                              <RadioGroup v-model="apiDefSave.bodyMode" size="large">
-                                <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
-                                <Radio label="application/json">application/json</Radio>
-                                <Radio label="multipart/form-data">multipart/form-data</Radio>
-                                <Radio label="raw">raw</Radio>
-                              </RadioGroup>
-                              <Select v-model="rawDefContentType" :disabled="!isDefBodyRaw" :transfer="true" style="width:220px;">
-                                <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
-                                <Option value="json">JSON(application/json)</Option>
-                                <Option value="form-data">Binary(multipart/form-data)</Option>
-                                <Option value="text">Text</Option>
-                                <Option value="text/plain">Text(text/plain)</Option>
-                                <Option value="application/javascript">Javascript(application/javascript)</Option>
-                                <Option value="application/xml">XML(application/xml)</Option>
-                                <Option value="text/xml">XML(text/xml)</Option>
-                                <Option value="text/html">HTML(text/html)</Option>
-                              </Select>
-                            </div>
-                            <DefList v-show="!isDefBodyRaw" :defListData="apiDefSave.bodyVars" :isSending="isSending"></DefList>
-                            <Input v-show="isDefBodyRaw" v-model="apiDefSave.bodyStr" :rows="10" type="textarea"></Input>
-                          </Tab-pane>
-                          <Tab-pane v-model="apiDefSave.headerVars" :label="defHeadersLabel" name="Header" tab="child-name">
-                            <DefList :defListData="apiDefSave.headerVars" :isSending="isSending"></DefList>
-                          </Tab-pane>
-                          <Tab-pane v-model="apiDefSave.respVars" :label="defRespLabel" name="Resp" tab="child-name">
-                            <DefList :defListData="apiDefSave.respVars" :isSending="isSending"></DefList>
-                          </Tab-pane>
-                        </Tabs>
-                      </div>
-                    </Card>
-                  </Form-item>
-                </Form>
-                </i-col>
-              </Tab-pane>
-
-              <Tab-pane :label="runLabel" name="run" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectRunApiDesc"
-                      @on-open-change="selectRunModule"
-                  >
-                    <Submenu v-for="item in menuData" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <i :class="'iconfont '+item.icon"></i>
-                        <span>{{item.title}}</span>
-                      </template>
-                      <template v-for="list1 in item.children">
-                        <Submenu v-if="list1.children&&list1.children.length!==0" :name="list1.name">
-                          <template slot="title">
-                            <i :class="'iconfont '+'11'"></i>
-                            <span>{{list1.title}}</span>
-                          </template>
-                          <MenuItem
-                              v-for="list2 in list1.children"
-                              :key="list2.name"
-                              :name="list2.name">
-                            {{list2.title}}
-                          </MenuItem>
-                        </Submenu>
-                        <MenuItem
-                            v-else
-                            :name="list1.name"
-                            class="noChildmenuitem"
-                        >
-                          <i :class="'iconfont '+'11'"></i>
-                          &nbsp;&nbsp;&nbsp;
-                          {{ list1.title }}
-                        </MenuItem>
-                      </template>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                <Form>
-                  <Form-item>
-                    <Row type="flex">
-                      <Col :lg="21" :md="20" :sm="19" :xs="18">
-                        <Select v-model="apiRunSave.app" :placeholder="$t('api.appTips')" clearable filterable style="width:10%;">
-                          <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                        <Input v-model="apiRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
-                        <Input v-model="apiRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
-                        <Select v-model="apiRunSave.dataDesc" :placeholder="$t('api.dataDescTips')" allow-create clearable filterable style="width:30%;" @on-create="onAddDataDesc" @on-change="getApiDataDetail">
-                          <Option v-for="item in dataDescOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                      </Col>
-                    </Row>
-                    <br>
-                    <Row type="flex">
-                      <Col :lg="21" :md="20" :sm="19" :xs="18">
-                        <Select v-model="apiRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod" @on-change="getMethodData">
-                          <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                        <Select v-model="apiRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
-                          <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                        <Input v-model="apiRunSave.hostIp" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
-                        <Input v-model="apiRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
-                        <Input v-model="apiRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
-                        <Select v-model="apiRunSave.product" :placeholder="$t('api.envTips')" clearable filterable style="width:15%;" @on-change="getApiEnv">-->
-                               <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
-                        </Select>
-                      </Col>
-
-                      <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                        <Button-group>
-                          <Button :loading="isSending" icon="android-send" type="primary" @click="apiRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
-                        </Button-group>
-                        <Button-group>
-                          <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onApiRunSave">{{$t('buttonTitle.dataSave')}}</Button>
-                        </Button-group>
-                      </Col>
-
-                    </Row>
-                  </Form-item>
-                  <Form-item>
-                    <Card style="width:100%;">
-                      <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                      <div>
-                        <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
-                          <Tab-pane :label="pathLabel" name="Path" tab="subRun">
-                            <RunList :isSending="isSending" :runListData="apiRunSave.pathVars" ></RunList>
-                          </Tab-pane>
-                          <Tab-pane :label="querysLabel" name="Query" tab="subRun">
-                            <RunList :isSending="isSending" :runListData="apiRunSave.queryVars"></RunList>
-                          </Tab-pane>
-                          <Tab-pane :label="bodyLabel" name="Body" tab="subRun">
-                            <div style="padding-bottom:10px;">
-                              <RadioGroup v-model="apiRunSave.bodyMode" size="large">
-                                <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
-                                <Radio label="application/json">application/json</Radio>
-                                <Radio label="multipart/form-data">multipart/form-data</Radio>
-                                <Radio label="raw">raw</Radio>
-                              </RadioGroup>
-                              <Select v-model="rawRunContentType" :disabled="!isRunBodyRaw" :transfer="true" style="width:220px;">
-                                <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
-                                <Option value="json">JSON(application/json)</Option>
-                                <Option value="form-data">Binary(multipart/form-data)</Option>
-                                <Option value="text">Text</Option>
-                                <Option value="text/plain">Text(text/plain)</Option>
-                                <Option value="application/javascript">Javascript(application/javascript)</Option>
-                                <Option value="application/xml">XML(application/xml)</Option>
-                                <Option value="text/xml">XML(text/xml)</Option>
-                                <Option value="text/html">HTML(text/html)</Option>
-                              </Select>
-                            </div>
-                            <RunList v-show="!isRunBodyRaw" :isSending="isSending" :runListData="apiRunSave.bodyVars"></RunList>
-                            <Input v-show="isRunBodyRaw" v-model="apiRunSave.bodyStr" :rows="10" type="textarea"></Input>
-                          </Tab-pane>
-                          <Tab-pane :label="headersLabel" name="Headers" tab="subRun">
-                            <RunList :isSending="isSending" :runListData="apiRunSave.headerVars"></RunList>
-                          </Tab-pane>
-                          <Tab-pane :label="respsLabel" name="Resps" tab="subRun">
-                            <RunList :isSending="isSending" :runListData="apiRunSave.respVars"></RunList>
-                          </Tab-pane>
-                          <Tab-pane :label="actionsLabel" name="Actions" tab="subRun">
-                            <ActionList :actionListData="apiRunSave.actions" :isSending="isSending"></ActionList>
-                          </Tab-pane>
-                          <Tab-pane :label="assertsLabel" name="Asserts" tab="subRun">
-                            <AssertList :assertListData="apiRunSave.asserts" :isSending="isSending"></AssertList>
-                          </Tab-pane>
-                          <Tab-pane :label="preApisLabel" name="PreApis" tab="subRun">
-                            <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="apiRunSave.preApis"></RelatedApiList>
-                          </Tab-pane>
-                          <Tab-pane :label="postApisLabel" name="PostApis" tab="subRun">
-                            <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="apiRunSave.postApis"></RelatedApiList>
-                          </Tab-pane>
-                          <Tab-pane :label="otherConfigLabel" name="OtherConfig" tab="subRun">
-                            <OtherConfigList :isSending="isSending" :otherConfigListData="apiRunSave.otherConfigs"></OtherConfigList>
-                          </Tab-pane>
-                        </Tabs>
-                      </div>
-                    </Card>
-                  </Form-item>
-                  <Form-item v-show="isResponse">
-                    <RespInfo :requestData="reqDataRespList"></RespInfo>
-                    <RequestInfo :requestData="reqDataRespList"></RequestInfo>
-                  </Form-item>
-                </Form>
-                </i-col>
-              </Tab-pane>
-
-              <Tab-pane :label="dataLabel" name="data" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectData"
-                      @on-open-change="selectAppData"
-                  >
-                    <Submenu v-for="item in dataMenu" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <span>{{item.title}}</span>
-                      </template>
-                          <MenuItem
-                              v-for="subItem in item.children"
-                              :key="subItem"
-                              :name="subItem">
-                            {{subItem}}
-                          </MenuItem>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                  <Form>
-                    <Form-item>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                         <Select v-model="dataRunSave.app" :placeholder="$t('api.appTips')" clearable filterable style="width:10%;">
-                               <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
+                    <i :class="'iconfont '+'11'"></i>
+                    &nbsp;&nbsp;&nbsp;
+                    {{ list1.title }}
+                  </MenuItem>
+                </template>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="apiDefSave.app" :placeholder="$t('api.appTips')" allow-create clearable filterable style="width:10%;" @on-create="onAddApp" @on-change="getAppData">
+                      <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="apiDefSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
+                    <Input v-model="apiDefSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
+                  </Col>
+                </Row>
+                <br>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="apiDefSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:9%;" @on-create="onAddMethod">
+                      <Option v-for="item in defMethodOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="apiDefSave.prefix" :placeholder="$t('api.prefixTips')" disabled style="width:10%;"></Input>
+                    <Input v-model="apiDefSave.path" :disabled="isSending" :placeholder="$t('api.urlTips')" style="width:70%;"></Input>
+                  </Col>
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" class="layout-button-left" type="primary" @click="onDefSave">{{$t('buttonTitle.apiSave')}}</Button>
+                    </Button-group>
+                  </Col>
+                </Row>
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="child-name" tab="def" type="line" value="Body">
+                      <Tab-pane v-model="apiDefSave.pathVars" :label="defPathLabel" name="Path" tab="child-name">
+                        <DefList :defListData="apiDefSave.pathVars" :isSending="isSending"></DefList>
+                      </Tab-pane>
+                      <Tab-pane v-model="apiDefSave.queryVars" :label="defQuerysLabel" name="Query" tab="child-name">
+                        <DefList :defListData="apiDefSave.queryVars" :isSending="isSending"></DefList>
+                      </Tab-pane>
+                      <Tab-pane v-model="apiDefSave.bodyVars" :label="defBodyLabel" name="Body" tab="child-name">
+                        <div style="padding-bottom:10px;">
+                          <RadioGroup v-model="apiDefSave.bodyMode" size="large">
+                            <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
+                            <Radio label="application/json">application/json</Radio>
+                            <Radio label="multipart/form-data">multipart/form-data</Radio>
+                            <Radio label="raw">raw</Radio>
+                          </RadioGroup>
+                          <Select v-model="rawDefContentType" :disabled="!isDefBodyRaw" :transfer="true" style="width:220px;">
+                            <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
+                            <Option value="json">JSON(application/json)</Option>
+                            <Option value="form-data">Binary(multipart/form-data)</Option>
+                            <Option value="text">Text</Option>
+                            <Option value="text/plain">Text(text/plain)</Option>
+                            <Option value="application/javascript">Javascript(application/javascript)</Option>
+                            <Option value="application/xml">XML(application/xml)</Option>
+                            <Option value="text/xml">XML(text/xml)</Option>
+                            <Option value="text/html">HTML(text/html)</Option>
                           </Select>
-                          <Input v-model="dataRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
-                          <Input v-model="dataRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
-                         <Select v-model="dataRunSave.dataDesc" :placeholder="$t('api.dataDescTips')" allow-create clearable filterable style="width:30%;" @on-create="onAddDataDesc" @on-change="getDataByName">
-                            <Option v-for="item in dataDescOptions" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                        </Col>
-                      </Row>
-                      <br>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Select v-model="dataRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod">
-                            <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                          <Select v-model="dataRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
-                            <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                          <Input v-model="dataRunSave.hostIp" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
-                          <Input v-model="dataRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
-                          <Input v-model="dataRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
-
-                          <Select v-model="dataRunSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:15%;" @on-change="getDataEnv">-->
-                            <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                        </Col>
-
-                        <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                          <Button-group>
-                            <Button :loading="isSending" icon="android-send" type="primary" @click="dataRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
-                          </Button-group>
-                          <Button-group>
-                            <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onDataSave">{{$t('buttonTitle.dataSave')}}</Button>
-                          </Button-group>
-                        </Col>
-
-                      </Row>
-                    </Form-item>
-                    <Form-item>
-                      <Card style="width:100%;">
-                        <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                        <div>
-                          <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
-                            <Tab-pane :label="dataPathLabel" name="Path" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="dataRunSave.pathVars" ></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataQuerysLabel" name="Query" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="dataRunSave.queryVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataBodyLabel" name="Body" tab="subRun">
-                              <div style="padding-bottom:10px;">
-                                <RadioGroup v-model="dataRunSave.bodyMode" size="large">
-                                  <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
-                                  <Radio label="application/json">application/json</Radio>
-                                  <Radio label="multipart/form-data">multipart/form-data</Radio>
-                                  <Radio label="raw">raw</Radio>
-                                </RadioGroup>
-                                <Select v-model="dataRunSave.bodyMode" :disabled="!isDataBodyRaw" :transfer="true" style="width:220px;">
-                                  <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
-                                  <Option value="json">JSON(application/json)</Option>
-                                  <Option value="form-data">Binary(multipart/form-data)</Option>
-                                  <Option value="text">Text</Option>
-                                  <Option value="text/plain">Text(text/plain)</Option>
-                                  <Option value="application/javascript">Javascript(application/javascript)</Option>
-                                  <Option value="application/xml">XML(application/xml)</Option>
-                                  <Option value="text/xml">XML(text/xml)</Option>
-                                  <Option value="text/html">HTML(text/html)</Option>
-                                </Select>
-                              </div>
-                              <DataRunList v-show="!isDataBodyRaw" :isSending="isSending" :runListData="dataRunSave.bodyVars"></DataRunList>
-                              <Input v-show="isDataBodyRaw" v-model="dataRunSave.bodyStr" :rows="10" type="textarea"></Input>
-                            </Tab-pane>
-                            <Tab-pane :label="dataHeadersLabel" name="Headers" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="dataRunSave.headerVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataRespLabel" name="Resps" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="dataRunSave.respVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataActionsLabel" name="Actions" tab="subRun">
-                              <ActionList :actionListData="dataRunSave.actions" :isSending="isSending"></ActionList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataAssertsLabel" name="Asserts" tab="subRun">
-                              <AssertList :assertListData="dataRunSave.asserts" :isSending="isSending"></AssertList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataPreApisLabel" name="PreApis" tab="subRun">
-                              <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="dataRunSave.preApis"></RelatedApiList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataPostApisLabel" name="PostApis" tab="subRun">
-                              <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="dataRunSave.postApis"></RelatedApiList>
-                            </Tab-pane>
-                            <Tab-pane :label="dataOtherConfigLabel" name="OtherConfig" tab="subRun">
-                              <OtherConfigList :isSending="isSending" :otherConfigListData="dataRunSave.otherConfigs"></OtherConfigList>
-                            </Tab-pane>
-                          </Tabs>
                         </div>
-                      </Card>
-                    </Form-item>
-                    <Form-item v-show="isResponse">
-                     <RequestInfo :requestData="dataModeReqDataRespList"></RequestInfo>
-                     <RespInfo :requestData="dataModeReqDataRespList"></RespInfo>
-                    </Form-item>
-                  </Form>
-                </i-col>
-              </Tab-pane>
+                        <DefList v-show="!isDefBodyRaw" :defListData="apiDefSave.bodyVars" :isSending="isSending"></DefList>
+                        <Input v-show="isDefBodyRaw" v-model="apiDefSave.bodyStr" :rows="10" type="textarea"></Input>
+                      </Tab-pane>
+                      <Tab-pane v-model="apiDefSave.headerVars" :label="defHeadersLabel" name="Header" tab="child-name">
+                        <DefList :defListData="apiDefSave.headerVars" :isSending="isSending"></DefList>
+                      </Tab-pane>
+                      <Tab-pane v-model="apiDefSave.respVars" :label="defRespLabel" name="Resp" tab="child-name">
+                        <DefList :defListData="apiDefSave.respVars" :isSending="isSending"></DefList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
 
-              <Tab-pane :label="sceneLabel" name="scene" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectScene"
-                      @on-open-change="selectProductScene"
+        <Tab-pane :label="runLabel" name="run" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectRunApiDesc"
+                @on-open-change="selectRunModule"
+            >
+              <Submenu v-for="item in menuData" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <i :class="'iconfont '+item.icon"></i>
+                  <span>{{item.title}}</span>
+                </template>
+                <template v-for="list1 in item.children">
+                  <Submenu v-if="list1.children&&list1.children.length!==0" :name="list1.name">
+                    <template slot="title">
+                      <i :class="'iconfont '+'11'"></i>
+                      <span>{{list1.title}}</span>
+                    </template>
+                    <MenuItem
+                        v-for="list2 in list1.children"
+                        :key="list2.name"
+                        :name="list2.name">
+                      {{list2.title}}
+                    </MenuItem>
+                  </Submenu>
+                  <MenuItem
+                      v-else
+                      :name="list1.name"
+                      class="noChildmenuitem"
                   >
-                    <Submenu v-for="item in sceneMenu" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <span>{{item.title}}</span>
-                      </template>
-                      <MenuItem
-                          v-for="subItem in item.children"
-                          :key="subItem"
-                          :name="subItem">
-                        {{subItem}}
-                      </MenuItem>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                  <Form>
-                    <Form-item>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Select v-model="sceneSave.name" :placeholder="$t('scene.nameTips')" allow-create clearable filterable style="width:50%;" @on-create="onAddPlaybook"  @on-change="getSceneByName">
-                            <Option v-for="item in playbookOptions" :key="item" :value="item" allow-create>{{ item }}</Option>
-                          </Select>
-                          <Select v-model="sceneSave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
-                            <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                          <Input v-model="sceneSave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" clearable  style="width:10%;" type='number'></Input>
-                          <Select v-model="sceneSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:20%;" @on-change="getSceneEnv">
-                            <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                        </Col>
-                        <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                          <Button-group>
-                            <Button :loading="isSending" icon="android-send" type="primary" @click="sceneRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
-                          </Button-group>
-                          <Button-group>
-                            <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onSceneSave">{{$t('buttonTitle.sceneSave')}}</Button>
-                          </Button-group>
-                        </Col>
+                    <i :class="'iconfont '+'11'"></i>
+                    &nbsp;&nbsp;&nbsp;
+                    {{ list1.title }}
+                  </MenuItem>
+                </template>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="apiRunSave.app" :placeholder="$t('api.appTips')" allow-create clearable filterable style="width:10%;"  @on-create="onAddApp" @on-change="getAppData">
+                      <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="apiRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
+                    <Input v-model="apiRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
+                    <Select v-model="apiRunSave.dataDesc" :placeholder="$t('api.dataDescTips')" allow-create clearable filterable style="width:48%;" @on-create="onAddDataDesc" @on-change="getApiDataDetail">
+                      <Option v-for="item in dataDescOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+                </Row>
+                <br>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="apiRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod" @on-change="getMethodData">
+                      <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Select v-model="apiRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
+                      <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="apiRunSave.hostIp" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
+                    <Input v-model="apiRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
+                    <Input v-model="apiRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
+                    <Select v-model="apiRunSave.product" :placeholder="$t('api.envTips')" clearable filterable style="width:15%;" @on-change="getApiEnv">-->
+                      <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
 
-                      </Row>
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :loading="isSending" icon="android-send" type="primary" @click="apiRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
+                    </Button-group>
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onApiRunSave">{{$t('buttonTitle.dataSave')}}</Button>
+                    </Button-group>
+                  </Col>
 
-                    </Form-item>
-                    <Form-item>
-                      <Card style="width:100%;">
-                        <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                        <div>
-                          <Tabs :animated="false" name="subScene" tab="scene" type="line" value="dataFile">
-                            <Tab-pane :label="datasLabel" name="dataFile" tab="subScene">
-                              <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="sceneSave.dataList"></RelatedApiList>
-                            </Tab-pane>
-                          </Tabs>
+                </Row>
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
+                      <Tab-pane :label="pathLabel" name="Path" tab="subRun">
+                        <RunList :isSending="isSending" :runListData="apiRunSave.pathVars" ></RunList>
+                      </Tab-pane>
+                      <Tab-pane :label="querysLabel" name="Query" tab="subRun">
+                        <RunList :isSending="isSending" :runListData="apiRunSave.queryVars"></RunList>
+                      </Tab-pane>
+                      <Tab-pane :label="bodyLabel" name="Body" tab="subRun">
+                        <div style="padding-bottom:10px;">
+                          <RadioGroup v-model="apiRunSave.bodyMode" size="large">
+                            <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
+                            <Radio label="application/json">application/json</Radio>
+                            <Radio label="multipart/form-data">multipart/form-data</Radio>
+                            <Radio label="raw">raw</Radio>
+                          </RadioGroup>
+                          <Select v-model="rawRunContentType" :disabled="!isRunBodyRaw" :transfer="true" style="width:220px;">
+                            <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
+                            <Option value="json">JSON(application/json)</Option>
+                            <Option value="form-data">Binary(multipart/form-data)</Option>
+                            <Option value="text">Text</Option>
+                            <Option value="text/plain">Text(text/plain)</Option>
+                            <Option value="application/javascript">Javascript(application/javascript)</Option>
+                            <Option value="application/xml">XML(application/xml)</Option>
+                            <Option value="text/xml">XML(text/xml)</Option>
+                            <Option value="text/html">HTML(text/html)</Option>
+                          </Select>
                         </div>
-                      </Card>
-                    </Form-item>
-                    <Form-item v-show="isResponse">
-                      <RequestSceneInfo :requestScene="sceneModeReqDataRespList"></RequestSceneInfo>
-                    </Form-item>
-                  </Form>
-                </i-col>
-              </Tab-pane>
+                        <RunList v-show="!isRunBodyRaw" :isSending="isSending" :runListData="apiRunSave.bodyVars"></RunList>
+                        <Input v-show="isRunBodyRaw" v-model="apiRunSave.bodyStr" :rows="10" type="textarea"></Input>
+                      </Tab-pane>
+                      <Tab-pane :label="headersLabel" name="Headers" tab="subRun">
+                        <RunList :isSending="isSending" :runListData="apiRunSave.headerVars"></RunList>
+                      </Tab-pane>
+                      <Tab-pane :label="respsLabel" name="Resps" tab="subRun">
+                        <RunList :isSending="isSending" :runListData="apiRunSave.respVars"></RunList>
+                      </Tab-pane>
+                      <Tab-pane :label="actionsLabel" name="Actions" tab="subRun">
+                        <ActionList :actionListData="apiRunSave.actions" :isSending="isSending"></ActionList>
+                      </Tab-pane>
+                      <Tab-pane :label="assertsLabel" name="Asserts" tab="subRun">
+                        <AssertList :assertListData="apiRunSave.asserts" :isSending="isSending"></AssertList>
+                      </Tab-pane>
+                      <Tab-pane :label="preApisLabel" name="PreApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="apiRunSave.preApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="postApisLabel" name="PostApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="apiRunSave.postApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="otherConfigLabel" name="OtherConfig" tab="subRun">
+                        <OtherConfigList :isSending="isSending" :otherConfigListData="apiRunSave.otherConfigs"></OtherConfigList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+              <Form-item v-show="isResponse">
+                <RespInfo :requestData="reqDataRespList"></RespInfo>
+                <RequestInfo :requestData="reqDataRespList"></RequestInfo>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
 
-              <Tab-pane :label="historyLabel" name="history" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectHistory"
-                      @on-open-change="selectHistoryDate"
-                  >
-                    <Submenu v-for="item in historyMenu" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <span>{{item.title}}</span>
-                      </template>
-                      <MenuItem
-                          v-for="subItem in item.children"
-                          :key="subItem"
-                          :name="subItem">
-                        {{subItem}}
-                      </MenuItem>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                  <Form>
-                    <Form-item>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Input v-model="historyRunSave.app" :disabled="isSending" :placeholder="$t('api.appTips')" style="width:10%;"></Input>
-                          <Input v-model="historyRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
-                          <Input v-model="historyRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
-                          <Input v-model="historyRunSave.dataDesc" :disabled="isSending" :placeholder="$t('api.dataDescTips')" style="width:30%;"></Input>
-                        </Col>
-                      </Row>
-                      <br>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Select v-model="historyRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod">
-                            <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
+        <Tab-pane :label="dataLabel" name="data" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectData"
+                @on-open-change="selectAppData"
+            >
+              <Submenu v-for="item in dataMenu" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <span>{{item.title}}</span>
+                </template>
+                <MenuItem
+                    v-for="subItem in item.children"
+                    :key="subItem"
+                    :name="subItem">
+                  {{subItem}}
+                </MenuItem>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="dataRunSave.app" :placeholder="$t('api.appTips')" allow-create clearable filterable style="width:10%;" @on-create="onAddApp" @on-change="getDataApp">
+                      <Option v-for="item in appOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="dataRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
+                    <Input v-model="dataRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
+                    <Select v-model="dataRunSave.dataDesc" :placeholder="$t('api.dataDescTips')" allow-create clearable filterable style="width:48%;" @on-create="onAddDataDesc" @on-change="getDataByName">
+                      <Option v-for="item in dataDescOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+                </Row>
+                <br>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="dataRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod">
+                      <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Select v-model="dataRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
+                      <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="dataRunSave.hostIp" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
+                    <Input v-model="dataRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
+                    <Input v-model="dataRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
+
+                    <Select v-model="dataRunSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:15%;" @on-change="getDataEnv">-->
+                      <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :loading="isSending" icon="android-send" type="primary" @click="dataRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
+                    </Button-group>
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onDataSave">{{$t('buttonTitle.dataSave')}}</Button>
+                    </Button-group>
+                  </Col>
+
+                </Row>
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
+                      <Tab-pane :label="dataPathLabel" name="Path" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="dataRunSave.pathVars" ></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataQuerysLabel" name="Query" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="dataRunSave.queryVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataBodyLabel" name="Body" tab="subRun">
+                        <div style="padding-bottom:10px;">
+                          <RadioGroup v-model="dataRunSave.bodyMode" size="large">
+                            <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
+                            <Radio label="application/json">application/json</Radio>
+                            <Radio label="multipart/form-data">multipart/form-data</Radio>
+                            <Radio label="raw">raw</Radio>
+                          </RadioGroup>
+                          <Select v-model="dataRunSave.bodyMode" :disabled="!isDataBodyRaw" :transfer="true" style="width:220px;">
+                            <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
+                            <Option value="json">JSON(application/json)</Option>
+                            <Option value="form-data">Binary(multipart/form-data)</Option>
+                            <Option value="text">Text</Option>
+                            <Option value="text/plain">Text(text/plain)</Option>
+                            <Option value="application/javascript">Javascript(application/javascript)</Option>
+                            <Option value="application/xml">XML(application/xml)</Option>
+                            <Option value="text/xml">XML(text/xml)</Option>
+                            <Option value="text/html">HTML(text/html)</Option>
                           </Select>
-                          <Select v-model="historyRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
-                            <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                          <Input v-model="historyRunSave.host" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
-                          <Input v-model="historyRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
-                          <Input v-model="historyRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
-                          <Select v-model="historyRunSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:15%;" @on-change="getHistoryEnv">-->
-                            <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                        </Col>
-
-                        <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                          <Button-group>
-                            <Button :loading="isSending" icon="android-send" type="primary" @click="historyRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
-                          </Button-group>
-
-                          <Button-group>
-                            <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onHistorySave">{{$t('buttonTitle.dataSave')}}</Button>
-                          </Button-group>
-                        </Col>
-
-                      </Row>
-                    </Form-item>
-                    <Form-item>
-                      <Card style="width:100%;">
-                        <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                        <div>
-                          <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
-                            <Tab-pane :label="historyPathLabel" name="Path" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="historyRunSave.pathVars" ></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyQuerysLabel" name="Query" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="historyRunSave.queryVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyBodyLabel" name="Body" tab="subRun">
-                              <div style="padding-bottom:10px;">
-                                <RadioGroup v-model="historyRunSave.bodyMode" size="large">
-                                  <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
-                                  <Radio label="application/json">application/json</Radio>
-                                  <Radio label="multipart/form-data">multipart/form-data</Radio>
-                                  <Radio label="raw">raw</Radio>
-                                </RadioGroup>
-                                <Select v-model="rawHistoryContentType" :disabled="!isHistoryBodyRaw" :transfer="true" style="width:220px;">
-                                  <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
-                                  <Option value="json">JSON(application/json)</Option>
-                                  <Option value="form-data">Binary(multipart/form-data)</Option>
-                                  <Option value="text">Text</Option>
-                                  <Option value="text/plain">Text(text/plain)</Option>
-                                  <Option value="application/javascript">Javascript(application/javascript)</Option>
-                                  <Option value="application/xml">XML(application/xml)</Option>
-                                  <Option value="text/xml">XML(text/xml)</Option>
-                                  <Option value="text/html">HTML(text/html)</Option>
-                                </Select>
-                              </div>
-                              <DataRunList v-show="!isHistoryBodyRaw" :isSending="isSending" :runListData="historyRunSave.bodyVars"></DataRunList>
-                              <Input v-show="isHistoryBodyRaw" v-model="historyRunSave.bodyStr" :rows="10" type="textarea"></Input>
-                            </Tab-pane>
-                            <Tab-pane :label="historyHeadersLabel" name="Headers" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="historyRunSave.headerVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyRespsLabel" name="Resps" tab="subRun">
-                              <DataRunList :isSending="isSending" :runListData="historyRunSave.respVars"></DataRunList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyActionsLabel" name="Actions" tab="subRun">
-                              <ActionList :actionListData="historyRunSave.actions" :isSending="isSending"></ActionList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyAssertsLabel" name="Asserts" tab="subRun">
-                              <AssertList :assertListData="historyRunSave.asserts" :isSending="isSending"></AssertList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyPreApisLabel" name="PreApis" tab="subRun">
-                              <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="historyRunSave.preApis"></RelatedApiList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyPostApisLabel" name="PostApis" tab="subRun">
-                              <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="historyRunSave.postApis"></RelatedApiList>
-                            </Tab-pane>
-                            <Tab-pane :label="historyOtherConfigLabel" name="OtherConfig" tab="subRun">
-                              <OtherConfigList :isSending="isSending" :otherConfigListData="historyRunSave.otherConfigs"></OtherConfigList>
-                            </Tab-pane>
-                          </Tabs>
                         </div>
-                      </Card>
-                    </Form-item>
-                    <Form-item v-show="isHistoryResponse">
-                      <RequestInfo :requestData="historyModeReqDataRespList"></RequestInfo>
-                      <RespInfo :requestData="historyModeReqDataRespList"></RespInfo>
-                    </Form-item>
-                  </Form>
-                </i-col>
-              </Tab-pane>
+                        <DataRunList v-show="!isDataBodyRaw" :isSending="isSending" :runListData="dataRunSave.bodyVars"></DataRunList>
+                        <Input v-show="isDataBodyRaw" v-model="dataRunSave.bodyStr" :rows="10" type="textarea"></Input>
+                      </Tab-pane>
+                      <Tab-pane :label="dataHeadersLabel" name="Headers" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="dataRunSave.headerVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataRespLabel" name="Resps" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="dataRunSave.respVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataActionsLabel" name="Actions" tab="subRun">
+                        <ActionList :actionListData="dataRunSave.actions" :isSending="isSending"></ActionList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataAssertsLabel" name="Asserts" tab="subRun">
+                        <AssertList :assertListData="dataRunSave.asserts" :isSending="isSending"></AssertList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataPreApisLabel" name="PreApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="dataRunSave.preApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataPostApisLabel" name="PostApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="dataRunSave.postApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="dataOtherConfigLabel" name="OtherConfig" tab="subRun">
+                        <OtherConfigList :isSending="isSending" :otherConfigListData="dataRunSave.otherConfigs"></OtherConfigList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+              <Form-item v-show="isResponse">
+                <RequestInfo :requestData="dataModeReqDataRespList"></RequestInfo>
+                <RespInfo :requestData="dataModeReqDataRespList"></RespInfo>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
 
-              <Tab-pane :label="sceneHistoryLabel" name="sceneHistory" tab="top">
-                <i-col span="4">
-                  <Menu
-                      ref="side_menu"
-                      accordion
-                      theme="light"
-                      width="auto"
-                      @on-select="selectSceneHistory"
-                      @on-open-change="selectSceneHistoryDate"
-                  >
-                    <Submenu v-for="item in sceneHistoryMenu" :key="item.name" ref="child" :name="item.name">
-                      <template slot="title">
-                        <span>{{item.title}}</span>
-                      </template>
-                      <MenuItem
-                          v-for="subItem in item.children"
-                          :key="subItem"
-                          :name="subItem">
-                        {{subItem}}
-                      </MenuItem>
-                    </Submenu>
-                  </Menu>
-                </i-col>
-                <i-col span="20">
-                  <Form>
-                    <Form-item>
-                      <Row type="flex">
-                        <Col :lg="21" :md="20" :sm="19" :xs="18">
-                          <Input v-model="sceneHistorySave.name" :disabled="isSending" :placeholder="$t('scene.nameTips')" style="width:50%;"></Input>
-                          <Select v-model="sceneHistorySave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
-                            <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
+        <Tab-pane :label="sceneLabel" name="scene" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectScene"
+                @on-open-change="selectProductScene"
+            >
+              <Submenu v-for="item in sceneMenu" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <span>{{item.title}}</span>
+                </template>
+                <MenuItem
+                    v-for="subItem in item.children"
+                    :key="subItem"
+                    :name="subItem">
+                  {{subItem}}
+                </MenuItem>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="sceneSave.name" :placeholder="$t('scene.nameTips')" allow-create clearable filterable style="width:55%;" @on-create="onAddPlaybook"  @on-change="getSceneByName">
+                      <Option v-for="item in playbookOptions" :key="item" :value="item" allow-create>{{ item }}</Option>
+                    </Select>
+                    <Select v-model="sceneSave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
+                      <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="sceneSave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" clearable  style="width:10%;" type='number'></Input>
+                    <Select v-model="sceneSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:20%;" @on-change="getSceneEnv">
+                      <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :loading="isSending" icon="android-send" type="primary" @click="sceneRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
+                    </Button-group>
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onSceneSave">{{$t('buttonTitle.sceneSave')}}</Button>
+                    </Button-group>
+                  </Col>
+
+                </Row>
+
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="subScene" tab="scene" type="line" value="dataFile">
+                      <Tab-pane :label="datasLabel" name="dataFile" tab="subScene">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="sceneSave.dataList"></RelatedApiList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+              <Form-item v-show="isResponse">
+                <RequestSceneInfo :requestScene="sceneModeReqDataRespList"></RequestSceneInfo>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
+
+        <Tab-pane :label="historyLabel" name="history" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectHistory"
+                @on-open-change="selectHistoryDate"
+            >
+              <Submenu v-for="item in historyMenu" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <span>{{item.title}}</span>
+                </template>
+                <MenuItem
+                    v-for="subItem in item.children"
+                    :key="subItem"
+                    :name="subItem">
+                  {{subItem}}
+                </MenuItem>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Input v-model="historyRunSave.app" :disabled="isSending" :placeholder="$t('api.appTips')" style="width:10%;"></Input>
+                    <Input v-model="historyRunSave.module" :disabled="isSending" :placeholder="$t('api.moduleTips')" style="width:20%;"></Input>
+                    <Input v-model="historyRunSave.apiDesc" :disabled="isSending" :placeholder="$t('api.defDescTips')" style="width:20%;"></Input>
+                    <Input v-model="historyRunSave.dataDesc" :disabled="isSending" :placeholder="$t('api.dataDescTips')" style="width:48%;"></Input>
+                  </Col>
+                </Row>
+                <br>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Select v-model="historyRunSave.method" :placeholder="$t('api.methodTips')" allow-create clearable filterable style="width:100px" @on-create="onAddMethod">
+                      <Option v-for="item in runMethodOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Select v-model="historyRunSave.prototype" :placeholder="$t('api.prototypeTips')" style="width:100px" value="http">
+                      <Option v-for="item in prototypeOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="historyRunSave.host" :placeholder="$t('api.hostIpTips')" style="width:15%;"></Input>
+                    <Input v-model="historyRunSave.prefix" :placeholder="$t('api.prefixTips')" style="width:8%;"></Input>
+                    <Input v-model="historyRunSave.path" :placeholder="$t('api.urlTips')" style="width:30%;"></Input>
+                    <Select v-model="historyRunSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:15%;" @on-change="getHistoryEnv">-->
+                      <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :loading="isSending" icon="android-send" type="primary" @click="historyRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
+                    </Button-group>
+
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onHistorySave">{{$t('buttonTitle.dataSave')}}</Button>
+                    </Button-group>
+                  </Col>
+
+                </Row>
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="subRun" tab="run" type="line" value="Body">
+                      <Tab-pane :label="historyPathLabel" name="Path" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="historyRunSave.pathVars" ></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyQuerysLabel" name="Query" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="historyRunSave.queryVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyBodyLabel" name="Body" tab="subRun">
+                        <div style="padding-bottom:10px;">
+                          <RadioGroup v-model="historyRunSave.bodyMode" size="large">
+                            <Radio label="application/x-www-form-urlencoded">application/x-www-form-urlencoded</Radio>
+                            <Radio label="application/json">application/json</Radio>
+                            <Radio label="multipart/form-data">multipart/form-data</Radio>
+                            <Radio label="raw">raw</Radio>
+                          </RadioGroup>
+                          <Select v-model="rawHistoryContentType" :disabled="!isHistoryBodyRaw" :transfer="true" style="width:220px;">
+                            <Option value="x-www-form-urlencoded">Form-Data(x-www-form-urlencoded)</Option>
+                            <Option value="json">JSON(application/json)</Option>
+                            <Option value="form-data">Binary(multipart/form-data)</Option>
+                            <Option value="text">Text</Option>
+                            <Option value="text/plain">Text(text/plain)</Option>
+                            <Option value="application/javascript">Javascript(application/javascript)</Option>
+                            <Option value="application/xml">XML(application/xml)</Option>
+                            <Option value="text/xml">XML(text/xml)</Option>
+                            <Option value="text/html">HTML(text/html)</Option>
                           </Select>
-                          <Input v-model="sceneHistorySave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" clearable  style="width:10%;" type='number'></Input>
-                          <Select v-model="sceneHistorySave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:20%;" @on-change="getSceneEnv">
-                            <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
-                          </Select>
-                        </Col>
-                        <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
-                          <Button-group>
-                            <Button :loading="isSending" icon="android-send" type="primary" @click="sceneHistoryRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
-                          </Button-group>
-                          <Button-group>
-                            <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onSceneHistorySave">{{$t('buttonTitle.sceneSave')}}</Button>
-                          </Button-group>
-                        </Col>
-
-                      </Row>
-
-                    </Form-item>
-                    <Form-item>
-                      <Card style="width:100%;">
-                        <div slot="title">{{$t('tabTitle.contentTab')}}</div>
-                        <div>
-                          <Tabs :animated="false" name="subScene" tab="scene" type="line" value="dataFile">
-                            <Tab-pane :label="datasLabel" name="dataFile" tab="subScene">
-                              <historyApiList :allDataFile="allDataFile" :historyApiListData="sceneHistorySave.dataList" :isSending="isSending"></historyApiList>
-                            </Tab-pane>
-                          </Tabs>
                         </div>
-                      </Card>
-                    </Form-item>
-                    <Form-item v-show="isSceneHistoryResponse">
-                      <RequestSceneInfo :requestScene="sceneHistoryRespList"></RequestSceneInfo>
-                    </Form-item>
-                  </Form>
-                </i-col>
-              </Tab-pane>
+                        <DataRunList v-show="!isHistoryBodyRaw" :isSending="isSending" :runListData="historyRunSave.bodyVars"></DataRunList>
+                        <Input v-show="isHistoryBodyRaw" v-model="historyRunSave.bodyStr" :rows="10" type="textarea"></Input>
+                      </Tab-pane>
+                      <Tab-pane :label="historyHeadersLabel" name="Headers" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="historyRunSave.headerVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyRespsLabel" name="Resps" tab="subRun">
+                        <DataRunList :isSending="isSending" :runListData="historyRunSave.respVars"></DataRunList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyActionsLabel" name="Actions" tab="subRun">
+                        <ActionList :actionListData="historyRunSave.actions" :isSending="isSending"></ActionList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyAssertsLabel" name="Asserts" tab="subRun">
+                        <AssertList :assertListData="historyRunSave.asserts" :isSending="isSending"></AssertList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyPreApisLabel" name="PreApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="historyRunSave.preApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyPostApisLabel" name="PostApis" tab="subRun">
+                        <RelatedApiList :allDataFile="allDataFile" :isSending="isSending" :relatedApiListData="historyRunSave.postApis"></RelatedApiList>
+                      </Tab-pane>
+                      <Tab-pane :label="historyOtherConfigLabel" name="OtherConfig" tab="subRun">
+                        <OtherConfigList :isSending="isSending" :otherConfigListData="historyRunSave.otherConfigs"></OtherConfigList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+              <Form-item v-show="isHistoryResponse">
+                <RequestInfo :requestData="historyModeReqDataRespList"></RequestInfo>
+                <RespInfo :requestData="historyModeReqDataRespList"></RespInfo>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
 
-            </Tabs>
-          </div>
+        <Tab-pane :label="sceneHistoryLabel" name="sceneHistory" tab="top">
+          <i-col span="4">
+            <Menu
+                ref="side_menu"
+                accordion
+                theme="light"
+                width="auto"
+                @on-select="selectSceneHistory"
+                @on-open-change="selectSceneHistoryDate"
+            >
+              <Submenu v-for="item in sceneHistoryMenu" :key="item.name" ref="child" :name="item.name">
+                <template slot="title">
+                  <span>{{item.title}}</span>
+                </template>
+                <MenuItem
+                    v-for="subItem in item.children"
+                    :key="subItem"
+                    :name="subItem">
+                  {{subItem}}
+                </MenuItem>
+              </Submenu>
+            </Menu>
+          </i-col>
+          <i-col span="20">
+            <Form>
+              <Form-item>
+                <Row type="flex">
+                  <Col :lg="21" :md="20" :sm="19" :xs="18">
+                    <Input v-model="sceneHistorySave.name" :disabled="isSending" :placeholder="$t('scene.nameTips')" style="width:55%;"></Input>
+                    <Select v-model="sceneHistorySave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
+                      <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                    <Input v-model="sceneHistorySave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" clearable  style="width:10%;" type='number'></Input>
+                    <Select v-model="sceneHistorySave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:20%;" @on-change="getSceneEnv">
+                      <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
+                    </Select>
+                  </Col>
+                  <Col :lg="3" :md="4" :sm="5" :xs="6" style="display:flex;justify-content:flex-end;">
+                    <Button-group>
+                      <Button :loading="isSending" icon="android-send" type="primary" @click="sceneHistoryRun">{{$t('buttonTitle.dataSend')}}</Button>&nbsp;
+                    </Button-group>
+                    <Button-group>
+                      <Button :disabled="isSending" :icon="saveIcon" type="primary" @click="onSceneHistorySave">{{$t('buttonTitle.sceneSave')}}</Button>
+                    </Button-group>
+                  </Col>
+
+                </Row>
+
+              </Form-item>
+              <Form-item>
+                <Card style="width:100%;">
+                  <div slot="title">{{$t('tabTitle.contentTab')}}</div>
+                  <div>
+                    <Tabs :animated="false" name="subScene" tab="scene" type="line" value="dataFile">
+                      <Tab-pane :label="datasLabel" name="dataFile" tab="subScene">
+                        <historyApiList :allDataFile="allDataFile" :historyApiListData="sceneHistorySave.dataList" :isSending="isSending"></historyApiList>
+                      </Tab-pane>
+                    </Tabs>
+                  </div>
+                </Card>
+              </Form-item>
+              <Form-item v-show="isSceneHistoryResponse">
+                <RequestSceneInfo :requestScene="sceneHistoryRespList"></RequestSceneInfo>
+              </Form-item>
+            </Form>
+          </i-col>
+        </Tab-pane>
+
+      </Tabs>
     </div>
+  </div>
 </template>
 <style scoped>
 .layout{
@@ -1961,6 +1961,17 @@ export default class Tab extends Vue {
     }
   }
 
+  async getDataApp() {
+    let appName = ""
+    appName = this.dataRunSave.app
+    if (appName.length>0) {
+      let result = await API.get<Req.ResponseModel[]>('/appList/'+appName)
+      if (result.data) {
+        this.dataRunSave.prefix = result.data["prefix"]
+      }
+    }
+  }
+
   async getModuleData() {
     let appName = ""
     let module = ""
@@ -2284,90 +2295,90 @@ export default class Tab extends Vue {
 
 
   async getHistoryDetail() {
-      let result = await API.get<Req.ResponseModel[]>('/historyList?fileName='+this.historyRunSave.fileName)
-      if (result.code == 200) {
-        if (result.data) {
-          this.historyRunSave.method = result.data["method"]
-          this.historyRunSave.path = result.data["path"]
-          this.historyRunSave.module = result.data["module"]
-          this.historyRunSave.prefix = result.data["prefix"]
-          this.historyRunSave.dataDesc = result.data["dataDesc"]
-          this.historyRunSave.app = result.data["app"]
-          this.historyRunSave.apiDesc = result.data["apiDesc"]
-          this.historyRunSave.prototype = result.data["prototype"]
-          this.historyRunSave.host = result.data["host"]
-          this.historyRunSave.output = result.data["output"]
-          this.historyRunSave.bodyMode = result.data["bodyMode"]
+    let result = await API.get<Req.ResponseModel[]>('/historyList?fileName='+this.historyRunSave.fileName)
+    if (result.code == 200) {
+      if (result.data) {
+        this.historyRunSave.method = result.data["method"]
+        this.historyRunSave.path = result.data["path"]
+        this.historyRunSave.module = result.data["module"]
+        this.historyRunSave.prefix = result.data["prefix"]
+        this.historyRunSave.dataDesc = result.data["dataDesc"]
+        this.historyRunSave.app = result.data["app"]
+        this.historyRunSave.apiDesc = result.data["apiDesc"]
+        this.historyRunSave.prototype = result.data["prototype"]
+        this.historyRunSave.host = result.data["host"]
+        this.historyRunSave.output = result.data["output"]
+        this.historyRunSave.bodyMode = result.data["bodyMode"]
 
-          this.historyRunSave.pathVars = []
-          if (result.data["pathVars"]) {
-            _.forEach(result.data["pathVars"], v => {
-              this.historyRunSave.pathVars = this.historyRunSave.pathVars.concat(v)
-            })
-          }
-
-          this.historyRunSave.queryVars = []
-          if (result.data["queryVars"]) {
-            _.forEach(result.data["queryVars"], v => {
-              this.historyRunSave.queryVars = this.historyRunSave.queryVars.concat(v)
-            })
-          }
-
-          this.historyRunSave.bodyVars = []
-          if (result.data["bodyVars"]) {
-            _.forEach(result.data["bodyVars"], v => {
-              this.historyRunSave.bodyVars = this.historyRunSave.bodyVars.concat(v)
-            })
-          }
-
-          this.historyRunSave.headerVars = []
-          if (result.data["headerVars"]) {
-            _.forEach(result.data["headerVars"], v => {
-              this.historyRunSave.headerVars = this.historyRunSave.headerVars.concat(v)
-            })
-          }
-
-          this.historyRunSave.respVars = []
-          if (result.data["respVars"]) {
-            _.forEach(result.data["respVars"], v => {
-              this.historyRunSave.respVars = this.historyRunSave.respVars.concat(v)
-            })
-          }
-
-          this.historyRunSave.actions = []
-          if (result.data["actions"]) {
-            _.forEach(result.data["actions"], v => {
-              this.historyRunSave.actions = this.historyRunSave.actions.concat(v)
-            })
-          }
-
-          this.historyRunSave.asserts = []
-          if (result.data["asserts"]) {
-            _.forEach(result.data["asserts"], v => {
-              this.historyRunSave.asserts = this.historyRunSave.asserts.concat(v)
-            })
-          }
-
-          this.apiRunSave.otherConfigs = []
-          if (result.data["otherConfig"]) {
-            _.forEach(result.data["otherConfig"], v => {
-              this.historyRunSave.otherConfigs = this.historyRunSave.otherConfigs.concat(v)
-            })
-          }
-
-          this.historyModeReqDataRespList.url = result.data["url"]
-          this.historyModeReqDataRespList.response = result.data["response"]
-          this.historyModeReqDataRespList.failReason = result.data["failReason"]
-          this.historyModeReqDataRespList.testResult = result.data["testResult"]
-          this.historyModeReqDataRespList.request = result.data["request"]
-          this.historyModeReqDataRespList.header = result.data["header"]
-          this.historyModeReqDataRespList.output = result.data["output"]
-
+        this.historyRunSave.pathVars = []
+        if (result.data["pathVars"]) {
+          _.forEach(result.data["pathVars"], v => {
+            this.historyRunSave.pathVars = this.historyRunSave.pathVars.concat(v)
+          })
         }
-      } else {
-         this.$Message.error({
-          duration: 10,
-          content: result.msg + '(' + result.code.toString() + ')'
+
+        this.historyRunSave.queryVars = []
+        if (result.data["queryVars"]) {
+          _.forEach(result.data["queryVars"], v => {
+            this.historyRunSave.queryVars = this.historyRunSave.queryVars.concat(v)
+          })
+        }
+
+        this.historyRunSave.bodyVars = []
+        if (result.data["bodyVars"]) {
+          _.forEach(result.data["bodyVars"], v => {
+            this.historyRunSave.bodyVars = this.historyRunSave.bodyVars.concat(v)
+          })
+        }
+
+        this.historyRunSave.headerVars = []
+        if (result.data["headerVars"]) {
+          _.forEach(result.data["headerVars"], v => {
+            this.historyRunSave.headerVars = this.historyRunSave.headerVars.concat(v)
+          })
+        }
+
+        this.historyRunSave.respVars = []
+        if (result.data["respVars"]) {
+          _.forEach(result.data["respVars"], v => {
+            this.historyRunSave.respVars = this.historyRunSave.respVars.concat(v)
+          })
+        }
+
+        this.historyRunSave.actions = []
+        if (result.data["actions"]) {
+          _.forEach(result.data["actions"], v => {
+            this.historyRunSave.actions = this.historyRunSave.actions.concat(v)
+          })
+        }
+
+        this.historyRunSave.asserts = []
+        if (result.data["asserts"]) {
+          _.forEach(result.data["asserts"], v => {
+            this.historyRunSave.asserts = this.historyRunSave.asserts.concat(v)
+          })
+        }
+
+        this.apiRunSave.otherConfigs = []
+        if (result.data["otherConfig"]) {
+          _.forEach(result.data["otherConfig"], v => {
+            this.historyRunSave.otherConfigs = this.historyRunSave.otherConfigs.concat(v)
+          })
+        }
+
+        this.historyModeReqDataRespList.url = result.data["url"]
+        this.historyModeReqDataRespList.response = result.data["response"]
+        this.historyModeReqDataRespList.failReason = result.data["failReason"]
+        this.historyModeReqDataRespList.testResult = result.data["testResult"]
+        this.historyModeReqDataRespList.request = result.data["request"]
+        this.historyModeReqDataRespList.header = result.data["header"]
+        this.historyModeReqDataRespList.output = result.data["output"]
+
+      }
+    } else {
+      this.$Message.error({
+        duration: 10,
+        content: result.msg + '(' + result.code.toString() + ')'
       })
     }
   }
@@ -2666,92 +2677,92 @@ export default class Tab extends Vue {
     if (this.appOptions.indexOf(this.dataRunSave.app)<0) {
       this.appOptions.push(this.dataRunSave.path)
     }
-      this.dataRunSave.path = result.data["path"]
-      if (this.runApiOptions.indexOf(this.dataRunSave.path)<0) {
-        this.runApiOptions.push(this.dataRunSave.path)
-      }
+    this.dataRunSave.path = result.data["path"]
+    if (this.runApiOptions.indexOf(this.dataRunSave.path)<0) {
+      this.runApiOptions.push(this.dataRunSave.path)
+    }
 
-      this.dataRunSave.apiDesc = result.data["apiDesc"]
-      if (this.runApiDescOptions.indexOf(this.dataRunSave.apiDesc)<0) {
-        this.runApiDescOptions.push(this.dataRunSave.apiDesc)
-      }
+    this.dataRunSave.apiDesc = result.data["apiDesc"]
+    if (this.runApiDescOptions.indexOf(this.dataRunSave.apiDesc)<0) {
+      this.runApiDescOptions.push(this.dataRunSave.apiDesc)
+    }
 
-      this.dataRunSave.module = result.data["module"]
-      if (this.runModuleOptions.indexOf(this.dataRunSave.module)<0) {
-        this.runModuleOptions.push(this.dataRunSave.module)
-      }
+    this.dataRunSave.module = result.data["module"]
+    if (this.runModuleOptions.indexOf(this.dataRunSave.module)<0) {
+      this.runModuleOptions.push(this.dataRunSave.module)
+    }
 
-      this.dataRunSave.pathVars = []
-      if (result.data["pathVars"]) {
-        _.forEach(result.data["pathVars"], v => {
-          this.dataRunSave.pathVars = this.dataRunSave.pathVars.concat(v)
+    this.dataRunSave.pathVars = []
+    if (result.data["pathVars"]) {
+      _.forEach(result.data["pathVars"], v => {
+        this.dataRunSave.pathVars = this.dataRunSave.pathVars.concat(v)
 
-        })
-      }
+      })
+    }
 
-      this.dataRunSave.queryVars = []
-      if (result.data["queryVars"]) {
-        _.forEach(result.data["queryVars"], v => {
-          this.dataRunSave.queryVars = this.dataRunSave.queryVars.concat(v)
-        })
-      }
+    this.dataRunSave.queryVars = []
+    if (result.data["queryVars"]) {
+      _.forEach(result.data["queryVars"], v => {
+        this.dataRunSave.queryVars = this.dataRunSave.queryVars.concat(v)
+      })
+    }
 
-      this.dataRunSave.bodyVars = []
-      if (result.data["bodyVars"]) {
-        _.forEach(result.data["bodyVars"], v => {
-          this.dataRunSave.bodyVars = this.dataRunSave.bodyVars.concat(v)
-        })
-      }
-      this.dataRunSave.bodyMode = result.data["bodyMode"]
+    this.dataRunSave.bodyVars = []
+    if (result.data["bodyVars"]) {
+      _.forEach(result.data["bodyVars"], v => {
+        this.dataRunSave.bodyVars = this.dataRunSave.bodyVars.concat(v)
+      })
+    }
+    this.dataRunSave.bodyMode = result.data["bodyMode"]
 
-      this.dataRunSave.headerVars = []
-      if (result.data["headerVars"]) {
-        _.forEach(result.data["headerVars"], v => {
-          this.dataRunSave.headerVars = this.dataRunSave.headerVars.concat(v)
-        })
-      }
+    this.dataRunSave.headerVars = []
+    if (result.data["headerVars"]) {
+      _.forEach(result.data["headerVars"], v => {
+        this.dataRunSave.headerVars = this.dataRunSave.headerVars.concat(v)
+      })
+    }
 
-      this.dataRunSave.respVars = []
-      if (result.data["respVars"]) {
-        _.forEach(result.data["respVars"], v => {
-          this.dataRunSave.respVars = this.dataRunSave.respVars.concat(v)
-        })
-      }
+    this.dataRunSave.respVars = []
+    if (result.data["respVars"]) {
+      _.forEach(result.data["respVars"], v => {
+        this.dataRunSave.respVars = this.dataRunSave.respVars.concat(v)
+      })
+    }
 
-      this.dataRunSave.actions = []
-      if (result.data["actions"]) {
-        _.forEach(result.data["actions"], v => {
-          this.dataRunSave.actions = this.dataRunSave.actions.concat(v)
-        })
-      }
+    this.dataRunSave.actions = []
+    if (result.data["actions"]) {
+      _.forEach(result.data["actions"], v => {
+        this.dataRunSave.actions = this.dataRunSave.actions.concat(v)
+      })
+    }
 
-      this.dataRunSave.asserts = []
-      if (result.data["asserts"]) {
-        _.forEach(result.data["asserts"], v => {
-          this.dataRunSave.asserts = this.dataRunSave.asserts.concat(v)
-        })
-      }
+    this.dataRunSave.asserts = []
+    if (result.data["asserts"]) {
+      _.forEach(result.data["asserts"], v => {
+        this.dataRunSave.asserts = this.dataRunSave.asserts.concat(v)
+      })
+    }
 
-      this.dataRunSave.preApis = []
-      if (result.data["preApis"]) {
-        _.forEach(result.data["preApis"], v => {
-          this.dataRunSave.preApis = this.dataRunSave.preApis.concat(v)
-        })
-      }
+    this.dataRunSave.preApis = []
+    if (result.data["preApis"]) {
+      _.forEach(result.data["preApis"], v => {
+        this.dataRunSave.preApis = this.dataRunSave.preApis.concat(v)
+      })
+    }
 
-      this.dataRunSave.postApis = []
-      if (result.data["postApis"]) {
-        _.forEach(result.data["postApis"], v => {
-          this.dataRunSave.postApis = this.dataRunSave.postApis.concat(v)
-        })
-      }
+    this.dataRunSave.postApis = []
+    if (result.data["postApis"]) {
+      _.forEach(result.data["postApis"], v => {
+        this.dataRunSave.postApis = this.dataRunSave.postApis.concat(v)
+      })
+    }
 
-      this.dataRunSave.otherConfigs = []
-      if (result.data["otherConfig"]) {
-        _.forEach(result.data["otherConfig"], v => {
-          this.dataRunSave.otherConfigs = this.dataRunSave.otherConfigs.concat(v)
-        })
-      }
+    this.dataRunSave.otherConfigs = []
+    if (result.data["otherConfig"]) {
+      _.forEach(result.data["otherConfig"], v => {
+        this.dataRunSave.otherConfigs = this.dataRunSave.otherConfigs.concat(v)
+      })
+    }
   }
 
   async getApiDataDetail() {

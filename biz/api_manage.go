@@ -263,7 +263,12 @@ func SaveApiData(apiModel ApiDataSaveModel) (err error) {
 	if tagNum >= 2 {
 		fullName = apiModel.DataDesc
 	} else {
-		fullName = fmt.Sprintf("%s-%s-%s", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+		tagNum = strings.Count(apiModel.DataDesc, "_")
+		if tagNum >= 2 {
+			fullName = apiModel.DataDesc
+		} else {
+			fullName = fmt.Sprintf("%s-%s-%s", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+		}
 	}
 
 	sceneData.Name = fullName
@@ -462,10 +467,6 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 		runResp.FailReason = fmt.Sprintf("%v", err)
 	}
 
-	if err != nil {
-		return
-	}
-
 	envType, err := GetEnvTypeByName(apiModel.Product)
 	if err != nil {
 		return
@@ -475,6 +476,7 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 	filePath := fmt.Sprintf("%s", dst)
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
+		Logger.Debug("filePath: %s", filePath)
 		Logger.Error("%s", err)
 		return
 	}

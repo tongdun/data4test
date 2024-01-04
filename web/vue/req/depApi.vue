@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table :columns="relatedApiTableColumns" :data="relatedApiTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" border></Table>
+    <Table :columns="relatedApiTableColumns" :data="relatedApiTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -24,7 +24,6 @@ export default class depApiList extends Vue {
     {
       title: '关联数据',
       key: 'dataFile',
-      width: 800,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
               props: {

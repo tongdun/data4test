@@ -905,7 +905,11 @@ func GetSumOfProduct(name string) (content map[string]types.InfoItem) {
 	var allCount, passCount, failCount, unknownCount int
 
 	var appList []string
-	models.Orm.Table("product").Where("product = ?", name).Pluck("apps", &appList)
+	errTmp := models.Orm.Table("product").Where("product = ?", name).Pluck("apps", &appList)
+	if errTmp != nil {
+		Logger.Warning("产品[%s]未关联应用，请核对~", name)
+		return
+	}
 	appNum := 0
 	if len(appList) > 0 {
 		if len(appList[0]) > 0 {
@@ -913,6 +917,7 @@ func GetSumOfProduct(name string) (content map[string]types.InfoItem) {
 			appNum = len(appArray)
 		}
 	}
+	
 	itemCountHtml := template.HTML(fmt.Sprintf("%d", appNum))
 	content["应用个数"] = types.InfoItem{Content: itemCountHtml}
 

@@ -1,6 +1,6 @@
 ##### 支持的Mock路径由
 - http://{IP}:{PORT}/mock/file/name.xml?lang=en 
-  - 可返回上传文件下name.xml的内容，如果有占位符，会生成对应特征的数据,lang不传默认中文
+  - 可返回上传文件下name.xml的内容，如果name.xml中有占位符，会生成对应特征的数据,lang不传默认中文
   - 返回的文件支持.xml, .json, .yml, .txt等文本类型的文件
   - 返回文件模板示例: 
     - [JSON类型](../../../upload/create_template.json)
@@ -31,7 +31,7 @@
 ```
 
 - http://{IP}:{PORT}/mock/data/certid/:idno  传入大陆的身份证件号码，可返回基本信息
-  - 生成的信息均为测试数据，不具生活实际意义参考
+##### 生成的信息均为测试数据，不具有实际意义参考
 ```
 {
      "city": "XX",

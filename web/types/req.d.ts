@@ -22,6 +22,7 @@ declare namespace Req {
     }
 
     interface AssertListModel {
+        isDisable: boolean
         type: string
         source: string
         value: string
@@ -126,6 +127,7 @@ declare namespace Req {
         preApis: RelatedApiListModel[]
         postApis: RelatedApiListModel[]
         otherConfigs: OtherConfigListModel[]
+        // bodyMode: string
     }
 
     interface ApiHistorySaveModel {
@@ -294,5 +296,9 @@ declare namespace Req {
         HttpOnly: boolean
         Raw: string
         Unparsed: string[] // Raw text of unparsed attribute-value pairs
+    }
+
+    interface JsonModel {
+        [key: string]: any
     }
 }

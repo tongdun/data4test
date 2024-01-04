@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table border :columns="defTableColumns" :data="defTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="defTableColumns" :data="defTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -23,7 +23,7 @@ export default class DefList extends Vue {
     {
       title: '',
       key: 'name',
-      width: 160,
+      width: 150,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
           props: {
@@ -46,18 +46,18 @@ export default class DefList extends Vue {
       key: 'valueType',
       render: (h: CreateElement, params: any) => {
         return h('Select', {
-          props: {
-            value: params.row.valueType,
-            transfer: true,
-            data: this.getOptions('valueType'),
-            'filter-method': this.onFilterMethod
-          },
-          on: {
-            'on-change': (value: string) => {
-              this.onChange(params.index, 'valueType', value)
-            }
-          }
-        },
+              props: {
+                value: params.row.valueType,
+                transfer: true,
+                data: this.getOptions('valueType'),
+                'filter-method': this.onFilterMethod
+              },
+              on: {
+                'on-change': (value: string) => {
+                  this.onChange(params.index, 'valueType', value)
+                }
+              }
+            },
             [
               h('Option', {
                 props: {
@@ -103,42 +103,40 @@ export default class DefList extends Vue {
       width: 100,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
-          props: {
-            value: params.row.isMust,
-            transfer: true,
-            data: this.getOptions("isMust"),
-            'filter-method': this.onFilterMethod
-          },
-          on: {
-            'on-change': (value: string) => {
-              this.onChange(params.index, 'isMust', value)
-            }
-          },
-        },
-        [
-            h('Option', {
               props: {
-                value: 'yes'
-              }
-            }, 'yes'),
-            h('Option', {
-              props : {
-                value: 'no'
-              }
-            }, 'no')
-        ])
+                value: params.row.isMust,
+                transfer: true,
+                data: this.getOptions("isMust"),
+                'filter-method': this.onFilterMethod
+              },
+              on: {
+                'on-change': (value: string) => {
+                  this.onChange(params.index, 'isMust', value)
+                }
+              },
+            },
+            [
+              h('Option', {
+                props: {
+                  value: 'yes'
+                }
+              }, 'yes'),
+              h('Option', {
+                props : {
+                  value: 'no'
+                }
+              }, 'no')
+            ])
       }
     },
     {
       title: '',
       key: 'egValue',
-      width: 200,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
           props: {
             value: params.row.egValue,
             transfer: true,
-            width: 600,
             data: this.getOptions("egValue"),
             'filter-method': this.onFilterMethod
           },
@@ -153,7 +151,6 @@ export default class DefList extends Vue {
     {
       title: '',
       key: 'desc',
-      width: 200,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
           props: {

@@ -64,6 +64,9 @@ func CopyList(src []interface{}) (dst []interface{}) {
 
 func Interface2Str(value interface{}) (strValue string, err error) {
 	varType := fmt.Sprintf("%T", value)
+	if value == nil {
+		return
+	}
 	switch varType {
 	case "float64":
 		tmpVar := value.(float64)
@@ -282,30 +285,45 @@ func StrComparion(sType, curStr, targetStr string) (b bool, err error) {
 	return
 }
 
-func GetInStrDef(rawStr string) (allDef map[string]string) {
+func GetInStrDef(rawStr string) (allDef map[string]string, allListDef map[string][]string) {
 	strByte := []byte(rawStr)
 	allDef = make(map[string]string)
+	allListDef = make(map[string][]string)
+	//indexReg := regexp.MustCompile(`(\w+)\[(\W*\d+)\]`)
+	//indexMatch := indexReg.FindAllSubmatch(strByte, -1)
+	//if len(indexMatch) > 0 {
+	//	index, _ = strconv.Atoi(string(indexMatch[0][2]))
+	//	keyName = string(indexMatch[0][1])
+	//	isHit = true
+	//}
+
 	// 匹配字符串
-	strReg := regexp.MustCompile(`\{(\w+)\}`)
+	//strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
+	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
 	strMatch := strReg.FindAllSubmatch(strByte, -1)
 	//支持${xx}写法不替换
-	strReg2 := regexp.MustCompile(`\$\{(\w+)\}`)
+	strReg2 := regexp.MustCompile(`\$\{([-a-zA-Z0-9_]+)\}`)
 	strMatch2 := strReg2.FindAllSubmatch(strByte, -1)
 	for _, item := range strMatch {
 		key := string(item[1])
 		rawStrDef := string(item[0])
-		isNeed := true
-		for _, item2 := range strMatch2 {
-			key2 := string(item2[1])
-			if key == key2 {
-				isNeed = false
+		if len(item[2]) > 0 && len(item[3]) > 0 {
+			allListDef[key] = append(allListDef[key], rawStrDef)
+		} else {
+			isNeed := true
+			for _, item2 := range strMatch2 {
+				key2 := string(item2[1])
+				if key == key2 {
+					isNeed = false
+				}
 			}
+			if isNeed == true {
+				allDef[key] = rawStrDef
+			}
+			//allDef[key] = rawStrDef
 		}
-		if isNeed == true {
-			allDef[key] = rawStrDef
-		}
-	}
 
+	}
 	return
 }
 
@@ -324,7 +342,7 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 	newStr = GetRangeData(newStr)
 	newStr = GetTimeFormatData(newStr)
 
-	allDef := GetInStrDef(newStr)
+	allDef, _ := GetInStrDef(newStr)
 	for k, v := range allDef {
 		value := GetValueFromSysParameter(lang, k)
 		if len(value) > 0 {
@@ -332,10 +350,18 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 		}
 	}
 
+	//for k, v := range allListDef {
+	//	value := GetValueFromSysParameter(lang, k)
+	//	if len(value) > 0 {
+	//		newStr = strings.ReplaceAll(newStr, v, value)
+	//	}
+	//}
+
 	return
 }
 
-func GetStrType(lang, s string) (t int, v string, allDef map[string]string) {
+func GetStrType(lang, s string) (t int, v string, allDef map[string]string, allListDef map[string][]string) {
+	//var allListDef map[string][]string
 	// 判断参数是否为其他用例提供的参数
 	if s == "{self}" {
 		t = 1
@@ -347,18 +373,19 @@ func GetStrType(lang, s string) (t int, v string, allDef map[string]string) {
 	if tmpStr != s {
 		t = 2
 		v = tmpStr
-		allDef = GetInStrDef(v)
+		allDef, allListDef = GetInStrDef(v)
 		if len(allDef) > 0 {
 			t = 3
 		}
 		return
 	}
 	// 判断字符串中依赖output变量的信息
-	allDef = GetInStrDef(s)
+	allDef, allListDef = GetInStrDef(s)
 	if len(allDef) > 0 {
 		t = 3
 		return
 	}
+
 	return
 }
 
@@ -422,7 +449,7 @@ func GetLengthData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\((-*\d+)\)\}`)
+	comReg := regexp.MustCompile(`\{([a-zA-Z0-9]+)\((-*\d+)\)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -567,7 +594,7 @@ func GetEnData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\}`)
+	comReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -613,7 +640,7 @@ func GetCommonData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\}`)
+	comReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -662,7 +689,7 @@ func GetTimeData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\}`)
+	comReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -765,7 +792,7 @@ func GetChData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\}`)
+	comReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -815,7 +842,7 @@ func GetRangeData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{([A-Z][A-Za-z]+)\((-*\d+)\,(-*\d+)\)\}`)
+	comReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\((-*\d+)\,(-*\d+)\)\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for i := range comMatch {
@@ -1064,7 +1091,7 @@ func Reverse(arr *[]string) {
 }
 
 func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[string][]interface{}) (afterStr interface{}, err error) {
-	t, subV, allDef := GetStrType(lang, value)
+	t, subV, allDef, allListDef := GetStrType(lang, value)
 	if len(keyName) == 0 {
 		keyName = subV
 	}
@@ -1117,7 +1144,40 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 			}
 			count++
 		}
-		afterStr = tmpStr
+		//afterStr = tmpStr
+
+		for defKey, defValue := range allListDef {
+			if value, ok := depOutVars[defKey]; ok {
+				for _, subValue := range defValue {
+					strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
+					strMatch := strReg.FindAllSubmatch([]byte(subValue), -1)
+					for _, item := range strMatch {
+						rawStrDef := string(item[0])
+						order, _ := strconv.Atoi(string(item[3]))
+						if len(value) > order {
+							if order < 0 {
+								tmpKey, _ = Interface2Str(value[len(value)+order])
+							} else {
+								tmpKey, _ = Interface2Str(value[order])
+							}
+							tmpStr = strings.Replace(tmpStr, rawStrDef, tmpKey, -1)
+						} else {
+							err = fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
+							Logger.Error("%s", err)
+							Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
+							return
+						}
+					}
+				}
+				afterStr = tmpStr
+			} else {
+				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
+				Logger.Error("%s", err)
+				Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
+				return
+			}
+		}
+
 	} else {
 		return value, err
 	}
@@ -1149,7 +1209,7 @@ func CopyMap(src map[string]interface{}) (dst map[string]interface{}) {
 func GetTreeDataTag(rawStr string) (treeDataKey string, deep int) {
 	strByte := []byte(rawStr)
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{TreeData_([A-Z][A-Za-z]+)\[(\d+)\]\}`)
+	comReg := regexp.MustCompile(`\{TreeData_([a-zA-Z0-9]+)\[(\d+)\]\}`)
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		treeDataKey = string(comMatch[0][1])

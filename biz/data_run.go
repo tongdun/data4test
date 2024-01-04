@@ -761,8 +761,7 @@ func (df DataFile) GetQuery(lang string, depOutVars map[string][]interface{}) (q
 	if len(df.Single.Query) > 0 {
 		for k, v := range df.Single.Query {
 			strK, _ := Interface2Str(v)
-			t, subV, allDef := GetStrType(strK, lang)
-
+			t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
 			if t == 1 {
 				if value, ok := depOutVars[k]; ok {
 					query[k] = value[0]
@@ -807,7 +806,7 @@ func (df DataFile) GetQuery(lang string, depOutVars map[string][]interface{}) (q
 					return
 				}
 
-				t, subV, allDef := GetStrType(strK, lang)
+				t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
 
 				if t == 1 {
 					if value, ok := depOutVars[k]; ok {
@@ -887,7 +886,7 @@ func (df DataFile) GetBody(lang string, depOutVars map[string][]interface{}) (bo
 						return
 					}
 
-					t, subV, allDef := GetStrType(strK, lang)
+					t, subV, allDef, allListDef := GetStrType(lang, strK)
 
 					if t == 1 {
 						if value, ok := depOutVars[k]; ok {
@@ -925,6 +924,41 @@ func (df DataFile) GetBody(lang string, depOutVars map[string][]interface{}) (bo
 							}
 							newStr = strings.Replace(newStr, defValue, tmpStrV, -1)
 						}
+						for defKey, defValue := range allListDef {
+							if value, ok := depOutVars[defKey]; ok {
+								for _, subValue := range defValue {
+									strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
+									strMatch := strReg.FindAllSubmatch([]byte(subValue), -1)
+									for _, item := range strMatch {
+										Logger.Debug("item: %s", item)
+										Logger.Debug(" len(item): %v", len(item))
+										//key := string(item[1])
+										rawStrDef := string(item[0])
+										order, _ := strconv.Atoi(string(item[3]))
+										var tmpKey string
+										if len(value) > order {
+											if order < 0 {
+												tmpKey, _ = Interface2Str(value[len(value)+order])
+											} else {
+												tmpKey, _ = Interface2Str(value[order])
+											}
+											newStr = strings.Replace(newStr, rawStrDef, tmpKey, -1)
+										} else {
+											err = fmt.Errorf("参数: %s定义参数不足，%s取值超出索引，请核对~", string(item[1]), rawStrDef)
+											Logger.Error("%s", err)
+											Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, defKey, subV, allListDef)
+											return
+										}
+									}
+								}
+							} else {
+								err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
+								Logger.Error("%s", err)
+								Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, defKey, subV, allListDef)
+								return
+							}
+						}
+
 						body[k] = newStr
 					} else {
 						body[k] = v[i]
@@ -1720,7 +1754,7 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 		}
 		for _, assert := range df.Assert {
 			aType := assert.Type
-			if isPass != 0 && aType == "output" {
+			if isPass != 0 && (aType == "output" || aType == "output_re") {
 				continue
 			}
 
@@ -1779,6 +1813,29 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 					for k, v := range outputTmp {
 						outputDict[k] = append(outputDict[k], v...)
 					}
+				case "output_re":
+					keyName, values, err1 := assert.GetOutputRe(res[i])
+					if err1 != nil {
+						if i == 0 {
+							df.TestResult = []string{"fail"}
+						} else {
+							df.TestResult = append(df.TestResult, "fail")
+						}
+						isPass++
+						if err != nil {
+							err = fmt.Errorf("%s, %s", err, err1)
+						} else {
+							err = err1
+						}
+						continue
+					} else {
+						if i == 0 {
+							df.TestResult = []string{"pass"}
+						} else {
+							df.TestResult = append(df.TestResult, "pass")
+						}
+					}
+					outputDict[keyName] = append(outputDict[keyName], values...)
 				default:
 					b, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
@@ -1994,7 +2051,7 @@ func (df DataFile) GetPlUrlQuery(envConfig EnvConfig, depOutVars map[string][]in
 					return
 				}
 
-				t, subV, allDef := GetStrType(strK, lang)
+				t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
 				if t == 2 {
 					if tag == 0 {
 						tmpStr := fmt.Sprintf("%s=%s", k, subV)

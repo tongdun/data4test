@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table border :columns="otherConfigTableColumns" :data="otherConfigTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="otherConfigTableColumns" :data="otherConfigTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -25,24 +25,24 @@ export default class OtherConfigList extends Vue {
       width: 100,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
-              props: {
-                value: params.row.version,
-                transfer: true,
-                disabled: true,
-                data: this.getOptions('version'),
-                'filter-method': this.onFilterMethod
-              },
-              on: {
-                'on-change': (value: string) => {
-                  this.onChange(params.index, 'version', value)
-                }
-              }
-            },)
+          props: {
+            value: params.row.version,
+            transfer: true,
+            disabled: true,
+            data: this.getOptions('version'),
+            'filter-method': this.onFilterMethod
+          },
+          on: {
+            'on-change': (value: string) => {
+              this.onChange(params.index, 'version', value)
+            }
+          }
+        },)
       }
     },
     {
       title: '',
-      width: 300,
+      // width: 550,
       key: 'apiId',
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
@@ -90,7 +90,7 @@ export default class OtherConfigList extends Vue {
     {
       title: '',
       key: 'isUseEnvConfig',
-      width: 240,
+      width: 150,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
               props: {

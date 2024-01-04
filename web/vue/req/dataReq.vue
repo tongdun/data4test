@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table @on-selection-change="onSelect" border :columns="runTableColumns" :data="runTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="runTableColumns" :data="runTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" @on-selection-change="onSelect"></Table>
   </div>
 </template>
 
@@ -32,13 +32,13 @@ export default class RunList extends Vue {
   runTableColumns: any[] = [
     {
       type: 'selection',
-      width: 60,
+      width: 40,
       align: 'center'
     },
     {
       title: '',
       key: 'name',
-      width: 160,
+      width: 150,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
           props: {
@@ -59,7 +59,6 @@ export default class RunList extends Vue {
     {
       title: '',
       key: 'testValue',
-      width: 600,
       render: (h: CreateElement, params: any) => {
         return h('Select', {
               props: {
@@ -79,7 +78,7 @@ export default class RunList extends Vue {
             },
             this.inValueTypeOptions.map((item) => {
               return h('Option', {
-                props: {value: item}
+                props: {label: item, value: item}
               }, item)
             }))
       }

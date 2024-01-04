@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Table border :columns="historyApiTableColumns" :data="historyApiTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+    <Table :columns="historyApiTableColumns" :data="historyApiTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
   </div>
 </template>
 
@@ -23,7 +23,7 @@ export default class historyApiList extends Vue {
     {
       title: '关联数据',
       key: 'historyDataFile',
-      width: 800,
+      // width: 800,
       render: (h: CreateElement, params: any) => {
         return h('AutoComplete', {
               props: {

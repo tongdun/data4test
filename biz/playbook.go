@@ -240,6 +240,7 @@ func (p Playbook) RunPlaybookContent(product string, privateParameter map[string
 	}
 
 	outputDict, err := p.GetPalybookDepParams(privateParameter)
+	//Logger.Debug("outputDict: %v", outputDict)
 	querys, err := sceneFile.GetQuery(lang, outputDict)
 	if err != nil {
 		Logger.Debug("filePath: %v", filePath)
@@ -714,6 +715,7 @@ func (p Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) 
 		} else if strings.HasSuffix(filePath, ".yml") {
 			err1 = yaml.Unmarshal([]byte(content), &sceneFile)
 		}
+
 		if err1 != nil {
 			err = err1
 			Logger.Error("%s", err)

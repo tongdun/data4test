@@ -1,6 +1,6 @@
 <template>
     <div>
-        <Table @on-selection-change="onSelect" border :columns="runTableColumns" :data="runTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')"></Table>
+        <Table :columns="runTableColumns" :data="runTableData" :no-data-text="$t('general.noData')" :no-filtered-data-text="$t('general.noFilterData')" @on-selection-change="onSelect"></Table>
     </div>
 </template>
 
@@ -38,7 +38,7 @@ export default class RunList extends Vue {
         {
             title: '',
             key: 'name',
-            width: 160,
+            width: 150,
             render: (h: CreateElement, params: any) => {
                 return h('AutoComplete', {
                     props: {
@@ -58,7 +58,7 @@ export default class RunList extends Vue {
         },
         {
         title: '',
-        width: 120,
+        width: 100,
         key: 'valueType',
         render: (h: CreateElement, params: any) => {
           return h('AutoComplete', {
@@ -85,7 +85,7 @@ export default class RunList extends Vue {
         {
         title: '',
         key: 'isMust',
-        width: 100,
+        width: 80,
         render: (h: CreateElement, params: any) => {
           return h('AutoComplete', {
                 props: {
@@ -110,7 +110,7 @@ export default class RunList extends Vue {
         {
             title: '',
             key: 'testValue',
-            width: 160,
+            // width: 160,
             render: (h: CreateElement, params: any) => {
                 return h('Select', {
                     props: {
@@ -130,7 +130,7 @@ export default class RunList extends Vue {
                 },
                     this.inValueTypeOptions.map((item) => {
                       return h('Option', {
-                        props: {value: item}
+                        props: {label: item, value: item}
                       }, item)
                     }))
             }
@@ -138,7 +138,7 @@ export default class RunList extends Vue {
         {
         title: '',
         key: 'egValue',
-        width: 160,
+        width: 120,
         render: (h: CreateElement, params: any) => {
           return h('Input', {
             props: {
@@ -172,7 +172,7 @@ export default class RunList extends Vue {
         }
       },
         {
-            width: 80,
+            width: 60,
             renderHeader: (h: CreateElement, params: any) => {
                 return h('Button', {
                     props: {

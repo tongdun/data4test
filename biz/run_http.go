@@ -133,6 +133,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	if err != nil {
 		Logger.Error("%s", err)
 	}
+
 	Logger.Debug("resBody: %s", string(resBody))
 
 	// 返回500的是否需要拦截
