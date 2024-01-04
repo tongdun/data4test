@@ -208,6 +208,16 @@ func startServer() {
 		c.JSON(http.StatusOK, data)
 	})
 
+	r.GET("/assertTemplateList", func(c *gin.Context) {
+		assertTemplateList := biz.GetAssertTemplateList()
+		data := map[string]interface{}{
+			"data": assertTemplateList,
+			"code": 200,
+			"msg":  "操作成功",
+		}
+		c.JSON(http.StatusOK, data)
+	})
+
 	r.GET("/envList", func(c *gin.Context) {
 		dataFileList := biz.GetEnvList()
 		data := map[string]interface{}{
