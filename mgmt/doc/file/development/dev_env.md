@@ -11,9 +11,15 @@
 ##### 更新配置文件
 - [配置文件](../../../../config.json)  各项信息根据实际情况填写
 
-##### 开启服务
+##### 代码开启服务
 - 命令：go run main.go / sudo go run main.go
 - 访问：http://127.0.0.1:9088
+
+##### Docker开启服务
+- 命令1：docker run -p 3306:3306 --name data4test -e MYSQL_ROOT_PASSWORD=data4test -d --restart always mysql:5.7
+- 命令2: mysql -h 127.0.0.1 -P 3306 -u root -p data4test < ./mgmt/sql/init.sql
+- 命令3：mysql -h 127.0.0.1 -P 3306 -u root -p data4test < ./mgmt/sql/update.sql
+- 命令4：
 
 ##### 登录
 - 默认用户：admin/ admin

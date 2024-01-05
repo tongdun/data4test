@@ -1697,6 +1697,7 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 					} else {
 						err = errs[i]
 					}
+					Logger.Debug("加一次结果：i: %v", i)
 					continue
 				}
 			}
@@ -1705,7 +1706,11 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 
 			if len(errs) > i {
 				if errs[i] != nil {
-					df.TestResult = append(df.TestResult, "fail")
+					if len(df.TestResult) < i+1 {
+						df.TestResult = append(df.TestResult, "fail")
+					} else {
+						df.TestResult[i] = "fail"
+					}
 					isPass++
 					if err != nil {
 						err = fmt.Errorf("%v,%v", err, errs[i])
@@ -1738,10 +1743,10 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 		}
 
 		if errTmp != nil {
-			if i == 0 {
-				df.TestResult = []string{"fail"}
-			} else {
+			if len(df.TestResult) < i+1 {
 				df.TestResult = append(df.TestResult, "fail")
+			} else {
+				df.TestResult[i] = "fail"
 			}
 			isPass++
 			if err != nil {
@@ -1749,7 +1754,6 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 			} else {
 				err = errTmp
 			}
-
 			continue
 		}
 		for _, assert := range df.Assert {
@@ -1763,10 +1767,10 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 			if assert.Source == "raw" {
 				b, err1 := RawStrComparion(aType, string(res[i]), assert.Value)
 				if !b {
-					if i == 0 {
-						df.TestResult = []string{"fail"}
-					} else {
+					if len(df.TestResult) < i+1 {
 						df.TestResult = append(df.TestResult, "fail")
+					} else {
+						df.TestResult[i] = "fail"
 					}
 					isPass++
 					if err != nil {
@@ -1774,27 +1778,17 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 					} else {
 						err = fmt.Errorf("Response: %s; %s", string(res[i]), err1)
 					}
-				} else {
-					if i == 0 {
-						df.TestResult = []string{"pass"}
-					} else {
-						df.TestResult = append(df.TestResult, "pass")
-					}
+					break
 				}
-
-				if !b {
-					isPass++
-				}
-
 			} else {
 				switch aType {
 				case "output":
 					outputTmp, err1 := assert.GetOutput(resDict)
 					if err1 != nil {
-						if i == 0 {
-							df.TestResult = []string{"fail"}
-						} else {
+						if len(df.TestResult) < i+1 {
 							df.TestResult = append(df.TestResult, "fail")
+						} else {
+							df.TestResult[i] = "fail"
 						}
 						isPass++
 						if err != nil {
@@ -1802,13 +1796,7 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 						} else {
 							err = err1
 						}
-						continue
-					} else {
-						if i == 0 {
-							df.TestResult = []string{"pass"}
-						} else {
-							df.TestResult = append(df.TestResult, "pass")
-						}
+						break
 					}
 					for k, v := range outputTmp {
 						outputDict[k] = append(outputDict[k], v...)
@@ -1816,10 +1804,10 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 				case "output_re":
 					keyName, values, err1 := assert.GetOutputRe(res[i])
 					if err1 != nil {
-						if i == 0 {
-							df.TestResult = []string{"fail"}
-						} else {
+						if len(df.TestResult) < i+1 {
 							df.TestResult = append(df.TestResult, "fail")
+						} else {
+							df.TestResult[i] = "fail"
 						}
 						isPass++
 						if err != nil {
@@ -1827,42 +1815,32 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 						} else {
 							err = err1
 						}
-						continue
-					} else {
-						if i == 0 {
-							df.TestResult = []string{"pass"}
-						} else {
-							df.TestResult = append(df.TestResult, "pass")
-						}
+						break
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
 				default:
-					b, err1 := assert.AssertResult(resDict, inOutPutDict)
+					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
-						if i == 0 {
-							df.TestResult = []string{"fail"}
-						} else {
+						if len(df.TestResult) < i+1 {
 							df.TestResult = append(df.TestResult, "fail")
+						} else {
+							df.TestResult[i] = "fail"
 						}
+
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {
 							err = err1
 						}
 						isPass++
-					} else {
-						if i == 0 {
-							df.TestResult = []string{"pass"}
-						} else {
-							df.TestResult = append(df.TestResult, "pass")
-						}
-					}
-					if !b {
-						isPass++
+						break
 					}
 				}
 			}
 
+		}
+		if len(df.TestResult) <= i {
+			df.TestResult = append(df.TestResult, "pass")
 		}
 	}
 

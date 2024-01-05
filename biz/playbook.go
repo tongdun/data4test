@@ -416,6 +416,7 @@ func (p Playbook) RunPlaybookContent(product string, privateParameter map[string
 	err = WriteDataResultByFile(filePath, result, dst, product, envType, err1)
 
 	if err1 != nil {
+		//Logger.Debug("outputDict: %v", outputDict)
 		if err != nil {
 			err = fmt.Errorf("%s, %s", err, err1)
 		} else {

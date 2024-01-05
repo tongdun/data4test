@@ -90,6 +90,9 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 			tmpData := make(netUrl.Values)
 			for k, v := range data {
 				strK, _ := Interface2Str(v)
+				if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
+					continue
+				}
 				tmpData[k] = []string{strK}
 				uri.RawQuery = tmpData.Encode()
 			}
@@ -171,6 +174,9 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, header m
 		tmpData := make(netUrl.Values)
 		for k, v := range data {
 			strK, _ := Interface2Str(v)
+			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
+				continue
+			}
 			tmpData[k] = []string{strK}
 			uri.RawQuery = tmpData.Encode()
 		}
@@ -248,6 +254,9 @@ func RunHttpJson(method, url string, data map[string]interface{}, header map[str
 		tmpData := make(netUrl.Values)
 		for k, v := range data {
 			strK, _ := Interface2Str(v)
+			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
+				continue
+			}
 			tmpData[k] = []string{strK}
 			uri.RawQuery = tmpData.Encode()
 		}

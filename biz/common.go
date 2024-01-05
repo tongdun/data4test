@@ -1096,10 +1096,6 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 		keyName = subV
 	}
 
-	//if t == 1 || t == 3 {
-	//	Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
-	//}
-
 	if t == 1 {
 		if value, ok := depOutVars[keyName]; ok {
 			afterStr = value[0]
@@ -1125,14 +1121,12 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 				} else {
 					tmpKey, _ = Interface2Str(value[0])
 				}
-
 			} else {
 				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
 				Logger.Error("%s", err)
 				Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
 				return
 			}
-
 			if count == 0 {
 				if len(subV) == 0 {
 					tmpStr = strings.Replace(value, defValue, tmpKey, -1)
@@ -1144,10 +1138,9 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 			}
 			count++
 		}
-		//afterStr = tmpStr
 
 		for defKey, defValue := range allListDef {
-			if value, ok := depOutVars[defKey]; ok {
+			if inValue, ok := depOutVars[defKey]; ok {
 				for _, subValue := range defValue {
 					strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
 					strMatch := strReg.FindAllSubmatch([]byte(subValue), -1)
@@ -1156,20 +1149,19 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 						order, _ := strconv.Atoi(string(item[3]))
 						if len(value) > order {
 							if order < 0 {
-								tmpKey, _ = Interface2Str(value[len(value)+order])
+								tmpKey, _ = Interface2Str(inValue[len(inValue)+order])
 							} else {
-								tmpKey, _ = Interface2Str(value[order])
+								tmpKey, _ = Interface2Str(inValue[order])
 							}
 							tmpStr = strings.Replace(tmpStr, rawStrDef, tmpKey, -1)
 						} else {
-							err = fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
+							err = fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), inValue, rawStrDef)
 							Logger.Error("%s", err)
 							Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
 							return
 						}
 					}
 				}
-				afterStr = tmpStr
 			} else {
 				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
 				Logger.Error("%s", err)
@@ -1178,10 +1170,10 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 			}
 		}
 
+		afterStr = tmpStr
 	} else {
 		return value, err
 	}
-
 	return
 }
 
