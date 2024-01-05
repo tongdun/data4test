@@ -1,7 +1,7 @@
 version: "3.3"
 services:
   db:
-    image: sql-data4test:1.0
+    image: josingcjx/sql-data4test:1.0
     container_name: sql-data4test
     command: --default-authentication-plugin=mysql_native_password
     ports:
@@ -26,7 +26,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer:/data
   data4test:
-    image: data4test:1.0
+    image: josingcjx/data4test:1.0
     container_name: data4test
     restart: always
     depends_on:
