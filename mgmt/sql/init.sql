@@ -1,8 +1,8 @@
 -- MySQL dump 10.14  Distrib 5.5.60-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test
+-- Host: 10.57.242.40    Database: data4test
 -- ------------------------------------------------------
--- Server version	5.7.23-log
+-- Server version	5.7.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -18,6 +18,9 @@
 --
 -- Table structure for table `api_definition`
 --
+
+CREATE DATABASE IF NOT EXISTS data4test;
+USE data4test;
 
 DROP TABLE IF EXISTS `api_definition`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -254,7 +257,7 @@ CREATE TABLE `assert_template` (
                                    `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                                    PRIMARY KEY (`id`),
                                    UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='断言值多语言模板';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COMMENT='断言值多语言模板';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -282,7 +285,7 @@ CREATE TABLE `env_config` (
                               `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                               PRIMARY KEY (`id`),
                               UNIQUE KEY `env_config_app_uindex` (`app`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='环境配置';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='环境配置';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -299,7 +302,7 @@ CREATE TABLE `filemanager_setting` (
                                        `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                        `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                        PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -342,7 +345,7 @@ CREATE TABLE `goadmin_menu` (
                                 `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                 `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                 PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2578 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -363,7 +366,7 @@ CREATE TABLE `goadmin_operation_log` (
                                          `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                          PRIMARY KEY (`id`),
                                          KEY `admin_operation_log_user_id_index` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -383,7 +386,7 @@ CREATE TABLE `goadmin_permissions` (
                                        `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                        PRIMARY KEY (`id`),
                                        UNIQUE KEY `admin_permissions_name_unique` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=236 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -449,7 +452,7 @@ CREATE TABLE `goadmin_roles` (
                                  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                  PRIMARY KEY (`id`),
                                  UNIQUE KEY `admin_roles_name_unique` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -466,7 +469,7 @@ CREATE TABLE `goadmin_session` (
                                    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -485,7 +488,7 @@ CREATE TABLE `goadmin_site` (
                                 `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                 `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                 PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -522,7 +525,7 @@ CREATE TABLE `goadmin_users` (
                                  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
                                  PRIMARY KEY (`id`),
                                  UNIQUE KEY `admin_users_username_unique` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -572,7 +575,7 @@ CREATE TABLE `playbook` (
                             `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                             PRIMARY KEY (`id`),
                             UNIQUE KEY `name_product` (`name`,`product`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='场景列表';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='场景列表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -600,7 +603,7 @@ CREATE TABLE `product` (
                            `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                            PRIMARY KEY (`id`),
                            UNIQUE KEY `product` (`product`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='产品配置';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='产品配置';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -655,7 +658,7 @@ CREATE TABLE `scene_data` (
                               `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                               PRIMARY KEY (`id`),
                               UNIQUE KEY `scene_data_pk_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='场景数据';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='场景数据';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -740,7 +743,7 @@ CREATE TABLE `schedule` (
                             `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                             PRIMARY KEY (`id`),
                             UNIQUE KEY `task_name` (`task_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='定时任务';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='定时任务';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -760,7 +763,7 @@ CREATE TABLE `sys_parameter` (
                                  `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                                  PRIMARY KEY (`id`),
                                  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统参数';
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统参数';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -795,7 +798,7 @@ CREATE TABLE `test_case` (
                              `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',
                              PRIMARY KEY (`id`),
                              UNIQUE KEY `case_number_product` (`case_number`,`product`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COMMENT='测试用例';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='测试用例';
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -807,21 +810,20 @@ CREATE TABLE `test_case` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-12-12 18:56:23
+-- Dump completed on 2024-01-05 20:59:06
 
--- MySQL dump 10.13  Distrib 8.0.29, for macos12.2 (x86_64)
+-- MySQL dump 10.14  Distrib 5.5.60-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test
+-- Host: 10.57.242.40    Database: data4test
 -- ------------------------------------------------------
--- Server version	8.0.23
+-- Server version	5.7.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
@@ -842,7 +844,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `goadmin_menu` WRITE;
 /*!40000 ALTER TABLE `goadmin_menu` DISABLE KEYS */;
-INSERT INTO `goadmin_menu` VALUES (1,0,1,42,'Admin','fa-tasks','',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(2,1,1,42,'Users','fa-users','/info/manager',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(3,1,1,43,'Roles','fa-user','/info/roles',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(4,1,1,44,'Permission','fa-ban','/info/permission',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(5,1,1,45,'Menu','fa-bars','/menu',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(6,50,1,41,'Operation log','fa-history','/info/op','','',NULL,'2019-09-09 16:00:00','2021-03-18 14:52:30'),(7,0,1,1,'Dashboard','fa-bar-chart','/dashboard','','',NULL,'2019-09-09 16:00:00','2020-12-28 14:16:17'),(8,0,0,16,'环境','fa-cog','','','',NULL,'2020-11-23 02:47:56','2020-11-23 02:57:07'),(9,8,0,17,'应用配置','fa-bars','/info/env_config','','',NULL,'2020-11-23 02:57:40','2021-07-29 06:04:57'),(11,8,0,19,'参数定义','fa-bars','/info/parameter_definition','','',NULL,'2020-11-23 02:58:49','2021-03-22 09:49:42'),(12,0,0,3,'接口','fa-bank','','','',NULL,'2020-11-23 02:59:22','2021-03-21 07:08:41'),(14,0,0,11,'结果','fa-cubes','','','',NULL,'2020-11-23 02:59:57','2020-11-23 02:59:57'),(17,14,0,14,'变量提供','fa-bars','/info/api_test_result','','',NULL,'2020-11-23 03:01:36','2021-03-30 03:02:07'),(18,14,0,13,'结果详情','fa-bars','/info/api_test_detail','','',NULL,'2020-11-23 03:02:09','2020-11-23 03:06:44'),(22,12,0,5,'接口关系','fa-bars','/info/api_relation','','',NULL,'2020-11-23 03:03:48','2021-03-22 09:47:56'),(25,12,0,6,'接口定义','fa-bars','/info/api_definition','','',NULL,'2020-11-24 09:22:39','2021-03-22 09:48:08'),(34,28,0,22,'Swagger文件','fa-bars','/fm/api/list','','',NULL,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(37,28,0,21,'用例文件','fa-bars','/fm/test/list','','',NULL,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(38,28,0,20,'公共文件','fa-bars','/fm/file/list','','',NULL,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(39,0,0,22,'文件','fa-files-o','','','',NULL,'2020-12-07 03:20:35','2020-12-10 03:17:02'),(40,39,0,29,'公共文件','fa-bars','/fm/common/list','','',NULL,'2020-12-07 03:23:33','2023-08-11 10:05:23'),(41,39,0,28,'用例文件','fa-bars','/fm/case/list','','',NULL,'2020-12-07 03:23:49','2023-08-11 10:05:06'),(42,39,0,27,'API文件','fa-bars','/fm/api/list','','',NULL,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(43,12,0,3,'测试数据','fa-bars','/info/api_test_data','','',NULL,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(44,39,0,30,'日志文件','fa-bars','/fm/log/list','','',NULL,'2020-12-10 03:08:30','2020-12-10 03:17:15'),(45,0,0,9,'日志文件','fa-bars','/fm/log/list','','filemanager',NULL,'2020-12-10 03:09:23','2020-12-10 03:16:07'),(46,0,0,7,'用例文件','fa-bars','/fm/case/list','','filemanager',NULL,'2020-12-10 03:10:06','2023-08-11 10:00:56'),(47,0,0,6,'API文件','fa-bars','/fm/api/list','','filemanager',NULL,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(48,0,0,8,'公用文件','fa-bars','/fm/common/list','','filemanager',NULL,'2020-12-10 03:10:56','2023-08-11 10:01:05'),(50,0,0,41,'日志','fa-500px','','','',NULL,'2021-03-18 14:52:09','2021-03-18 14:53:17'),(51,12,0,4,'模糊数据','fa-bars','/info/api_fuzzing_data','','',NULL,'2021-03-21 07:07:45','2021-03-22 11:26:03'),(101,0,0,31,'说明','fa-bars','','','',NULL,'2021-03-23 06:14:06','2021-03-23 06:16:25'),(102,101,0,36,'方案设计','fa-bars','/librarian/design/blue_print','','',NULL,'2021-03-23 06:15:53','2021-03-23 06:29:06'),(103,101,0,37,'排期计划','fa-bars','/librarian/plan/plan','','',NULL,'2021-03-23 06:17:34','2021-03-23 06:28:32'),(104,101,0,38,'数据库设计','fa-bars','/librarian/design/db_design','','',NULL,'2021-03-23 06:18:01','2021-03-23 06:28:22'),(109,101,0,32,'架构图','fa-bars','/librarian/arch/arch','','',NULL,'2021-03-23 06:29:45','2021-03-24 05:57:14'),(126,101,0,31,'概览','fa-bars','/librarian/README','','',NULL,'2021-03-24 03:27:58','2021-03-24 03:27:58'),(127,101,0,1,'概览','fa-bars','/librarian/README','','librarian',NULL,'2021-03-24 03:30:28','2021-03-24 03:31:42'),(129,101,0,39,'依赖关系设计','fa-bars','/librarian/design/relation_design','','',NULL,'2021-03-24 05:52:24','2021-03-24 05:57:29'),(136,8,0,21,'模糊因子','fa-bars','/info/fuzzing_definition','','',NULL,'2021-03-26 01:57:30','2021-03-26 01:57:30'),(137,0,0,9,'场景','fa-bars','','','',NULL,'2021-06-03 03:42:23','2021-06-03 03:42:23'),(138,137,0,9,'场景列表','fa-bars','/info/playbook','','',NULL,'2021-06-03 03:43:06','2021-06-03 03:43:57'),(139,137,0,10,'数据列表','fa-bars','/info/scene_data','','',NULL,'2021-06-03 03:43:19','2021-07-29 06:20:10'),(140,0,0,1,'数据文件','fa-bars','/fm/data/list','','filemanager',NULL,'2021-06-03 06:02:31','2023-08-11 10:00:46'),(141,39,0,22,'数据文件','fa-bars','/fm/data/list','','',NULL,'2021-06-04 02:08:36','2023-08-11 10:04:51'),(202,8,0,16,'产品配置','fa-bars','/info/product','','',NULL,'2021-07-19 07:44:29','2021-07-19 07:44:29'),(203,0,0,15,'任务','fa-arrows-alt','','','',NULL,'2021-07-23 09:09:57','2021-07-29 05:55:14'),(204,203,0,15,'定时任务','fa-bars','/info/schedule','','',NULL,'2021-07-23 09:10:20','2021-07-23 09:10:20'),(205,0,0,2,'上传文件','fa-bars','/fm/upload/list','','filemanager',NULL,'2021-08-04 02:47:48','2021-08-04 02:47:48'),(206,0,0,3,'下载文件','fa-bars','/fm/download/list','','filemanager',NULL,'2021-08-04 02:48:01','2021-08-04 02:48:01'),(207,0,0,4,'历史记录','fa-bars','/fm/history/list','','filemanager',NULL,'2021-08-04 02:48:10','2021-08-04 02:58:05'),(208,39,0,23,'上传文件','fa-bars','/fm/upload/list','','',NULL,'2021-08-04 02:50:17','2021-08-04 02:50:17'),(209,39,0,24,'历史记录','fa-bars','/fm/history/list','','',NULL,'2021-08-04 02:50:27','2021-08-04 02:50:27'),(210,39,0,26,'下载文件','fa-bars','/fm/download/list','','',NULL,'2021-08-04 02:50:35','2021-08-04 02:50:35'),(211,8,0,18,'系统参数','fa-bars','/info/sys_parameter','','',NULL,'2021-08-06 03:55:26','2021-08-06 03:55:26'),(212,14,0,11,'数据测试历史','fa-bars','/info/scene_data_test_history','','',NULL,'2021-08-10 07:03:22','2023-04-27 09:13:17'),(213,14,0,12,'场景测试历史','fa-bars','/info/scene_test_history','','',NULL,'2021-08-10 07:04:29','2022-03-09 05:59:35'),(214,39,0,25,'历史版本','fa-bars','/fm/old/list','','',NULL,'2021-08-30 06:46:40','2021-08-30 06:46:40'),(215,0,0,5,'历史版本','fa-bars','/fm/old/list','','filemanager',NULL,'2021-08-30 06:47:36','2021-08-30 06:47:36'),(216,0,0,8,'用例','fa-bars','','','',NULL,'2021-09-05 02:48:39','2021-09-05 02:48:39'),(217,216,0,8,'测试用例','fa-bars','/info/test_case','','',NULL,'2021-09-05 02:49:29','2021-09-05 02:49:29'),(219,101,0,40,'更新记录','fa-bars','/librarian/update/change_log','','',NULL,'2021-11-08 09:55:24','2021-11-08 09:55:24'),(236,0,0,2,'控制台','fa-bars','/likePostman','','',NULL,'2021-12-03 06:32:52','2022-03-07 02:24:16'),(237,12,0,7,'接口记录表','fa-bars','/info/app_api_changelog','','',NULL,'2022-03-08 02:25:03','2022-03-08 02:25:03'),(1336,101,0,33,'参数设计','fa-bars','/librarian/design/parameter_design','','',NULL,'2023-02-23 09:54:47','2023-02-23 09:54:47'),(1367,101,0,34,'断言设计','fa-bars','/librarian/design/assert_design','','',NULL,'2023-02-27 11:47:11','2023-02-27 11:47:11'),(1761,101,0,35,'动作设计','fa-bars','/librarian/design/action_design','','',NULL,'2023-06-15 08:57:30','2023-06-15 08:57:30'),(2224,8,0,20,'断言值模板','fa-bars','/info/assert_template','','',NULL,'2023-12-11 07:31:19','2023-12-11 08:09:41'),(2225,0,0,1,'概览','fa-file-o','/librarian/README','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2226,0,0,2,'架构图','fa-file-o','/librarian/arch/arch','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2227,0,0,3,'方案设计','fa-file-o','/librarian/design/blue_print','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2228,0,0,4,'排期计划','fa-file-o','/librarian/plan/plan','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2229,0,0,5,'数据库设计','fa-file-o','/librarian/design/db_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2230,0,0,6,'依赖关系设计','fa-file-o','/librarian/design/relation_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2231,0,0,7,'场景设计','fa-file-o','/librarian/design/scene_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2232,0,0,8,'参数设计','fa-file-o','/librarian/design/parameter_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2233,0,0,9,'断言设计','fa-file-o','/librarian/design/assert_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2234,0,0,10,'Mock设计','fa-file-o','/librarian/design/mock_design','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2235,0,0,11,'开发须知','fa-file-o','/librarian/development/must_know','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38'),(2236,0,0,12,'更新记录','fa-file-o','/librarian/update/change_log','','librarian','','2023-12-12 12:28:38','2023-12-12 12:28:38');
+INSERT INTO `goadmin_menu` VALUES (1,0,1,40,'Admin','fa-tasks','',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(2,1,1,40,'Users','fa-users','/info/manager',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(3,1,1,41,'Roles','fa-user','/info/roles',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(4,1,1,42,'Permission','fa-ban','/info/permission',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(5,1,1,43,'Menu','fa-bars','/menu',NULL,'',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(6,50,1,39,'Operation log','fa-history','/info/op','','',NULL,'2019-09-09 16:00:00','2021-03-18 14:52:30'),(7,0,1,1,'Dashboard','fa-bar-chart','/dashboard','','',NULL,'2019-09-09 16:00:00','2020-12-28 14:16:17'),(8,0,0,16,'环境','fa-cog','','','',NULL,'2020-11-23 02:47:56','2020-11-23 02:57:07'),(9,8,0,17,'应用配置','fa-bars','/info/env_config','','',NULL,'2020-11-23 02:57:40','2021-07-29 06:04:57'),(11,8,0,19,'参数定义','fa-bars','/info/parameter_definition','','',NULL,'2020-11-23 02:58:49','2021-03-22 09:49:42'),(12,0,0,3,'接口','fa-bank','','','',NULL,'2020-11-23 02:59:22','2021-03-21 07:08:41'),(14,0,0,11,'结果','fa-cubes','','','',NULL,'2020-11-23 02:59:57','2020-11-23 02:59:57'),(17,14,0,14,'变量提供','fa-bars','/info/api_test_result','','',NULL,'2020-11-23 03:01:36','2021-03-30 03:02:07'),(18,14,0,13,'结果详情','fa-bars','/info/api_test_detail','','',NULL,'2020-11-23 03:02:09','2020-11-23 03:06:44'),(22,12,0,5,'接口关系','fa-bars','/info/api_relation','','',NULL,'2020-11-23 03:03:48','2021-03-22 09:47:56'),(25,12,0,6,'接口定义','fa-bars','/info/api_definition','','',NULL,'2020-11-24 09:22:39','2021-03-22 09:48:08'),(34,28,0,22,'Swagger文件','fa-bars','/fm/api/list','','',NULL,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(37,28,0,21,'用例文件','fa-bars','/fm/test/list','','',NULL,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(38,28,0,20,'公共文件','fa-bars','/fm/file/list','','',NULL,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(39,0,0,22,'文件','fa-files-o','','','',NULL,'2020-12-07 03:20:35','2020-12-10 03:17:02'),(40,39,0,29,'公共文件','fa-bars','/fm/common/list','','',NULL,'2020-12-07 03:23:33','2023-08-11 10:05:23'),(41,39,0,28,'用例文件','fa-bars','/fm/case/list','','',NULL,'2020-12-07 03:23:49','2023-08-11 10:05:06'),(42,39,0,27,'API文件','fa-bars','/fm/api/list','','',NULL,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(43,12,0,3,'测试数据','fa-bars','/info/api_test_data','','',NULL,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(44,39,0,30,'日志文件','fa-bars','/fm/log/list','','',NULL,'2020-12-10 03:08:30','2020-12-10 03:17:15'),(45,0,0,9,'日志文件','fa-bars','/fm/log/list','','filemanager',NULL,'2020-12-10 03:09:23','2020-12-10 03:16:07'),(46,0,0,7,'用例文件','fa-bars','/fm/case/list','','filemanager',NULL,'2020-12-10 03:10:06','2023-08-11 10:00:56'),(47,0,0,6,'API文件','fa-bars','/fm/api/list','','filemanager',NULL,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(48,0,0,8,'公用文件','fa-bars','/fm/common/list','','filemanager',NULL,'2020-12-10 03:10:56','2023-08-11 10:01:05'),(50,0,0,39,'日志','fa-500px','','','',NULL,'2021-03-18 14:52:09','2021-03-18 14:53:17'),(51,12,0,4,'模糊数据','fa-bars','/info/api_fuzzing_data','','',NULL,'2021-03-21 07:07:45','2021-03-22 11:26:03'),(101,0,0,31,'说明','fa-bars','','','',NULL,'2021-03-23 06:14:06','2021-03-23 06:16:25'),(102,101,0,33,'系统蓝图','fa-bars','/librarian/plan/blue_print','','',NULL,'2021-03-23 06:15:53','2024-01-05 11:46:06'),(103,101,0,37,'Mock应用说明','fa-bars','/librarian/design/mock_design','','',NULL,'2021-03-23 06:17:34','2024-01-05 11:47:48'),(109,101,0,32,'架构图','fa-bars','/librarian/arch/arch','','',NULL,'2021-03-23 06:29:45','2021-03-24 05:57:14'),(126,101,0,31,'概览','fa-bars','/librarian/README','','',NULL,'2021-03-24 03:27:58','2021-03-24 03:27:58'),(127,101,0,1,'概览','fa-bars','/librarian/README','','librarian',NULL,'2021-03-24 03:30:28','2021-03-24 03:31:42'),(136,8,0,21,'模糊因子','fa-bars','/info/fuzzing_definition','','',NULL,'2021-03-26 01:57:30','2021-03-26 01:57:30'),(137,0,0,9,'场景','fa-bars','','','',NULL,'2021-06-03 03:42:23','2021-06-03 03:42:23'),(138,137,0,9,'场景列表','fa-bars','/info/playbook','','',NULL,'2021-06-03 03:43:06','2021-06-03 03:43:57'),(139,137,0,10,'数据列表','fa-bars','/info/scene_data','','',NULL,'2021-06-03 03:43:19','2021-07-29 06:20:10'),(140,0,0,1,'数据文件','fa-bars','/fm/data/list','','filemanager',NULL,'2021-06-03 06:02:31','2023-08-11 10:00:46'),(141,39,0,22,'数据文件','fa-bars','/fm/data/list','','',NULL,'2021-06-04 02:08:36','2023-08-11 10:04:51'),(202,8,0,16,'产品配置','fa-bars','/info/product','','',NULL,'2021-07-19 07:44:29','2021-07-19 07:44:29'),(203,0,0,15,'任务','fa-arrows-alt','','','',NULL,'2021-07-23 09:09:57','2021-07-29 05:55:14'),(204,203,0,15,'定时任务','fa-bars','/info/schedule','','',NULL,'2021-07-23 09:10:20','2021-07-23 09:10:20'),(205,0,0,2,'上传文件','fa-bars','/fm/upload/list','','filemanager',NULL,'2021-08-04 02:47:48','2021-08-04 02:47:48'),(206,0,0,3,'下载文件','fa-bars','/fm/download/list','','filemanager',NULL,'2021-08-04 02:48:01','2021-08-04 02:48:01'),(207,0,0,4,'历史记录','fa-bars','/fm/history/list','','filemanager',NULL,'2021-08-04 02:48:10','2021-08-04 02:58:05'),(208,39,0,23,'上传文件','fa-bars','/fm/upload/list','','',NULL,'2021-08-04 02:50:17','2021-08-04 02:50:17'),(209,39,0,24,'历史记录','fa-bars','/fm/history/list','','',NULL,'2021-08-04 02:50:27','2021-08-04 02:50:27'),(210,39,0,26,'下载文件','fa-bars','/fm/download/list','','',NULL,'2021-08-04 02:50:35','2021-08-04 02:50:35'),(211,8,0,18,'系统参数','fa-bars','/info/sys_parameter','','',NULL,'2021-08-06 03:55:26','2021-08-06 03:55:26'),(212,14,0,11,'数据测试历史','fa-bars','/info/scene_data_test_history','','',NULL,'2021-08-10 07:03:22','2023-04-27 09:13:17'),(213,14,0,12,'场景测试历史','fa-bars','/info/scene_test_history','','',NULL,'2021-08-10 07:04:29','2022-03-09 05:59:35'),(214,39,0,25,'历史版本','fa-bars','/fm/old/list','','',NULL,'2021-08-30 06:46:40','2021-08-30 06:46:40'),(215,0,0,5,'历史版本','fa-bars','/fm/old/list','','filemanager',NULL,'2021-08-30 06:47:36','2021-08-30 06:47:36'),(216,0,0,8,'用例','fa-bars','','','',NULL,'2021-09-05 02:48:39','2021-09-05 02:48:39'),(217,216,0,8,'测试用例','fa-bars','/info/test_case','','',NULL,'2021-09-05 02:49:29','2021-09-05 02:49:29'),(219,101,0,38,'更新记录','fa-bars','/librarian/update/change_log','','',NULL,'2021-11-08 09:55:24','2021-11-08 09:55:24'),(236,0,0,2,'控制台','fa-bars','/likePostman','','',NULL,'2021-12-03 06:32:52','2022-03-07 02:24:16'),(237,12,0,7,'接口记录表','fa-bars','/info/app_api_changelog','','',NULL,'2022-03-08 02:25:03','2022-03-08 02:25:03'),(1336,101,0,34,'参数应用说明','fa-bars','/librarian/design/parameter_design','','',NULL,'2023-02-23 09:54:47','2024-01-05 11:48:23'),(1367,101,0,35,'断言应用说明','fa-bars','/librarian/design/assert_design','','',NULL,'2023-02-27 11:47:11','2024-01-05 11:46:47'),(1761,101,0,36,'动作应用说明','fa-bars','/librarian/design/action_design','','',NULL,'2023-06-15 08:57:30','2024-01-05 11:47:07'),(2224,8,0,20,'断言值模板','fa-bars','/info/assert_template','','',NULL,'2023-12-11 07:31:19','2023-12-11 08:09:41'),(2564,0,0,1,'概览','fa-file-o','/librarian/README','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2565,0,0,2,'架构图','fa-file-o','/librarian/arch/arch','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2566,0,0,3,'系统蓝图','fa-file-o','/librarian/plan/blue_print','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2567,0,0,4,'场景测试说明','fa-file-o','/librarian/design/scene_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2568,0,0,5,'参数应用说明','fa-file-o','/librarian/design/parameter_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2569,0,0,6,'动作应用说明','fa-file-o','/librarian/design/action_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2570,0,0,7,'断言应用说明','fa-file-o','/librarian/design/assert_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2571,0,0,8,'Mock应用说明','fa-file-o','/librarian/design/mock_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2572,0,0,9,'模糊测试说明','fa-file-o','/librarian/design/relation_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2573,0,0,10,'测试用例说明','fa-file-o','/librarian/design/testcase_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2574,0,0,11,'性能测试设计','fa-file-o','/librarian/design/perf_design','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2575,0,0,12,'开发待办','fa-file-o','/librarian/plan/todo','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2576,0,0,13,'开发须知','fa-file-o','/librarian/development/must_know','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11'),(2577,0,0,14,'更新记录','fa-file-o','/librarian/update/change_log','','librarian','','2024-01-05 12:45:11','2024-01-05 12:45:11');
 /*!40000 ALTER TABLE `goadmin_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -862,33 +864,31 @@ UNLOCK TABLES;
 
 LOCK TABLES `goadmin_site` WRITE;
 /*!40000 ALTER TABLE `goadmin_site` DISABLE KEYS */;
-INSERT INTO `goadmin_site` VALUES (1,'theme','sword',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(2,'hide_app_info_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(3,'info_log_path','./mgmt/log/info.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(4,'info_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(5,'mini_logo','        盾测\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(6,'sql_log','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(7,'login_logo','       盾测-自动化\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(8,'hide_plugin_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(9,'custom_500_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(10,'login_title','盾测-自动化',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(11,'domain','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(12,'store','{\"path\":\"./uploads\",\"prefix\":\"uploads\"}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(13,'logger_rotate_max_age','30',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(14,'logger_encoder_time_key','ts',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(15,'asset_url','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(16,'custom_404_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(17,'animation_duration','0.00',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(18,'allow_del_operation_log','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(19,'logger_rotate_compress','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(20,'logger_encoder_encoding','console',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(21,'custom_head_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(22,'animation_type','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(23,'hide_tool_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(24,'title','盾测',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(25,'logger_level','-1',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(26,'custom_403_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(27,'operation_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(28,'logger_rotate_max_size','10',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(29,'auth_user_table','goadmin_users',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(30,'login_url','/login',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(31,'error_log_path','./mgmt/log/error.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(32,'logger_rotate_max_backups','5',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(33,'go_mod_file_path','./mgmt/commongo.mod',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(34,'animation_delay','0.00',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(35,'logger_encoder_time','iso8601',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(36,'custom_foot_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(37,'asset_root_path','./public/',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(38,'logger_encoder_message_key','msg',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(39,'databases','{\"default\":{\"host\":\"127.0.0.1\",\"port\":\"3306\",\"user\":\"root\",\"pwd\":\"zaq1@WSX\",\"name\":\"data4perf\",\"max_idle_con\":5,\"max_open_con\":10,\"driver\":\"mysql\"}}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(40,'url_prefix','api/v1',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(41,'logger_encoder_level_key','level',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(42,'logger_encoder_caller_key','caller',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(43,'logger_encoder_stacktrace_key','stacktrace',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(44,'hide_config_center_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(45,'access_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(46,'access_assets_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(47,'logger_encoder_caller','short',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(48,'session_life_time','7200',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(49,'language','zh',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(50,'logo','        盾测-自动化\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(51,'logger_encoder_name_key','logger',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(52,'logger_encoder_duration','string',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(53,'error_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(54,'app_id','j90eXvI3x1ye',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(55,'extra','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(56,'index_url','/',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(57,'env','local',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(58,'color_scheme','skin-black',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(59,'file_upload_engine','{\"name\":\"local\"}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(60,'bootstrap_file_path','./mgmt/common/bootstrap.go',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(61,'footer_info','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(62,'site_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(63,'debug','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(64,'access_log_path','./mgmt/log/access.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(65,'logger_encoder_level','capitalColor',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(66,'no_limit_login_ip','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(67,'filemanager_connection','default',NULL,0,'2020-12-07 02:36:00','2020-12-07 02:36:00'),(68,'hide_visitor_user_center_entrance','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(69,'prohibit_config_modification','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(70,'exclude_theme_components','null',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(71,'open_admin_api','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(72,'librarian_build_menu_def','2225,2226,2227,2228,2229,2230,2231,2232,2233,2234,2235,2236',NULL,0,'2021-03-23 05:41:47','2021-03-23 05:41:47'),(73,'librarian_build_menu_def_nav','c72b1d50221bf3acff9336dfef44ec8a',NULL,0,'2021-03-23 05:41:47','2021-03-23 05:41:47'),(74,'librarian_roots','{\"mk\":{\"Path\":\"./mgmt/data4perf/doc/file\",\"Title\":\"mk\"},\"key\": \"系统说明\"}',NULL,0,'2021-03-23 05:43:38','2021-03-23 05:43:38'),(75,'librarian_theme','github',NULL,0,'2021-03-23 05:43:38','2021-03-23 05:43:38');
+INSERT INTO `goadmin_site` VALUES (1,'theme','sword',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(2,'hide_app_info_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(3,'info_log_path','./mgmt/log/info.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(4,'info_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(5,'mini_logo','        盾测\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(6,'sql_log','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(7,'login_logo','       盾测-自动化\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(8,'hide_plugin_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(9,'custom_500_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(10,'login_title','盾测-自动化',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(11,'domain','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(12,'store','{\"path\":\"./uploads\",\"prefix\":\"uploads\"}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(13,'logger_rotate_max_age','30',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(14,'logger_encoder_time_key','ts',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(15,'asset_url','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(16,'custom_404_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(17,'animation_duration','0.00',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(18,'allow_del_operation_log','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(19,'logger_rotate_compress','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(20,'logger_encoder_encoding','console',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(21,'custom_head_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(22,'animation_type','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(23,'hide_tool_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(24,'title','盾测',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(25,'logger_level','-1',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(26,'custom_403_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(27,'operation_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(28,'logger_rotate_max_size','10',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(29,'auth_user_table','goadmin_users',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(30,'login_url','/login',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(31,'error_log_path','./mgmt/log/error.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(32,'logger_rotate_max_backups','5',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(33,'go_mod_file_path','./mgmt/commongo.mod',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(34,'animation_delay','0.00',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(35,'logger_encoder_time','iso8601',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(36,'custom_foot_html','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(37,'asset_root_path','./public/',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(38,'logger_encoder_message_key','msg',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(39,'databases','{\"default\":{\"host\":\"127.0.0.1\",\"port\":\"3306\",\"user\":\"root\",\"pwd\":\"zaq1@WSX\",\"name\":\"data4perf\",\"max_idle_con\":5,\"max_open_con\":10,\"driver\":\"mysql\"}}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(40,'url_prefix','api/v1',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(41,'logger_encoder_level_key','level',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(42,'logger_encoder_caller_key','caller',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(43,'logger_encoder_stacktrace_key','stacktrace',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(44,'hide_config_center_entrance','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(45,'access_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(46,'access_assets_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(47,'logger_encoder_caller','short',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(48,'session_life_time','7200',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(49,'language','zh',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(50,'logo','        盾测-自动化\r\n    ',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(51,'logger_encoder_name_key','logger',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(52,'logger_encoder_duration','string',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(53,'error_log_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(54,'app_id','j90eXvI3x1ye',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(55,'extra','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(56,'index_url','/',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(57,'env','local',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(58,'color_scheme','skin-black',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(59,'file_upload_engine','{\"name\":\"local\"}',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(60,'bootstrap_file_path','./mgmt/common/bootstrap.go',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(61,'footer_info','',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(62,'site_off','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(63,'debug','true',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(64,'access_log_path','./mgmt/log/access.log',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(65,'logger_encoder_level','capitalColor',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(66,'no_limit_login_ip','false',NULL,1,'2020-11-23 02:04:52','2020-11-23 02:04:52'),(67,'filemanager_connection','default',NULL,0,'2020-12-07 02:36:00','2020-12-07 02:36:00'),(68,'hide_visitor_user_center_entrance','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(69,'prohibit_config_modification','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(70,'exclude_theme_components','null',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(71,'open_admin_api','false',NULL,1,'2021-03-22 12:48:28','2021-03-22 12:48:28'),(72,'librarian_build_menu_def','2564,2565,2566,2567,2568,2569,2570,2571,2572,2573,2574,2575,2576,2577',NULL,0,'2021-03-23 05:41:47','2021-03-23 05:41:47'),(73,'librarian_build_menu_def_nav','41ef6298be0e85ff535f4814e18245d5',NULL,0,'2021-03-23 05:41:47','2021-03-23 05:41:47'),(74,'librarian_roots','{\"mk\":{\"Path\":\"./mgmt/data4perf/doc/file\",\"Title\":\"mk\"},\"key\": \"系统说明\"}',NULL,0,'2021-03-23 05:43:38','2021-03-23 05:43:38'),(75,'librarian_theme','github',NULL,0,'2021-03-23 05:43:38','2021-03-23 05:43:38');
 /*!40000 ALTER TABLE `goadmin_site` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-12-13 10:59:56
--- MySQL dump 10.13  Distrib 8.0.29, for macos12.2 (x86_64)
+-- Dump completed on 2024-01-05 20:54:21
+-- MySQL dump 10.14  Distrib 5.5.60-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test
+-- Host: 10.57.242.40    Database: data4test
 -- ------------------------------------------------------
--- Server version	8.0.23
+-- Server version	5.7.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
@@ -899,7 +899,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `goadmin_role_menu` WRITE;
 /*!40000 ALTER TABLE `goadmin_role_menu` DISABLE KEYS */;
-INSERT INTO `goadmin_role_menu` VALUES (1,1,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(1,8,'2020-11-23 02:57:07','2020-11-23 02:57:07'),(2,8,'2020-11-23 02:57:07','2020-11-23 02:57:07'),(1,18,'2020-11-23 03:06:44','2020-11-23 03:06:44'),(2,18,'2020-11-23 03:06:44','2020-11-23 03:06:44'),(1,34,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(2,34,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(1,37,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(2,37,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(1,38,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(2,38,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(1,42,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(2,42,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(1,43,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(2,43,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(1,47,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(2,47,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(1,45,'2020-12-10 03:16:07','2020-12-10 03:16:07'),(2,45,'2020-12-10 03:16:07','2020-12-10 03:16:07'),(1,39,'2020-12-10 03:17:02','2020-12-10 03:17:02'),(2,39,'2020-12-10 03:17:02','2020-12-10 03:17:02'),(1,44,'2020-12-10 03:17:15','2020-12-10 03:17:15'),(2,44,'2020-12-10 03:17:15','2020-12-10 03:17:15'),(1,7,'2020-12-28 14:16:17','2020-12-28 14:16:17'),(2,7,'2020-12-28 14:16:17','2020-12-28 14:16:17'),(1,50,'2021-03-18 14:53:17','2021-03-18 14:53:17'),(1,22,'2021-03-22 09:47:56','2021-03-22 09:47:56'),(2,22,'2021-03-22 09:47:56','2021-03-22 09:47:56'),(1,25,'2021-03-22 09:48:08','2021-03-22 09:48:08'),(2,25,'2021-03-22 09:48:08','2021-03-22 09:48:08'),(1,51,'2021-03-22 11:26:03','2021-03-22 11:26:03'),(2,51,'2021-03-22 11:26:03','2021-03-22 11:26:03'),(1,17,'2021-03-30 03:02:07','2021-03-30 03:02:07'),(2,17,'2021-03-30 03:02:07','2021-03-30 03:02:07'),(1,9,'2021-07-29 06:04:57','2021-07-29 06:04:57'),(2,9,'2021-07-29 06:04:57','2021-07-29 06:04:57'),(3,9,'2022-03-09 07:19:56','2022-03-09 07:19:56'),(3,8,'2022-03-09 07:20:47','2022-03-09 07:20:47'),(5,236,'2022-03-09 07:30:24','2022-03-09 07:30:24'),(1,46,'2023-08-11 10:00:56','2023-08-11 10:00:56'),(2,46,'2023-08-11 10:00:56','2023-08-11 10:00:56'),(1,48,'2023-08-11 10:01:05','2023-08-11 10:01:05'),(2,48,'2023-08-11 10:01:05','2023-08-11 10:01:05'),(1,41,'2023-08-11 10:05:06','2023-08-11 10:05:06'),(2,41,'2023-08-11 10:05:06','2023-08-11 10:05:06'),(1,40,'2023-08-11 10:05:23','2023-08-11 10:05:23'),(2,40,'2023-08-11 10:05:23','2023-08-11 10:05:23'),(3,2225,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2226,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2227,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2228,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2229,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2230,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2231,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2232,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2233,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2234,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2235,'2023-12-12 12:28:38','2023-12-12 12:28:38'),(3,2236,'2023-12-12 12:28:38','2023-12-12 12:28:38');
+INSERT INTO `goadmin_role_menu` VALUES (1,1,'2019-09-09 16:00:00','2019-09-09 16:00:00'),(1,8,'2020-11-23 02:57:07','2020-11-23 02:57:07'),(2,8,'2020-11-23 02:57:07','2020-11-23 02:57:07'),(1,18,'2020-11-23 03:06:44','2020-11-23 03:06:44'),(2,18,'2020-11-23 03:06:44','2020-11-23 03:06:44'),(1,34,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(2,34,'2020-12-07 03:06:28','2020-12-07 03:06:28'),(1,37,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(2,37,'2020-12-07 03:08:41','2020-12-07 03:08:41'),(1,38,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(2,38,'2020-12-07 03:09:05','2020-12-07 03:09:05'),(1,42,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(2,42,'2020-12-07 03:24:04','2020-12-07 03:24:04'),(1,43,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(2,43,'2020-12-08 08:20:47','2020-12-08 08:20:47'),(1,47,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(2,47,'2020-12-10 03:10:35','2020-12-10 03:10:35'),(1,45,'2020-12-10 03:16:07','2020-12-10 03:16:07'),(2,45,'2020-12-10 03:16:07','2020-12-10 03:16:07'),(1,39,'2020-12-10 03:17:02','2020-12-10 03:17:02'),(2,39,'2020-12-10 03:17:02','2020-12-10 03:17:02'),(1,44,'2020-12-10 03:17:15','2020-12-10 03:17:15'),(2,44,'2020-12-10 03:17:15','2020-12-10 03:17:15'),(1,7,'2020-12-28 14:16:17','2020-12-28 14:16:17'),(2,7,'2020-12-28 14:16:17','2020-12-28 14:16:17'),(1,50,'2021-03-18 14:53:17','2021-03-18 14:53:17'),(1,22,'2021-03-22 09:47:56','2021-03-22 09:47:56'),(2,22,'2021-03-22 09:47:56','2021-03-22 09:47:56'),(1,25,'2021-03-22 09:48:08','2021-03-22 09:48:08'),(2,25,'2021-03-22 09:48:08','2021-03-22 09:48:08'),(1,51,'2021-03-22 11:26:03','2021-03-22 11:26:03'),(2,51,'2021-03-22 11:26:03','2021-03-22 11:26:03'),(1,17,'2021-03-30 03:02:07','2021-03-30 03:02:07'),(2,17,'2021-03-30 03:02:07','2021-03-30 03:02:07'),(1,9,'2021-07-29 06:04:57','2021-07-29 06:04:57'),(2,9,'2021-07-29 06:04:57','2021-07-29 06:04:57'),(3,9,'2022-03-09 07:19:56','2022-03-09 07:19:56'),(3,8,'2022-03-09 07:20:47','2022-03-09 07:20:47'),(5,236,'2022-03-09 07:30:24','2022-03-09 07:30:24'),(1,46,'2023-08-11 10:00:56','2023-08-11 10:00:56'),(2,46,'2023-08-11 10:00:56','2023-08-11 10:00:56'),(1,48,'2023-08-11 10:01:05','2023-08-11 10:01:05'),(2,48,'2023-08-11 10:01:05','2023-08-11 10:01:05'),(1,41,'2023-08-11 10:05:06','2023-08-11 10:05:06'),(2,41,'2023-08-11 10:05:06','2023-08-11 10:05:06'),(1,40,'2023-08-11 10:05:23','2023-08-11 10:05:23'),(2,40,'2023-08-11 10:05:23','2023-08-11 10:05:23'),(3,2564,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2565,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2566,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2567,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2568,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2569,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2570,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2571,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2572,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2573,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2574,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2575,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2576,'2024-01-05 12:45:11','2024-01-05 12:45:11'),(3,2577,'2024-01-05 12:45:11','2024-01-05 12:45:11');
 /*!40000 ALTER TABLE `goadmin_role_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -939,7 +939,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `goadmin_users` WRITE;
 /*!40000 ALTER TABLE `goadmin_users` DISABLE KEYS */;
-INSERT INTO `goadmin_users` VALUES (1,'admin','$2a$10$DR5485qSmpq.zTnYknMKxOFY6R3Mu1QlSvYKw5yXS.j5acH8k/Lla','admin','','tlNcBVK9AvfYH7WEnwB1RKvocJu8FfRy4um3DJtwdHuJy0dwFsLOgAc0xUfh','2019-09-09 16:00:00','2019-09-09 16:00:00'),(2,'operator','$2a$10$Y8BSfJuwRBZ9pxgzaWpCnub0eja4XE93zbkzpep7GawO8BCJ3fK2C','Operator','',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00');
+INSERT INTO `goadmin_users` VALUES (1,'admin','$2a$10$2JwnVImEmgieSFBYz3uKhu2zI86ytpWiaaniFGdFu72tg9/mOsnaq','admin','','tlNcBVK9AvfYH7WEnwB1RKvocJu8FfRy4um3DJtwdHuJy0dwFsLOgAc0xUfh','2019-09-09 16:00:00','2019-09-09 16:00:00'),(2,'operator','$2a$10$Y8BSfJuwRBZ9pxgzaWpCnub0eja4XE93zbkzpep7GawO8BCJ3fK2C','Operator','',NULL,'2019-09-09 16:00:00','2019-09-09 16:00:00');
 /*!40000 ALTER TABLE `goadmin_users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -956,26 +956,24 @@ UNLOCK TABLES;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-12-13 11:00:16
--- MySQL dump 10.13  Distrib 8.0.29, for macos12.2 (x86_64)
+-- Dump completed on 2024-01-05 20:54:41
+-- MySQL dump 10.14  Distrib 5.5.60-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test
+-- Host: 10.57.242.40    Database: data4test
 -- ------------------------------------------------------
--- Server version	8.0.23
+-- Server version	5.7.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
@@ -1043,26 +1041,24 @@ UNLOCK TABLES;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-12-13 11:00:32
--- MySQL dump 10.13  Distrib 8.0.29, for macos12.2 (x86_64)
+-- Dump completed on 2024-01-05 20:55:11
+-- MySQL dump 10.14  Distrib 5.5.60-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test
+-- Host: 10.57.242.40    Database: data4test
 -- ------------------------------------------------------
--- Server version	8.0.23
+-- Server version	5.7.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
@@ -1080,10 +1076,9 @@ UNLOCK TABLES;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2023-12-13 16:18:58
+-- Dump completed on 2024-01-05 20:55:26

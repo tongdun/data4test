@@ -46,6 +46,14 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 - 支持Mock接口，返回文件的数据，并支持占位符数据的生成
 - 支持接口定义规范检查，快速感知变化的接口信息
 
+#### 快速试用
+- 下载 docker-compose.yml 到本地
+- 切换到下载文件的目录下
+- 执行命令：docker-compose up 开启服务
+- 执行命令：docker-compose up -d 后台开启服务
+- 默认访问：http://127.0.0.1:9088
+- 默认用户：admin/ admin
+
 #### 生产环境
 [生产环境部署](./deploy/README.md)
 

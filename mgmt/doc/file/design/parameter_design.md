@@ -93,7 +93,6 @@
 
 #### 级联数据自由定义
 说明：（系统参数中先进行级联数据定义，然后通过{TreeData_Name}关联取用，格式参考China变量，目前只支持3级，如需更多级，联系管理员进行支持）  
-- {TreeData_China[1]}      生成级联数据，e.g: 生成国家-中国
-- {TreeData_China[2]}      生成级联数据，e.g: 生成省份-浙江省
-- {TreeData_China[3]}      生成级联数据，e.g: 生成城市-杭州市
-
+- {TreeData_China[1]}      生成级联数据，e.g: 生成国家-中国  
+- {TreeData_China[2]}      生成级联数据，e.g: 生成省份-浙江省  
+- {TreeData_China[3]}      生成级联数据，e.g: 生成城市-杭州市  
