@@ -1,0 +1,24 @@
+# This file describes the standard way to build Data4Test on trial env image, and using container
+#
+# When build it, please prepare the all content of deploy directory
+# you can read ci/getInitPackage.sh, to get the all content of deploy dirctory
+#
+# Usage:
+#
+# # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
+# docker build -f appDockerfile -t data4test:1.0 .
+# use this image in docker-compose.yml
+# docker-compose up -d
+# docker-compose up
+# You can visit Data4Test by http://127.0.0.1:9088 admin / admin to use it ~
+# You can visit Portainer by http://127.0.0.1:9000 to management container ~
+
+FROM centos
+MAINTAINER josingcjx
+# Start it after get the ./deloy content finish
+COPY ./deploy/ /home/data4test
+WORKDIR /home/data4test
+RUN cd /home/data4test && \
+    chmod +x data4test
+EXPOSE 9088
+ENTRYPOINT ["./data4test"]

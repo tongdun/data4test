@@ -24,3 +24,6 @@ mysqldump -h 127.0.0.1 -u root -p data4test goadmin_role_menu goadmin_role_permi
 
 # 备份有内置的示例数据
 mysqldump -h 127.0.0.1 -u root -p data4test assert_template env_config sys_parameter scene_data  product playbook -t >> data4test_init.sql
+
+# 备份有内置的任务数据
+mysqldump -h 127.0.0.1 -u root -p data4test schedule -t >> data4test_init.sql

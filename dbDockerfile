@@ -1,0 +1,24 @@
+# This file describes the standard way to build Data4Test on trial env image, and using container
+#
+# When build it, please prepare the all content of deploy directory
+# you can read ci/getInitPackage.sh, to get the all content of deploy dirctory
+#
+# Usage:
+#
+# # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
+# docker build -f dbDockerfile -t sql-data4test:1.0 .
+# use this image in docker-compose.yml
+
+# use office image
+FROM mysql:5.7
+MAINTAINER josingcjx
+# import init sql to container
+COPY ./mgmt/sql /docker-entrypoint-initdb.d/
+# set env for mysql
+ENV MYSQL_ROOT_PASSWORD=password
+RUN cd /docker-entrypoint-initdb.d/ && \
+    cat update.sql >> init.sql && \
+    rm -f update.sql && \
+    cd -
+# expose port for mysql
+EXPOSE 3306

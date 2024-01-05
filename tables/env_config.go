@@ -72,7 +72,7 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 
 	info.AddActionButton("查看报告", action.Jump("/admin/app_dashboard?id={{.Id}}"))
 
-	info.AddButton("Swagger导入API用例", icon.Android, action.Ajax("autogeneration_batch",
+	info.AddButton("导入接口", icon.Android, action.Ajax("autogeneration_batch",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
@@ -100,7 +100,7 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddActionButton("Swagger导入API用例", action.Ajax("autogeneration",
+	info.AddActionButton("导入接口", action.Ajax("autogeneration",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string

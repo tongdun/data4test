@@ -103,27 +103,3 @@ echo '''
 	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1"
 }
 ''' > deploy/config.json
-
-# Release打包
-curDate=`date +"%Y%m%d"`
-tar -cvf ./release/data4test_${curDate}.tgz deploy
-
-# 后端各个架构的打包
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./release/data4test_linux_x86_64 main.go
-CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -o ./release/data4test_linux_i386 main.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./release/data4test_darwin_x86_64 main.go
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ./release/data4test_linux_aarch64 main.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./release/data4test_windows_x86_64.exe main.go
-CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -o ./release/data4test_windows_i386.exe main.go
-
-
-cd deploy
-rm -rf `ls | grep -v "README.md"`
-cd -
-
-# 系统管理数据库手动批量新建
-#mkdir -p ./mgmt/{api,case,common,log,upload,history,old,download}
-
-# 线上环境打包
-#tar -cvf data4test_20XX0X0X.tgz deploy --exclude=./deploy/mgmt/history/ --exclude=./deploy/mgmt/old/ --exclude=./deploy/mgmt/log/  --exclude=./deploy/download
-
