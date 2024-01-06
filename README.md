@@ -81,16 +81,16 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 - 正则编写：https://www.runoob.com/regexp/regexp-syntax.html
 
 #### 微信公众号
-公众号：Data4Test
-欢迎扫码关注盾测更新动态以及系统使用小技巧会陆续上线  
-<img src="./image/Data4Test公众号.jpg" width=30% />
+公众号：Data4Test  
+欢迎扫码关注盾测更新动态以及系统使用小技巧会陆续上线    
+<img src="./image/Data4Test公众号.jpg" width=30% />  
 
-#### 社区微信群
-欢迎扫码，邀请加入我们的开源社区微信群，进行沟通交流
-<img src="./image/微信社区交流群.jpg" width=30% />
-如需联系开发作者，请添加微信：liuhuocjx 或 扫一扫添加
-<img src="./image/沟通联系方式.jpg" width=30% />  
-(申请时备注“data4test”字样)
+#### 社区微信群  
+欢迎扫码，邀请加入我们的开源社区微信群，进行沟通交流  
+<img src="./image/微信社区交流群.jpg" width=30% />  
+如需联系开发作者，请添加微信：liuhuocjx 或 扫一扫添加  
+<img src="./image/沟通联系方式.jpg" width=30% />    
+(申请时备注“data4test”字样)  
 
 
 
