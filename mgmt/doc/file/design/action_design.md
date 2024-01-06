@@ -22,9 +22,9 @@
 - type: record_xls
   value: name.xls   // 把当前请求的body数据记录到name.xls中
 - type: modify_file
-  value: name.xml:name_{certid}.xml  // 冒号前为模板文件，需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录
+  value: record_template.json:record_template_{phoneno}.json   // 冒号前为模板文件，需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录
 - type: modify_file
-  value: name.xml:{phoneno}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  value: record_template.yml:record_template_{certid}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
 ```
 
 #### modify_file动作模板文件示例

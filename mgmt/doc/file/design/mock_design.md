@@ -1,4 +1,4 @@
-##### 支持的Mock路径由
+##### 支持的Mock路由
 - http://{IP}:{PORT}/mock/file/name.xml?lang=en 
   - 可返回上传文件下name.xml的内容，如果name.xml中有占位符，会生成对应特征的数据,lang不传默认中文
   - 返回的文件支持.xml, .json, .yml, .txt等文本类型的文件
