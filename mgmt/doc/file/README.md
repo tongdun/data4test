@@ -2,6 +2,7 @@
 - 概览: README.md
 - 架构图: arch/arch.md
 - 系统蓝图: design/blue_print.md
+- 特性简介: function/feature_introduction.md
 - 功能模块: function/module_function.md
 - 模糊测试说明: design/relation_design.md
 - 场景测试说明: design/scene_design.md

@@ -1,8 +1,8 @@
 version: "3.3"
 services:
   db:
-    image: josingcjx/sql-data4test:1.0
-    container_name: sql-data4test
+    image: josingcjx/db-data4test:1.0
+    container_name: db-data4test
     command: --default-authentication-plugin=mysql_native_password
     ports:
       - "3306:3306"
