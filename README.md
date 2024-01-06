@@ -18,7 +18,7 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 
 ### 系统
 #### 快速试用
-- 执行命令1：curl -o docker-compose.yml  https://raw.githubusercontent.com/tongdun/data4test/master/docker-compose.yml
+- 执行命令1：curl -o docker-compose.yml https://raw.githubusercontent.com/tongdun/data4test/master/docker-compose.yml
 - 执行命令2：docker-compose up -d
 - 默认访问：http://127.0.0.1:9088
 - 默认用户：admin / admin
