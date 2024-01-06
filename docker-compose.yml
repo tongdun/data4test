@@ -5,7 +5,7 @@ services:
     container_name: db-data4test
     command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "3306:3306"
+      - "33066:3306"
     volumes:
       - mysql:/data
     networks:
@@ -14,17 +14,6 @@ services:
       - MYSQL_ROOT_PASSWORD:password
       - MYSQL_USER:admin
       - MYSQL_PASSWORD:data4test
-  portainer:
-    image: portainer/portainer:latest
-    container_name: portainer
-    restart: always
-    ports:
-      - "9000:9000"
-    networks:
-      - data4test
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer:/data
   data4test:
     image: josingcjx/data4test:1.0
     container_name: data4test

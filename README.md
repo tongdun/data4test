@@ -3,7 +3,6 @@
 ### 前言
 Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持丰富的数据生成，支持复杂场景用例编排，适用于功能，并发，异常，模糊，场景，长时间，国际化，大数据，性能等方面的测试工作。
 
-
 ### 背景
 - 已有的测试工具无法在一个场景里支持多应用接口的调用和执行
 - Postman, Jmeter等单机版的测试工具无法快速在开发，测试，实施等多个角色间进行测试数据共享
@@ -14,23 +13,15 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 - 已有测试工具测试数据变更环境回放困难，需要数据用例幂等执行，且更换环境能快速落地数据进行复现
 - 实时，离线，批转流，外部数据等多方数据特征需保持一致，且数据值需关联上
 - 低并发测试需要常态化，靠手工不可能，靠脚本实现和维护成本过高
-- 被测系统支持国际化，支持多语种，需要多语种的测试数据
+- 被测系统支持国际化，支持多语种，需要多语种的测试数据，且已建设的用例能直接复用，减少建设成本
 - 等等，多个原因促成了本系统的诞生
 
 ### 系统
 #### 快速试用
-- 下载 docker-compose.yml 到本地
-- 切换到下载文件的目录下
-- 执行命令：docker-compose up 开启服务
-- 执行命令：docker-compose up -d 后台开启服务
+- 执行命令1：curl -o docker-compose.yml  https://raw.githubusercontent.com/tongdun/data4test/master/docker-compose.yml
+- 执行命令2：docker-compose up -d
 - 默认访问：http://127.0.0.1:9088
 - 默认用户：admin / admin
-
-#### 生产环境
-[生产环境部署](./deploy/README.md)
-
-#### 开发环境
-[开发环境部署](./mgmt/doc/file/development/dev_env.md)
 
 #### 架构设计
 - [架构图](./mgmt/doc/file/arch/arch.md)
@@ -63,6 +54,12 @@ Data4Test(盾测) 可以快速实现接口的自动化测试和管理，支持�
 #### 开发须知
 - [变更须知](./mgmt/doc/file/development/must_know.md)
 - [更新记录](./mgmt/doc/file/update/change_log.md)
+
+#### 生产环境
+[生产环境部署](./deploy/README.md)
+
+#### 开发环境
+[开发环境部署](./mgmt/doc/file/development/dev_env.md)
 
 ### 功能
 #### 适用测试类型
