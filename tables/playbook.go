@@ -52,15 +52,23 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	info.AddField("类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "默认"
+				return "串行中断"
+			} else if model.Value == "2" {
+				return "串行比较"
+			} else if model.Value == "3" {
+				return "串行继续"
+			} else if model.Value == "4" {
+				return "普通并发"
+			} else if model.Value == "5" {
+				return "并发比较"
 			}
-			if model.Value == "2" {
-				return "比较"
-			}
-			return "默认"
+			return "串行中断"
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "默认"},
-		{Value: "2", Text: "比较"},
+		{Value: "1", Text: "串行中断"},
+		{Value: "2", Text: "串行比较"},
+		{Value: "3", Text: "串行继续"},
+		{Value: "4", Text: "普通并发"},
+		{Value: "5", Text: "并发比较"},
 	})
 	info.AddField("优先级", "priority", db.Int).
 		FieldFilterable(types.FilterType{FormType: form.Number}).
@@ -250,6 +258,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldDisableWhenCreate()
 	formList.AddField("场景描述", "name", db.Varchar, form.Text)
 
+	sceneTypeMsg := template.HTML("默认值为: 串行中断<br>串行中断: 场景内的数据用例若存在执行失败，失败后的数据用例不再执行<br>串行比较: 场景内的数据用例串行执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过<br>串行继续: 场景内的数据用例串行执行存在失败数据用例，失败后的数据用例继续执行<br>普通并发: 场景内的数据用例并发执行<br>并发比较: 场景内的数据用例并发执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过")
 	dataHelp := template.HTML("关联数据必填")
 	formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
 		panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
@@ -282,15 +291,18 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldOptions(files)
 	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "默认", Value: "1"},
-			{Text: "比较", Value: "2"},
-		}).FieldDefault("1")
+			{Value: "1", Text: "串行中断"},
+			{Value: "2", Text: "串行比较"},
+			{Value: "3", Text: "串行继续"},
+			{Value: "4", Text: "普通并发"},
+			{Value: "5", Text: "并发比较"},
+		}).FieldDefault("1").FieldHelpMsg(sceneTypeMsg)
 	formList.AddField("优先级", "priority", db.Int, form.Number).FieldDefault("1")
 	formList.AddField("执行次数", "run_time", db.Int, form.Number).FieldDefault("1")
 	formList.AddField("测试结果", "result", db.Varchar, form.Text)
 	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
-	formList.AddField("备注", "remark1", db.Longtext, form.TextArea)
-	formList.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
+	formList.AddField("所属产品", "product", db.Varchar, form.Select).
 		FieldOptions(products)
 	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
@@ -322,12 +334,21 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "默认"
+				return "串行中断"
 			}
 			if model.Value == "2" {
-				return "比较"
+				return "串行比较"
 			}
-			return "默认"
+			if model.Value == "3" {
+				return "串行继续"
+			}
+			if model.Value == "4" {
+				return "普通并发"
+			}
+			if model.Value == "5" {
+				return "并发比较"
+			}
+			return "串行中断"
 		})
 	detail.AddField("优先级", "priority", db.Int)
 	detail.AddField("执行次数", "run_time", db.Int)

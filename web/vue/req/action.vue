@@ -18,7 +18,7 @@ export default class ActionList extends Vue {
   @Prop() actionListData: Req.ActionListModel[]
 
   actionTableData: any[] = []
-  actionType: string[] = ["sleep", "create_csv", "create_excel", "create_xlsx", "record_csv", "record_xls", "record_excel", "record_xlsx", "modify_file","create_hive_table_sql"]
+  actionType: string[] = ["sleep", "create_csv", "create_excel", "create_xlsx", "create_txt", "record_csv", "record_xls", "record_excel", "record_xlsx", "record_txt", "modify_file","create_hive_table_sql"]
 
   actionTableColumns: any[] = [
     {
@@ -31,8 +31,8 @@ export default class ActionList extends Vue {
                 value: params.row.type,
                 transfer: true,
                 filterable: true,
-                data: this.getOptions('type'),
-                'filter-method': this.onFilterMethod
+                data: this.getOptions('type')
+                // 'filter-method': this.onFilterMethod
               },
               on: {
                 'on-change': (value: string) => {
@@ -56,8 +56,8 @@ export default class ActionList extends Vue {
               props: {
                 value: params.row.value,
                 transfer: true,
-                data: this.getOptions("value"),
-                'filter-method': this.onFilterMethod
+                data: this.getOptions("value")
+                // 'filter-method': this.onFilterMethod
               },
               on: {
                 'on-change': (value: string) => {
@@ -125,9 +125,9 @@ export default class ActionList extends Vue {
     this.syncTableData()
   }
 
-  onFilterMethod(value: string, option: string) {
-    return option.toLowerCase().indexOf(value.toLowerCase()) != -1
-  }
+  // onFilterMethod(value: string, option: string) {
+  //   return option.toLowerCase().indexOf(value.toLowerCase()) != -1
+  // }
 
   onAdd() {
     this.actionListData.push({

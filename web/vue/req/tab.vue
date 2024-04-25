@@ -760,7 +760,7 @@ export default class Tab extends Vue {
   dataDescOptions: string[] = []
   depDataTableData: Req.DepDataListModel[] = []  //可以从其他页面捞来数据
 
-  sceneTypeOptions: string[] = ["默认", "比较"]
+  sceneTypeOptions: string[] = ["串行中断", "串行比较", "串行继续", "普通并发", "并发比较"]
   allDataFile: string[] = []
 
   domainMode = "run"
@@ -821,7 +821,7 @@ export default class Tab extends Vue {
     product: '',
     name: '',
     dataList: [],
-    type: '默认',
+    type: '串行中断',
     runNum: 1
   }
 
@@ -829,7 +829,7 @@ export default class Tab extends Vue {
     product: '',
     name: '',
     dataList: [],
-    type: '默认',
+    type: '串行中断',
     runNum: 1,
     result: "",
     failReason: "",

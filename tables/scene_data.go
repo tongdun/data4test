@@ -49,6 +49,30 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			GetContent()
 	}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+	info.AddField("文件类型", "file_type", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "1" {
+				return "标准"
+			} else if model.Value == "2" {
+				return "Python"
+			} else if model.Value == "3" {
+				return "Shell"
+			} else if model.Value == "4" {
+				return "Bat"
+			} else if model.Value == "5" {
+				return "Jmeter"
+			} else if model.Value == "99" {
+				return "其他"
+			}
+			return "标准"
+		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
+		{Value: "1", Text: "标准"},
+		{Value: "2", Text: "Python"},
+		{Value: "3", Text: "Shell"},
+		{Value: "4", Text: "Bat"},
+		{Value: "5", Text: "Jmeter"},
+		{Value: "99", Text: "其他"},
+	})
 	info.AddField("文件内容", "content", db.Longtext).FieldHide()
 	info.AddField("执行次数", "run_time", db.Int).
 		FieldFilterable(types.FilterType{FormType: form.Number}).FieldSortable().
@@ -72,17 +96,18 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.AddButton("同步", icon.Android, action.Ajax("scenedata_sync",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			var status string
-			if newTag, modTag, err := biz.SyncSceneData(); err == nil {
-				status = fmt.Sprintf("同步完成, 新增: %d条，修改: %d条", newTag, modTag)
-			} else {
-				status = fmt.Sprintf("同步失败: %s, 新增: %d条，修改: %d条", err, newTag, modTag)
-				return false, status, ""
-			}
-			return true, status, ""
-		}))
+	// 功能先屏蔽
+	//info.AddButton("同步", icon.Android, action.Ajax("scenedata_sync",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		var status string
+	//		if newTag, modTag, err := biz.SyncSceneData(); err == nil {
+	//			status = fmt.Sprintf("同步完成, 新增: %d条，修改: %d条", newTag, modTag)
+	//		} else {
+	//			status = fmt.Sprintf("同步失败: %s, 新增: %d条，修改: %d条", err, newTag, modTag)
+	//			return false, status, ""
+	//		}
+	//		return true, status, ""
+	//	}))
 
 	info.AddButton("复制", icon.Android, action.Ajax("scenedata_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
@@ -157,7 +182,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RunSceneData(id, ""); err == nil {
+				if err := biz.RepeatRunDataFile(id, ""); err == nil {
 					status = "测试完成，请刷新列表查看测试结果"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -171,7 +196,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RunSceneData(id, ""); err == nil {
+			if err := biz.RepeatRunDataFile(id, ""); err == nil {
 				status = "测试完成，请刷新列表查看测试结果"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -186,7 +211,8 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	}, action.FieldFilter("result"))
 	info.SetTable("scene_data").SetTitle("数据列表").SetDescription("数据列表")
 
-	fileNameHelp := template.HTML("e.g.: 类型-模块-功能描述.yml / 类型-模块-功能描述.json")
+	fileNameHelp := template.HTML("e.g.: 类型-模块-功能描述.yml / 类型-模块-功能描述.json / 类型-模块-功能描述.py / 类型-模块-功能描述.sh / 类型-模块-功能描述.jmx")
+	fileTypeMsg := template.HTML("默认值为: 标准数据<br>标准数据: 系统支持的数据编排格式,自动解析并执行，推荐使用标准数据，结构化编写测试数据，简单高效<br>Python脚本: 标准数据无法支持的场景，使用python的引擎执行，脚本若有定义执行引擎，优先使用定义的执行引擎<br>Shell脚本: 标准数据无法支持的场景，默认使用sh的引擎执行，脚本若有定义执行引擎，优先使用定义的执行引擎<br>Bat脚本: dos系统支持的.bat文件<br>Jmeter脚本: 标准数据无法支持的场景，默认有内置的jmeter引擎执行，参数若需变更，可以系统参数中配置JmeterRunConfig<br>其他脚本: 系统自动给脚本设置可执行权限，直接执行，依赖部署系统的环境是否有对应的执行引擎")
 
 	formList := sceneData.GetForm()
 	formList.AddField("唯一标识", "id", db.Int, form.Default).
@@ -197,6 +223,15 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		FieldOptions(apps)
 	formList.AddField("文件名", "file_name", db.Longtext, form.Url).
 		FieldHelpMsg(fileNameHelp)
+	formList.AddField("文件类型", "file_type", db.Enum, form.Radio).
+		FieldOptions(types.FieldOptions{
+			{Value: "1", Text: "标准"},
+			{Value: "2", Text: "Python"},
+			{Value: "3", Text: "Shell"},
+			{Value: "4", Text: "Bat"},
+			{Value: "5", Text: "Jmeter"},
+			{Value: "99", Text: "其他"},
+		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
 
 	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
 		FieldDefault("<pre><code>\nname: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n</code></pre>")
@@ -226,6 +261,9 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		var newTxt string
 		if strings.HasSuffix(fileName, ".yml") {
 			newTxt = strings.ReplaceAll(content, "<br>", "\n")
+		} else if strings.HasSuffix(fileName, ".sh") || strings.HasSuffix(fileName, ".py") || strings.HasSuffix(fileName, ".bat") || strings.HasSuffix(fileName, ".jmx") {
+			_ = biz.WriteContent2File(fileName, content)
+			return
 		} else {
 			newTxt = content
 		}

@@ -23,7 +23,6 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/gin-contrib/pprof"
 	//_ "github.com/mkevac/debugcharts"
 	//_ "net/http/pprof"
 
@@ -99,7 +98,7 @@ func startServer() {
 	var err error
 	r := gin.Default()
 	r.Use(cors.Default())
-	pprof.Register(r)
+	//pprof.Register(r)  // 性能查看
 
 	eng := engine.Default()
 
@@ -604,10 +603,18 @@ func startServer() {
 		} else {
 			sceneSave.RunNum = runNum
 		}
-		if typeTag == "比较" {
-			sceneSave.SceneType = 2
-		} else {
+
+		switch typeTag {
+		case "串行中断":
 			sceneSave.SceneType = 1
+		case "串行比较":
+			sceneSave.SceneType = 2
+		case "串行继续":
+			sceneSave.SceneType = 3
+		case "普通并发":
+			sceneSave.SceneType = 4
+		case "并发比较":
+			sceneSave.SceneType = 5
 		}
 
 		json.Unmarshal([]byte(c.PostForm("dataList")), &sceneSave.DataList)

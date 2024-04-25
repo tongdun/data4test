@@ -29,7 +29,7 @@ func GetApps() (apps []types.FieldOption) {
 func GetProducts() (products []types.FieldOption) {
 	var dbProducts []Product
 	var product types.FieldOption
-	models.Orm.Table("product").Find(&dbProducts)
+	models.Orm.Table("product").Order("created_at desc").Find(&dbProducts)
 
 	if len(dbProducts) >= 0 {
 		for _, item := range dbProducts {

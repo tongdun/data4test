@@ -159,7 +159,8 @@ func OneTask(id string) (err error) {
 		return
 	}
 
-	productTaskInfo, _ := GetProductInfo(dbSchedule.ProductList)
+	productTaskList, _ := GetProductInfo(dbSchedule.ProductList)
+	productTaskInfo := productTaskList[0]
 
 	var err1 error
 	dataList, _ := dbSchedule.GetDataIds()
@@ -175,7 +176,8 @@ func OneTask(id string) (err error) {
 		}
 	} else if dbSchedule.TaskType == "scene" {
 		for _, sceneId := range sceneList {
-			playbookInfo, productSceneInfo, err := GetPlRunInfo("", sceneId)
+			playbookInfo, productList, err := GetPlRunInfo("", sceneId)
+			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
 				err1 = playbookInfo.RunPlaybook("", "task", productSceneInfo)
 			} else {
@@ -326,15 +328,14 @@ func RunOnceTask(id string) (err error) {
 		err = errors.Errorf("未对找对应任务信息，请核查: %s", task.TaskName)
 		return
 	}
-
 	switch task.TaskType {
 	case "data":
 		dataIds, _ := task.GetDataIds()
 		for _, dataId := range dataIds {
-			err1 := RunSceneData(dataId, task.ProductList)
+			err1 := RepeatRunDataFile(dataId, task.ProductList)
 			if err1 != nil {
 				err = err1
-				Logger.Error("%s", err)
+				Logger.Error("%v", err)
 				break // 数据执行完后，后续数据不再执行，后续可以做错误精细化管理
 			}
 		}
@@ -342,15 +343,15 @@ func RunOnceTask(id string) (err error) {
 		sceneIds, _, _ := task.GetSceneIds()
 		for _, sceneId := range sceneIds {
 			var err1 error
-			if len(task.ProductList) == 0 {
-				err1 = RepeatRunPlaybook(sceneId, "", task.ProductList, "task")
-			} else {
-				err1 = RepeatRunPlaybook(sceneId, "", task.ProductList, "task")
-			}
+			err1 = RepeatRunPlaybook(sceneId, "", task.ProductList, "task")
 			if err1 != nil {
-				err = err1
-				Logger.Error("%s", err)
-				break // 场景执行完后，后续场景不再执行，后续可以做错误精细化管理
+				//Logger.Error("%v", err1)
+				if err != nil {
+					err = fmt.Errorf("%v; %v", err, err1)
+				} else {
+					err = err1
+				}
+				//break // 场景执行完后，后续场景不再执行，后续可以做错误精细化管理
 			}
 		}
 	}

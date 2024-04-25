@@ -36,8 +36,8 @@ export default class AssertList extends Vue {
                 value: params.row.type,
                 transfer: true,
                 filterable: true,
-                data: this.getOptions('type'),
-                'filter-method': this.onFilterMethod
+                data: this.getOptions('type')
+                // 'filter-method': this.onFilterMethod
               },
               on: {
                 'on-change': (value: string) => {
@@ -62,8 +62,8 @@ export default class AssertList extends Vue {
           props: {
             value: params.row.source,
             transfer: true,
-            data: this.getOptions('source'),
-            'filter-method': this.onFilterMethod
+            data: this.getOptions('source')
+            // 'filter-method': this.onFilterMethod
           },
           on: {
             'on-change': (value: string) => {
@@ -84,7 +84,7 @@ export default class AssertList extends Vue {
                 transfer: true,
                 filterable: true,
                 'filter-method': this.onFilterMethod,
-                data: this.getOptions("value"),
+                // data: this.getOptions("value"),
                 'allow-create': true,
                 'on-create': this.onAddAssertTemplateValue(params.row.value)
               },

@@ -5,14 +5,12 @@ import (
 	"data4perf/models"
 	"encoding/json"
 	"fmt"
-	"github.com/Knetic/govaluate"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gohobby/deepcopy"
 	"github.com/mritd/chinaid"
 	uuid "github.com/satori/go.uuid"
 	chIdNo "github.com/sleagon/chinaid"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os/exec"
 	"regexp"
@@ -62,7 +60,7 @@ func CopyList(src []interface{}) (dst []interface{}) {
 	return
 }
 
-func Interface2Str(value interface{}) (strValue string, err error) {
+func Interface2Str(value interface{}) (strValue string) {
 	varType := fmt.Sprintf("%T", value)
 	if value == nil {
 		return
@@ -130,9 +128,10 @@ func Interface2Str(value interface{}) (strValue string, err error) {
 	//	//}
 	//	//Logger.Debug("strValue: %v", strValue)
 	default:
-		err = fmt.Errorf("不支持类型: %v 的转换, 值: %v,  原样请求，如有需要，请联系管理员~", varType, value)
+		err := fmt.Errorf("不支持类型: %v 的转换, 值: %v,  原样请求，如有需要，请联系管理员~", varType, value)
 		Logger.Warning("%s", err)
 	}
+
 	return
 }
 
@@ -151,156 +150,14 @@ func GetSliceMinLen(info map[string][]interface{}) (minLen int) {
 	return
 }
 
-func StrComparion(sType, curStr, targetStr string) (b bool, err error) {
-	switch sType {
-	case "=", "equal":
-		_, err1 := strconv.ParseFloat(curStr, 64)
-		if err1 == nil {
-			Expression := "value1==value2"
-			Expression = strings.Replace(Expression, "value1", curStr, -1)
-			Expression = strings.Replace(Expression, "value2", targetStr, -1)
-			expr, err2 := govaluate.NewEvaluableExpression(Expression)
-			if err2 != nil {
-				err = err2
-				Logger.Error("四则运算表达式书写有误，%s", err2)
-				return
-			}
-			result, err3 := expr.Evaluate(nil)
-			if err3 != nil {
-				err = err3
-				Logger.Error("四则运算表达式书写有误，%s", err3)
-				return
-			}
-			if result == true {
-				b = true
-			} else {
-				b = false
-			}
-		} else {
-			//b = false
-			if curStr == targetStr {
-				b = true
-			} else {
-				b = false
-			}
-		}
-
-	case "!=", "not_equal":
-		if curStr != targetStr {
-			b = true
-		} else {
-			b = false
-		}
-	case "in", "contain":
-		if strings.Contains(curStr, targetStr) {
-			b = true
-		} else {
-			b = false
-		}
-	case "!in", "not_in", "not_contain":
-		if !strings.Contains(curStr, targetStr) {
-			b = true
-		} else {
-			b = false
-		}
-	case "re", "regex", "regexp":
-		re := regexp.MustCompile(targetStr)
-		result := re.FindStringSubmatch(curStr)
-		if len(result) > 0 {
-			//Logger.Debug("result: %q", result)
-			b = true
-		} else {
-			b = false
-		}
-	case "null", "empty":
-		if len(curStr) == 0 {
-			b = true
-		} else {
-			b = false
-		}
-	case "!null", "!empty", "not_null", "not_empty":
-		if len(curStr) > 0 {
-			b = true
-		} else {
-			b = false
-		}
-	case ">", "larger_than", "greater_than":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt > targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	case ">=", "larger_equal", "greater_equal":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt >= targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	case "<", "less_than":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt < targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	case "<=", "less_equal":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt <= targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	default:
-		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", sType)
-		Logger.Error("%s", err)
-	}
-	//Logger.Info("断言: [%v] %v [%v] 结果:pass", curStr, sType, targetStr)  // 由%s占位符更换成%v, 是否能解决空指针问题
-	if !b {
-		err = fmt.Errorf("断言: [%v] %v [%v] 结果:fail", curStr, sType, targetStr)
-		Logger.Error("%s", err)
-	}
-
-	return
-}
-
 func GetInStrDef(rawStr string) (allDef map[string]string, allListDef map[string][]string) {
 	strByte := []byte(rawStr)
 	allDef = make(map[string]string)
 	allListDef = make(map[string][]string)
-	//indexReg := regexp.MustCompile(`(\w+)\[(\W*\d+)\]`)
-	//indexMatch := indexReg.FindAllSubmatch(strByte, -1)
-	//if len(indexMatch) > 0 {
-	//	index, _ = strconv.Atoi(string(indexMatch[0][2]))
-	//	keyName = string(indexMatch[0][1])
-	//	isHit = true
-	//}
 
-	// 匹配字符串
-	//strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)\}`)
 	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
 	strMatch := strReg.FindAllSubmatch(strByte, -1)
+
 	//支持${xx}写法不替换
 	strReg2 := regexp.MustCompile(`\$\{([-a-zA-Z0-9_]+)\}`)
 	strMatch2 := strReg2.FindAllSubmatch(strByte, -1)
@@ -320,9 +177,28 @@ func GetInStrDef(rawStr string) (allDef map[string]string, allListDef map[string
 			if isNeed == true {
 				allDef[key] = rawStrDef
 			}
-			//allDef[key] = rawStrDef
 		}
+	}
 
+	strReg3 := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\((\W*\d+)\))*\}`)
+	strMatch3 := strReg3.FindAllSubmatch(strByte, -1)
+	for _, item := range strMatch3 {
+		key := string(item[1])
+		rawStrDef := string(item[0])
+		if len(item[2]) > 0 && len(item[3]) > 0 {
+			allListDef[key] = append(allListDef[key], rawStrDef)
+		} else {
+			isNeed := true
+			for _, item2 := range strMatch2 {
+				key2 := string(item2[1])
+				if key == key2 {
+					isNeed = false
+				}
+			}
+			if isNeed == true {
+				allDef[key] = rawStrDef
+			}
+		}
 	}
 	return
 }
@@ -342,18 +218,15 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 	newStr = GetRangeData(newStr)
 	newStr = GetTimeFormatData(newStr)
 
-	allDef, _ := GetInStrDef(newStr)
-	for k, v := range allDef {
-		value := GetValueFromSysParameter(lang, k)
-		if len(value) > 0 {
-			newStr = strings.ReplaceAll(newStr, v, value)
-		}
-	}
-
-	//for k, v := range allListDef {
+	//allDef, _ := GetInStrDef(newStr)
+	//Logger.Debug("allDef: %v", allDef)
+	//Logger.Debug("len(allDef): %v", len(allDef))
+	//for k, v := range allDef {
 	//	value := GetValueFromSysParameter(lang, k)
 	//	if len(value) > 0 {
 	//		newStr = strings.ReplaceAll(newStr, v, value)
+	//	} else {
+	//		falseCount++
 	//	}
 	//}
 
@@ -400,7 +273,7 @@ func GetTimeFormatData(rawStr string) (newStr string) {
 			formatDef := string(timeFormatMatch[i][1])
 			rawStrDef := string(timeFormatMatch[i][0])
 			ret := fmt.Sprintf(timeNow.Format(formatDef))
-			newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+			newStr = strings.Replace(newStr, rawStrDef, ret, 1)
 		}
 	}
 
@@ -420,13 +293,16 @@ func GetHistoryDataDirName(fileName string) (dirName string) {
 }
 
 func GetStrSuffix(s string) (suffix string) {
-	if strings.HasSuffix(s, ".json") {
-		suffix = ".json"
-	} else if strings.HasSuffix(s, ".yaml") {
-		suffix = ".yaml"
-	} else if strings.HasSuffix(s, ".yml") {
-		suffix = ".yml"
-	}
+	tmpList := strings.Split(s, ".")
+
+	suffix = fmt.Sprintf(".%s", tmpList[len(tmpList)-1])
+
+	//switch suffixTmp {
+	//case ".json", ".yaml", ".yml":
+	//	suffix = suffixTmp
+	//default:
+	//	suffix = ".log"
+	//}
 
 	return
 }
@@ -581,7 +457,7 @@ func GetLengthData(rawStr string) (newStr string) {
 				ret = fmt.Sprintf("%v", tt.UnixNano()/1e6)
 			}
 			if len(ret) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+				newStr = strings.Replace(newStr, rawStrDef, ret, 1)
 			}
 
 		}
@@ -627,7 +503,8 @@ func GetEnData(rawStr string) (newStr string) {
 			}
 
 			if len(ret) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+				//newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+				newStr = strings.Replace(newStr, rawStrDef, ret, 1)
 			}
 
 		}
@@ -676,7 +553,7 @@ func GetCommonData(rawStr string) (newStr string) {
 			}
 
 			if len(value) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, value, -1)
+				newStr = strings.Replace(newStr, rawStrDef, value, 1)
 			}
 
 		}
@@ -768,7 +645,7 @@ func GetTimeData(rawStr string) (newStr string) {
 			}
 
 			if len(value) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, value, -1)
+				newStr = strings.Replace(newStr, rawStrDef, value, 1)
 			}
 
 		}
@@ -781,7 +658,7 @@ func GetInfoFromIDNo(idno string) (idInfo chIdNo.IDCardDetail) {
 	id := chIdNo.IDCard(idno)
 	idInfo, err := id.Decode()
 	if err != nil {
-		log.Println("非法身份证号")
+		Logger.Error("%s", err)
 		return
 	}
 
@@ -829,7 +706,7 @@ func GetChData(rawStr string) (newStr string) {
 			}
 
 			if len(value) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, value, -1)
+				newStr = strings.Replace(newStr, rawStrDef, value, 1)
 			}
 
 		}
@@ -867,7 +744,7 @@ func GetRangeData(rawStr string) (newStr string) {
 			case "Timestamp":
 				ret = GetRandomTimestamp(start, end)
 			}
-			newStr = strings.Replace(newStr, rawStrDef, ret, -1)
+			newStr = strings.Replace(newStr, rawStrDef, ret, 1)
 		}
 	}
 	return
@@ -1006,27 +883,6 @@ func ExecCommand(strCommand string) (result string, err error) {
 		return
 	}
 
-	//stdout, _ := cmd.StdoutPipe()
-	//err = cmd.Start()
-	//if err != nil {
-	//	Logger.Info("cmd: %s", strCommand)
-	//	Logger.Error("%s", err)
-	//	return "", err
-	//}
-	//
-	//out_bytes, err := ioutil.ReadAll(stdout)
-	//stdout.Close()
-	//
-	//if err != nil {
-	//	Logger.Error("%s", err)
-	//	return
-	//}
-	//if err := cmd.Wait(); err != nil {
-	//	Logger.Info("cmd: %s", strCommand)
-	//	Logger.Error("%s", err)
-	//	return "", err
-	//}
-
 	result = strings.Replace(string(out_bytes), "\n", "", -1)
 
 	return
@@ -1114,12 +970,12 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 			if value, ok := depOutVars[defKey]; ok {
 				if len(value) > order {
 					if order < 0 {
-						tmpKey, _ = Interface2Str(value[len(value)+order])
+						tmpKey = Interface2Str(value[len(value)+order])
 					} else {
-						tmpKey, _ = Interface2Str(value[order])
+						tmpKey = Interface2Str(value[order])
 					}
 				} else {
-					tmpKey, _ = Interface2Str(value[0])
+					tmpKey = Interface2Str(value[0])
 				}
 			} else {
 				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
@@ -1149,9 +1005,9 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 						order, _ := strconv.Atoi(string(item[3]))
 						if len(value) > order {
 							if order < 0 {
-								tmpKey, _ = Interface2Str(inValue[len(inValue)+order])
+								tmpKey = Interface2Str(inValue[len(inValue)+order])
 							} else {
-								tmpKey, _ = Interface2Str(inValue[order])
+								tmpKey = Interface2Str(inValue[order])
 							}
 							tmpStr = strings.Replace(tmpStr, rawStrDef, tmpKey, -1)
 						} else {
@@ -1266,62 +1122,10 @@ func GetTreeDataValue(keyName string, deep int, first, second string) (after1, a
 	return
 }
 
-func RawStrComparion(sType, resp string, target interface{}) (b bool, err error) {
-	targetStr, _ := Interface2Str(target)
-	switch sType {
-	case "in", "contain":
-		b = strings.Contains(resp, targetStr)
-	case "!in", "not_in", "not_contain":
-		b = !strings.Contains(resp, targetStr)
-	case "re", "regex", "regexp":
-		re := regexp.MustCompile(targetStr)
-		result := re.FindStringSubmatch(resp)
-		if len(result) > 0 {
-			b = true
-		} else {
-			b = false
-		}
-	case "=", "equal":
-		if resp == target {
-			b = true
-		} else {
-			b = false
-		}
-	case "!=", "not_equal":
-		if resp != targetStr {
-			b = true
-		} else {
-			b = false
-		}
-	case "null", "empty":
-		if len(resp) == 0 {
-			b = true
-		} else {
-			b = false
-		}
-	case "!null", "!empty", "not_null", "not_empty":
-		if len(resp) > 0 {
-			b = true
-		} else {
-			b = false
-		}
-	default:
-		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", sType)
-		Logger.Error("%s", err)
-	}
-
-	if !b {
-		err = fmt.Errorf("断言: Response %s [%s] 结果:fail", sType, targetStr)
-		Logger.Error("%s", err)
-	}
-
-	return
-}
-
 func GetRequestLangage(info map[string]interface{}) (lang string) {
-	contentTypeRaw, _ := Interface2Str(info["Cookie"])
+	contentTypeRaw := Interface2Str(info["Cookie"])
 	if len(contentTypeRaw) == 0 {
-		contentTypeRaw, _ = Interface2Str(info["cookie"])
+		contentTypeRaw = Interface2Str(info["cookie"])
 	}
 
 	if strings.Contains(contentTypeRaw, "lang=en") {

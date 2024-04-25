@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func GetRunTimeData(id string) (dataInfo DbSceneData, appInfo EnvConfig, err error) {
@@ -369,10 +370,6 @@ func CreateSingleSceneDataFromData(apiId string, id int, source, mode string) (e
 
 	if len(apiDefinition.PathVariable) > 0 {
 		pathVar := make(map[string]interface{})
-		//err = json.Unmarshal([]byte(apiDefinition.PathVariable), &pathVar)
-		//if err != nil {
-		//	Logger.Error("%s", err)
-		//}
 		for _, item := range apiDefinition.QueryParameter {
 			pathVar[item.Name] = item.ValueType
 		}
@@ -666,9 +663,19 @@ func CreateSceneData(ids, source, mode string) (err error) {
 	return
 }
 
+func WriteContent2File(fileName, content string) (err error) {
+	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
+	_, err = os.Stat(filePath)
+	if _, err = os.Stat(filePath); err != nil {
+		if os.IsNotExist(err) {
+			err = ioutil.WriteFile(filePath, []byte(content), 0644)
+		}
+	}
+	return
+}
+
 func BakOldVer(id, afterTxt, fileName string) (err error) {
 	var dataFile DataFile
-
 	if strings.HasSuffix(fileName, ".json") {
 		err = json.Unmarshal([]byte(afterTxt), &dataFile)
 	} else {
@@ -759,8 +766,6 @@ func BakOldVer(id, afterTxt, fileName string) (err error) {
 		oldFileName = strings.ReplaceAll(basePath, ".yml", tmpStr)
 	}
 
-	Logger.Debug("oldFileName: %s", oldFileName)
-
 	dataFile.Version = oldVer
 	oldVerPath := fmt.Sprintf("%s/%s", OldFilePath, oldFileName)
 	var oldData []byte
@@ -772,6 +777,7 @@ func BakOldVer(id, afterTxt, fileName string) (err error) {
 
 	err = ioutil.WriteFile(oldVerPath, oldData, 0644)
 	if err != nil {
+		Logger.Debug("oldFilePath: %s", oldVerPath)
 		Logger.Error("%s", err)
 	}
 	return
@@ -789,6 +795,7 @@ func ModifyEditedData(id, fileName string) (err error) {
 	return
 }
 
+// 功能先进行屏蔽
 func SyncSceneData() (newTag, modTag int, err error) {
 	dirHandle, err := ioutil.ReadDir(DataBasePath)
 	if err != nil {
@@ -888,15 +895,28 @@ func CopySceneData(id, userName string) (err error) {
 	}
 
 	var sceneData SceneData
+	var copyName string
 	sceneData.App = dbSceneData.App
 	sceneData.Name = fmt.Sprintf("%s_复制", dbSceneData.Name)
 	sceneData.RunTime = dbSceneData.RunTime
-	copyName := strings.Replace(dbSceneData.FileName, ".yml", "_复制.yml", -1)
+	tmpList := strings.SplitN(dbSceneData.FileName, ".", 2)
+	if len(tmpList) == 2 {
+		copyName = fmt.Sprintf("%s_复制.%s", tmpList[0], tmpList[1])
+	} else {
+		copyName = fmt.Sprintf("%s_复制.yml", dbSceneData.Name)
+	}
+
 	sceneData.FileName = copyName
 	sceneData.Remark = dbSceneData.Remark
 	sceneData.ApiId = dbSceneData.ApiId
 	sceneData.Content = dbSceneData.Content
 	sceneData.UserName = userName
+	if dbSceneData.FileType == 0 {
+		sceneData.FileType = 1
+	} else {
+		sceneData.FileType = dbSceneData.FileType
+	}
+
 	err = models.Orm.Table("scene_data").Create(sceneData).Error
 	if err != nil {
 		Logger.Error("%s", err)
@@ -917,7 +937,7 @@ func UpdateApiDefVer(id string) (err error) {
 }
 
 // 执行场景，如果数据文件不存在，则进行创建
-func CreateFileByFileName(filePath string) (err error) {
+func InitDataFileByName(filePath string) (fileType int, err error) {
 	// 如果数据文件为历史数据，则不进行数据文件的创建
 	fileName := path.Base(filePath)
 	timeReg, err := regexp.Compile(`_[0-9]{8}_[0-9]{6}\.[0-9]+\.`)
@@ -938,6 +958,7 @@ func CreateFileByFileName(filePath string) (err error) {
 		Logger.Error("%s", err)
 		return
 	}
+	fileType = sceneData.FileType
 	content = GetStrFromHtml(sceneData.Content)
 
 	var dataFile DataFile
@@ -953,12 +974,12 @@ func CreateFileByFileName(filePath string) (err error) {
 
 	if err1 != nil {
 		Logger.Error("%s", err1)
-		return err1
+		return fileType, err1
 	}
 	err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
 	if err2 != nil {
 		Logger.Error("%s", err2)
-		return err2
+		return fileType, err2
 	}
 
 	return
@@ -1009,91 +1030,162 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 }
 
 func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err error) {
-	playbook, err := ds.GetPlaybook()
+	playbook := ds.GetPlaybook()
+	if len(dbProduct.Name) > 0 {
+		playbook.Product = dbProduct.Name
+	}
 
 	var runApis []string
 	var tag int
-	if len(playbook.LastFile) != 0 {
-		index := GetSliceIndex(playbook.Apis, playbook.LastFile)
-		if index != -1 {
-			runApis = playbook.Apis[index:]
-			tag = index
-		} else {
-			runApis = playbook.Apis
-		}
-	}
 
 	// 数据置为最初状态
 	if mode != "continue" {
 		runApis = playbook.Apis
 		tag = 0
-	}
-
-	if err != nil {
-		return
-	}
-	isPass := 0
-	var lastFile string
-
-	privateParameter := dbProduct.GetPrivateParameter()
-	for k := range runApis {
-		playbook.Tag = tag + k
-		subResult, historyApi, err1 := playbook.RunPlaybookContent(dbProduct.Name, privateParameter, source)
-		if err1 != nil {
-			Logger.Error("%s", err1)
-		}
-		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
-		if subResult == "fail" {
-			isPass++
-			err = playbook.WritePlaybookResult(ds.Id, subResult, historyApi, dbProduct.Name, source, dbProduct.EnvType, err1)
-			if err != nil {
-				Logger.Error("%s", err)
-			}
-			return
-
-		}
-
-		if err1 != nil {
-			err = err1
-			err = playbook.WritePlaybookResult(ds.Id, subResult, runApis[k], dbProduct.Name, source, dbProduct.EnvType, err1)
-			if err != nil {
-				Logger.Error("%s", err)
-			}
-			return
-		}
-
-		if isPass != 0 {
-			Logger.Debug("isPass: %d", isPass)
-			lastFile = runApis[k]
-		}
-
-	}
-
-	var result string
-	if isPass != 0 {
-		result = "fail"
 	} else {
+		if len(playbook.LastFile) != 0 {
+			index := GetSliceIndex(playbook.Apis, playbook.LastFile)
+			if index != -1 {
+				runApis = playbook.Apis[index:]
+				tag = index
+			} else {
+				runApis = playbook.Apis
+			}
+		}
+	}
+
+	envType, _ := GetEnvTypeByName(playbook.Product)
+	isFail := 0
+	var lastFile, result string
+
+	switch playbook.SceneType {
+	case 1, 2:
+		for k := range runApis {
+			playbook.Tag = tag + k
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType)
+			if errTmp != nil {
+				//Logger.Error("%s", errTmp)
+				if err != nil {
+					err = fmt.Errorf("%s; %s", err, errTmp)
+				} else {
+					err = errTmp
+				}
+			}
+
+			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
+			if subResult == "fail" {
+				errTmp = playbook.WritePlaybookResult(ds.Id, subResult, source, historyApi, envType, errTmp)
+				if errTmp != nil {
+					Logger.Error("%s", errTmp)
+					if err != nil {
+						err = fmt.Errorf("%s; %s", err, errTmp)
+					} else {
+						err = errTmp
+					}
+				}
+				lastFile = runApis[k]
+				return
+			}
+		}
+	case 3:
+		for k := range runApis {
+			playbook.Tag = tag + k
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType)
+			if errTmp != nil {
+				Logger.Error("%v", errTmp)
+				if err != nil {
+					err = errTmp
+				} else {
+					err = fmt.Errorf("%v; %v", err, errTmp)
+				}
+			}
+			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
+			if subResult == "fail" {
+				isFail++
+			}
+		}
+
+		if isFail > 0 {
+			tmpResult := "fail"
+			errTmp := playbook.WritePlaybookResult(ds.Id, tmpResult, source, "", envType, err) // 串行继续时，无最近执行的文件
+			if errTmp != nil {
+				Logger.Error("%v", err)
+				if err != nil {
+					err = errTmp
+				} else {
+					err = fmt.Errorf("%v; %v", err, errTmp)
+				}
+				return
+			}
+			return // 如果验证全部执行完后，存在失败项，则不再进行后续操作
+		}
+	case 4, 5:
+		wg := sync.WaitGroup{}
+		for k := range runApis {
+			wg.Add(1)
+			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
+				inPlaybook.Tag = startIndex + index
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType)
+				if errTmp != nil {
+					Logger.Error("%v", errTmp)
+					if errIn != nil {
+						errIn = errTmp
+					} else {
+						errIn = fmt.Errorf("%v; %v", errIn, errTmp)
+					}
+				}
+				inPlaybook.HistoryApis = append(inPlaybook.HistoryApis, historyApi)
+				if subResult == "fail" {
+					isFail++
+				}
+				if errIn != nil {
+					Logger.Error("%v", errIn)
+				}
+			}(playbook, ds.Id, tag, k, envType, err)
+		}
+
+		wg.Wait()
+		if isFail > 0 {
+			tmpResult := "fail"
+			errTmp := playbook.WritePlaybookResult(ds.Id, tmpResult, source, "", envType, err) // 并发模式时，无最近执行的文件
+			if errTmp != nil {
+				Logger.Error("%v", err)
+				if err != nil {
+					err = errTmp
+				} else {
+					err = fmt.Errorf("%v; %v", err, errTmp)
+				}
+				return
+			}
+			return // 如果验证全部执行完后，存在失败项，则不再进行后续操作
+		}
+	}
+
+	if err == nil && isFail == 0 {
 		result = "pass"
-		lastFile = ""
+		lastFile = " "
+	} else {
+		result = "fail"
 	}
 
-	if ds.SceneType == 2 {
-		result, err = CompareResult(playbook.Apis, mode)
+	if ds.SceneType == 2 || ds.SceneType == 4 {
+		Logger.Debug("开始比较")
+		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
 
-	err = playbook.WritePlaybookResult(ds.Id, result, lastFile, dbProduct.Name, source, dbProduct.EnvType, err)
+	err = playbook.WritePlaybookResult(ds.Id, result, lastFile, source, envType, err)
 	if err != nil {
-		Logger.Error("%s", err)
+		Logger.Error("%v", err)
 		return
 	}
 
 	if result != "pass" {
-		err = fmt.Errorf("test %v", result)
+		err = fmt.Errorf("测试 %v", result)
 	}
 	return
 }
 
-func (ds DbScene) GetPlaybook() (playbook Playbook, err error) {
+func (ds DbScene) GetPlaybook() (playbook Playbook) {
 	var filePaths []string
 	var filePath string
 	fileNames := GetListFromHtml(ds.ApiList)
@@ -1110,5 +1202,261 @@ func (ds DbScene) GetPlaybook() (playbook Playbook, err error) {
 	playbook.Name = ds.Name
 	playbook.LastFile = ds.LastFile
 	playbook.Product = ds.Product
+	playbook.SceneType = ds.SceneType
+	return
+}
+
+func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out string, err error) {
+	var allFalseCount int
+	var notDefVars, tmpDefVars map[string]string
+
+	in, notDefVars, falseCount := GetIndexStr(lang, in, "env:\n", "api:\n", depOutVars)
+	allFalseCount = allFalseCount + falseCount
+
+	in, tmpDefVars, falseCount = GetIndexStr(lang, in, "single:\n", "multi:\n", depOutVars)
+	allFalseCount = allFalseCount + falseCount
+	for k, v := range tmpDefVars {
+		notDefVars[k] = v
+	}
+
+	in, tmpDefVars, falseCount = GetIndexStr(lang, in, "multi:\n", "action:", depOutVars)
+	allFalseCount = allFalseCount + falseCount
+	for k, v := range tmpDefVars {
+		notDefVars[k] = v
+	}
+
+	in, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
+	//allFalseCount = allFalseCount + falseCount  // 如果是自身的变量，无法替换，不进入未定义拦截
+	//for k, v := range tmpDefVars {
+	//	notDefVars[k] = v
+	//}
+
+	in, _, _ = GetIndexStr(lang, in, "assert:\n", "output:", depOutVars)
+	allFalseCount = allFalseCount + falseCount // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
+	for k, v := range tmpDefVars {
+		notDefVars[k] = v
+	}
+
+	out = in
+
+	if allFalseCount > 0 {
+		err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		Logger.Error("%s", err)
+		return
+	}
+	return
+}
+
+// 分区匹配和替换  env匹配区，single匹配区，multi匹配区，断言匹配区
+func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int) {
+	var indexStr string
+	var startIndex, endIndex int
+	if len(startStr) == 0 && len(endStr) == 0 {
+		indexStr = rawStr
+	} else {
+		startIndex = strings.Index(rawStr, startStr)
+		endIndex = strings.Index(rawStr, endStr)
+		if startIndex == -1 && endIndex == -1 {
+			targetStr = rawStr
+			return
+		} else if startIndex == -1 {
+			indexStr = rawStr[:endIndex]
+		} else if endIndex == -1 {
+			indexStr = rawStr[startIndex:]
+		} else if startIndex > endIndex {
+			Logger.Debug("rawStr: %s", rawStr)
+			Logger.Error("rawStr[%d:%d], 索引有问题，请校对", startIndex, endIndex)
+		} else {
+			indexStr = rawStr[startIndex:endIndex]
+		}
+	}
+
+	//if strings.Contains(startStr, "assert") && strings.Contains(endStr, "output") {
+	//	Logger.Debug("startStr: %v", startStr)
+	//	Logger.Debug("output: %v", endStr)
+	//	assertVale := GetAssertTemplateAllValue(lang)
+	//	Logger.Debug("assertVale: %v", assertVale)
+	//	for k, v := range assertVale {
+	//		depOutVars[k] = v
+	//	}
+	//}
+
+	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
+	strMatch := strReg.FindAllSubmatch([]byte(indexStr), -1)
+
+	//支持${xx}写法不替换
+	strReg2 := regexp.MustCompile(`\$\{([-a-zA-Z0-9_]+)\}`)
+	strMatch2 := strReg2.FindAllSubmatch([]byte(indexStr), -1)
+
+	countMap := make(map[string]int) // 统计同一key出现的次数，按顺取用，如果引用次数超过定义次数，超过的取第0个值
+
+	for _, item := range strMatch {
+		key := string(item[1])
+
+		if key == "self" {
+			continue
+		}
+
+		rawStrDef := string(item[0])
+		isReplace := 1
+		for _, subItem := range strMatch2 {
+			subRawStrDef := string(subItem[0])
+			if rawStrDef == subRawStrDef {
+				isReplace = 0
+				break
+			}
+		}
+
+		if isReplace == 0 {
+			continue
+		}
+
+		if len(item[2]) > 0 {
+			order, _ := strconv.Atoi(string(item[3]))
+			if value, ok := depOutVars[key]; ok {
+				if len(value) > order {
+					var tmpKey string
+					if order < 0 {
+						tmpKey = Interface2Str(value[len(value)+order])
+					} else {
+						tmpKey = Interface2Str(value[order])
+					}
+					indexStr = strings.Replace(indexStr, rawStrDef, tmpKey, -1)
+				} else {
+					err := fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
+					Logger.Error("%s", err)
+					falseCount++
+				}
+			}
+		} else {
+			if value, ok := depOutVars[key]; ok {
+				var vStr string
+				if count, ok := countMap[key]; ok {
+					if len(value) > count {
+						vStr = Interface2Str(value[count])
+					} else {
+						vStr = Interface2Str(value[0])
+					}
+				} else {
+					vStr = Interface2Str(value[0])
+				}
+				indexStr = strings.Replace(indexStr, rawStrDef, vStr, 1)
+				countMap[key] = countMap[key] + 1
+			} else {
+				value := GetValueFromSysParameter(lang, key)
+				if len(value) > 0 {
+					indexStr = strings.Replace(indexStr, rawStrDef, value, 1)
+				} else {
+					if strings.Contains(startStr, "assert") {
+						value, errTmp := GetAssertTemplateValue(lang, key)
+						if errTmp != nil {
+							falseCount++
+						}
+						indexStr = strings.Replace(indexStr, rawStrDef, value, -1)
+					}
+				}
+			}
+		}
+	}
+
+	// Single下支持{self}占位符的使用，Multi不再支持，后续考虑停用该变量
+	strReg3 := regexp.MustCompile(`(([-a-zA-Z0-9_]+)\:\s{1}['"]{1}\{self\}['"]{1})`)
+	strMatch3 := strReg3.FindAllSubmatch([]byte(indexStr), -1)
+	for _, item := range strMatch3 {
+		key := string(item[2])
+		rawStrDef := string(item[0])
+		if value, ok := depOutVars[key]; ok {
+			var vStr string
+			vStr = Interface2Str(value[0])
+			tmpStrDef := strings.Replace(rawStrDef, "{self}", vStr, -1)
+			indexStr = strings.Replace(indexStr, rawStrDef, tmpStrDef, 1)
+		} else {
+			value := GetValueFromSysParameter(lang, key)
+			if len(value) > 0 {
+				tmpStrDef := strings.Replace(rawStrDef, "{self}", value, -1)
+				indexStr = strings.Replace(indexStr, rawStrDef, tmpStrDef, 1)
+			}
+		}
+	}
+
+	indexStr = GetSpecialStr(lang, indexStr)
+
+	indexStr, tmpCount := GetTreeData(indexStr)
+	falseCount = falseCount + tmpCount
+
+	notDefVars, _ = GetInStrDef(indexStr)
+	if len(notDefVars) > 0 {
+		falseCount = falseCount + len(notDefVars)
+	}
+
+	if len(startStr) == 0 && len(endStr) == 0 {
+		targetStr = indexStr
+	} else {
+		if startIndex == -1 {
+			targetStr = indexStr + rawStr[endIndex:]
+		} else if endIndex == -1 {
+			targetStr = rawStr[:startIndex] + indexStr
+		} else {
+			targetStr = rawStr[:startIndex] + indexStr + rawStr[endIndex:]
+		}
+	}
+
+	return
+}
+
+func GetTreeData(in string) (out string, falseCount int) {
+	// 匹配字符串
+	strReg := regexp.MustCompile(`\{TreeData_([a-zA-Z0-9]+)\[(\d+)\]\}`)
+	strMatch := strReg.FindAllSubmatch([]byte(in), -1)
+
+	var first, second, third string
+	for _, item := range strMatch {
+		rawStrDef := string(item[0])
+		treeDataKey := string(item[1])
+		deepStr := string(item[2])
+		var err error
+		deep, err := strconv.Atoi(deepStr)
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+		if deep == 1 {
+			first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
+			in = strings.ReplaceAll(in, rawStrDef, first)
+			break
+		}
+	}
+
+	for _, item := range strMatch {
+		rawStrDef := string(item[0])
+		treeDataKey := string(item[1])
+		deepStr := string(item[2])
+		var err error
+		deep, err := strconv.Atoi(deepStr)
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+		if deep == 2 {
+			first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
+			in = strings.ReplaceAll(in, rawStrDef, second)
+			break
+		}
+	}
+
+	for _, item := range strMatch {
+		rawStrDef := string(item[0])
+		treeDataKey := string(item[1])
+		deepStr := string(item[2])
+		var err error
+		deep, err := strconv.Atoi(deepStr)
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+		if deep == 3 {
+			first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
+			in = strings.ReplaceAll(in, rawStrDef, third)
+			break
+		}
+	}
+	out = in
 	return
 }

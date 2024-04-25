@@ -5,6 +5,7 @@ type SceneData struct {
 	ApiId      string `gorm:"column:api_id" json:"api_id"`
 	App        string `gorm:"column:app" json:"app"`
 	FileName   string `gorm:"column:file_name" json:"file_name" yaml:"file_name"`
+	FileType   int    `gorm:"column:file_type" json:"file_type" yaml:"file_type"`
 	Content    string `gorm:"column:content" json:"content" yaml:"content"`
 	RunTime    int    `gorm:"column:run_time" json:"run_time" yaml:"run_time"`
 	Result     string `gorm:"column:result" json:"result" yaml:"result"`
@@ -34,6 +35,7 @@ type DataFile struct {
 	Assert         []SceneAssert            `json:"assert" yaml:"assert"`
 	Output         map[string][]interface{} `json:"output" yaml:"output"`
 	TestResult     []string                 `json:"test_result" yaml:"test_result"`
+	FailReason     []string                 `json:"failReason,omitempty" yaml:"failReason,omitempty"`
 	Urls           []string                 `json:"urls" yaml:"urls"`
 	Request        []string                 `json:"request" yaml:"request"`
 	Response       []string                 `json:"response" yaml:"response"`
@@ -68,11 +70,12 @@ type SceneApi struct {
 }
 
 type SceneSingle struct {
-	Header   map[string]interface{} `json:"header" yaml:"header"`
-	Path     map[string]interface{} `json:"path" yaml:"path"`
-	Query    map[string]interface{} `json:"query" yaml:"query"`
-	Body     map[string]interface{} `json:"body" yaml:"body"`
-	BodyList []interface{}          `json:"bodyList,omitempty" yaml:"bodyList,omitempty"`
+	Header     map[string]interface{} `json:"header" yaml:"header"`
+	RespHeader map[string]interface{} `json:"respHeader,omitempty" yaml:"respHeader,omitempty"`
+	Path       map[string]interface{} `json:"path" yaml:"path"`
+	Query      map[string]interface{} `json:"query" yaml:"query"`
+	Body       map[string]interface{} `json:"body" yaml:"body"`
+	BodyList   []interface{}          `json:"bodyList,omitempty" yaml:"bodyList,omitempty"`
 }
 
 type SceneMulti struct {

@@ -285,7 +285,7 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 		Logger.Info("从Swagger路径获取接口文档信息: %v", envConfig.SwaggerPath)
 		for i := 1; i < 30; i++ {
 			resp, errTemp := http.Get(envConfig.SwaggerPath)
-			Logger.Debug("第%d次获取Swagger接口信息", i)
+			Logger.Info("第%d次获取Swagger接口信息", i)
 			if errTemp != nil {
 				if i == 29 {
 					Logger.Error("%s", errTemp)
@@ -405,6 +405,8 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 	var dbApiStringDefinition DbApiStringDefinition
 	var apiId string
 	var apiDetail ApiDetail
+	//var sceneData SceneData
+	var dataCount int
 	switch method {
 	case "put":
 		apiDetail = pathDef.Put
@@ -483,6 +485,8 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 	if len(dbApiStringDefinition.ApiId) == 0 {
 		apiStringDefinition.ApiStatus = 1
 		apiStringDefinition.Version = 1
+		apiStringDefinition.IsAuto = 0
+		apiStringDefinition.IsNeedAuto = 1
 		err = models.Orm.Table("api_definition").Create(&apiStringDefinition).Error
 	} else {
 		var oldHeaderList, oldBodyList, oldPathList, oldQueryList, oldRespList []VarDefModel
@@ -568,9 +572,14 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 			}
 		} else {
 			apiStringDefinition.ApiStatus = 4
-			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition).Error
+			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition.ApiStatus).Error
 		}
 
+		models.Orm.Table("scene_data").Where("id = ?", dbApiStringDefinition.ApiId).Count(&dataCount)
+		if dataCount > 0 {
+			apiStringDefinition.IsAuto = 1
+			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition.IsAuto).Error
+		}
 	}
 
 	var apiRelation ApiRelation

@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"bufio"
 	"data4perf/models"
 	"encoding/json"
 	"fmt"
@@ -8,9 +9,9 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,7 +33,12 @@ func GetResultFilePath(src string) (dst string, err error) {
 
 	curTime := time.Now().Format("20060102_150405.999999999")
 
-	dst = fmt.Sprintf("%s/%s/%s_%s%s", HistoryBasePath, dirName, dirName, curTime, suffix)
+	switch suffix {
+	case ".yaml", ".yml", ".json":
+		dst = fmt.Sprintf("%s/%s/%s_%s%s", HistoryBasePath, dirName, dirName, curTime, suffix)
+	default:
+		dst = fmt.Sprintf("%s/%s/%s_%s.log", HistoryBasePath, dirName, dirName, curTime)
+	}
 
 	targetDirName = fmt.Sprintf("%s/%s", HistoryBasePath, dirName)
 
@@ -101,19 +107,81 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 	}
 
 	var sceneDataRecord SceneDataRecord
+	var apiStr string
 
-	dirName := GetHistoryDataDirName(path.Base(dst))
-
-	apiStr := fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
+	apiStr = GetLastFileLink(dst)
 
 	sceneDataRecord.Content = apiStr
-	sceneDataRecord.Name = df.Name
+	if len(df.Name) == 0 {
+		dirName := GetHistoryDataDirName(path.Base(dst))
+		sceneDataRecord.Name = dirName
+	} else {
+		sceneDataRecord.Name = df.Name
+	}
 
 	sceneDataRecord.ApiId = df.ApiId
 	sceneDataRecord.App = df.Api.App
 	sceneDataRecord.Result = result
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
+
+	if errIn != nil {
+		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
+	}
+
+	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
+
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+
+	return
+}
+
+func (apiModel ApiDataSaveModel) WriteDataFileHistoryResult(result, dst string, envType int, errIn error) (err error) {
+	var sceneDataRecord SceneDataRecord
+
+	dirName := GetHistoryDataDirName(path.Base(dst))
+
+	apiStr := fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
+
+	sceneDataRecord.Content = apiStr
+	sceneDataRecord.Name = fmt.Sprintf("%s-%s-%s", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+
+	sceneDataRecord.ApiId = fmt.Sprintf("%s_%s", apiModel.Method, apiModel.Path)
+	sceneDataRecord.App = apiModel.App
+	sceneDataRecord.Result = result
+	sceneDataRecord.EnvType = envType
+	sceneDataRecord.Product = apiModel.Product
+
+	if errIn != nil {
+		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
+	}
+
+	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
+
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+
+	return
+}
+
+func (apiModel HistorySaveModel) WriteDataFileHistoryResult(result, dst string, envType int, errIn error) (err error) {
+	var sceneDataRecord SceneDataRecord
+
+	dirName := GetHistoryDataDirName(path.Base(dst))
+
+	apiStr := fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
+
+	sceneDataRecord.Content = apiStr
+	sceneDataRecord.Name = fmt.Sprintf("%s-%s-%s", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+
+	sceneDataRecord.ApiId = fmt.Sprintf("%s_%s", apiModel.Method, apiModel.Path)
+	sceneDataRecord.App = apiModel.App
+	sceneDataRecord.Result = result
+	sceneDataRecord.EnvType = envType
+	sceneDataRecord.Product = apiModel.Product
 
 	if errIn != nil {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
@@ -171,30 +239,96 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 	return
 }
 
-func RunSceneContent(app, filePath, product, isThread string) (result, dst string, err error) {
-	var df DataFile
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
+func RunNonStandard(fileType int, filePath string) (result, dst string, err error) {
+	var runEngine string
+	if fileType == 2 || fileType == 3 {
+		fHandle, errTmp := os.Open(filePath)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			err = errTmp
+			return
+		}
+		defer fHandle.Close()
+		scanner := bufio.NewScanner(fHandle)
+		var firstLine string
+		for scanner.Scan() {
+			firstLine = scanner.Text()
+			break
+		}
+		if scanner.Err() != nil {
+			errTmp = fmt.Errorf("读取文件时发生错误")
+			Logger.Error("%s", errTmp)
+			err = errTmp
+			return
+		}
+
+		if strings.Contains(firstLine, "#!") {
+			runEngine = strings.Trim(firstLine, "#!")
+		} else {
+			errTmp = fmt.Errorf("首行未找到执行引擎，请先定义执行引擎， e.g.: #!/bin/bash")
+			Logger.Error("%s", errTmp)
+			err = errTmp
+			return
+		}
 	}
 
-	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal([]byte(content), &df)
-	} else {
-		err = yaml.Unmarshal([]byte(content), &df)
+	switch fileType {
+	case 2, 3:
+		strCommand := fmt.Sprintf("%s %s", runEngine, filePath)
+		outputStr, errTmp0 := exec.Command(runEngine, filePath).Output()
+		//Logger.Debug("strCommand: %v", strCommand)
+		//Logger.Debug("outputStr: %v", string(outputStr))
+		if errTmp0 != nil {
+			Logger.Error("%s", errTmp0)
+			if err != nil {
+				err = fmt.Errorf("%v,%v", err, errTmp0)
+			} else {
+				err = errTmp0
+			}
+		}
+
+		dstTmp, errTmp1 := GetResultFilePath(filePath)
+		if errTmp1 != nil {
+			Logger.Error("%s", errTmp1)
+			err = fmt.Errorf("%s; %s", err, errTmp1)
+		}
+		dst = dstTmp
+		//Logger.Debug("dst: %s", dst)
+		errTmp2 := ioutil.WriteFile(dst, outputStr, 0644)
+		if errTmp2 != nil {
+			Logger.Error("%s", errTmp2)
+			err = fmt.Errorf("%s; %s", err, errTmp2)
+		}
+
+		if err != nil {
+			Logger.Info("cmd: %s", strCommand)
+			Logger.Error("%s", err)
+			return
+		}
+	case 4:
+		runEngine = "dos"
+		err = fmt.Errorf(".bat脚本暂未适配，敬请期待")
+	case 5:
+		runEngine = "jmeter"
+		err = fmt.Errorf(".jmx脚本暂未适配，敬请期待")
+	case 99:
+		runEngine = "other"
+		err = fmt.Errorf("other脚本暂未适配，敬请期待")
 	}
 
-	if err != nil {
-		Logger.Error("%s", err)
-		return
+	return
+}
+
+func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+	if depOutVars == nil {
+		depOutVars = make(map[string][]interface{})
 	}
 
 	if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
 		for _, preApiFile := range df.Api.PreApi {
 			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
 			Logger.Debug("开始执行前置用例: %v", preFilePath)
-			result, dst, err = RunSceneContent(app, preFilePath, product, isThread)
+			result, dst, err = RunStandard(df.Api.App, preFilePath, product, depOutVars)
 			if err != nil {
 				Logger.Error("%s", err)
 				return
@@ -206,80 +340,151 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 	}
 
 	var envConfig EnvConfig
-	if df.IsUseEnvConfig == "no" {
-		envConfig.App = df.Api.App
-		hJson, _ := json.Marshal(df.Single.Header)
-		envConfig.Auth = string(hJson)
-		envConfig.Prepath = df.Env.Prepath
-		envConfig.Protocol = df.Env.Protocol
-		envConfig.MaxThreadNum = 1
-	} else {
-		if len(app) == 0 {
-			envConfig, err = GetEnvConfig(df.Api.App, "data")
-		} else {
-			envConfig, err = GetEnvConfig(app, "data")
-		}
+	var targetApp string
 
-		if err != nil {
-			Logger.Error("%s", err)
-		}
-
-		if len(product) > 0 {
-			envConfig.Product = product
-			sceneEnvConfig, errTmp := GetEnvConfig(envConfig.Product, "scene")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			envConfig.Ip = sceneEnvConfig.Ip
-			envConfig.Auth = sceneEnvConfig.Auth
-
-		}
-
+	if len(app) > 0 {
+		targetApp = app
+	} else if len(df.Api.App) > 0 {
+		targetApp = df.Api.App
 	}
-
-	header, err := df.GetHeader(envConfig)
-
-	lang := GetRequestLangage(header)
-
+	envConfig, err = GetEnvConfig(targetApp, "data")
 	if err != nil {
-		Logger.Debug("%s", err)
-		return
+		Logger.Warning("%s", err)
 	}
-	depOutVars, err1 := df.GetDepParams()
+
+	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
-		err = err1
-		Logger.Debug("%s", err)
-		return
+		Logger.Error("%s", err1)
+		if err != nil {
+			err = fmt.Errorf("%s;%s", err, err1)
+		} else {
+			err = err1
+		}
+	}
+
+	for k, v := range depOutVarsTmp {
+		if _, ok := depOutVars[k]; !ok {
+			depOutVars[k] = v
+		}
 	}
 
 	if len(product) > 0 {
-		dbProduct, err := GetProductInfo(product)
+		sceneEnvConfig, errTmp := GetEnvConfig(product, "scene")
+		if errTmp != nil {
+			Logger.Warning("%s", errTmp)
+		}
+		envConfig.Ip = sceneEnvConfig.Ip
+		envConfig.Auth = sceneEnvConfig.Auth
+		envConfig.Product = product
+
+		dbProductList, err := GetProductInfo(product)
+		dbProduct := dbProductList[0]
 		if err != nil {
 			Logger.Error("%v", err)
 		}
 		privateParameter := dbProduct.GetPrivateParameter()
 		for k, v := range privateParameter {
-			depOutVars[k] = append(depOutVars[k], v)
+			if _, ok := depOutVars[k]; !ok {
+				depOutVars[k] = append(depOutVars[k], v)
+			}
+		}
+	}
+
+	header, err := df.GetHeader(envConfig)
+	if err != nil {
+		Logger.Debug("%s", err)
+		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+		return
+	}
+
+	lang := GetRequestLangage(header)
+
+	var querys, bodys []map[string]interface{}
+	var bodyList []interface{}
+	var urls []string
+	var rHeader map[string]interface{}
+
+	if mode == "again" {
+		urls = df.Urls
+		if df.Api.Method == "get" && len(df.Request) > 0 {
+			for _, item := range df.Request {
+				queryDict := make(map[string]interface{})
+				errTmp := json.Unmarshal([]byte(item), &queryDict)
+				if errTmp != nil {
+					Logger.Error("%v", errTmp)
+				} else {
+					querys = append(querys, queryDict)
+				}
+			}
+		} else {
+			if df.Single.BodyList != nil {
+				errTmp := json.Unmarshal([]byte(df.Request[0]), &bodyList)
+				if errTmp != nil {
+					Logger.Error("%v", errTmp)
+				}
+			} else {
+				for _, item := range df.Request {
+					bodyDict := make(map[string]interface{})
+					errTmp := json.Unmarshal([]byte(item), &bodyDict)
+					if errTmp != nil {
+						Logger.Error("%v", errTmp)
+					} else {
+						bodys = append(bodys, bodyDict)
+					}
+				}
+			}
+		}
+	} else {
+		content, errTmp := yaml.Marshal(df)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			err = errTmp
+			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+			return
 		}
 
+		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
+		if errTmp != nil {
+			Logger.Debug("rawContent: %s", string(content))
+			Logger.Debug("afterContent: %s", contentStr)
+			Logger.Error("%v", errTmp)
+			err = errTmp
+			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+			return
+		}
+		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
+		if errTmp != nil {
+			Logger.Debug("rawContent: %s", string(content))
+			Logger.Debug("afterContent: %s", contentStr)
+			Logger.Error("%v", errTmp)
+			err = errTmp
+			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+			return
+		}
+
+		urls, errTmp = df.GetUrl(envConfig)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			err = errTmp
+			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+			return
+		}
+		df.Urls = urls
+
+		querys = df.GetQuery()
+
+		bodys, bodyList = df.GetBody()
+
+		rHeader = df.Single.RespHeader
 	}
 
-	urls, err := df.GetUrl(envConfig)
-	df.Urls = urls
+	_ = df.CreateDataOrderByKey(lang, filePath, depOutVars) // 执行动作：create_xxx
+	_ = df.RecordDataOrderByKey(bodys)                      // 执行动作：record_xxx
+	_ = df.ModifyFileWithData(bodys)                        // 执行动作：modify_file
+
 	if err != nil {
 		Logger.Error("%s", err)
-		return
-	}
-
-	querys, err := df.GetQuery(lang, depOutVars)
-	if err != nil {
-		Logger.Error("err: %s", err)
-		return
-	}
-
-	bodys, bodyList, err := df.GetBody(lang, depOutVars)
-	if err != nil {
-		Logger.Error("%s", err)
+		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 		return
 	}
 
@@ -302,8 +507,9 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 					wg.Add(1)
 					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
 						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
+						res, err := RunHttp(method, url, data, header, rHeader)
 						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					}(df.Api.Method, url, data, header)
 				}
@@ -318,9 +524,11 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 							Logger.Debug("%s", err)
 						}
 						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					}
 				} else {
+					wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
 					for _, data := range bodys {
 						dJson, _ := json.Marshal(data)
 						if tag == 0 {
@@ -329,11 +537,12 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 							df.Request = append(df.Request, string(dJson))
 						}
 						tag++
-						wg.Add(1)
+						//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
 						go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
 							defer wg.Add(-1)
-							res, err := RunHttp(method, url, data, header)
+							res, err := RunHttp(method, url, data, header, rHeader)
 							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
 							errs = append(errs, err)
 						}(df.Api.Method, url, data, header)
 					}
@@ -342,8 +551,9 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 				df.Request = []string{}
 				wg.Add(1)
 				go func(method, url string, header map[string]interface{}) {
-					res, err := RunHttp(method, url, nil, header)
+					res, err := RunHttp(method, url, nil, header, rHeader)
 					resList = append(resList, res)
+					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
 				}(df.Api.Method, url, header)
 			}
@@ -363,7 +573,7 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 					if df.Api.Method == "delete" {
 						subTag := 0
 						for k, v := range data {
-							strV, _ := Interface2Str(v)
+							strV := Interface2Str(v)
 							if subTag == 0 {
 								url = fmt.Sprintf("%s?%s=%s", url, k, strV)
 							} else {
@@ -371,15 +581,14 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 							}
 							subTag++
 						}
-						res, err := RunHttp(df.Api.Method, url, nil, header)
+						res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					} else {
-						res, err := RunHttp(df.Api.Method, url, data, header)
-						if err != nil {
-							Logger.Debug("%s", err)
-						}
+						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
 						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					}
 
@@ -405,33 +614,36 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 						df.Request = append(df.Request, string(dJson))
 					}
 					tag++
-					res, err := RunHttp(df.Api.Method, url, data, header)
-					if err != nil {
-						Logger.Debug("%s", err)
-					}
+					res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
 					resList = append(resList, res)
+					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
 					_ = df.SetSleepAction()
 				}
 			} else {
 				df.Request = []string{}
-				res, err := RunHttp(df.Api.Method, url, nil, header)
+				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 				if err != nil {
 					Logger.Debug("%s", err)
 				}
 				resList = append(resList, res)
+				df.Response = append(df.Response, string(res))
 				errs = append(errs, err)
+				_ = df.SetSleepAction()
 			}
 		}
 	}
 
-	result, dst, err = df.GetResult(lang, "", filePath, header, isThread, resList, depOutVars, errs)
+	result, dst, err = df.GetResult(source, filePath, header, resList, depOutVars, errs)
+	//if err != nil {
+	//	Logger.Error("%s", err)
+	//}
 
 	if result != "pass" {
 		for _, item := range errs {
 			if item != nil {
 				if err != nil {
-					err = fmt.Errorf("%s;%s", err, item)
+					err = fmt.Errorf("%s; %s", err, item)
 				} else {
 					err = fmt.Errorf("%s", item)
 				}
@@ -439,22 +651,61 @@ func RunSceneContent(app, filePath, product, isThread string) (result, dst strin
 		}
 	}
 
-	if err != nil {
-		Logger.Error("%s", err)
-	}
+	urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 
-	if result != "pass" {
-		Logger.Debug("header: %v", header)
-	}
 	return
 }
 
-func RunSceneData(id, product string) (err error) {
+func RunStandard(app, filePath, product string, depOutVars map[string][]interface{}) (result, dst string, err error) {
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	var df DataFile
+	if strings.HasSuffix(filePath, ".json") {
+		err = json.Unmarshal([]byte(content), &df)
+	} else {
+		err = yaml.Unmarshal([]byte(content), &df)
+	}
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, "mode", "", depOutVars)
+
+	return
+}
+
+func RunDataFile(app, filePath, product string, depOutVars map[string][]interface{}) (result, dst string, err error) {
+	fileType, err := InitDataFileByName(filePath)
+	if err != nil {
+		Logger.Debug("filePath: %s", filePath)
+		Logger.Error("%s", err)
+		return
+	}
+
+	switch fileType {
+	case 1:
+		result, dst, err = RunStandard(app, filePath, product, depOutVars)
+	case 2, 3, 4, 5, 99:
+		result, dst, err = RunNonStandard(fileType, filePath)
+	default:
+		result, dst, err = RunStandard(app, filePath, product, depOutVars)
+	}
+
+	return
+}
+
+func RepeatRunDataFile(id, product string) (err error) {
 	dataInfo, appInfo, err := GetRunTimeData(id)
 	var envType, maxThreadNum int
 	var isThread string
 	if len(product) > 0 {
-		productTaskInfo, _ := GetProductInfo(product)
+		productList, _ := GetProductInfo(product)
+		productTaskInfo := productList[0]
 		envType = productTaskInfo.EnvType
 		isThread = productTaskInfo.Threading
 		maxThreadNum = productTaskInfo.ThreadNumber
@@ -486,6 +737,7 @@ func RunSceneData(id, product string) (err error) {
 		Logger.Error("%s", err)
 		return
 	}
+
 	if isThread == "yes" && dataInfo.RunTime > 1 && maxThreadNum > 1 {
 		if dataInfo.RunTime > maxThreadNum {
 			loopNum := dataInfo.RunTime/maxThreadNum + 1
@@ -500,7 +752,7 @@ func RunSceneData(id, product string) (err error) {
 					}
 					wg.Add(1)
 					go func() {
-						result, dst, err1 := RunSceneContent(app, filePath, product, isThread)
+						result, dst, err1 := RunDataFile(app, filePath, product, nil)
 						if err1 != nil {
 							err = err1
 							err = WriteSceneDataResult(id, result, dst, product, envType, err1)
@@ -519,7 +771,7 @@ func RunSceneData(id, product string) (err error) {
 			for i := 0; i < dataInfo.RunTime; i++ {
 				wg.Add(1)
 				go func() {
-					result, dst, err1 := RunSceneContent(app, filePath, product, isThread)
+					result, dst, err1 := RunDataFile(app, filePath, product, nil)
 					if err1 != nil {
 						err = WriteSceneDataResult(id, result, dst, product, envType, err1)
 						return
@@ -535,7 +787,15 @@ func RunSceneData(id, product string) (err error) {
 			if i > 0 {
 				Logger.Info("串行模式-执行次数:%d", i+1)
 			}
-			result, dst, err1 := RunSceneContent(app, filePath, product, isThread)
+			var result, dst string
+			var err1 error
+			switch dataInfo.FileType {
+			case 2, 3, 4, 5, 99:
+				result, dst, err1 = RunNonStandard(dataInfo.FileType, filePath)
+			default:
+				result, dst, err1 = RunStandard(app, filePath, product, nil)
+			}
+
 			if err1 != nil {
 				Logger.Error("%s", err1)
 				err = err1
@@ -559,9 +819,9 @@ func RunSceneData(id, product string) (err error) {
 func RunSceneDataOnce(id, product string) (err error) {
 	dataInfo, _, err := GetRunTimeData(id)
 	var envType int
-	var isThread string
 	if len(product) > 0 {
-		productTaskInfo, _ := GetProductInfo(product)
+		productList, _ := GetProductInfo(product)
+		productTaskInfo := productList[0]
 		envType = productTaskInfo.EnvType
 	} else {
 		envType = 2
@@ -582,7 +842,7 @@ func RunSceneDataOnce(id, product string) (err error) {
 		return
 	}
 
-	result, dst, err1 := RunSceneContent(app, filePath, product, isThread)
+	result, dst, err1 := RunDataFile(app, filePath, product, nil)
 	if err1 != nil {
 		Logger.Error("%s", err1)
 		err = err1
@@ -628,10 +888,8 @@ func (df DataFile) GetIsRunPostApis() (b bool) {
 	return
 }
 
-func (df DataFile) GetHeader(envConfig EnvConfig) (header map[string]interface{}, err error) {
+func GetCommonHeader(envConfig EnvConfig) (header map[string]interface{}, err error) {
 	header = make(map[string]interface{})
-	header = CopyMapInterface(df.Single.Header)
-
 	if len(envConfig.Auth) != 0 {
 		strTmp := GetStrFromHtml(envConfig.Auth)
 		err = json.Unmarshal([]byte(strTmp), &header)
@@ -641,44 +899,31 @@ func (df DataFile) GetHeader(envConfig EnvConfig) (header map[string]interface{}
 		}
 	}
 
+	return
+}
+
+func (df DataFile) GetHeader(envConfig EnvConfig) (header map[string]interface{}, err error) {
+	header = make(map[string]interface{})
+	headerData := CopyMapInterface(df.Single.Header)
+
+	headerEnv, err := GetCommonHeader(envConfig)
+
 	if df.IsUseEnvConfig == "yes" {
-		for k, v := range df.Single.Header {
+		header = headerEnv
+		for k, v := range headerData {
 			if _, ok := header[k]; !ok {
 				header[k] = v
 			}
+
 			if k == "Content-Type" {
 				header[k] = v
 			}
 		}
 	} else {
-		for k, v := range df.Single.Header {
-			if _, ok := header[k]; ok {
+		header = headerData
+		for k, v := range headerEnv {
+			if _, ok := header[k]; !ok {
 				header[k] = v
-			}
-		}
-	}
-
-	lang := GetRequestLangage(header)
-
-	for k, v := range df.Single.Header {
-		valueDef, err := Interface2Str(v)
-		if err != nil {
-			Logger.Error("%s", err)
-		}
-
-		if strings.Contains(valueDef, "{") && strings.Contains(valueDef, "}") {
-			strByte := []byte(valueDef)
-			strReg := regexp.MustCompile(`\{(.+)\}`)
-			strMatch := strReg.FindAllSubmatch(strByte, -1)
-			var key, rawDef string
-			for _, item := range strMatch {
-				key = string(item[1])
-				rawDef = string(item[0])
-				break
-			}
-			value := GetValueFromSysParameter(lang, key)
-			if len(value) > 0 {
-				header[k] = strings.ReplaceAll(valueDef, rawDef, value)
 			}
 		}
 	}
@@ -706,16 +951,16 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 	}
 
 	if tag != 0 {
-		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s，", rawUrl)
+		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s", rawUrl)
 		err = err1
-		Logger.Error("%s", err)
+		//Logger.Error("%s", err)
 		return
 	}
 
 	if strings.Contains(rawUrl, "{") {
 		if df.Single.Path == nil && df.Multi.Path == nil {
 			err = fmt.Errorf("未进行Path变量定义，请先定义")
-			Logger.Error("%s", err)
+			//Logger.Error("%s", err)
 			return
 		}
 		pathVarsReg := regexp.MustCompile(`{[[:alpha:]]+}`)
@@ -726,7 +971,7 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 			var tag int
 			tag = 0
 			if value, ok := df.Single.Path[str1]; ok {
-				valueStr, _ := Interface2Str(value)
+				valueStr := Interface2Str(value)
 				url := strings.Replace(rawUrl, v, valueStr, -1)
 				rawUrls = append(rawUrls, url)
 				tag = tag + 1
@@ -734,64 +979,33 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 
 			if values, ok := df.Multi.Path[str1]; ok {
 				for _, value := range values {
-					valueStr, _ := Interface2Str(value)
+					valueStr := Interface2Str(value)
 					url := strings.Replace(rawUrl, v, valueStr, -1)
 					rawUrls = append(rawUrls, url)
-					Logger.Debug("rawUrl: %v", rawUrl)
 				}
 				tag = tag + 1
 			}
 
 			if tag == 0 {
 				err = fmt.Errorf("未找到Path:%s变量的定义值，请先进行定义", v)
-				Logger.Error("%s", err)
+				//Logger.Error("%s", err)
 				return
 			}
 		}
 	} else {
 		rawUrls = append(rawUrls, rawUrl)
 	}
+
 	return
 }
 
-func (df DataFile) GetQuery(lang string, depOutVars map[string][]interface{}) (querys []map[string]interface{}, err error) {
+func (df DataFile) GetQuery() (querys []map[string]interface{}) {
 	var query map[string]interface{}
 	query = make(map[string]interface{})
 
 	if len(df.Single.Query) > 0 {
 		for k, v := range df.Single.Query {
-			strK, _ := Interface2Str(v)
-			t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
-			if t == 1 {
-				if value, ok := depOutVars[k]; ok {
-					query[k] = value[0]
-				} else {
-					err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", k)
-					Logger.Error("%s", err)
-					if len(depOutVars) > 0 {
-						Logger.Info("outputDict: %v", depOutVars)
-					}
-					return
-				}
-			} else if t == 2 {
-				query[k] = subV
-			} else if t == 3 {
-				newStr := strK
-				for defKey, defValue := range allDef {
-					var tmpStrV string
-					if value, ok := depOutVars[defKey]; ok {
-						tmpStrV, _ = Interface2Str(value[0])
-					} else {
-						err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
-						Logger.Error("%s", err)
-						return
-					}
-					newStr = strings.Replace(newStr, defValue, tmpStrV, -1)
-				}
-				query[k] = newStr
-			} else {
-				query[k] = v
-			}
+			query[k] = v
 		}
 	}
 
@@ -799,49 +1013,7 @@ func (df DataFile) GetQuery(lang string, depOutVars map[string][]interface{}) (q
 		minLen := GetSliceMinLen(df.Multi.Query)
 		for i := 0; i < minLen; i++ {
 			for k, v := range df.Multi.Query {
-				strK, err1 := Interface2Str(v[i])
-				if err1 != nil {
-					err = err1
-					Logger.Error("%s", err)
-					return
-				}
-
-				t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
-
-				if t == 1 {
-					if value, ok := depOutVars[k]; ok {
-						if len(value) > i {
-							query[k] = value[i]
-						} else {
-							query[k] = value[0]
-						}
-					} else {
-						err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", k)
-						Logger.Error("%s", err)
-						return
-					}
-				} else if t == 2 {
-					query[k] = subV
-				} else if t == 3 {
-					for defKey, defValue := range allDef {
-						var tmpStrV string
-						if value, ok := depOutVars[defKey]; ok {
-							if len(value) > i {
-								tmpStrV, _ = Interface2Str(value[i])
-							} else {
-								tmpStrV, _ = Interface2Str(value[0])
-							}
-						} else {
-							err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
-							Logger.Error("%s", err)
-							return
-						}
-						newStr := strings.Replace(strK, defValue, tmpStrV, -1)
-						query[k] = newStr
-					}
-				} else {
-					query[k] = v[i]
-				}
+				query[k] = v[i]
 			}
 			queryTmp := CopyMap(query)
 			querys = append(querys, queryTmp)
@@ -855,114 +1027,25 @@ func (df DataFile) GetQuery(lang string, depOutVars map[string][]interface{}) (q
 	return
 }
 
-func (df DataFile) GetBody(lang string, depOutVars map[string][]interface{}) (bodys []map[string]interface{}, bodyAfterList []interface{}, err error) {
+func (df DataFile) GetBody() (bodys []map[string]interface{}, bodyAfterList []interface{}) {
 	if df.Api.Method == "get" {
 		return
 	}
 
 	if df.Single.BodyList != nil {
-		dst := CopyList(df.Single.BodyList)
 		bodyAfterList = make([]interface{}, 0, len(df.Single.BodyList))
-		bodyAfterList, err = GetAfterListBody(lang, dst, depOutVars)
+		bodyAfterList = df.Single.BodyList
 	} else {
-		var bodyTmp, body map[string]interface{}
-		bodyTmp = make(map[string]interface{})
+		var body map[string]interface{}
 		if df.Single.Body != nil {
-			bodyTmp = CopyMap(df.Single.Body)
-		}
-		body, err = GetAfterBody(lang, bodyTmp, depOutVars)
-		if err != nil {
-			return
+			body = df.Single.Body
 		}
 
 		if len(df.Multi.Body) > 0 {
 			minLen := GetSliceMinLen(df.Multi.Body)
 			for i := 0; i < minLen; i++ {
 				for k, v := range df.Multi.Body {
-					strK, err1 := Interface2Str(v[i])
-					if err1 != nil {
-						err = err1
-						Logger.Error("%s", err)
-						return
-					}
-
-					t, subV, allDef, allListDef := GetStrType(lang, strK)
-
-					if t == 1 {
-						if value, ok := depOutVars[k]; ok {
-							if len(value) > i {
-								body[k] = value[i]
-							} else {
-								body[k] = value[0]
-							}
-						} else {
-							err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", k)
-							Logger.Error("%s", err)
-							return
-						}
-					} else if t == 2 {
-						body[k] = subV
-					} else if t == 3 {
-						var newStr string
-						if len(subV) > 0 {
-							newStr = subV
-						} else {
-							newStr = strK
-						}
-						for defKey, defValue := range allDef {
-							var tmpStrV string
-							if value, ok := depOutVars[defKey]; ok {
-								if len(value) > i {
-									tmpStrV, _ = Interface2Str(value[i])
-								} else {
-									tmpStrV, _ = Interface2Str(value[0])
-								}
-							} else {
-								err = fmt.Errorf("未找到变量[%s]定义，请先关联或定义", defKey)
-								Logger.Error("%s", err)
-								return
-							}
-							newStr = strings.Replace(newStr, defValue, tmpStrV, -1)
-						}
-						for defKey, defValue := range allListDef {
-							if value, ok := depOutVars[defKey]; ok {
-								for _, subValue := range defValue {
-									strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
-									strMatch := strReg.FindAllSubmatch([]byte(subValue), -1)
-									for _, item := range strMatch {
-										Logger.Debug("item: %s", item)
-										Logger.Debug(" len(item): %v", len(item))
-										//key := string(item[1])
-										rawStrDef := string(item[0])
-										order, _ := strconv.Atoi(string(item[3]))
-										var tmpKey string
-										if len(value) > order {
-											if order < 0 {
-												tmpKey, _ = Interface2Str(value[len(value)+order])
-											} else {
-												tmpKey, _ = Interface2Str(value[order])
-											}
-											newStr = strings.Replace(newStr, rawStrDef, tmpKey, -1)
-										} else {
-											err = fmt.Errorf("参数: %s定义参数不足，%s取值超出索引，请核对~", string(item[1]), rawStrDef)
-											Logger.Error("%s", err)
-											Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, defKey, subV, allListDef)
-											return
-										}
-									}
-								}
-							} else {
-								err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
-								Logger.Error("%s", err)
-								Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, defKey, subV, allListDef)
-								return
-							}
-						}
-
-						body[k] = newStr
-					} else {
-						body[k] = v[i]
-					}
+					body[k] = v[i]
 				}
 				bodyTmp := CopyMap(body)
 				bodys = append(bodys, bodyTmp)
@@ -976,14 +1059,14 @@ func (df DataFile) GetBody(lang string, depOutVars map[string][]interface{}) (bo
 	return
 }
 
-func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interface{}) (err error) {
+func (df DataFile) CreateActionData() (err error) {
 	if len(df.Action) > 0 {
 		fileName := ""
 		dataCount := 0
 		//Logger.Debug("开始生成文件")
 		for _, item := range df.Action {
 			if item.Type == "create_csv" {
-				tmpValue, _ := Interface2Str(item.Value)
+				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
 					err = fmt.Errorf("creat_csv的值未定义，请先定义")
@@ -1009,11 +1092,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 			var keyList []string
 			Logger.Debug("dataCount: %v", dataCount)
 			for i := 0; i < dataCount; i++ {
-				bodys, _, errTmp := df.GetBody(lang, depOutVars)
-				if errTmp != nil {
-					err = errTmp
-					return
-				}
+				bodys, _ := df.GetBody()
 				if i == 0 {
 					for index, item := range bodys {
 						keyStr := ""
@@ -1029,13 +1108,10 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 							}
 						}
 						if index == 0 {
-							tStr := fmt.Sprintf("%s\n", keyStr)
-							_ = WriteDataInCSV(filePath, tStr)
-							tStr = fmt.Sprintf("%s\n", valueStr)
-							_ = WriteDataInCSV(filePath, tStr)
+							_ = WriteDataInCommonFile(filePath, keyStr)
+							_ = WriteDataInCommonFile(filePath, valueStr)
 						} else {
-							tStr := fmt.Sprintf("%s\n", valueStr)
-							_ = WriteDataInCSV(filePath, tStr)
+							_ = WriteDataInCommonFile(filePath, valueStr)
 						}
 
 					}
@@ -1049,8 +1125,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 								valueStr = fmt.Sprintf("%s,%v", valueStr, item[key])
 							}
 						}
-						tStr := fmt.Sprintf("%s\n", valueStr)
-						_ = WriteDataInCSV(filePath, tStr)
+						_ = WriteDataInCommonFile(filePath, valueStr)
 
 					}
 				}
@@ -1063,7 +1138,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 		dataCount := 0
 		for _, item := range df.Action {
 			if item.Type == "create_excel" || item.Type == "create_xls" || item.Type == "create_xlsx" {
-				tmpValue, _ := Interface2Str(item.Value)
+				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
 					err = fmt.Errorf("creat_excel的值未定义，请先定义")
@@ -1089,17 +1164,13 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 			var keyList []string
 			Logger.Debug("dataCount: %v", dataCount)
 			for i := 0; i < dataCount; i++ {
-				bodys, _, errTmp := df.GetBody(lang, depOutVars)
-				if errTmp != nil {
-					err = errTmp
-					return
-				}
+				bodys, _ := df.GetBody()
 				if i == 0 {
 					for _, item := range bodys {
 						var valueList []string
 						for k, v := range item {
 							keyList = append(keyList, k)
-							vStr, _ := Interface2Str(v)
+							vStr := Interface2Str(v)
 							valueList = append(valueList, vStr)
 						}
 						_ = WriteDataInXls(filePath, keyList)
@@ -1109,7 +1180,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 					for _, item := range bodys {
 						var valueList []string
 						for _, key := range keyList {
-							vStr, _ := Interface2Str(item[key])
+							vStr := Interface2Str(item[key])
 							valueList = append(valueList, vStr)
 						}
 						_ = WriteDataInXls(filePath, valueList)
@@ -1125,7 +1196,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 		dataCount := 0
 		for _, item := range df.Action {
 			if item.Type == "create_excel" || item.Type == "create_xls" || item.Type == "create_xlsx" {
-				tmpValue, _ := Interface2Str(item.Value)
+				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
 					err = fmt.Errorf("creat_excel的值未定义，请先定义")
@@ -1151,17 +1222,13 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 			var keyList []string
 			Logger.Debug("dataCount: %v", dataCount)
 			for i := 0; i < dataCount; i++ {
-				bodys, _, errTmp := df.GetBody(lang, depOutVars)
-				if errTmp != nil {
-					err = errTmp
-					return
-				}
+				bodys, _ := df.GetBody()
 				if i == 0 {
 					for _, item := range bodys {
 						var valueList []string
 						for k, v := range item {
 							keyList = append(keyList, k)
-							vStr, _ := Interface2Str(v)
+							vStr := Interface2Str(v)
 							valueList = append(valueList, vStr)
 						}
 						_ = WriteDataInXls(filePath, keyList)
@@ -1171,7 +1238,7 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 					for _, item := range bodys {
 						var valueList []string
 						for _, key := range keyList {
-							vStr, _ := Interface2Str(item[key])
+							vStr := Interface2Str(item[key])
 							valueList = append(valueList, vStr)
 						}
 						_ = WriteDataInXls(filePath, valueList)
@@ -1182,466 +1249,6 @@ func (df DataFile) CreateActionData(lang string, depOutVars map[string][]interfa
 		//Logger.Debug("结束生成文件")
 	}
 
-	return
-}
-
-func (df DataFile) CreateDataOrderByKey(lang string, depOutVars map[string][]interface{}) (err error) {
-	var isCreateCSV, isCreateXLS, isCreateHiveSQL bool
-	var csvValue, xlsValue, hiveSQLValue interface{}
-
-	if len(df.Action) > 0 {
-		for _, item := range df.Action {
-			if item.Type == "create_csv" {
-				isCreateCSV = true
-				csvValue = item.Value
-			} else if item.Type == "create_excel" || item.Type == "create_xls" || item.Type == "create_xlsx" {
-				isCreateXLS = true
-				xlsValue = item.Value
-			} else if item.Type == "create_hive_table_sql" {
-				isCreateHiveSQL = true
-				hiveSQLValue = item.Value
-			}
-		}
-	}
-
-	if isCreateCSV {
-		fileName := ""
-		dataCount := 0
-		tmpValue, _ := Interface2Str(csvValue)
-		strList := strings.Split(tmpValue, ":")
-		if len(strList) == 0 {
-			err = fmt.Errorf("create_csv的值未定义，请先定义")
-			return
-		}
-		if !strings.Contains(strList[0], ".csv") {
-			fileName = fmt.Sprintf("%s.csv", strList[0])
-		} else {
-			fileName = strList[0]
-		}
-
-		if len(strList) >= 2 {
-			dataCount, _ = strconv.Atoi(strList[1])
-		} else {
-			dataCount = 100
-		}
-
-		if dataCount > 0 {
-			filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-			var keyList []string
-			tmpBody := make(map[string]interface{})
-			splitTag := ","
-			for i := 0; i < dataCount; i++ {
-				bodys, _, errTmp := df.GetBody(lang, depOutVars)
-				if errTmp != nil {
-					err = errTmp
-					return
-				}
-
-				if i == 0 {
-					tmpBody = bodys[0]
-					for k, v := range tmpBody {
-						keyList = append(keyList, k)
-						vStr, _ := Interface2Str(v)
-						if strings.Contains(vStr, ",") {
-							splitTag = "|"
-						}
-					}
-					sort.Strings(keyList)
-				}
-
-				if i == 0 {
-					for index, item := range bodys {
-						keyStr := ""
-						valueStr := ""
-						for _, k := range keyList {
-							if len(keyStr) == 0 {
-								keyStr = fmt.Sprintf("%v", k)
-								valueStr = fmt.Sprintf("%v", item[k])
-							} else {
-								keyStr = fmt.Sprintf("%s%s%v", keyStr, splitTag, k)
-								valueStr = fmt.Sprintf("%s%s%v", valueStr, splitTag, item[k])
-							}
-						}
-						if index == 0 {
-							tStr := fmt.Sprintf("%s\n", keyStr)
-							_ = WriteDataInCSV(filePath, tStr)
-							tStr = fmt.Sprintf("%s\n", valueStr)
-							_ = WriteDataInCSV(filePath, tStr)
-						} else {
-							tStr := fmt.Sprintf("%s\n", valueStr)
-							_ = WriteDataInCSV(filePath, tStr)
-						}
-
-					}
-				} else {
-					for _, item := range bodys {
-						valueStr := ""
-						for _, key := range keyList {
-							if len(valueStr) == 0 {
-								valueStr = fmt.Sprintf("%v", item[key])
-							} else {
-								valueStr = fmt.Sprintf("%s%s%v", valueStr, splitTag, item[key])
-							}
-						}
-						tStr := fmt.Sprintf("%s\n", valueStr)
-						_ = WriteDataInCSV(filePath, tStr)
-
-					}
-				}
-			}
-		}
-	}
-
-	if isCreateXLS {
-		fileName := ""
-		dataCount := 0
-		tmpValue, _ := Interface2Str(xlsValue)
-		strList := strings.Split(tmpValue, ":")
-		if len(strList) == 0 {
-			err = fmt.Errorf("creat_excel的值未定义，请先定义")
-			return
-		}
-		if !strings.Contains(strList[0], ".xlsx") {
-			fileName = fmt.Sprintf("%s.xlsx", strList[0])
-		} else {
-			fileName = strList[0]
-		}
-
-		if len(strList) >= 2 {
-			dataCount, _ = strconv.Atoi(strList[1])
-		} else {
-			dataCount = 100
-		}
-
-		if dataCount > 0 {
-			filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-			var keyList []string
-			tmpBody := make(map[string]interface{})
-			for i := 0; i < dataCount; i++ {
-				bodys, _, errTmp := df.GetBody(lang, depOutVars)
-				if errTmp != nil {
-					err = errTmp
-					return
-				}
-				if i == 0 {
-					tmpBody = bodys[0]
-					for k, _ := range tmpBody {
-						keyList = append(keyList, k)
-					}
-					sort.Strings(keyList)
-				}
-
-				if i == 0 {
-					for _, item := range bodys {
-						var valueList []string
-						for _, k := range keyList {
-							keyList = append(keyList, k)
-							vStr, _ := Interface2Str(item[k])
-							valueList = append(valueList, vStr)
-						}
-						_ = WriteDataInXls(filePath, keyList)
-						_ = WriteDataInXls(filePath, valueList)
-					}
-				} else {
-					for _, item := range bodys {
-						var valueList []string
-						for _, key := range keyList {
-							vStr, _ := Interface2Str(item[key])
-							valueList = append(valueList, vStr)
-						}
-						_ = WriteDataInXls(filePath, valueList)
-					}
-				}
-			}
-		}
-	}
-
-	if isCreateHiveSQL {
-		fileName := ""
-		tmpValue, _ := Interface2Str(hiveSQLValue)
-		if len(tmpValue) == 0 {
-			err = fmt.Errorf("creat_excel的值未定义，请先定义")
-			return
-		}
-		if !strings.Contains(tmpValue, ".sql") {
-			fileName = fmt.Sprintf("%s.sql", tmpValue)
-		} else {
-			fileName = tmpValue
-		}
-
-		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-		var keyList []string
-		tmpBody := make(map[string]interface{})
-
-		bodys, _, errTmp := df.GetBody(lang, depOutVars)
-		if errTmp != nil {
-			err = errTmp
-			return
-		}
-
-		tmpBody = bodys[0]
-		for k, _ := range tmpBody {
-			keyList = append(keyList, k)
-		}
-		sort.Strings(keyList)
-
-		var parameterType, sqlStr string
-		headStr := "CREATE TABLE IF NOT EXISTS default.all_type_data\n(\n"
-		tailStr := "\n) PARTITIONED BY (ds STRING) STORED AS TEXTFILE;"
-		midStr := ""
-		for _, k := range keyList {
-			varType := fmt.Sprintf("%T", tmpBody[k])
-			switch varType {
-			case "float64":
-				parameterType = "DOUBLE"
-			case "string":
-				parameterType = "STRING"
-			case "bool":
-				parameterType = "BOOLEAN"
-			case "int":
-				parameterType = "INT"
-			default:
-				parameterType = "STRING"
-			}
-
-			if len(midStr) == 0 {
-				midStr = fmt.Sprintf("  %s %s", k, parameterType)
-			} else {
-				midStr = fmt.Sprintf("%s,\n  %s %s", midStr, k, parameterType)
-			}
-		}
-		sqlStr = fmt.Sprintf("%s%s%s", headStr, midStr, tailStr)
-
-		_ = WriteDataInCSV(filePath, sqlStr)
-	}
-
-	return
-}
-
-func (df DataFile) RecordDataOrderByKey(bodys []map[string]interface{}) (err error) {
-	if len(bodys) == 0 {
-		return
-	}
-
-	var isRecordCSV, isRecordXLS bool
-	var csvValue, xlsValue interface{}
-
-	if len(df.Action) > 0 {
-		for _, item := range df.Action {
-			if item.Type == "record_csv" {
-				isRecordCSV = true
-				csvValue = item.Value
-			} else if item.Type == "record_xls" || item.Type == "record_excel" || item.Type == "record_xlsx" {
-				isRecordXLS = true
-				xlsValue = item.Value
-			}
-		}
-	}
-
-	if isRecordCSV {
-		fileName := ""
-		tmpValue, _ := Interface2Str(csvValue)
-		if len(tmpValue) == 0 {
-			err = fmt.Errorf("record_csv的值未定义，请先定义")
-			return
-		} else {
-			if !strings.Contains(tmpValue, ".csv") {
-				fileName = fmt.Sprintf("%s.csv", tmpValue)
-			} else {
-				fileName = tmpValue
-			}
-		}
-
-		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-		var keyList []string
-		tmpBody := make(map[string]interface{})
-		splitTag := ","
-
-		tmpBody = bodys[0]
-		for k, v := range tmpBody {
-			keyList = append(keyList, k)
-			vStr, _ := Interface2Str(v)
-			if strings.Contains(vStr, ",") {
-				splitTag = "|"
-			}
-		}
-		sort.Strings(keyList)
-
-		_, err := os.Stat(filePath)
-		if os.IsNotExist(err) {
-			keyStr := ""
-			for index, k := range keyList {
-				if index == 0 {
-					keyStr = k
-				} else {
-					keyStr = fmt.Sprintf("%s%s%s", keyStr, splitTag, k)
-				}
-
-			}
-			tStr := fmt.Sprintf("%s\n", keyStr)
-			_ = WriteDataInCSV(filePath, tStr)
-
-		}
-
-		for _, item := range bodys {
-			valueStr := ""
-			for _, key := range keyList {
-				if len(valueStr) == 0 {
-					valueStr = fmt.Sprintf("%v", item[key])
-				} else {
-					valueStr = fmt.Sprintf("%s%s%s", valueStr, splitTag, item[key])
-				}
-			}
-			tStr := fmt.Sprintf("%s\n", valueStr)
-			_ = WriteDataInCSV(filePath, tStr)
-		}
-
-	}
-
-	if isRecordXLS {
-		fileName := ""
-		tmpValue, _ := Interface2Str(xlsValue)
-		if len(tmpValue) == 0 {
-			err = fmt.Errorf("record_excel的值未定义，请先定义")
-			return
-		}
-		if !(strings.Contains(tmpValue, ".xlsx") || strings.Contains(tmpValue, ".xls")) {
-			fileName = fmt.Sprintf("%s.xlsx", tmpValue)
-		} else {
-			fileName = tmpValue
-		}
-		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-		var keyList []string
-		tmpBody := make(map[string]interface{})
-
-		tmpBody = bodys[0]
-		for k, _ := range tmpBody {
-			keyList = append(keyList, k)
-		}
-		sort.Strings(keyList)
-
-		_, err := os.Stat(filePath)
-		if os.IsNotExist(err) {
-			for _, k := range keyList {
-				keyList = append(keyList, k)
-			}
-			_ = WriteDataInXls(filePath, keyList)
-		}
-
-		for _, item := range bodys {
-			var valueList []string
-			for _, key := range keyList {
-				vStr, _ := Interface2Str(item[key])
-				valueList = append(valueList, vStr)
-			}
-			_ = WriteDataInXls(filePath, valueList)
-		}
-
-	}
-
-	return
-}
-
-func (df DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error) {
-	if len(bodys) == 0 {
-		return
-	}
-
-	var isRecordFile bool
-	var fileValue interface{}
-
-	if len(df.Action) > 0 {
-		for _, item := range df.Action {
-			if item.Type == "modify_file" {
-				isRecordFile = true
-				fileValue = item.Value
-				break // 如有多文件模板需要修改，到时再变更代码支持
-			}
-		}
-	}
-
-	if isRecordFile {
-		var templateName, targetName string
-		tmpValue, _ := Interface2Str(fileValue)
-		if len(tmpValue) == 0 {
-			err = fmt.Errorf("modify_file的值未定义，请先定义")
-			Logger.Error("%s", err)
-			return
-		}
-
-		tmps := strings.Split(tmpValue, ":") // name.xml:name_{uniValueVarName}.xml
-
-		tmpBody := make(map[string]interface{})
-		tmpBody = bodys[0]
-
-		if len(tmps) >= 2 {
-			templateName = tmps[0]
-			targetName = tmps[1]
-			comReg := regexp.MustCompile(`\{(.+)\}`)
-			comMatch := comReg.FindAllSubmatch([]byte(targetName), -1)
-			if len(comMatch) > 0 {
-				for i := range comMatch {
-					var ret string
-					dataName := string(comMatch[i][1])
-					rawStrDef := string(comMatch[i][0])
-					if _, ok := tmpBody[dataName]; ok {
-						ret, _ = Interface2Str(tmpBody[dataName])
-						targetName = strings.Replace(targetName, rawStrDef, ret, -1)
-					} else {
-						err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
-						Logger.Error("%s", err)
-						return
-					}
-				}
-			} else {
-				Logger.Warning("[%s] 没有需替换的数据，请核对~", targetName)
-			}
-		} else {
-			err = fmt.Errorf("modify_file的值未定义完整，请先定义， e.g: name.xml:name_{uniValueVarName}.xml")
-			Logger.Error("%s", err)
-			return
-		}
-
-		templateFilePath := fmt.Sprintf("%s/%s", UploadBasePath, templateName)
-		targetFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, targetName)
-
-		content, errTmp := ioutil.ReadFile(templateFilePath)
-		if errTmp != nil {
-			err = fmt.Errorf("Error: %s, filePath: %s", errTmp, templateFilePath)
-			Logger.Error("%s", err)
-			return
-		}
-
-		strByte := []byte(content)
-		newStr := string(content)
-		// 匹配字符串
-		comReg := regexp.MustCompile(`\{(.+)\}`)
-		comMatch := comReg.FindAllSubmatch(strByte, -1)
-		if len(comMatch) > 0 {
-			for i := range comMatch {
-				var ret string
-				dataName := string(comMatch[i][1])
-				rawStrDef := string(comMatch[i][0])
-				if _, ok := tmpBody[dataName]; ok {
-					ret, _ = Interface2Str(tmpBody[dataName])
-				} else {
-					err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
-					Logger.Error("%s", err)
-					return
-				}
-
-				if len(ret) > 0 {
-					newStr = strings.Replace(newStr, rawStrDef, ret, -1)
-				}
-			}
-			err = ioutil.WriteFile(targetFilePath, []byte(newStr), 0644)
-			if err != nil {
-				Logger.Error("%s", err)
-			}
-		} else {
-			Logger.Warning("[%s] 没有需要替换的数据，如有需要，请先进行占位符定义", templateFilePath)
-		}
-	}
 	return
 }
 
@@ -1673,14 +1280,14 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 	return
 }
 
-func (df DataFile) GetResult(lang, source, filePath string, header map[string]interface{}, isThread string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, err error) {
+func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, err error) {
 	var outputDict map[string][]interface{}
 	outputDict = make(map[string][]interface{})
 	isPass := 0
 
 	dst, err = GetResultFilePath(filePath)
-
 	if err != nil {
+		Logger.Error("获取目标文件目录: %s", err)
 		return
 	}
 
@@ -1697,26 +1304,30 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 					} else {
 						err = errs[i]
 					}
-					Logger.Debug("加一次结果：i: %v", i)
+					failReasonStr := fmt.Sprintf("%v", err)
+					df.FailReason = []string{failReasonStr}
 					continue
 				}
 			}
 		} else {
 			df.Response = append(df.Response, string(res[i]))
-
 			if len(errs) > i {
 				if errs[i] != nil {
-					if len(df.TestResult) < i+1 {
-						df.TestResult = append(df.TestResult, "fail")
-					} else {
-						df.TestResult[i] = "fail"
-					}
-					isPass++
 					if err != nil {
 						err = fmt.Errorf("%v,%v", err, errs[i])
 					} else {
 						err = errs[i]
 					}
+					failReason := fmt.Sprintf("%v", err)
+
+					if len(df.TestResult) < i+1 {
+						df.TestResult = append(df.TestResult, "fail")
+						df.FailReason = append(df.FailReason, failReason)
+					} else {
+						df.TestResult[i] = "fail"
+						df.FailReason[i] = failReason
+					}
+					isPass++
 					continue
 				}
 			}
@@ -1726,76 +1337,176 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 		if len(df.Assert) == 0 {
 			if i == 0 {
 				df.TestResult = []string{"pass"}
+				df.FailReason = []string{""}
 			} else {
 				df.TestResult = append(df.TestResult, "pass")
+				df.FailReason = append(df.FailReason, "")
+				//df.TestResult[i] = "pass"
+				//df.FailReason[i] = ""
 			}
 			continue
 		}
 
-		// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
-		var resDict map[string]interface{}
-		resDict = make(map[string]interface{})
-		var errTmp error
-		if len(res[i]) == 0 {
-			errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
-		} else {
-			errTmp = json.Unmarshal(res[i], &resDict)
-		}
+		//// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
+		//var resDict map[string]interface{}
+		//resDict = make(map[string]interface{})
+		//var errTmp error
+		//if len(res[i]) == 0 {
+		//	errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+		//} else {
+		//	errTmp = json.Unmarshal(res[i], &resDict)
+		//}
+		//
+		//if errTmp != nil {
+		//	Logger.Error("errTmp: %v", errTmp)
+		//	if err != nil {
+		//		err = fmt.Errorf("%v,%v", err, errTmp)
+		//	} else {
+		//		err = errTmp
+		//	}
+		//	failReason := fmt.Sprintf("%v", err)
+		//
+		//	if len(df.TestResult) < i+1 {
+		//		df.TestResult = append(df.TestResult, "fail")
+		//		df.FailReason = append(df.FailReason, failReason)
+		//	} else {
+		//		df.TestResult[i] = "fail"
+		//		df.FailReason[i] = failReason
+		//	}
+		//	isPass++
+		//	continue
+		//}
 
-		if errTmp != nil {
-			if len(df.TestResult) < i+1 {
-				df.TestResult = append(df.TestResult, "fail")
-			} else {
-				df.TestResult[i] = "fail"
-			}
-			isPass++
-			if err != nil {
-				err = fmt.Errorf("%v,%v", err, errTmp)
-			} else {
-				err = errTmp
-			}
-			continue
-		}
 		for _, assert := range df.Assert {
 			aType := assert.Type
 			if isPass != 0 && (aType == "output" || aType == "output_re") {
 				continue
 			}
 
-			assert.Value = assert.GetAssertValue(lang)
-
-			if assert.Source == "raw" {
-				b, err1 := RawStrComparion(aType, string(res[i]), assert.Value)
-				if !b {
-					if len(df.TestResult) < i+1 {
-						df.TestResult = append(df.TestResult, "fail")
-					} else {
-						df.TestResult[i] = "fail"
-					}
-					isPass++
+			if assert.Source == "raw" || assert.Source == "ResponseBody" {
+				err1 := assert.AsserValueComparion(string(res[i]))
+				if err1 != nil {
+					Logger.Error("err1: %v", err1)
 					if err != nil {
 						err = fmt.Errorf("%s; %s", err, err1)
 					} else {
-						err = fmt.Errorf("Response: %s; %s", string(res[i]), err1)
+						err = err1
 					}
-					break
+					failReason := fmt.Sprintf("%v", err)
+					if len(df.TestResult) < i+1 {
+						df.TestResult = append(df.TestResult, "fail")
+						df.FailReason = append(df.FailReason, failReason)
+					} else {
+						df.TestResult[i] = "fail"
+						df.FailReason[i] = failReason
+					}
+					isPass++
+					continue // 遇到失败，进入下一个断言值的校对
+					//
+					//} else {
+					//	err = err1
+					//}
+					//if !b {
+					//	if err != nil {
+					//		err = fmt.Errorf("%s; %s", err, err1)
+					//	} else {
+					//		err = err1
+					//	}
+					//	failReason := fmt.Sprintf("%v", err)
+					//	if len(df.TestResult) < i+1 {
+					//		df.TestResult = append(df.TestResult, "fail")
+					//		df.FailReason = append(df.FailReason, failReason)
+					//	} else {
+					//		df.TestResult[i] = "fail"
+					//		df.FailReason[i] = failReason
+					//	}
+					//	isPass++
+					//
+					//	break
+				}
+			} else if strings.HasPrefix(assert.Source, "File:") || strings.HasPrefix(assert.Source, "FILE:") {
+				targetList, errTmp := assert.GetValueFromFile(df.Response[i])
+				if errTmp != nil {
+					Logger.Error("%v", errTmp)
+					if err != nil {
+						err = fmt.Errorf("%v;%v", err, errTmp)
+					} else {
+						err = errTmp
+					}
+					continue
+				}
+				switch aType {
+				case "output":
+					k := Interface2Str(assert.Value)
+					for _, item := range targetList {
+						outputDict[k] = append(outputDict[k], item)
+					}
+				default:
+					for _, item := range targetList {
+						vStr := Interface2Str(item)
+						errTmp = assert.AsserValueComparion(vStr)
+						if errTmp != nil {
+							Logger.Error("%v", errTmp)
+							if err != nil {
+								err = fmt.Errorf("%v;%v", err, errTmp)
+							} else {
+								err = errTmp
+							}
+						}
+					}
 				}
 			} else {
+				// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
+				var resDict map[string]interface{}
+				resDict = make(map[string]interface{})
+				var errTmp error
+				if len(res[i]) == 0 {
+					errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+				} else {
+					errTmp = json.Unmarshal(res[i], &resDict)
+				}
+
+				if errTmp != nil {
+					Logger.Error("errTmp: %v", errTmp)
+					if err != nil {
+						err = fmt.Errorf("%v,%v", err, errTmp)
+					} else {
+						err = errTmp
+					}
+					failReason := fmt.Sprintf("%v", err)
+
+					if len(df.TestResult) < i+1 {
+						df.TestResult = append(df.TestResult, "fail")
+						df.FailReason = append(df.FailReason, failReason)
+					} else {
+						df.TestResult[i] = "fail"
+						df.FailReason[i] = failReason
+					}
+					isPass++
+					continue
+				}
+
 				switch aType {
 				case "output":
 					outputTmp, err1 := assert.GetOutput(resDict)
 					if err1 != nil {
-						if len(df.TestResult) < i+1 {
-							df.TestResult = append(df.TestResult, "fail")
-						} else {
-							df.TestResult[i] = "fail"
-						}
-						isPass++
+						Logger.Error("err1: %v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {
 							err = err1
 						}
+						failReason := fmt.Sprintf("%v", err)
+
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
+
 						break
 					}
 					for k, v := range outputTmp {
@@ -1804,40 +1515,47 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 				case "output_re":
 					keyName, values, err1 := assert.GetOutputRe(res[i])
 					if err1 != nil {
-						if len(df.TestResult) < i+1 {
-							df.TestResult = append(df.TestResult, "fail")
-						} else {
-							df.TestResult[i] = "fail"
-						}
-						isPass++
+						Logger.Error("err1: %v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {
 							err = err1
 						}
+						failReason := fmt.Sprintf("%v", err)
+
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
 						break
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
 				default:
 					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
-						if len(df.TestResult) < i+1 {
-							df.TestResult = append(df.TestResult, "fail")
-						} else {
-							df.TestResult[i] = "fail"
-						}
-
+						Logger.Error("err1: %v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {
 							err = err1
+						}
+						failReason := fmt.Sprintf("%v", err)
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
 						}
 						isPass++
 						break
 					}
 				}
 			}
-
 		}
 		if len(df.TestResult) <= i {
 			df.TestResult = append(df.TestResult, "pass")
@@ -1845,10 +1563,6 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 	}
 
 	df.Output = outputDict
-
-	if isThread == "yes" {
-		Logger.Debug("dst: %s", dst)
-	}
 
 	var dataInfo, dataWithHeaher []byte
 	var errTmp error
@@ -1905,220 +1619,42 @@ func (df DataFile) GetResult(lang, source, filePath string, header map[string]in
 	return
 }
 
-func (df DataFile) SetSleepAction() (err error) {
-	if len(df.Action) > 0 {
-		for _, item := range df.Action {
-			if item.Type == "sleep" {
-				valueType := fmt.Sprintf("%T", item.Value)
-				var sleepSecond int
-				if valueType == "string" {
-					sleepSecondStr := item.Value.(string)
-					sleepSecond, _ = strconv.Atoi(sleepSecondStr)
-				} else {
-					sleepSecond = item.Value.(int)
-				}
-				Logger.Debug("开始Sleep")
-				time.Sleep(time.Duration(sleepSecond) * time.Second)
-				Logger.Debug("结束Sleep")
-			}
-		}
+func GetDataFileRawContent(fileName string) (content string, err error) {
+	var sceneData SceneData
+	baseName := path.Base(fileName)
+	models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&sceneData)
+	if len(sceneData.FileName) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", baseName)
+		Logger.Error("%s", err)
+		return
 	}
+	content = GetStrFromHtml(sceneData.Content)
 
 	return
 }
 
-func (df DataFile) GetPlUrlQuery(envConfig EnvConfig, depOutVars map[string][]interface{}) (pathUrls []string, err error) {
-	var rawUrl string
-	envInfo := []string{envConfig.Protocol, "://", envConfig.Ip, envConfig.Prepath, df.Api.Path}
-	sceneInfo := []string{df.Env.Protocol, "://", df.Env.Host, envConfig.Prepath, df.Api.Path}
-	tag := 0
-	for i := 0; i < len(envInfo); i++ {
-		if df.IsUseEnvConfig == "no" {
-			if len(sceneInfo[i]) == 0 && i != 3 {
-				tag++
-			}
-			rawUrl = rawUrl + sceneInfo[i]
-		} else {
-			if len(envInfo[i]) == 0 && i != 3 {
-				tag++
-			}
-			rawUrl = rawUrl + envInfo[i]
-		}
+func GetBodyFromRawContent(lang, fileName, content string, depOutVars map[string][]interface{}) (bodys []map[string]interface{}, err error) {
+	contentStr, err := GetAfterContent(lang, string(content), depOutVars)
+	if err != nil {
+		Logger.Debug("rawContent: %s", content)
+		Logger.Debug("afterContent: %s", contentStr)
+		Logger.Error("%v", err)
+		return
 	}
 
-	if tag != 0 {
-		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s，", rawUrl)
-		err = err1
+	var df DataFile
+	if strings.HasSuffix(fileName, ".json") {
+		err = json.Unmarshal([]byte(contentStr), &df)
+	} else {
+		err = yaml.Unmarshal([]byte(contentStr), &df)
+	}
+	if err != nil {
+		Logger.Debug("afterContent%s", contentStr)
 		Logger.Error("%s", err)
 		return
 	}
 
-	var rawUrls []string
-	if strings.Contains(rawUrl, "{") {
-		if df.Single.Path == nil && df.Multi.Path == nil {
-			err = fmt.Errorf("未进行Path变量定义，请先定义")
-			Logger.Error("%s", err)
-			return
-		}
-		pathVarsReg := regexp.MustCompile(`{[:alpha]]+}`)
-		var pathVars []string
-		pathVars = pathVarsReg.FindAllString(rawUrl, -1)
-		for _, v := range pathVars {
-			str1 := v[1 : len(v)-1]
-			var tag int
-			tag = 0
-			if value, ok := df.Single.Path[str1]; ok {
-				valueStr, _ := Interface2Str(value)
-				url := strings.Replace(rawUrl, v, valueStr, -1)
-				rawUrls = append(rawUrls, url)
-				tag = tag + 1
-			}
+	bodys, _ = df.GetBody()
 
-			if values, ok := df.Multi.Path[str1]; ok {
-				for _, value := range values {
-					valueStr, _ := Interface2Str(value)
-					url := strings.Replace(rawUrl, v, valueStr, -1)
-					rawUrls = append(rawUrls, url)
-				}
-				tag = tag + 1
-			}
-
-			if tag == 0 {
-				err = fmt.Errorf("未找到Path:%s变量的定义值，请先进行定义", v)
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	} else {
-		rawUrls = append(rawUrls, rawUrl)
-	}
-
-	var queryStr string
-	var multiQuerys []string
-
-	var lang string
-	contentTypeRaw, _ := Interface2Str(df.Single.Header["Content-Type"])
-	if strings.Contains(contentTypeRaw, "lang=en") {
-		lang = "en"
-	}
-
-	if len(df.Single.Query) > 0 {
-		var tag int
-		tag = 0
-
-		for k, v := range df.Single.Query {
-			if v == "{self}" {
-			SingleLoop:
-				for sk, sv := range depOutVars {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", sk, sv[0])
-						queryStr = tmpStr
-					} else {
-						tag = tag + 1
-						tmpStr := fmt.Sprintf("%s=%s", sk, sv[0])
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-					Logger.Debug("queryStr: %s", queryStr)
-					break SingleLoop
-				}
-			} else {
-				strK, err1 := Interface2Str(v)
-				if err1 != nil {
-					err = err1
-					Logger.Error("%s", err)
-					return
-				}
-
-				t, subV, allDef, _ := GetStrType(lang, strK) // Query中多值带索引取值未实现，如有需要再开放
-				if t == 2 {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", k, subV)
-						queryStr = tmpStr
-					} else {
-						tmpStr := fmt.Sprintf("%s=%s", k, subV)
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-				} else if t == 3 {
-					for defKey, defValue := range allDef {
-						var tmpStrV string
-						if value, ok := depOutVars[defKey]; ok {
-							tmpStrV, _ = Interface2Str(value[0])
-						} else {
-							err = fmt.Errorf("未找到变量定义，请先关联进行定义")
-							Logger.Error("%s", err)
-							return
-						}
-						newStr := strings.Replace(strK, defValue, tmpStrV, -1)
-						if tag == 0 {
-							tmpStr := fmt.Sprintf("%s=%s", k, newStr)
-							queryStr = tmpStr
-						} else {
-							tmpStr := fmt.Sprintf("%s=%s", k, newStr)
-							queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-						}
-					}
-				} else {
-					if tag == 0 {
-						tmpStr := fmt.Sprintf("%s=%s", k, v)
-						queryStr = tmpStr
-					} else {
-						tmpStr := fmt.Sprintf("%s=%s", k, v)
-						queryStr = fmt.Sprintf("%s&%s", queryStr, tmpStr)
-					}
-				}
-				tag = tag + 1
-				Logger.Debug("queryStr: %s", queryStr)
-			}
-
-		}
-
-	}
-
-	if len(df.Multi.Query) > 0 {
-		tag := 0
-		for k, v := range df.Multi.Query {
-			for _, sv := range v {
-				if len(queryStr) > 0 {
-					tmpStr := fmt.Sprintf("%s&%s=%s", queryStr, k, sv)
-					if tag == 0 {
-						multiQuerys = append(multiQuerys, tmpStr)
-					} else {
-						for lk, lv := range multiQuerys {
-							tmpLstr := fmt.Sprintf("%s&%s", lv, tmpStr)
-							multiQuerys[lk] = tmpLstr
-						}
-					}
-					tag = tag + 1
-				} else {
-					tmpStr := fmt.Sprintf("%s=%s", k, sv)
-					if tag == 0 {
-						multiQuerys = append(multiQuerys, tmpStr)
-					} else {
-						for lk, lv := range multiQuerys {
-							tmpLstr := fmt.Sprintf("%s&%s", lv, tmpStr)
-							multiQuerys[lk] = tmpLstr
-						}
-					}
-					tag = tag + 1
-				}
-			}
-		}
-	} else {
-		if len(queryStr) > 0 {
-			multiQuerys = append(multiQuerys, queryStr)
-		}
-	}
-
-	if len(multiQuerys) > 0 {
-		for _, v := range rawUrls {
-			for _, sv := range multiQuerys {
-				tmpUrl := fmt.Sprintf("%s?%s", v, sv)
-				pathUrls = append(pathUrls, tmpUrl)
-			}
-		}
-	} else {
-		pathUrls = append(pathUrls, rawUrls...)
-	}
-	Logger.Info("urlQuerys: %+v", pathUrls)
-	return pathUrls, err
+	return
 }

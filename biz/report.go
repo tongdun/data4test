@@ -112,28 +112,36 @@ func GetAutoAPICount(mode, appName string) (infos []string, counts []float64, co
 	appList := strings.Split(appName, ",")
 
 	for index, item := range infos {
-		var apiCount, allCount float64
+		var apiCount, allCount, noNeedAutoCount float64
 		labelInfo := make(map[string]string)
 		if item == "yes" {
 			if mode == "all" {
-				models.Orm.Table("scene_data").Group("api_id").Count(&apiCount)
+				models.Orm.Table("api_definition").Group("api_id").Count(&apiCount)
+				if apiCount == 0 {
+					models.Orm.Table("scene_data").Group("api_id").Count(&apiCount)
+				}
 			} else if mode == "product" || mode == "app" {
-				models.Orm.Table("scene_data").Group("api_id").Where("app in (?)", appList).Count(&apiCount)
+				models.Orm.Table("api_definition").Group("api_id").Where("app in (?) and is_auto = '1'", appList).Count(&apiCount)
+				if apiCount == 0 {
+					models.Orm.Table("scene_data").Group("api_id").Where("app in (?)", appList).Count(&apiCount)
+				}
 			}
 		} else {
 			if mode == "all" {
-				models.Orm.Table("api_definition").Where("auto != '否'").Count(&allCount)
+				models.Orm.Table("api_definition").Count(&allCount)
+				models.Orm.Table("api_definition").Where("is_need_auto = 0").Count(&noNeedAutoCount)
 			} else if mode == "product" || mode == "app" {
-				models.Orm.Table("api_definition").Where("app in (?) and auto != '否'", appList).Count(&allCount)
+				models.Orm.Table("api_definition").Where("app in (?)", appList).Count(&allCount)
+				models.Orm.Table("api_definition").Where("app in (?) and is_need_auto = 0", appList).Count(&noNeedAutoCount)
 			}
 
 			if allCount == 0 {
 				apiCount = 0
 			} else {
-				apiCount = allCount - counts[0]
+				apiCount = allCount - noNeedAutoCount - counts[0]
 			}
-
 		}
+
 		counts = append(counts, apiCount)
 		labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(apiCount))
 		if index < len(defineColors) {
@@ -917,7 +925,7 @@ func GetSumOfProduct(name string) (content map[string]types.InfoItem) {
 			appNum = len(appArray)
 		}
 	}
-	
+
 	itemCountHtml := template.HTML(fmt.Sprintf("%d", appNum))
 	content["应用个数"] = types.InfoItem{Content: itemCountHtml}
 

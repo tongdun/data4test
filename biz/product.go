@@ -89,5 +89,6 @@ func (dbProduct DbProduct) GetPrivateParameter() (privateParameter map[string]in
 			Logger.Error("%s", err)
 		}
 	}
+
 	return
 }

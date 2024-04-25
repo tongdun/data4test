@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/tealeg/xlsx"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -17,29 +16,52 @@ import (
 )
 
 func RepeatRunPlaybook(id, mode, product, source string) (err error) {
-	var productInfo DbProduct
+	var productList []DbProduct
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
 
-	if len(product) > 0 {
-		productInfo, _ = GetProductInfo(product)
-	} else {
-		productInfo = productSceneInfo
+	if err != nil {
+		return
 	}
 
-	if productInfo.Threading == "yes" && playbookInfo.RunTime > 1 && productInfo.ThreadNumber > 1 {
-		if playbookInfo.RunTime > productInfo.ThreadNumber {
-			loopNum := playbookInfo.RunTime/productInfo.ThreadNumber + 1
-			count := 1
-			for i := 0; i < loopNum; i++ {
-				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
-				wg := sync.WaitGroup{}
-				for j := 0; j < productInfo.ThreadNumber; j++ {
-					if count > playbookInfo.RunTime {
-						break
+	if len(product) > 0 {
+		productList, _ = GetProductInfo(product)
+	} else {
+		productList = productSceneInfo
+	}
+
+	for _, productInfo := range productList {
+		if productInfo.Threading == "yes" && playbookInfo.RunTime > 1 && productInfo.ThreadNumber > 1 {
+			if playbookInfo.RunTime > productInfo.ThreadNumber {
+				loopNum := playbookInfo.RunTime/productInfo.ThreadNumber + 1
+				count := 1
+				for i := 0; i < loopNum; i++ {
+					Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
+					wg := sync.WaitGroup{}
+					for j := 0; j < productInfo.ThreadNumber; j++ {
+						if count > playbookInfo.RunTime {
+							break
+						}
+						Logger.Info("并发模式-执行次数:%d", count)
+						wg.Add(1)
+						go func(playbookInfo DbScene, productInfo DbProduct) {
+							err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
+							if err1 != nil {
+								err = err1
+								Logger.Error("%s", err)
+								return
+							}
+							wg.Done()
+						}(playbookInfo, productInfo)
+						count++
 					}
-					Logger.Info("并发模式-执行次数:%d", count)
+					wg.Wait()
+				}
+			} else {
+				wg := sync.WaitGroup{}
+				for i := 0; i < playbookInfo.RunTime; i++ {
+					Logger.Info("并发模式-执行次数:%d", i+1)
 					wg.Add(1)
-					go func(playbookInfo DbScene, productInfo DbProduct) {
+					go func(playbookInfo DbScene) {
 						err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
 						if err1 != nil {
 							err = err1
@@ -47,35 +69,25 @@ func RepeatRunPlaybook(id, mode, product, source string) (err error) {
 							return
 						}
 						wg.Done()
-					}(playbookInfo, productInfo)
-					count++
+					}(playbookInfo)
 				}
 				wg.Wait()
 			}
 		} else {
-			wg := sync.WaitGroup{}
 			for i := 0; i < playbookInfo.RunTime; i++ {
-				Logger.Info("并发模式-执行次数:%d", i+1)
-				wg.Add(1)
-				go func(playbookInfo DbScene) {
-					err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-					if err1 != nil {
+				if playbookInfo.RunTime > 1 {
+					Logger.Info("串行模式-执行次数:%d", i+1)
+				}
+
+				err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
+				if err1 != nil {
+					if err != nil {
+						err = fmt.Errorf("%v; %v", err, err1)
+					} else {
 						err = err1
-						Logger.Error("%s", err)
-						return
 					}
-					wg.Done()
-				}(playbookInfo)
-			}
-			wg.Wait()
-		}
-	} else {
-		for i := 0; i < playbookInfo.RunTime; i++ {
-			Logger.Info("串行模式-执行次数:%d", i+1)
-			err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-			if err1 != nil {
-				err = err1
-				return
+					break // 循环进行多次测试，如果遇错即退出
+				}
 			}
 		}
 	}
@@ -85,9 +97,9 @@ func RepeatRunPlaybook(id, mode, product, source string) (err error) {
 func CompareResult(apis []string, mode string) (result string, err error) {
 	baseChk := make(map[string][]interface{})
 	isPass := 0
-
 	for _, item := range apis {
 		var sceneFileBase DataFile
+		item := fmt.Sprintf("%s/%s", HistoryBasePath, item)
 		content, err1 := ioutil.ReadFile(item)
 		if err1 != nil {
 			err = err1
@@ -95,12 +107,17 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 			return
 		}
 		err = yaml.Unmarshal([]byte(content), &sceneFileBase)
+		if err != nil {
+			Logger.Error("Error: %s, filePath: %s", err, item)
+		}
 		for k, v := range sceneFileBase.Output {
 			baseChk[k] = v
 		}
 	}
+
 	for _, filePath := range apis {
 		var sceneFile DataFile
+		filePath = fmt.Sprintf("%s/%s", HistoryBasePath, filePath)
 		content, err1 := ioutil.ReadFile(filePath)
 		if err1 != nil {
 			err = err1
@@ -169,258 +186,44 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 	return
 }
 
-func (p Playbook) RunPlaybookContent(product string, privateParameter map[string]interface{}, source string) (result, historyApi string, err error) {
+func (p Playbook) RunPlaybookContent(envType int) (result, historyApi string, err error) {
 	filePath := p.Apis[p.Tag]
-
-	var sceneFile DataFile
-
-	errTmp := CreateFileByFileName(filePath)
-	if errTmp != nil {
-		Logger.Error("%s", errTmp)
-	}
-
-	content, err := ioutil.ReadFile(filePath)
+	depOutVars, err := p.GetPalybookDepParams()
 	if err != nil {
-		Logger.Debug("filePath: %v", filePath)
-		Logger.Error("Error: %s, filePath: %s", err, filePath)
-		result = "fail"
-		historyApi = path.Base(filePath)
-		return
-	}
-
-	suffix := GetStrSuffix(filePath)
-	if suffix == ".json" {
-		err = json.Unmarshal([]byte(content), &sceneFile)
-	} else if suffix == ".yaml" || suffix == ".yml" {
-		err = yaml.Unmarshal([]byte(content), &sceneFile)
-	}
-
-	if err != nil {
-		Logger.Error("Error: %s, filePath: %s", err, filePath)
-		historyApi = path.Base(filePath)
-		return
-	}
-
-	if len(product) == 0 {
-		product = p.Product
-	}
-
-	envConfig, err := GetEnvConfig(product, "scene")
-	envType, _ := GetEnvTypeByName(product)
-
-	dataEnvConfig, err := GetEnvConfig(sceneFile.Api.App, "data")
-	if len(dataEnvConfig.Prepath) > 0 {
-		envConfig.Prepath = dataEnvConfig.Prepath
-	} else if len(sceneFile.Env.Prepath) > 0 {
-		envConfig.Prepath = sceneFile.Env.Prepath
-	}
-
-	header, err := sceneFile.GetHeader(envConfig)
-	if err != nil {
-		historyApi = path.Base(filePath)
-		return
-	}
-
-	lang := GetRequestLangage(header)
-
-	urls, err := sceneFile.GetUrl(envConfig)
-	if len(urls) == 0 {
-		Logger.Error("url为空，请检查")
-		historyApi = path.Base(filePath)
-		return
-	}
-	sceneFile.Urls = urls
-
-	if err != nil {
-		Logger.Debug("filePath: %v", filePath)
-		Logger.Debug("urlQuerys: %+v", urls)
 		Logger.Error("%s", err)
-		historyApi = path.Base(filePath)
-		return
 	}
 
-	outputDict, err := p.GetPalybookDepParams(privateParameter)
-	//Logger.Debug("outputDict: %v", outputDict)
-	querys, err := sceneFile.GetQuery(lang, outputDict)
-	if err != nil {
-		Logger.Debug("filePath: %v", filePath)
-		Logger.Debug("querys: %+v", querys)
-		historyApi = path.Base(filePath)
-		return
-	}
-
-	bodys, bodyList, err := sceneFile.GetBody(lang, outputDict)
-	_ = sceneFile.CreateDataOrderByKey(lang, outputDict) // 执行动作：create_xxx
-	_ = sceneFile.RecordDataOrderByKey(bodys)            // 执行动作：record_xxx
-	_ = sceneFile.ModifyFileWithData(bodys)              // 执行动作：modify_file
-
-	if err != nil {
-		Logger.Debug("outputDict: %v", outputDict)
-		Logger.Debug("filePath: %v", filePath)
-		historyApi = path.Base(filePath)
-		return
-	}
-
-	var resList [][]byte
-	var errs []error
-	tag := 0
-
-	if sceneFile.GetIsParallel() {
-		wg := sync.WaitGroup{}
-		for _, url := range urls {
-			if len(querys) > 0 {
-				wg.Add(len(querys))
-				for _, data := range querys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						sceneFile.Request = []string{string(dJson)}
-					} else {
-						sceneFile.Request = append(sceneFile.Request, string(dJson))
-					}
-					tag++
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}(sceneFile.Api.Method, url, data, header)
-				}
-			} else if len(bodys) > 0 {
-				wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
-				for _, data := range bodys {
-					dJson, errTmp := json.Marshal(data)
-					if errTmp != nil {
-						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-						dJsonNew, subErr := jsonNew.Marshal(&data)
-						if subErr != nil {
-							Logger.Error("%v", subErr)
-						}
-						dJson = dJsonNew
-					}
-
-					if tag == 0 {
-						sceneFile.Request = []string{string(dJson)}
-					} else {
-						sceneFile.Request = append(sceneFile.Request, string(dJson))
-					}
-					tag++
-					//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
-					go func(method, url string, data, header map[string]interface{}) (errs []error) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-						return
-					}(sceneFile.Api.Method, url, data, header)
-				}
-			} else {
-				wg.Add(1)
-				sceneFile.Request = []string{}
-				go func(method, url string, header map[string]interface{}) (errs []error) {
-					defer wg.Add(-1)
-					res, err := RunHttp(method, url, nil, header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-					return
-				}(sceneFile.Api.Method, url, header)
-			}
-			wg.Wait()
-		}
-	} else {
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						sceneFile.Request = []string{string(dJson)}
-					} else {
-						sceneFile.Request = append(sceneFile.Request, string(dJson))
-					}
-					tag++
-
-					if sceneFile.Api.Method == "delete" {
-						subTag := 0
-						for k, v := range data {
-							strV, _ := Interface2Str(v)
-							if subTag == 0 {
-								url = fmt.Sprintf("%s?%s=%s", url, k, strV)
-							} else {
-								url = fmt.Sprintf("%s&%s=%s", url, k, strV)
-							}
-							subTag++
-						}
-						res, err := RunHttp(sceneFile.Api.Method, url, nil, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					} else {
-						res, err := RunHttp(sceneFile.Api.Method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}
-
-					_ = sceneFile.SetSleepAction()
-				}
-			} else if len(bodys) > 0 || len(bodyList) > 0 {
-				if len(bodyList) > 0 {
-					var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-					readerNew, subErr := jsonNew.Marshal(&bodyList)
-					if subErr != nil {
-						Logger.Error("%v", subErr)
-					}
-					sceneFile.Request = []string{string(readerNew)}
-					res, err := RunHttpJsonList(sceneFile.Api.Method, url, bodyList, header)
-					if err != nil {
-						Logger.Debug("%s", err)
-					}
-					resList = append(resList, res)
-					errs = append(errs, err)
-
-					_ = sceneFile.SetSleepAction()
-				} else {
-					for _, data := range bodys {
-						dJson, errTmp := json.Marshal(data)
-						if errTmp != nil {
-							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-							dJsonNew, _ := jsonNew.Marshal(&data)
-							dJson = dJsonNew
-						}
-						if tag == 0 {
-							sceneFile.Request = []string{string(dJson)}
-						} else {
-							sceneFile.Request = append(sceneFile.Request, string(dJson))
-						}
-						tag++
-						res, err := RunHttp(sceneFile.Api.Method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-						_ = sceneFile.SetSleepAction()
-					}
-				}
-			} else {
-				sceneFile.Request = []string{}
-				res, err := RunHttp(sceneFile.Api.Method, url, nil, header)
-				resList = append(resList, res)
-				errs = append(errs, err)
-				_ = sceneFile.SetSleepAction()
-			}
+	result, dst, errTmp := RunDataFile("", filePath, p.Product, depOutVars)
+	if errTmp != nil {
+		result = "fail"
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
 		}
 	}
 
-	result, dst, err1 := sceneFile.GetResult(lang, source, filePath, header, p.IsThread, resList, outputDict, errs)
 	b, _ := IsStrEndWithTimeFormat(filePath)
 	if b {
 		dst = filePath
 	}
 
-	historyApi = strings.Split(dst, "/history/")[1]
-	err = WriteDataResultByFile(filePath, result, dst, product, envType, err1)
+	hApiTmps := strings.Split(dst, "/history/")
 
-	if err1 != nil {
-		//Logger.Debug("outputDict: %v", outputDict)
+	if len(hApiTmps) > 1 {
+		historyApi = hApiTmps[1]
+	} else {
+		historyApi = path.Base(filePath) // 如果未写到history中，
+		dst = filePath
+	}
+
+	err = WriteDataResultByFile(filePath, result, dst, p.Product, envType, errTmp)
+
+	if errTmp != nil {
 		if err != nil {
-			err = fmt.Errorf("%s, %s", err, err1)
+			err = fmt.Errorf("%s, %s", err, errTmp)
 		} else {
-			err = err1
+			err = errTmp
 		}
 	}
 
@@ -478,9 +281,10 @@ func (p Playbook) GetHistoryApiList(dbScene DbScene) (apiStr string) {
 	return
 }
 
-func (p Playbook) WritePlaybookResult(id, result, lastFile, product, source string, envType int, errIn error) (err error) {
+func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envType int, errIn error) (err error) {
 	var dbScene DbScene
 	var sceneRecode SceneRecord
+
 	s, _ := strconv.Atoi(id)
 	models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
 	if len(dbScene.Name) == 0 {
@@ -502,6 +306,7 @@ func (p Playbook) WritePlaybookResult(id, result, lastFile, product, source stri
 		if len(lastFile) == 0 {
 			dbScene.LastFile = " " // 用空格字符串刷新数据
 		} else {
+			Logger.Debug("lastFile: %v", lastFile)
 			b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
 			if b {
 				dirName := GetHistoryDataDirName(path.Base(lastFile))
@@ -520,8 +325,10 @@ func (p Playbook) WritePlaybookResult(id, result, lastFile, product, source stri
 
 		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
 		if err != nil {
-			Logger.Error("%s", err)
+			Logger.Error("%v", err)
 		}
+	} else if source == "task" {
+		Logger.Debug("lastFile: %v", lastFile)
 	}
 
 	sceneRecode.Name = dbScene.Name
@@ -535,15 +342,10 @@ func (p Playbook) WritePlaybookResult(id, result, lastFile, product, source stri
 	sceneRecode.SceneType = dbScene.SceneType
 	sceneRecode.Result = result
 	if errIn != nil {
-		sceneRecode.FailReason = fmt.Sprintf("%s", errIn)
+		sceneRecode.FailReason = fmt.Sprintf("%v", errIn)
 	}
 
-	if len(product) > 0 {
-		sceneRecode.Product = product
-	} else {
-		sceneRecode.Product = product
-	}
-
+	sceneRecode.Product = p.Product
 	sceneRecode.EnvType = envType
 
 	err = WritePlaybookRecord(sceneRecode)
@@ -568,6 +370,7 @@ func WritePlaybookHistoryResult(id, result, lastFile, mode string, envType int, 
 	baseLastFile := path.Base(lastFile)
 	b, _ := IsStrEndWithTimeFormat(baseLastFile)
 	var dirName string
+	Logger.Debug("b: %v", b)
 	if b {
 		dirName = GetHistoryDataDirName(baseLastFile)
 	}
@@ -664,7 +467,7 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	return
 }
 
-func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct DbProduct, err error) {
+func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, err error) {
 	s, _ := strconv.Atoi(id)
 	if source == "history" {
 		models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
@@ -679,22 +482,20 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct DbProduct, err 
 	}
 
 	dbProduct, err = GetProductInfo(dbScene.Product)
-	if err != nil {
-		Logger.Error("%v", err)
-	}
 
 	return
 }
 
-func GetProductInfo(product string) (dbProduct DbProduct, err error) {
-	models.Orm.Table("product").Where("product = ?", product).Find(&dbProduct)
-	if len(dbProduct.Name) == 0 {
+func GetProductInfo(product string) (productList []DbProduct, err error) {
+	productTmp := strings.Split(product, ",")
+	models.Orm.Table("product").Where("product in (?)", productTmp).Find(&productList)
+	if len(productList) == 0 {
 		err = fmt.Errorf("未找到: %v 环境信息，请核对", product)
 	}
 	return
 }
 
-func (p Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) (outputDict map[string][]interface{}, err error) {
+func (p Playbook) GetPalybookDepParams() (outputDict map[string][]interface{}, err error) {
 	var preApis []string
 	for _, item := range p.HistoryApis {
 		fullPathApi := fmt.Sprintf("%s/%s", HistoryBasePath, item)
@@ -708,6 +509,7 @@ func (p Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) 
 		content, err1 := ioutil.ReadFile(filePath)
 		if err1 != nil {
 			err = err1
+			Logger.Debug("filePath: %s", filePath)
 			Logger.Error("%s", err)
 			return
 		}
@@ -814,8 +616,31 @@ func (p Playbook) GetPalybookDepParams(privateParameter map[string]interface{}) 
 		}
 	}
 
+	var tmpStr []string
+	models.Orm.Table("product").Where("product = ?", p.Product).Pluck("auth", &tmpStr)
+	privateParameter := make(map[string]interface{})
+	if len(tmpStr) > 0 {
+		if len(tmpStr[0]) > 2 {
+			err = json.Unmarshal([]byte(tmpStr[0]), &privateParameter)
+			if err != nil {
+				Logger.Error("%s", err)
+				return
+			}
+		}
+	}
+
 	for k, v := range privateParameter {
-		outputDict[k] = append(outputDict[k], v)
+		vStr := Interface2Str(v)
+		var values []string
+		if strings.Contains(vStr, ",") {
+			values = strings.Split(vStr, ",")
+			for _, subV := range values {
+				strings.TrimSpace(subV)
+				outputDict[k] = append(outputDict[k], subV)
+			}
+		} else {
+			outputDict[k] = append(outputDict[k], v)
+		}
 	}
 
 	return
@@ -979,7 +804,14 @@ func SaveScene(sceneSave SceneSaveModel) (err error) {
 func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel, err error) {
 	var playbook Playbook
 	playbook.Product = sceneModel.Product
-	playbook.Name = sceneModel.Name
+
+	if len(sceneModel.Name) == 0 {
+		tmpStr := GetRandomStr(4, "")
+		playbook.Name = fmt.Sprintf("临时测试场景-%s", tmpStr)
+	} else {
+		playbook.Name = sceneModel.Name
+	}
+
 	var apisStr string
 	for _, item := range sceneModel.DataList {
 		var dirName, filePath string
@@ -999,23 +831,12 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 		}
 	}
 
-	var dbProduct DbProduct
-	models.Orm.Table("product").Where("product = ?", playbook.Product).Find(&dbProduct)
-	privateParameter := make(map[string]interface{})
-	if len(dbProduct.Name) > 0 {
-		if len(dbProduct.PrivateParameter) > 2 {
-			err = json.Unmarshal([]byte(dbProduct.PrivateParameter), &privateParameter)
-			if err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	}
+	envType, _ := GetEnvTypeByName(playbook.Product)
 
 	runResp.TestResult = "pass"
 	for k := range playbook.Apis {
 		playbook.Tag = k
-		result, historyApi, errTmp := playbook.RunPlaybookContent(playbook.Product, privateParameter, "console")
+		result, historyApi, errTmp := playbook.RunPlaybookContent(envType)
 		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 		if errTmp != nil || result != "pass" {
 			runResp.TestResult = result
@@ -1031,9 +852,8 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 			return
 		}
 	}
-
 	if sceneModel.SceneType == 2 {
-		result, errTmp := CompareResult(playbook.Apis, "")
+		result, errTmp := CompareResult(playbook.HistoryApis, "")
 		runResp.TestResult = result
 		if errTmp != nil {
 			err = errTmp
@@ -1049,19 +869,16 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 
 Record:
 	var sceneRecode SceneRecord
-	sceneRecode.Name = sceneModel.Name
+	sceneRecode.Name = playbook.Name
 
 	var dbScene DbScene
-	baseLastFile := path.Base(playbook.LastFile)
-	dbScene.LastFile = baseLastFile
-	b, _ := IsStrEndWithTimeFormat(baseLastFile)
-	dirName := GetHistoryDataDirName(baseLastFile)
 	var lastFileStr string
-	if b {
-		lastFileStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, baseLastFile, baseLastFile)
-	} else {
-		lastFileStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", baseLastFile, baseLastFile)
+
+	if len(playbook.LastFile) > 0 {
+		lastFileStr = GetLastFileLink(playbook.LastFile)
+		dbScene.LastFile = path.Base(playbook.LastFile)
 	}
+
 	dbScene.ApiList = apisStr
 	apiAfter := playbook.GetHistoryApiList(dbScene)
 	sceneRecode.ApiList = apiAfter
@@ -1070,7 +887,7 @@ Record:
 	sceneRecode.Result = runResp.TestResult
 	sceneRecode.FailReason = runResp.FailReason
 	sceneRecode.Product = sceneModel.Product
-	sceneRecode.EnvType = dbProduct.EnvType
+	sceneRecode.EnvType = envType
 
 	err = WritePlaybookRecord(sceneRecode)
 
@@ -1213,6 +1030,80 @@ func ModifyPlaybookContent() (err error) {
 				Logger.Error("%s", err)
 			}
 		}
+	}
+
+	return
+}
+
+// 同接口一键生成场景用例
+func CreatePlaybookByAPIId(id, userName string) (err error) {
+	var apiDef ApiDefinition
+	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDef)
+	if len(apiDef.ApiId) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var dfNames []string
+	models.Orm.Table("scene_data").Where("api_id = ?", apiDef.ApiId).Group("file_name").Pluck("file_name", &dfNames)
+	if len(dfNames) == 0 {
+		err = fmt.Errorf("未找到[%v]接口关联的数据，请核对", apiDef.ApiId)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var dbScene DbScene
+	var scene SceneWithNoUpdateTime
+	var apiStr, numStr string
+	scene.Product = ""
+	scene.Name = fmt.Sprintf("全量-%s-%s-集合-%s", apiDef.ApiModule, apiDef.ApiDesc, GetRandomStr(4, ""))
+	for index, value := range dfNames {
+		if index == 0 {
+			apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
+			numStr = fmt.Sprintf("%v", index+1)
+		} else {
+			apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
+			numStr = fmt.Sprintf("%s,%v", numStr, index+1)
+		}
+	}
+
+	scene.ApiList = apiStr
+	scene.DataNumber = numStr
+	scene.RunTime = 1
+	scene.SceneType = 1
+	scene.Remark = "自动生成"
+	scene.Priority = 999
+	scene.UserName = userName
+
+	models.Orm.Table("playbook").Where("name = ? and product = ?", scene.Name, scene.Product).Find(&dbScene)
+	if len(dbScene.Name) == 0 {
+		err = models.Orm.Table("playbook").Create(scene).Error
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+	} else {
+		dbScene.ApiList = apiStr
+		dbScene.DataNumber = numStr
+		dbScene.SceneType = scene.SceneType
+		dbScene.RunTime = scene.RunTime
+		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+	}
+
+	return
+}
+
+func GetLastFileLink(filePath string) (linkStr string) {
+	lastFile := path.Base(filePath)
+	b, _ := IsStrEndWithTimeFormat(lastFile)
+	dirName := GetHistoryDataDirName(lastFile)
+	if b {
+		linkStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, lastFile, lastFile)
+	} else {
+		linkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", lastFile, lastFile)
 	}
 
 	return

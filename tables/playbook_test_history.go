@@ -6,6 +6,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
@@ -15,9 +16,9 @@ import (
 
 func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
-	senceTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
+	playbookTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	info := senceTestHistory.GetInfo().HideFilterArea()
+	info := playbookTestHistory.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
@@ -34,17 +35,28 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "默认"
+				return "串行中断"
 			}
 			if model.Value == "2" {
-				return "比较"
+				return "串行比较"
 			}
-			return "默认"
+			if model.Value == "3" {
+				return "串行继续"
+			}
+			if model.Value == "4" {
+				return "普通并发"
+			}
+			if model.Value == "5" {
+				return "并发比较"
+			}
+			return "串行中断"
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "默认"},
-		{Value: "2", Text: "比较"},
-	}).
-		FieldHide()
+		{Value: "1", Text: "串行中断"},
+		{Value: "2", Text: "串行比较"},
+		{Value: "3", Text: "串行继续"},
+		{Value: "4", Text: "普通并发"},
+		{Value: "5", Text: "并发比较"},
+	})
 	info.AddField("测试结果", "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "pass", Text: "pass"},
@@ -170,7 +182,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	info.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
 
-	formList := senceTestHistory.GetForm()
+	sceneTypeMsg := template.HTML("默认值为: 串行中断<br>串行中断: 场景内的数据用例若存在执行失败，失败后的数据用例不再执行<br>串行比较: 场景内的数据用例串行执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过<br>串行继续: 场景内的数据用例串行执行存在失败数据用例，失败后的数据用例继续执行<br>普通并发: 场景内的数据用例并发执行<br>并发比较: 场景内的数据用例并发执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过")
+	formList := playbookTestHistory.GetForm()
 	formList.AddField("自增主键", "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
 	formList.AddField("场景描述", "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
@@ -178,9 +191,12 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	formList.AddField("最近数据文件", "last_file", db.Varchar, form.Text)
 	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "默认", Value: "1"},
-			{Text: "比较", Value: "2"},
-		}).FieldDefault("1")
+			{Value: "1", Text: "串行中断"},
+			{Value: "2", Text: "串行比较"},
+			{Value: "3", Text: "串行继续"},
+			{Value: "4", Text: "普通并发"},
+			{Value: "5", Text: "并发比较"},
+		}).FieldDefault("1").FieldHelpMsg(sceneTypeMsg)
 	formList.AddField("测试结果", "result", db.Varchar, form.Text)
 	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
 	formList.AddField("环境类型", "env_type", db.Int, form.Radio).
@@ -202,7 +218,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	formList.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
 
-	detail := senceTestHistory.GetDetail()
+	detail := playbookTestHistory.GetDetail()
 	detail.AddField("唯一标识", "id", db.Int)
 	detail.AddField("场景描述", "name", db.Varchar)
 	detail.AddField("数据文件列表", "api_list", db.Longtext).
@@ -213,12 +229,21 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	detail.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "默认"
+				return "串行中断"
 			}
 			if model.Value == "2" {
-				return "比较"
+				return "串行比较"
 			}
-			return "默认"
+			if model.Value == "3" {
+				return "串行继续"
+			}
+			if model.Value == "4" {
+				return "普通并发"
+			}
+			if model.Value == "5" {
+				return "并发比较"
+			}
+			return "串行中断"
 		})
 	detail.AddField("测试结果", "result", db.Varchar)
 	detail.AddField("失败原因", "fail_reason", db.Longtext)
@@ -245,5 +270,5 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	detail.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
 
-	return senceTestHistory
+	return playbookTestHistory
 }

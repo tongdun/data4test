@@ -429,20 +429,18 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 	treeData := make(map[string]interface{})
 	for k, v := range body {
 		varType := fmt.Sprintf("%T", v)
-
 		if varType == "[]interface {}" {
 			rawList := v.([]interface{})
 			var afterList []interface{}
 			count := 0
 			for _, item := range rawList {
 				subVarType := fmt.Sprintf("%T", item)
-
 				if subVarType == "string" {
-					strK, err1 := Interface2Str(item)
-					if err1 != nil {
-						Logger.Error("%s", err1)
-						return body, err1
-					}
+					strK := Interface2Str(item)
+					//if err1 != nil {
+					//	Logger.Error("%s", err1)
+					//	return body, err1
+					//}
 					afterStr, err1 := RawStr2MadeStr(lang, "", strK, count, depOutVars)
 
 					if err1 != nil {
@@ -454,19 +452,31 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 					afterV := item.(map[interface{}]interface{})
 					for subK, subV := range afterV {
 						subVarType := fmt.Sprintf("%T", subV)
-						strAfterK, err2 := Interface2Str(subK)
-						if err2 != nil {
-							Logger.Error("%s", err2)
-							break
-						}
+						strAfterK := Interface2Str(subK)
+						//if err2 != nil {
+						//	Logger.Error("%s", err2)
+						//	break
+						//}
 
-						if subVarType == "[]interface{}" {
+						if subVarType == "[]interface {}" {
+							sub4Item := item.(map[interface{}]interface{})
+							Logger.Debug("subItem: %v", sub4Item)
+							//for _, sub5Item := range sub4Item {
+							//	sub5VarType := fmt.Sprintf("%T", sub5Item)
+							//	str5K, _ := Interface2Str(sub5Item)
+							//	afterStr, err3 := RawStr2MadeStr(lang, strAfterK, str5K, count, depOutVars)
+							//	if err3 != nil {
+							//		Logger.Error("%s", err3)
+							//		return body, err3
+							//	}
+							//	afterV[strAfterK] = afterStr
+							//}
 							break
 						} else {
-							strK, err1 := Interface2Str(subV)
-							if err1 != nil {
-								break
-							}
+							strK := Interface2Str(subV)
+							//if err1 != nil {
+							//	break
+							//}
 							afterStr, err3 := RawStr2MadeStr(lang, strAfterK, strK, count, depOutVars)
 							if err3 != nil {
 								Logger.Error("%s", err3)
@@ -479,11 +489,11 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 				} else if subVarType == "map[string]interface{}" {
 					afterV := item.(map[string]interface{})
 					for subK, subV := range afterV {
-						strK, err1 := Interface2Str(subV)
-						if err1 != nil {
-							Logger.Error("%s", err1)
-							return body, err1
-						}
+						strK := Interface2Str(subV)
+						//if err1 != nil {
+						//	Logger.Error("%s", err1)
+						//	return body, err1
+						//}
 						afterStr, err2 := RawStr2MadeStr(lang, subK, strK, count, depOutVars)
 						if err2 != nil {
 							Logger.Error("%s", err2)
@@ -501,11 +511,11 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 		} else if varType == "interface {}" {
 			afterV := v.(map[string]interface{})
 			for subK, subV := range afterV {
-				strK, err1 := Interface2Str(subV)
-				if err1 != nil {
-					Logger.Error("%s", err1)
-					return body, err1
-				}
+				strK := Interface2Str(subV)
+				//if err1 != nil {
+				//	Logger.Error("%s", err1)
+				//	return body, err1
+				//}
 				afterStr, err1 := RawStr2MadeStr(lang, subK, strK, 0, depOutVars)
 				if err1 != nil {
 					Logger.Error("%s", err1)
@@ -515,21 +525,21 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 			}
 			body[k] = afterV
 		} else if varType == "string" {
-			strK, err1 := Interface2Str(v)
+			strK := Interface2Str(v)
 			var order int
 			var afterStr interface{}
-			if err1 != nil {
-				Logger.Info("body key: %v", v)
-				Logger.Error("%s", err1)
-				return body, err1
-			}
+			//if err1 != nil {
+			//	Logger.Info("body key: %v", v)
+			//	Logger.Error("%s", err1)
+			//	return body, err1
+			//}
 
 			if strings.HasPrefix(strK, "{TreeData_") {
 				treeData[k] = strK
 				continue
 			}
 
-			afterStr, err1 = RawStr2MadeStr(lang, k, strK, order, depOutVars)
+			afterStr, err1 := RawStr2MadeStr(lang, k, strK, order, depOutVars)
 			if err1 != nil {
 				return body, err1
 			}
@@ -544,11 +554,11 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 					continue
 				}
 
-				strK, err1 := Interface2Str(subV)
-				if err1 != nil {
-					Logger.Error("%s", err1)
-					return body, err1
-				}
+				strK := Interface2Str(subV)
+				//if err1 != nil {
+				//	Logger.Error("%s", err1)
+				//	return body, err1
+				//}
 				afterStr, err1 := RawStr2MadeStr(lang, subK.(string), strK, 0, depOutVars)
 				if err1 != nil {
 					Logger.Error("%s", err1)
@@ -566,7 +576,7 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 	var first, second, third string
 	if len(treeData) > 0 {
 		for _, v := range treeData {
-			vStr, _ := Interface2Str(v)
+			vStr := Interface2Str(v)
 			treeDataKey, deep := GetTreeDataTag(vStr)
 			if deep == 1 {
 				first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
@@ -574,7 +584,7 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 			}
 		}
 		for _, v := range treeData {
-			vStr, _ := Interface2Str(v)
+			vStr := Interface2Str(v)
 			treeDataKey, deep := GetTreeDataTag(vStr)
 			if deep == 2 {
 				first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
@@ -583,7 +593,7 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 
 		}
 		for _, v := range treeData {
-			vStr, _ := Interface2Str(v)
+			vStr := Interface2Str(v)
 			treeDataKey, deep := GetTreeDataTag(vStr)
 			if deep == 3 {
 				first, second, third = GetTreeDataValue(treeDataKey, deep, first, second)
@@ -592,7 +602,7 @@ func GetAfterBody(lang string, body map[string]interface{}, depOutVars map[strin
 		}
 
 		for k, v := range treeData {
-			vStr, _ := Interface2Str(v)
+			vStr := Interface2Str(v)
 			_, deep := GetTreeDataTag(vStr)
 			if deep == 1 {
 				body[k] = first
@@ -616,11 +626,11 @@ func GetAfterListBody(lang string, body []interface{}, depOutVars map[string][]i
 		if varType == "interface {}" {
 			afterV := v.(map[string]interface{})
 			for subK, subV := range afterV {
-				strK, err1 := Interface2Str(subV)
-				if err1 != nil {
-					Logger.Error("%s", err1)
-					return body, err1
-				}
+				strK := Interface2Str(subV)
+				//if err1 != nil {
+				//	Logger.Error("%s", err1)
+				//	return body, err1
+				//}
 				afterStr, err1 := RawStr2MadeStr(lang, subK, strK, 0, depOutVars)
 				if err1 != nil {
 					Logger.Error("%s", err1)
@@ -630,12 +640,12 @@ func GetAfterListBody(lang string, body []interface{}, depOutVars map[string][]i
 			}
 			bodyAfter = append(bodyAfter, afterV)
 		} else if varType == "string" {
-			strK, err1 := Interface2Str(v)
-			if err1 != nil {
-				Logger.Info("body key: %v", v)
-				Logger.Error("%s", err1)
-				return body, err1
-			}
+			strK := Interface2Str(v)
+			//if err1 != nil {
+			//	Logger.Info("body key: %v", v)
+			//	Logger.Error("%s", err1)
+			//	return body, err1
+			//}
 			afterStr, err1 := RawStr2MadeStr(lang, "", strK, 0, depOutVars)
 			if err1 != nil {
 				Logger.Error("%s", err1)
@@ -646,11 +656,11 @@ func GetAfterListBody(lang string, body []interface{}, depOutVars map[string][]i
 		} else if varType == "map[interface {}]interface {}" {
 			afterV := v.(map[interface{}]interface{})
 			for subK, subV := range afterV {
-				strK, err1 := Interface2Str(subV)
-				if err1 != nil {
-					Logger.Error("%s", err1)
-					return body, err1
-				}
+				strK := Interface2Str(subV)
+				//if err1 != nil {
+				//	Logger.Error("%s", err1)
+				//	return body, err1
+				//}
 				afterStr, err1 := RawStr2MadeStr(lang, subK.(string), strK, 0, depOutVars)
 				if err1 != nil {
 					Logger.Error("%s", err1)
@@ -669,11 +679,11 @@ func GetAfterListBody(lang string, body []interface{}, depOutVars map[string][]i
 					Logger.Warning("不支持varType: %v的数据类型变量替换", varType)
 					afterV[subK] = subV
 				} else {
-					strK, err1 := Interface2Str(subV)
-					if err1 != nil {
-						Logger.Error("%s", err1)
-						return body, err1
-					}
+					strK := Interface2Str(subV)
+					//if err1 != nil {
+					//	Logger.Error("%s", err1)
+					//	return body, err1
+					//}
 
 					afterStr, err1 := RawStr2MadeStr(lang, subK, strK, 0, depOutVars)
 					if err1 != nil {

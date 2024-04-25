@@ -17,13 +17,13 @@ func GetEnvConfig(name, source string) (envConfig EnvConfig, err error) {
 			envConfig.Ip = dbProduct.Ip
 		} else {
 			err = fmt.Errorf("未找到[%s]产品配置信息", name)
-			Logger.Warning("%s", err)
+			//Logger.Warning("%s", err)  // 日志在链路上打印
 		}
 	} else if source == "data" {
 		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
 		if len(envConfig.App) == 0 {
 			err = fmt.Errorf("未找到[%s]应用配置信息", name)
-			Logger.Warning("%s", err)
+			//Logger.Warning("%s", err)
 		}
 	}
 
@@ -64,5 +64,34 @@ func UpdateApiChangeByAppId(id string) (err error) {
 	var appApiChange AppApiChange
 	appApiChange.App = appName
 	UpdateApiChangeLog(appApiChange)
+	return
+}
+
+func UpdateApiAutoStatus(id string) (err error) {
+	appName, err := GetAppName(id)
+	if err != nil {
+		return
+	}
+
+	var apiIds []string
+
+	models.Orm.Table("api_definition").Where("app = ?", appName).Pluck("api_id", &apiIds)
+
+	for _, item := range apiIds {
+		var dataCount int
+
+		models.Orm.Table("scene_data").Where("api_id = ? and app = ?", item, appName).Count(&dataCount)
+		if dataCount > 0 {
+
+			models.Orm.Table("api_definition").Select("is_auto").Where("api_id = ? and app = ?", item, appName).Update("is_auto", 1)
+		} else {
+			// 更新空值使用nil或用-1代替
+			models.Orm.Table("api_definition").Select("is_auto").Where("api_id = ? and app = ?", item, appName).Update("is_auto", "-1")
+		}
+		if err != nil {
+			return
+		}
+
+	}
 	return
 }

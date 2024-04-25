@@ -5,15 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	jsoniter "github.com/json-iterator/go"
 	"path"
 
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"regexp"
-	"strconv"
+	//"regexp"
+	//"strconv"
 	"strings"
-	"sync"
+	//"sync"
 )
 
 func GetAppList() (appList []string) {
@@ -419,6 +418,7 @@ func SaveApiData(apiModel ApiDataSaveModel) (err error) {
 	var dbSceneData DbSceneData
 	models.Orm.Table("scene_data").Where("api_id = ? and app = ? and name = ?", sceneData.ApiId, sceneData.App, sceneData.Name).Find(&dbSceneData)
 	sceneData.Content = fmt.Sprintf("<pre><code>%s</code></pre>", dataInfo)
+	sceneData.FileType = 1
 
 	if len(dbSceneData.ApiId) == 0 {
 		err = models.Orm.Table("scene_data").Create(&sceneData).Error
@@ -455,10 +455,10 @@ func SaveApiData(apiModel ApiDataSaveModel) (err error) {
 }
 
 func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error) {
-	url, headerStr, requestStr, responseStr, result, dst, err := RunSceneDebugContent(apiModel)
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err := RunSceneDebugContent(apiModel)
 	runResp.Request = requestStr
 	runResp.TestResult = result
-	runResp.Url = url
+	runResp.Url = urlStr
 	runResp.Header = headerStr
 	runResp.Response = responseStr
 
@@ -472,44 +472,10 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 		return
 	}
 
-	var dataFile DataFile
-	filePath := fmt.Sprintf("%s", dst)
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		Logger.Debug("filePath: %s", filePath)
-		Logger.Error("%s", err)
-		return
-	}
+	runResp.Output = outputStr
 
-	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal([]byte(content), &dataFile)
-	} else {
-		err = yaml.Unmarshal([]byte(content), &dataFile)
-	}
+	err1 := apiModel.WriteDataFileHistoryResult(result, dst, envType, err)
 
-	if len(dataFile.Output) > 0 {
-		for k, v := range dataFile.Output {
-			var valueTmp string
-			for _, item := range v {
-				valueTmp = fmt.Sprintf("%s %v", valueTmp, item)
-			}
-			strTmp := fmt.Sprintf("%s: %v", k, valueTmp)
-
-			if len(runResp.Output) == 0 {
-				runResp.Output = strTmp
-			} else {
-				runResp.Output = fmt.Sprintf("%s\n%s", runResp.Output, strTmp)
-			}
-
-		}
-	}
-
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	err1 := WriteDataResultByFile(filePath, result, dst, apiModel.Product, envType, err)
 	if err1 != nil {
 		err = fmt.Errorf("%s, %s", err, err1)
 	}
@@ -518,7 +484,7 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 }
 
 func RunHistoryData(apiModel HistorySaveModel) (runResp RunRespModel, err error) {
-	url, headerStr, requestStr, responseStr, result, dst, err := RunHistoryContent(apiModel)
+	url, headerStr, requestStr, responseStr, outputStr, result, dst, err := RunHistoryContent(apiModel)
 	runResp.Request = requestStr
 	runResp.TestResult = result
 	runResp.Url = url
@@ -530,36 +496,10 @@ func RunHistoryData(apiModel HistorySaveModel) (runResp RunRespModel, err error)
 
 	envType, _ := GetEnvTypeByName(apiModel.Product)
 
-	apiId := fmt.Sprintf("%s_%s", apiModel.Method, apiModel.Path)
+	runResp.Output = outputStr
 
-	var dataFile DataFile
-	filePath := fmt.Sprintf("%s", dst)
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
+	err1 := apiModel.WriteDataFileHistoryResult(result, dst, envType, err)
 
-	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal([]byte(content), &dataFile)
-	} else {
-		err = yaml.Unmarshal([]byte(content), &dataFile)
-	}
-	if dataFile.Output != nil {
-		for k, v := range dataFile.Output {
-			tmp, _ := json.Marshal(v)
-			strTmp := fmt.Sprintf("%s: %s", k, tmp)
-			if len(runResp.Output) == 0 {
-				runResp.Output = strTmp
-			} else {
-				runResp.Output = fmt.Sprintf("%s\n%s", runResp.Output, strTmp)
-			}
-
-		}
-
-	}
-
-	err1 := WriteSceneDebugDataResult(apiModel.App, apiId, apiModel.DataDesc, result, dst, envType, err)
 	if err1 != nil {
 		Logger.Error("%v", err1)
 		err = fmt.Errorf("%s, %s", err, err1)
@@ -573,12 +513,10 @@ func WriteSceneDebugDataResult(appName, apiId, dataDesc, result, dst string, env
 
 	sceneDataRecord.Name = dataDesc
 	sceneDataRecord.Content = path.Base(dst)
-
 	sceneDataRecord.ApiId = apiId
 	sceneDataRecord.App = appName
 	sceneDataRecord.Result = result
 	sceneDataRecord.EnvType = envType
-
 	if errIn != nil {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
 	} else {
@@ -594,10 +532,7 @@ func WriteSceneDebugDataResult(appName, apiId, dataDesc, result, dst string, env
 	return
 }
 
-func RunSceneDebugContent(apiModel ApiDataSaveModel) (url, headerStr, requestStr, responseStr, result, dst string, err error) {
-	var dataFile DataFile
-
-	var urls []string
+func GetDataFileFromModel(apiModel ApiDataSaveModel) (dataFile DataFile) {
 	dataFile.Name = apiModel.DataDesc
 	dataFile.Env.Host = apiModel.Host
 	dataFile.Env.Protocol = apiModel.Prototype
@@ -676,185 +611,32 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (url, headerStr, requestStr
 		}
 	}
 
-	if len(dataFile.Api.PreApi) > 0 && dataFile.IsRunPreApis == "yes" {
-		for _, preApiFile := range dataFile.Api.PreApi {
-			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
-			Logger.Debug("开始执行前置用例: %v", preFilePath)
-			result, dst, err = RunSceneContent(apiModel.App, preFilePath, "", "")
-			if err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-			if result == "fail" {
-				return
-			}
-		}
-	}
+	return
+}
 
-	depOutVars, err := dataFile.GetDepParams()
-	if err != nil {
-		return
-	}
-
-	if len(apiModel.Product) > 0 {
-		dbProduct, err := GetProductInfo(apiModel.Product)
-		if err != nil {
-			Logger.Error("%v", err)
-		}
-		privateParameter := dbProduct.GetPrivateParameter()
-		for k, v := range privateParameter {
-			depOutVars[k] = append(depOutVars[k], v)
-		}
-
-	}
-
-	var envConfig EnvConfig
-	envConfig.Prepath = apiModel.Prefix
-	envConfig.Ip = apiModel.Host
-	envConfig.Protocol = apiModel.Prototype
-
-	dataFile.Api.Path = apiModel.Path
-	urls, err = dataFile.GetUrl(envConfig)
-	if err != nil {
-		return
-	}
-	dataFile.Urls = urls
-	if err != nil {
-		return
-	}
-
-	lang := GetRequestLangage(dataFile.Single.Header)
-
-	querys, err := dataFile.GetQuery(lang, depOutVars)
-	if err != nil {
-		return
-	}
-
-	bodys, bodyList, err := dataFile.GetBody(lang, depOutVars)
-	if err != nil {
-		return
-	}
-
-	var resList [][]byte
-	var errs []error
-	tag := 0
-
-	if dataFile.GetIsParallel() {
-		wg := sync.WaitGroup{}
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					wg.Add(1)
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}(dataFile.Api.Method, url, data, dataFile.Single.Header)
-				}
-			} else if len(bodys) > 0 {
-				wg.Add(len(bodys))
-				for _, data := range bodys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					//wg.Add(1)
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}(dataFile.Api.Method, url, data, dataFile.Single.Header)
-				}
-			} else {
-				dataFile.Request = []string{}
-				wg.Add(1)
-				go func(method, url string, header map[string]interface{}) {
-					defer wg.Add(-1)
-					res, err := RunHttp(method, url, nil, header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-				}(dataFile.Api.Method, url, dataFile.Single.Header)
-			}
-			wg.Wait()
-		}
-	} else {
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, errTmp := json.Marshal(data)
-					if errTmp != nil {
-						Logger.Error("%s", errTmp)
-					}
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					res, err := RunHttp(dataFile.Api.Method, url, data, dataFile.Single.Header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-				}
-			} else if len(bodys) > 0 || len(bodyList) > 0 {
-				if len(bodyList) > 0 {
-					var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-					readerNew, _ := jsonNew.Marshal(&bodyList)
-					dataFile.Request = []string{string(readerNew)}
-					res, err := RunHttpJsonList(dataFile.Api.Method, url, bodyList, dataFile.Single.Header)
-					if err != nil {
-						Logger.Debug("%s", err)
-					}
-					resList = append(resList, res)
-					errs = append(errs, err)
-				} else {
-					for _, data := range bodys {
-						dJson, errTmp := json.Marshal(data)
-						if errTmp != nil {
-							Logger.Error("%s", errTmp)
-						}
-						if tag == 0 {
-							dataFile.Request = []string{string(dJson)}
-						} else {
-							dataFile.Request = append(dataFile.Request, string(dJson))
-						}
-						tag++
-						res, err := RunHttp(dataFile.Api.Method, url, data, dataFile.Single.Header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}
-				}
-			} else {
-				dataFile.Request = []string{}
-				res, err := RunHttp(dataFile.Api.Method, url, nil, dataFile.Single.Header)
-				resList = append(resList, res)
-				errs = append(errs, err)
-			}
-		}
-	}
-
+func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+	df := GetDataFileFromModel(apiModel)
 	fileName := fmt.Sprintf("%s-%s-%s.yml", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
-	result, dst, err = dataFile.GetResult(lang, "debug", filePath, dataFile.Single.Header, "", resList, depOutVars, errs)
 
-	if len(resList) > 0 {
-		for _, item := range resList {
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "console", nil)
+
+	return
+}
+
+func (df DataFile) GetResponseStr() (urlStr, headerStr, requestStr, responseStr, outputStr string, err error) {
+	if len(df.Response) > 0 {
+		for _, item := range df.Response {
 			responseMap := make(map[string]interface{})
-			errTmp := json.Unmarshal(item, &responseMap)
+			errTmp := json.Unmarshal([]byte(item), &responseMap)
 			resJson, errTmp := json.MarshalIndent(responseMap, "", "    ")
 			if errTmp != nil {
 				Logger.Error("%s", errTmp)
+				if err != nil {
+					err = fmt.Errorf("%s; %s", err, errTmp)
+				} else {
+					err = errTmp
+				}
 			}
 			if len(responseStr) == 0 {
 				responseStr = string(resJson)
@@ -863,47 +645,58 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (url, headerStr, requestStr
 			}
 		}
 	}
-
-	if len(urls) > 0 {
-		for _, item := range urls {
-			if len(url) == 0 {
-				url = item
+	if len(df.Urls) > 0 {
+		for _, item := range df.Urls {
+			if len(urlStr) == 0 {
+				urlStr = item
 			} else {
-				url = fmt.Sprintf("%s\n%s", url, item)
+				urlStr = fmt.Sprintf("%s\n%s", urlStr, item)
 			}
 		}
-
 	}
-	hJson, errTmp := json.MarshalIndent(dataFile.Single.Header, "", "    ")
+
+	hJson, errTmp := json.MarshalIndent(df.Single.Header, "", "    ")
 	if errTmp != nil {
 		Logger.Error("%s", errTmp)
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
 	}
 	headerStr = string(hJson)
 
-	if len(querys) > 0 {
-		for _, item := range querys {
-			rJson, errTmp := json.MarshalIndent(item, "", "    ")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			if len(requestStr) == 0 {
-				requestStr = string(rJson)
+	for _, item := range df.Request {
+		requestMap := make(map[string]interface{})
+		json.Unmarshal([]byte(item), &requestMap)                   // 将JSON字符串反序列化为结构体
+		rJson, errTmp := json.MarshalIndent(requestMap, "", "    ") // 将结构体再格式化为有层级的JSON字符串
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s; %s", err, errTmp)
 			} else {
-				requestStr = fmt.Sprintf("%s\n%s", requestStr, string(rJson))
+				err = errTmp
 			}
 		}
-	} else if len(bodys) > 0 {
-		for _, item := range bodys {
-			rJson, errTmp := json.MarshalIndent(item, "", "    ")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			if len(requestStr) == 0 {
-				requestStr = string(rJson)
-			} else {
-				requestStr = fmt.Sprintf("%s\n%s", requestStr, string(rJson))
-			}
+		if len(requestStr) == 0 {
+			requestStr = string(rJson)
+		} else {
+			requestStr = fmt.Sprintf("%s\n%s", requestStr, string(rJson))
 		}
+	}
+
+	if df.Output != nil {
+		for k, v := range df.Output {
+			tmp, _ := json.Marshal(v)
+			strTmp := fmt.Sprintf("%s: %s", k, tmp)
+			if len(outputStr) == 0 {
+				outputStr = strTmp
+			} else {
+				outputStr = fmt.Sprintf("%s\n%s", outputStr, strTmp)
+			}
+
+		}
+
 	}
 	return
 }
@@ -1031,7 +824,7 @@ func GetDataInfo(appName, method, path, dataDesc string) (apiModel ApiDataSaveMo
 		varData.Desc = item.Desc
 		varData.IsMust = item.IsMust
 		if value, ok := dataFile.Single.Query[item.Name]; ok {
-			valueStr, _ := Interface2Str(value)
+			valueStr := Interface2Str(value)
 			varData.TestValue = append(varData.TestValue, valueStr)
 		}
 
@@ -1080,7 +873,7 @@ func GetDataInfo(appName, method, path, dataDesc string) (apiModel ApiDataSaveMo
 		}
 		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
 		if item.Name == "Content-Type" {
-			valueStr, _ := Interface2Str(item.EgValue)
+			valueStr := Interface2Str(item.EgValue)
 			apiModel.BodyMode = valueStr
 		}
 	}
@@ -1306,7 +1099,7 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
 
 		if key == "Content-Type" {
-			valueStr, _ := Interface2Str(value)
+			valueStr := Interface2Str(value)
 			apiModel.BodyMode = valueStr
 		}
 
@@ -1418,6 +1211,17 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 		}
 	}
 
+	hJson, errTmp := json.MarshalIndent(dataFile.Single.Header, "", "    ")
+	if errTmp != nil {
+		Logger.Error("%s", errTmp)
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
+	}
+	apiModel.Header = string(hJson)
+
 	for _, item := range dataFile.Urls {
 		if len(apiModel.Url) == 0 {
 			apiModel.Url = item
@@ -1428,10 +1232,21 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 	}
 
 	for _, item := range dataFile.Request {
+		requestMap := make(map[string]interface{})
+		errTmp := json.Unmarshal([]byte(item), &requestMap)
+		requstJson, errTmp := json.MarshalIndent(requestMap, "", "    ")
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s; %s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+		}
 		if len(apiModel.Request) == 0 {
-			apiModel.Request = item
+			apiModel.Request = string(requstJson)
 		} else {
-			apiModel.Request = fmt.Sprintf("%s\n%s", apiModel.Request, item)
+			apiModel.Request = fmt.Sprintf("%s\n%s", apiModel.Request, string(requstJson))
 		}
 
 	}
@@ -1446,10 +1261,21 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 	}
 
 	for _, item := range dataFile.Response {
+		responseMap := make(map[string]interface{})
+		errTmp := json.Unmarshal([]byte(item), &responseMap)
+		responseJson, errTmp := json.MarshalIndent(responseMap, "", "    ")
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s; %s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+		}
 		if len(apiModel.Response) == 0 {
-			apiModel.Response = item
+			apiModel.Response = string(responseJson)
 		} else {
-			apiModel.Response = fmt.Sprintf("%s\n%s", apiModel.Response, item)
+			apiModel.Response = fmt.Sprintf("%s\n%s", apiModel.Response, string(responseJson))
 		}
 
 	}
@@ -1512,7 +1338,7 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 		varData.TestValue = append(varData.TestValue, value)
 		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
 		if key == "Content-Type" {
-			valueStr, _ := Interface2Str(value)
+			valueStr := Interface2Str(value)
 			apiModel.BodyMode = valueStr
 		}
 	}
@@ -1593,77 +1419,28 @@ func Str2DefModel(bodyStr string) (bodyVar []VarDefModel, err error) {
 	return
 }
 
-func RunHistoryContent(apiModel HistorySaveModel) (url, headerStr, requestStr, responseStr, result, dst string, err error) {
-	var dataFile, historyDataFile DataFile
-	dirName := GetHistoryDataDirName(apiModel.FileName)
-	historyFilePath := fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, apiModel.FileName)
-
-	content, err := ioutil.ReadFile(historyFilePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	if strings.HasSuffix(apiModel.FileName, ".json") {
-		err = json.Unmarshal([]byte(content), &historyDataFile)
-	} else {
-		err = yaml.Unmarshal([]byte(content), &historyDataFile)
-	}
-
-	var urls []string
+func (dataFile DataFile) UpdateDataFileFromHistoryModel(apiModel HistorySaveModel) {
 	dataFile.Name = apiModel.DataDesc
 	if len(apiModel.Host) != 0 {
 		dataFile.Env.Host = apiModel.Host
-		for _, item := range historyDataFile.Urls {
-			strReg := regexp.MustCompile(`http(s)?://([\w-.:])+/`)
-			strMatch := strReg.FindAllSubmatch([]byte(item), -1)
-			if len(strMatch) > 0 {
-				index, _ := strconv.Atoi(string(strMatch[0][2]))
-				indexEnd := len(strMatch[0][0]) - 1
-				sIsExsit := string(strMatch[0][1])
-				var oldStr string
-				if len(sIsExsit) > 0 {
-					oldStr = string(strMatch[0][0][index:indexEnd])
-				} else {
-					oldStr = string(strMatch[0][0][index-1 : indexEnd])
-				}
-				item = strings.Replace(item, oldStr, apiModel.Host, -1)
-			}
-			urls = append(urls, item)
-		}
-		dataFile.Urls = urls
-	} else {
-		dataFile.Env.Host = historyDataFile.Env.Host
-		dataFile.Urls = historyDataFile.Urls
-		urls = historyDataFile.Urls
 
 	}
 	if len(apiModel.Prototype) != 0 {
 		dataFile.Env.Protocol = apiModel.Prototype
-	} else {
-		dataFile.Env.Protocol = historyDataFile.Env.Protocol
 	}
+
 	if len(apiModel.Method) != 0 {
 		dataFile.Api.Method = apiModel.Method
-	} else {
-		dataFile.Api.Method = historyDataFile.Api.Method
 	}
+
 	if len(apiModel.Prefix) != 0 {
 		dataFile.Env.Prepath = apiModel.Prefix
-	} else {
-		dataFile.Env.Prepath = historyDataFile.Env.Prepath
 	}
 
 	dataFile.Api.App = apiModel.App
 	dataFile.Api.Description = apiModel.ApiDesc
 	dataFile.Api.Module = apiModel.Module
 	dataFile.Api.Path = apiModel.Path
-	dataFile.Version = historyDataFile.Version
-	dataFile.ApiId = historyDataFile.ApiId
-	dataFile.IsUseEnvConfig = historyDataFile.IsUseEnvConfig
-	dataFile.IsRunPostApis = historyDataFile.IsRunPostApis
-	dataFile.IsRunPreApis = historyDataFile.IsRunPreApis
-	dataFile.IsParallel = historyDataFile.IsParallel
 
 	for _, item := range apiModel.PreApis {
 		dataFile.Api.PreApi = append(dataFile.Api.PreApi, item.DataFile)
@@ -1726,202 +1503,29 @@ func RunHistoryContent(apiModel HistorySaveModel) (url, headerStr, requestStr, r
 		}
 	}
 
-	if len(dataFile.Api.PreApi) > 0 && dataFile.IsRunPreApis == "yes" {
-		for _, preApiFile := range dataFile.Api.PreApi {
-			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
-			Logger.Debug("开始执行前置用例: %v", preFilePath)
-			result, dst, err = RunSceneContent(apiModel.App, preFilePath, "", "")
-			if err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-			if result == "fail" {
-				return
-			}
-		}
-	}
+	return
+}
 
-	depOutVars, err := dataFile.GetDepParams()
+func RunHistoryContent(apiModel HistorySaveModel) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+	var dataFile DataFile
+	dirName := GetHistoryDataDirName(apiModel.FileName)
+	historyFilePath := fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, apiModel.FileName) //
+
+	content, err := ioutil.ReadFile(historyFilePath)
 	if err != nil {
+		Logger.Error("%s", err)
 		return
 	}
 
-	var querys, bodys []map[string]interface{}
-	if apiModel.Method == "get" && len(historyDataFile.Request) > 0 {
-		for _, item := range historyDataFile.Request {
-			queryDict := make(map[string]interface{})
-			errTmp := json.Unmarshal([]byte(item), &queryDict)
-			if errTmp != nil {
-				Logger.Error("%v", errTmp)
-			} else {
-				querys = append(querys, queryDict)
-			}
-		}
+	if strings.HasSuffix(apiModel.FileName, ".json") {
+		err = json.Unmarshal([]byte(content), &dataFile)
 	} else {
-		for _, item := range historyDataFile.Request {
-			bodyDict := make(map[string]interface{})
-			errTmp := json.Unmarshal([]byte(item), &bodyDict)
-			if errTmp != nil {
-				Logger.Error("%v", errTmp)
-			} else {
-				bodys = append(bodys, bodyDict)
-			}
-		}
+		err = yaml.Unmarshal([]byte(content), &dataFile)
 	}
 
-	var resList [][]byte
-	var errs []error
-	tag := 0
+	dataFile.UpdateDataFileFromHistoryModel(apiModel)
 
-	if dataFile.GetIsParallel() {
-		wg := sync.WaitGroup{}
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					wg.Add(1)
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}(dataFile.Api.Method, url, data, dataFile.Single.Header)
-				}
-			} else if len(bodys) > 0 {
-				for _, data := range bodys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					wg.Add(1)
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header)
-						resList = append(resList, res)
-						errs = append(errs, err)
-					}(dataFile.Api.Method, url, data, dataFile.Single.Header)
-				}
-			} else {
-				dataFile.Request = []string{}
-				wg.Add(1)
-				go func(method, url string, header map[string]interface{}) {
-					res, err := RunHttp(method, url, nil, header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-				}(dataFile.Api.Method, url, dataFile.Single.Header)
-			}
-			wg.Wait()
-		}
-	} else {
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, errTmp := json.Marshal(data)
-					if errTmp != nil {
-						Logger.Error("%s", errTmp)
-					}
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					res, err := RunHttp(dataFile.Api.Method, url, data, dataFile.Single.Header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-				}
-			} else if len(bodys) > 0 {
-				for _, data := range bodys {
-					dJson, errTmp := json.Marshal(data)
-					if errTmp != nil {
-						Logger.Error("%s", errTmp)
-					}
-					if tag == 0 {
-						dataFile.Request = []string{string(dJson)}
-					} else {
-						dataFile.Request = append(dataFile.Request, string(dJson))
-					}
-					tag++
-					res, err := RunHttp(dataFile.Api.Method, url, data, dataFile.Single.Header)
-					resList = append(resList, res)
-					errs = append(errs, err)
-				}
-			} else {
-				dataFile.Request = []string{}
-				res, err := RunHttp(dataFile.Api.Method, url, nil, dataFile.Single.Header)
-				resList = append(resList, res)
-				errs = append(errs, err)
-			}
-		}
-	}
-	lang := GetRequestLangage(dataFile.Single.Header)
-	result, dst, err = dataFile.GetResult(lang, "again", historyFilePath, dataFile.Single.Header, "", resList, depOutVars, errs)
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = dataFile.RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", nil) // again表示历史数据再来一次
 
-	if len(resList) > 0 {
-		for _, item := range resList {
-			responseMap := make(map[string]interface{})
-			errTmp := json.Unmarshal(item, &responseMap)
-			resJson, errTmp := json.MarshalIndent(responseMap, "", "    ")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			if len(responseStr) == 0 {
-				responseStr = string(resJson)
-			} else {
-				responseStr = fmt.Sprintf("%s\n%s", responseStr, string(resJson))
-			}
-		}
-	}
-
-	if len(urls) > 0 {
-		for _, item := range urls {
-			if len(url) == 0 {
-				url = item
-			} else {
-				url = fmt.Sprintf("%s\n%s", url, item)
-			}
-		}
-
-	}
-	hJson, errTmp := json.MarshalIndent(dataFile.Single.Header, "", "    ")
-	if errTmp != nil {
-		Logger.Error("%s", errTmp)
-	}
-	headerStr = string(hJson)
-
-	if len(querys) > 0 {
-		for _, item := range querys {
-			rJson, errTmp := json.MarshalIndent(item, "", "    ")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			if len(requestStr) == 0 {
-				requestStr = string(rJson)
-			} else {
-				requestStr = fmt.Sprintf("%s\n%s", requestStr, string(rJson))
-			}
-		}
-	} else if len(bodys) > 0 {
-		for _, item := range bodys {
-			rJson, errTmp := json.MarshalIndent(item, "", "    ")
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-			}
-			if len(requestStr) == 0 {
-				requestStr = string(rJson)
-			} else {
-				requestStr = fmt.Sprintf("%s\n%s", requestStr, string(rJson))
-			}
-		}
-	}
 	return
 }

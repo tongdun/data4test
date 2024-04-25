@@ -359,7 +359,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		panel.SetInputWidth(10)
 	}).FieldHelpMsg(sceneHelp)
 
-	formList.AddField("关联产品", "product_list", db.Varchar, form.SelectSingle).
+	formList.AddField("关联产品", "product_list", db.Varchar, form.Select).
 		FieldOptions(products)
 
 	formList.AddField("任务状态", "task_status", db.Enum, form.Text).

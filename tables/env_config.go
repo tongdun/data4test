@@ -118,6 +118,42 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
+	info.AddButton("更新状态", icon.Android, action.Ajax("autoupdatestatus_batch",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = "请先选择数据再更新"
+				return false, status, ""
+			}
+			ids := strings.Split(idStr, ",")
+			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+				if err := biz.UpdateApiAutoStatus(id); err == nil {
+					status = "接口是否已自动化状态更新完成，请前往[接口定义]列表查看"
+				} else {
+					status = fmt.Sprintf("更新失败：%s", err)
+					return false, status, ""
+				}
+			}
+			return true, status, ""
+		}))
+
+	info.AddActionButton("更新状态", action.Ajax("autoupdatestatus",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id := ctx.FormValue("id")
+			var status string
+			if err := biz.UpdateApiAutoStatus(id); err == nil {
+				status = "接口是否已自动化状态更新完成，请前往[接口定义]列表查看"
+			} else {
+				status = fmt.Sprintf("更新失败：%s", err)
+			}
+
+			return true, status, ""
+		}))
+
 	info.AddButton("更新鉴权", icon.Android, action.Ajax("update_batch_auth",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			//idStr := ctx.FormValue("ids")

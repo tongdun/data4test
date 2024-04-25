@@ -33,11 +33,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	payload := &bytes.Buffer{}
 	writer := multipart.NewWriter(payload)
 	for k, v := range data {
-		strValue, err1 := Interface2Str(v)
-		if err1 != nil {
-			err = err1
-			return
-		}
+		strValue := Interface2Str(v)
 		b, err2 := IsValueInSysParameter("fileName", k)
 		if err2 != nil {
 			err = err2
@@ -89,7 +85,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 
 			tmpData := make(netUrl.Values)
 			for k, v := range data {
-				strK, _ := Interface2Str(v)
+				strK := Interface2Str(v)
 				if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
 					continue
 				}
@@ -108,7 +104,6 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	} else {
 		req, err = http.NewRequest(methodUpper, url, payload)
 		Logger.Info("method: %s, url: %s, data: %v", methodUpper, url, data)
-		//LogHandle.Printf("payload: %v",payload)
 	}
 
 	if err != nil {
@@ -120,7 +115,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 		if k == "Content-Type" {
 			continue
 		}
-		valueStr, _ := Interface2Str(v)
+		valueStr := Interface2Str(v)
 		req.Header.Add(k, valueStr)
 	}
 
@@ -134,10 +129,9 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	defer resp.Body.Close()
 	resBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		Logger.Debug("resBody: %s", string(resBody))
 		Logger.Error("%s", err)
 	}
-
-	Logger.Debug("resBody: %s", string(resBody))
 
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
@@ -148,17 +142,18 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	return resBody, err
 }
 
-func RunHttpUrlencoded(method, url string, data map[string]interface{}, header map[string]interface{}) (res []byte, err error) {
+func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (res []byte, err error) {
 	var req *http.Request
+	//var response http.ResponseWriter
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	if _, ok := header["Content-Type"]; !ok {
-		err = fmt.Errorf("header 未正常定义，请核对")
-		Logger.Error("%s", err)
-		return
-	}
+	//if _, ok := acceptHeader["Content-Type"]; !ok {
+	//	//err = fmt.Errorf("header 未正常定义，请核对")
+	//	Logger.Warning("accept header 未定义, 走默认请求")
+	//	//return
+	//}
 
 	client := &http.Client{Transport: tr}
 	methodUpper := strings.ToUpper(method)
@@ -173,7 +168,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, header m
 
 		tmpData := make(netUrl.Values)
 		for k, v := range data {
-			strK, _ := Interface2Str(v)
+			strK := Interface2Str(v)
 			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
 				continue
 			}
@@ -185,11 +180,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, header m
 	} else {
 		dataPayload := netUrl.Values{}
 		for k, v := range data {
-			strValue, err1 := Interface2Str(v)
-			if err1 != nil {
-				err = err1
-				return
-			}
+			strValue := Interface2Str(v)
 
 			dataPayload.Add(k, strValue)
 		}
@@ -203,10 +194,9 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, header m
 		return
 	}
 
-	for k, v := range header {
-		vStr, _ := Interface2Str(v)
+	for k, v := range acceptHeader {
+		vStr := Interface2Str(v)
 		req.Header.Add(k, vStr)
-
 	}
 
 	resp, err := client.Do(req)
@@ -226,6 +216,45 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, header m
 		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
 		Logger.Error("%s", err)
 	}
+
+	var dowloadFileName, downlodFilePath string
+	for k, v := range responseHeader {
+		vStr := Interface2Str(v)
+		if k == "Content-Disposition" {
+			tmps := strings.Split(vStr, "=")
+			if len(tmps) > 1 {
+				dowloadFileName = tmps[1]
+				downlodFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
+			}
+		}
+	}
+
+	if len(downlodFilePath) > 0 {
+		fh, errTmp := os.Create(downlodFilePath)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s;%s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+			return resBody, err
+		}
+		defer fh.Close()
+
+		_, errTmp = fh.Write(resBody)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s;%s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+			return resBody, err
+		}
+		return []byte(downlodFilePath), err
+	}
+
 	return resBody, err
 }
 
@@ -253,7 +282,7 @@ func RunHttpJson(method, url string, data map[string]interface{}, header map[str
 
 		tmpData := make(netUrl.Values)
 		for k, v := range data {
-			strK, _ := Interface2Str(v)
+			strK := Interface2Str(v)
 			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
 				continue
 			}
@@ -285,9 +314,9 @@ func RunHttpJson(method, url string, data map[string]interface{}, header map[str
 		Logger.Error("%s", err)
 		return
 	}
-
+	//Logger.Debug("header: %v", header)
 	for k, v := range header {
-		vStr, _ := Interface2Str(v)
+		vStr := Interface2Str(v)
 		req.Header.Add(k, vStr)
 	}
 
@@ -348,7 +377,7 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 	}
 
 	for k, v := range header {
-		vStr, _ := Interface2Str(v)
+		vStr := Interface2Str(v)
 		req.Header.Add(k, vStr)
 	}
 
@@ -374,13 +403,13 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 	return resBody, err
 }
 
-func RunHttp(method, url string, data map[string]interface{}, header map[string]interface{}) (res []byte, err error) {
-	if _, ok := header["Content-Type"]; !ok {
-		err = fmt.Errorf("header 未正常定义，请核对")
-		return
-	}
+func RunHttp(method, url string, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (res []byte, err error) {
+	//if _, ok := acceptHeader["Content-Type"]; !ok {
+	//	err = fmt.Errorf("accept header 未正常定义，请核对")
+	//	return
+	//}
 
-	contentTypeRaw, _ := Interface2Str(header["Content-Type"])
+	contentTypeRaw := Interface2Str(acceptHeader["Content-Type"])
 
 	var contentType string
 
@@ -396,13 +425,13 @@ func RunHttp(method, url string, data map[string]interface{}, header map[string]
 
 	switch contentType {
 	case "application/x-www-form-urlencoded":
-		res, err = RunHttpUrlencoded(method, url, data, header)
+		res, err = RunHttpUrlencoded(method, url, data, acceptHeader, responseHeader)
 	case "form-data", "multipart/form-data":
-		res, err = RunHttpFormData(method, url, data, header)
+		res, err = RunHttpFormData(method, url, data, acceptHeader)
 	case "application/json":
-		res, err = RunHttpJson(method, url, data, header)
+		res, err = RunHttpJson(method, url, data, acceptHeader)
 	default:
-		res, err = RunHttpUrlencoded(method, url, data, header)
+		res, err = RunHttpUrlencoded(method, url, data, acceptHeader, responseHeader)
 	}
 	return
 }
