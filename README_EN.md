@@ -1,10 +1,6 @@
-<h2 align="center">
-    Data4Test (盾测)
-</h2>
-<p align="center"> 
-	<a href="./README_CN.md">中文文档</a> | 
-    <a href="./README.md">English Archive</a>
-</p>
+# Data4Test (盾测)
+- [中文文档](./README.md)
+- [EnglishDoc](./README_EN.md)
 
 ### Preface
 Data4Test (盾测) enables quick implementation of automated testing and management of interfaces, supporting rich data generation. It is suitable for various testing tasks such as functional, concurrent, exceptional, fuzzy, scenario-based, long-duration, internationalization, big data, and performance testing.
@@ -43,30 +39,30 @@ Data4Test (盾测) enables quick implementation of automated testing and managem
 - [Management Domain Scheduled Tasks](./image/管理域定时任务列表功能介绍.png)
 
 #### System Introduction
-- [Feature Introduction](./mgmt/doc/file/function/feature_introduction.md)
-- [Module Functions](./mgmt/doc/file/function/module_function.md)
-- [Playbook Combination](./mgmt/doc/file/design/scene_design.md)
-- [ata Cases](./mgmt/common/模板使用说明.yml)
-- [Parameter Application](./mgmt/doc/file/design/parameter_design.md)
-- [Action Application](./mgmt/doc/file/design/action_design.md)
-- [Assertion Application](./mgmt/doc/file/design/assert_design.md)
-- [Mock Application](./mgmt/doc/file/design/mock_design.md)
-- [Fuzzy Testing](./mgmt/doc/file/design/relation_design.md)
+- [Feature Introduction](./mgmt/doc/file/function/feature_introduction_en.md)
+- [Module Functions](./mgmt/doc/file/function/module_function_en.md)
+- [Playbook Combination](./mgmt/doc/file/design/scene_design_en.md)
+- [Data Cases](./mgmt/common/模板使用说明.yml)
+- [Parameter Application](./mgmt/doc/file/design/parameter_design_en.md)
+- [Action Application](./mgmt/doc/file/design/action_design_en.md)
+- [Assertion Application](./mgmt/doc/file/design/assert_design_en.md)
+- [Mock Application](./mgmt/doc/file/design/mock_design_en.md)
+- [Fuzzy Testing](./mgmt/doc/file/design/relation_design_en.md)
 
 #### Near-Term and Long-Term Plans
-- [Long-Term Plan](./mgmt/doc/file/plan/blue_print.md)
-- [Near-Term Plan](./mgmt/doc/file/plan/todo.md)
-- [Performance Testing](./mgmt/doc/file/design/perf_design.md)  To be enhanced or integrated with k6, Jmeter, or others
+- [Long-Term Plan](./mgmt/doc/file/plan/blue_print_en.md)
+- [Near-Term Plan](./mgmt/doc/file/plan/todo_en.md)
+- [Performance Testing](./mgmt/doc/file/design/perf_design_en.md)  To be enhanced or integrated with k6, Jmeter, or others
 
 #### Development Notes
-- [Change Notes](./mgmt/doc/file/development/must_know.md)
-- [Update Records](./mgmt/doc/file/update/change_log.md)
+- [Change Notes](./mgmt/doc/file/development/must_know_en.md)
+- [Update Records](./mgmt/doc/file/update/change_log_en.md)
 
 #### Production Environment
-- [roduction Environment Deployment](./deploy/README.md)
+- [Production Environment Deployment](./deploy/README_EN.md)
 
 #### Development Environment
-- [Development Environment Deployment](./mgmt/doc/file/development/dev_env.md)
+- [Development Environment Deployment](./mgmt/doc/file/development/dev_env_en.md)
 
 ### Features
 #### Applicable Test Types

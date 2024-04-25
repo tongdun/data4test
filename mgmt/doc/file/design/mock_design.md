@@ -1,12 +1,13 @@
 ##### 支持的Mock路由
-- http://{IP}:{PORT}/mock/file/name.xml?lang=en 
+- http://{IP}:{PORT}/mock/file/:name?lang=en 
+- http://{IP}:{PORT}/mock/file?name=name.xml&lang=en
   - 可返回上传文件下name.xml的内容，如果name.xml中有占位符，会生成对应特征的数据,lang不传默认中文
   - 返回的文件支持.xml, .json, .yml, .txt等文本类型的文件
   - 返回文件模板示例: 
-    - [JSON类型](../../../upload/create_template.json)
-    - [XML类型](../../../upload/create_template.xml)
-    - [TXT类型](../../../upload/create_template.txt)
-    - [YAML类型](../../../upload/create_template.yml)
+   - [JSON类型](../../../upload/create_template.json)
+   - [XML类型](../../../upload/create_template.xml)
+   - [TXT类型](../../../upload/create_template.txt)
+   - [YAML类型](../../../upload/create_template.yml)
 - http://{IP}:{PORT}/mock/data/quick  
   - 可返回JSON格式的数据，内容如下样例信息
   - 后续版本可能会废弃，与其他功能进行合并
@@ -31,6 +32,7 @@
 ```
 
 - http://{IP}:{PORT}/mock/data/certid/:idno  传入大陆的身份证件号码，可返回基本信息
+- http://{IP}:{PORT}/mock/data/certid?idno=XXX  传入大陆的身份证件号码，可返回基本信息
 ##### 生成的信息均为测试数据，不具有实际意义参考
 ```
 {
@@ -45,3 +47,4 @@
 }
 ```
 - http://{IP}:{PORT}/mock/systemParameter/:name?lang=en  传入系统参数中的名称，随机返回定义值列表中的一个值，支持多语种
+- http://{IP}:{PORT}/mock/systemParameter?name=XXX&lang=en  传入系统参数中的名称，随机返回定义值列表中的一个值，支持多语种

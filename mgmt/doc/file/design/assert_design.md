@@ -1,7 +1,30 @@
 说明：源数据定义(source)为raw时，返回数据当做一个整体做数据校验
+### 支持的断言大类
+#### 字段值断言
+- 从JSON中取特定的字段进行断言
+- 数据源定义(source)为具体字段的关联关系
+
+#### 整体值断言
+- 从返回信息Response当作整体断言
+- 数据源定义(source)为raw或ResponseBody
+
+#### 性能值断言(未实现)
+- 从请求到得到Response的返回时间
+- 数据源定义(source)为RT/ResponseTime
+
+#### 文件值断言(未实现)
+- 从接口获取下载的文件，对文件的内容进行断言
+- 数据源定义(source)为FileType:line:column:split
+- 具体FileType支持如下(全大写)
+  File:TXT:line:column:split  //split若未定义，默认为英文逗号,
+  File:CSV:line:column:split  //split若未定义，默认为英文逗号,
+  File:EXCEL:line:column     // line为行号，值需为整数，column为列信息，可以为列号，也可以为列名
+  File:JSON:data-total[0]    // 与字段值取值使用规则一致
+  File:YML:data-total        // 与字段值取值使用规则一致
+  File:XML:未细化             // 
 
 ##### 全部返回断言类型
-- equal: 字符串相等 
+- equal: 字符串相等
 - not_equal: 字符串不相等
 - contain: 包含某个字符串  
 - not_contain: 不包含某个字符串
@@ -70,3 +93,4 @@
 ```{type: re, source: data-message, value: {successTemplate}```
 - 在"环境-断言值模板"列表增加名为successTemplate的模板信息：  
 ```{"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}```
+
