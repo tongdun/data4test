@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"path"
-
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	//"regexp"
@@ -467,9 +465,14 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 		runResp.FailReason = fmt.Sprintf("%v", err)
 	}
 
-	envType, err := GetEnvTypeByName(apiModel.Product)
-	if err != nil {
-		return
+	envType, errTmp := GetEnvTypeByName(apiModel.Product)
+	if errTmp != nil {
+		Logger.Warning("未取环境信息异常: %v", errTmp)
+		if err != nil {
+			err = fmt.Errorf("%s;%s", err, errTmp)
+		} else {
+			err = errTmp
+		}
 	}
 
 	runResp.Output = outputStr
@@ -503,30 +506,6 @@ func RunHistoryData(apiModel HistorySaveModel) (runResp RunRespModel, err error)
 	if err1 != nil {
 		Logger.Error("%v", err1)
 		err = fmt.Errorf("%s, %s", err, err1)
-	}
-
-	return
-}
-
-func WriteSceneDebugDataResult(appName, apiId, dataDesc, result, dst string, envType int, errIn error) (err error) {
-	var sceneDataRecord SceneDataRecord
-
-	sceneDataRecord.Name = dataDesc
-	sceneDataRecord.Content = path.Base(dst)
-	sceneDataRecord.ApiId = apiId
-	sceneDataRecord.App = appName
-	sceneDataRecord.Result = result
-	sceneDataRecord.EnvType = envType
-	if errIn != nil {
-		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
-	} else {
-		sceneDataRecord.FailReason = " " // 用空字符串刷新数据结果
-	}
-
-	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
-
-	if err != nil {
-		Logger.Error("%s", err)
 	}
 
 	return

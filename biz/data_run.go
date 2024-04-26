@@ -391,8 +391,8 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 	}
 
 	header, err := df.GetHeader(envConfig)
+	df.Single.Header = header
 	if err != nil {
-		Logger.Debug("%s", err)
 		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 		return
 	}
@@ -634,10 +634,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 	}
 
-	result, dst, err = df.GetResult(source, filePath, header, resList, depOutVars, errs)
-	//if err != nil {
-	//	Logger.Error("%s", err)
-	//}
+	result, dst, df.Output, err = df.GetResult(source, filePath, header, resList, depOutVars, errs)
 
 	if result != "pass" {
 		for _, item := range errs {
@@ -1280,8 +1277,8 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 	return
 }
 
-func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, err error) {
-	var outputDict map[string][]interface{}
+func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
+	//var outputDict map[string][]interface{}
 	outputDict = make(map[string][]interface{})
 	isPass := 0
 
@@ -1341,44 +1338,13 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 			} else {
 				df.TestResult = append(df.TestResult, "pass")
 				df.FailReason = append(df.FailReason, "")
-				//df.TestResult[i] = "pass"
-				//df.FailReason[i] = ""
 			}
 			continue
 		}
 
-		//// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
-		//var resDict map[string]interface{}
-		//resDict = make(map[string]interface{})
-		//var errTmp error
-		//if len(res[i]) == 0 {
-		//	errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
-		//} else {
-		//	errTmp = json.Unmarshal(res[i], &resDict)
-		//}
-		//
-		//if errTmp != nil {
-		//	Logger.Error("errTmp: %v", errTmp)
-		//	if err != nil {
-		//		err = fmt.Errorf("%v,%v", err, errTmp)
-		//	} else {
-		//		err = errTmp
-		//	}
-		//	failReason := fmt.Sprintf("%v", err)
-		//
-		//	if len(df.TestResult) < i+1 {
-		//		df.TestResult = append(df.TestResult, "fail")
-		//		df.FailReason = append(df.FailReason, failReason)
-		//	} else {
-		//		df.TestResult[i] = "fail"
-		//		df.FailReason[i] = failReason
-		//	}
-		//	isPass++
-		//	continue
-		//}
-
 		for _, assert := range df.Assert {
 			aType := assert.Type
+			// 若返回断言已经失败了，不再进行output动作
 			if isPass != 0 && (aType == "output" || aType == "output_re") {
 				continue
 			}
@@ -1402,28 +1368,8 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					}
 					isPass++
 					continue // 遇到失败，进入下一个断言值的校对
-					//
-					//} else {
-					//	err = err1
-					//}
-					//if !b {
-					//	if err != nil {
-					//		err = fmt.Errorf("%s; %s", err, err1)
-					//	} else {
-					//		err = err1
-					//	}
-					//	failReason := fmt.Sprintf("%v", err)
-					//	if len(df.TestResult) < i+1 {
-					//		df.TestResult = append(df.TestResult, "fail")
-					//		df.FailReason = append(df.FailReason, failReason)
-					//	} else {
-					//		df.TestResult[i] = "fail"
-					//		df.FailReason[i] = failReason
-					//	}
-					//	isPass++
-					//
-					//	break
 				}
+
 			} else if strings.HasPrefix(assert.Source, "File:") || strings.HasPrefix(assert.Source, "FILE:") {
 				targetList, errTmp := assert.GetValueFromFile(df.Response[i])
 				if errTmp != nil {
@@ -1436,7 +1382,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					continue
 				}
 				switch aType {
-				case "output":
+				case "output", "output_re":
 					k := Interface2Str(assert.Value)
 					for _, item := range targetList {
 						outputDict[k] = append(outputDict[k], item)
@@ -1455,6 +1401,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						}
 					}
 				}
+
 			} else {
 				// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
 				var resDict map[string]interface{}
@@ -1467,7 +1414,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 				}
 
 				if errTmp != nil {
-					Logger.Error("errTmp: %v", errTmp)
+					Logger.Error("err: %v", errTmp)
 					if err != nil {
 						err = fmt.Errorf("%v,%v", err, errTmp)
 					} else {
@@ -1488,7 +1435,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 
 				switch aType {
 				case "output":
-					outputTmp, err1 := assert.GetOutput(resDict)
+					keyName, values, err1 := assert.GetOutput(resDict)
 					if err1 != nil {
 						Logger.Error("err1: %v", err1)
 						if err != nil {
@@ -1509,9 +1456,9 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 
 						break
 					}
-					for k, v := range outputTmp {
-						outputDict[k] = append(outputDict[k], v...)
-					}
+
+					outputDict[keyName] = values
+
 				case "output_re":
 					keyName, values, err1 := assert.GetOutputRe(res[i])
 					if err1 != nil {
@@ -1534,10 +1481,11 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						break
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
+
 				default:
 					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
-						Logger.Error("err1: %v", err1)
+						Logger.Error("%v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {
@@ -1581,7 +1529,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 		}
 	}
 
-	df.Single.Header = header
+	//df.Single.Header = header  // 在上层已经赋值过，无需重复赋值
 	if strings.HasSuffix(filePath, ".json") {
 		dataWithHeaher, errTmp = json.MarshalIndent(df, "", "    ")
 	} else {

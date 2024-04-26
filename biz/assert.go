@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"github.com/Knetic/govaluate"
 	"github.com/tealeg/xlsx"
+	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
@@ -76,7 +78,7 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 	return
 }
 
-func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDict map[string][]interface{}, err error) {
+func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName string, values []interface{}, err error) {
 	// 如果返回的数据为空，则直接返回
 	if len(data) == 0 {
 		err = fmt.Errorf("无返回信息，无法解析输出参数")
@@ -84,13 +86,12 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 		return
 	}
 	var tmpInterface interface{}
-	var targetValueStr string
-	outputDict = make(map[string][]interface{})
+
 	targetValueFlowStr := Interface2Str(sceneAssert.Value)
 	if sceneAssert.Type == "output" {
-		targetValueStr = targetValueFlowStr
+		keyName = targetValueFlowStr
 	} else {
-		targetValueStr = fmt.Sprintf("flowVar_%s", targetValueFlowStr)
+		keyName = fmt.Sprintf("flowVar_%s", targetValueFlowStr)
 	}
 
 	// 解析定义的校验参数
@@ -191,7 +192,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 				if varType != "[]interface {}" {
 					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 					Logger.Error("%s", err)
-					return
+					return keyName, values, err
 				}
 
 				if len(data[keyName].([]interface{})) > index {
@@ -228,18 +229,19 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 							if newIndex < 0 {
 								err = fmt.Errorf("提供的索引超过数据范围了，数据长度: %v, 索引: %v", dataLen, index)
 								Logger.Error("%s", err)
-								return
+								return keyName, values, err
 							}
 							tmpDict = data[items[0]].([]interface{})[dataLen+index].(map[string]interface{})
-							outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[keyName])
+							//outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[keyName])
+							values = append(values, tmpDict[keyName])
 						} else {
 							tmpDict = data[items[0]].([]interface{})[index].(map[string]interface{})
-							outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[keyName])
+							values = append(values, tmpDict[keyName])
 						}
 					} else {
 						Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
 						tmpDict = data[items[0]].([]interface{})[0].(map[string]interface{})
-						outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[keyName])
+						values = append(values, tmpDict[keyName])
 					}
 				}
 			} else {
@@ -248,7 +250,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 				if varType != "[]interface {}" {
 					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 					Logger.Error("%s", err)
-					return
+					return keyName, values, err
 				}
 
 				// 先判断数组是否为空，若为空，不再往后走
@@ -256,7 +258,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 				if len(valueList) == 0 {
 					err = fmt.Errorf("未获取到[%v]即[%v]的值，请核对~", sceneAssert.Source, sceneAssert.Value)
 					Logger.Error("%s", err)
-					return
+					return keyName, values, err
 				}
 
 				for _, tmpInfo := range valueList {
@@ -265,7 +267,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 					if varType != "map[string]interface {}" {
 						err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 						Logger.Error("%s", err)
-						return
+						return keyName, values, err
 					}
 					if strings.Contains(keyName, "-") {
 
@@ -275,7 +277,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 					}
 
 					tmpDict = tmpInfo.(map[string]interface{})
-					outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[items[1]])
+					values = append(values, tmpDict[items[1]])
 				}
 			}
 		}
@@ -283,10 +285,10 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (outputDic
 		if value, ok := data[sceneAssert.Source]; ok {
 			subType := fmt.Sprintf("%T", data[sceneAssert.Source])
 			if subType == "[]interface {}" {
-				outputDict[targetValueStr] = data[sceneAssert.Source].([]interface{})
+				values = data[sceneAssert.Source].([]interface{})
 			} else {
 				strValue := Interface2Str(value)
-				outputDict[targetValueStr] = append(outputDict[targetValueStr], strValue)
+				values = append(values, strValue)
 			}
 		} else {
 			err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", sceneAssert.Source, sceneAssert.Value)
@@ -338,7 +340,7 @@ func (sceneAssert SceneAssert) GetOutputRe(raw []byte) (keyName string, values [
 }
 
 func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPutDict map[string][]interface{}) (b bool, err error) {
-	flowOutputDict, err := sceneAssert.GetOutput(data)
+	_, flowValues, err := sceneAssert.GetOutput(data)
 	if err != nil {
 		return
 	}
@@ -351,18 +353,15 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 		return
 	}
 
-	for _, v := range flowOutputDict {
-		for _, subV := range v {
-			expectValue := Interface2Str(subV)
-			errTmp := sceneAssert.AsserValueComparion(expectValue)
-
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-				if err == nil {
-					err = errTmp
-				} else {
-					err = fmt.Errorf("%s; %s", err, errTmp)
-				}
+	for _, subV := range flowValues {
+		expectValue := Interface2Str(subV)
+		errTmp := sceneAssert.AsserValueComparion(expectValue)
+		if errTmp != nil {
+			//Logger.Error("%s", errTmp)
+			if err == nil {
+				err = errTmp
+			} else {
+				err = fmt.Errorf("%s; %s", err, errTmp)
 			}
 		}
 	}
@@ -582,7 +581,7 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, targetStr)
 			}
 			actualPrompt := fmt.Sprintf("实际: ResponseBody %s %s", assert.Type, curStr)
-			err = fmt.Errorf("\n%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
+			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
 		} else {
 			if len(rawTargetStr) > 0 {
 				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
@@ -590,7 +589,7 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
 			}
 			actualPrompt := fmt.Sprintf("实际: %s %s %s", assert.Source, assert.Type, curStr)
-			err = fmt.Errorf("\n%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
+			err = fmt.Errorf("%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
 		}
 	}
 
@@ -613,13 +612,15 @@ func (assert SceneAssert) GetValueFromFile(filePath string) (targetList []string
 	fileType := dataAnchor[1]
 	switch fileType {
 	case "CSV":
-		targetList, err = GetTargetValueFromCSV(assert.Source, filePath)
+		targetList, err = GetTargetValueFromStructFile("csv", assert.Source, filePath)
 	case "EXCEL":
-		targetList, err = GetTargetValueFromEXCEL(assert.Source, filePath)
-	case "TXT":
+		targetList, err = GetTargetValueFromStructFile("excel", assert.Source, filePath)
+	//case "TXT":  // 待实现
 	case "JSON":
+		targetList, err = assert.GetTargetValueFromNoStructFile("json", filePath)
 	case "YML":
-	case "XML":
+		targetList, err = assert.GetTargetValueFromNoStructFile("yml", filePath)
+	//case "XML":    // 待实现
 	default:
 		err = fmt.Errorf("不支持[%s]文件类型的取数校对，如有需要，请联系管理员~", fileType)
 		return
@@ -628,205 +629,15 @@ func (assert SceneAssert) GetValueFromFile(filePath string) (targetList []string
 	return
 }
 
-//func GetCompareResult(sType, curStr, targetStr string) (b bool, err error) {
-//	switch sType {
-//	case "=", "equal":
-//		if curStr == targetStr {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "!=", "not_equal":
-//		if curStr != targetStr {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "in", "contain":
-//		if strings.Contains(curStr, targetStr) {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "!in", "not_in", "not_contain":
-//		if !strings.Contains(curStr, targetStr) {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "re", "regex", "regexp":
-//		re := regexp.MustCompile(targetStr)
-//		result := re.FindStringSubmatch(curStr)
-//		if len(result) > 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "null", "empty":
-//		if len(curStr) == 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "!null", "!empty", "not_null", "not_empty":
-//		if len(curStr) > 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case ">", "larger_than", "greater_than":
-//		targetInt, err1 := strconv.Atoi(targetStr)
-//		curInt, err2 := strconv.Atoi(curStr)
-//		if err1 != nil || err2 != nil {
-//			b = false
-//		} else {
-//			if curInt > targetInt {
-//				b = true
-//			} else {
-//				b = false
-//			}
-//		}
-//	case ">=", "larger_equal", "greater_equal":
-//		targetInt, err1 := strconv.Atoi(targetStr)
-//		curInt, err2 := strconv.Atoi(curStr)
-//		if err1 != nil || err2 != nil {
-//			b = false
-//		} else {
-//			if curInt >= targetInt {
-//				b = true
-//			} else {
-//				b = false
-//			}
-//		}
-//	case "<", "less_than":
-//		targetInt, err1 := strconv.Atoi(targetStr)
-//		curInt, err2 := strconv.Atoi(curStr)
-//		if err1 != nil || err2 != nil {
-//			b = false
-//		} else {
-//			if curInt < targetInt {
-//				b = true
-//			} else {
-//				b = false
-//			}
-//		}
-//	case "<=", "less_equal":
-//		targetInt, err1 := strconv.Atoi(targetStr)
-//		curInt, err2 := strconv.Atoi(curStr)
-//		if err1 != nil || err2 != nil {
-//			b = false
-//		} else {
-//			if curInt <= targetInt {
-//				b = true
-//			} else {
-//				b = false
-//			}
-//		}
-//	default:
-//		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", sType)
-//	}
-//	if !b {
-//		var expectPrompt string
-//		if len(rawTargetStr) > 0 {
-//			expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
-//		} else {
-//			expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
-//		}
-//		actualPrompt := fmt.Sprintf("实际: %s %s %s", assert.Source, assert.Type, curStr)
-//		err = fmt.Errorf("\n%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
-//	}
-//}
+func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, coloumnNo int) (target []string, err error) {
+	//var coloumnName string
+	//var lineNo, coloumnNo int
+	var tagRune rune
 
-//func RawStrComparion(sType, resp string, target interface{}) (b bool, err error) {
-//	targetStr := Interface2Str(target)
-//	switch sType {
-//	case "in", "contain":
-//		b = strings.Contains(resp, targetStr)
-//	case "!in", "not_in", "not_contain":
-//		b = !strings.Contains(resp, targetStr)
-//	case "re", "regex", "regexp":
-//		re := regexp.MustCompile(targetStr)
-//		result := re.FindStringSubmatch(resp)
-//		if len(result) > 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "=", "equal":
-//		if resp == target {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "!=", "not_equal":
-//		if resp != targetStr {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "null", "empty":
-//		if len(resp) == 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	case "!null", "!empty", "not_null", "not_empty":
-//		if len(resp) > 0 {
-//			b = true
-//		} else {
-//			b = false
-//		}
-//	default:
-//		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", sType)
-//		Logger.Error("%s", err)
-//	}
-//
-//	if !b {
-//		err = fmt.Errorf("断言: Response %s [%s] 结果:fail", sType, targetStr)
-//		Logger.Error("%s", err)
-//	}
-//
-//	return
-//}
+	runeList := []rune(splitTag)
 
-func GetTargetValueFromCSV(source, filePath string) (target []string, err error) {
-	var splitTag, coloumnName string
-	var lineNo, coloumnNo int
-
-	dataAnchor := strings.Split(source, ":")
-
-	if len(dataAnchor) < 4 {
-		err = fmt.Errorf("source: %s, 取数信息定义不全，请核对", source)
-		return
-	}
-
-	if len(dataAnchor) >= 5 {
-		splitTag = dataAnchor[4]
-	} else {
-		splitTag = ","
-	}
-
-	if len(dataAnchor[2]) == 0 {
-		lineNo = -1
-	} else {
-		lineNoTmp, errTmp := strconv.Atoi(dataAnchor[2])
-		if errTmp != nil {
-			Logger.Error("%v", errTmp)
-			err = fmt.Errorf("行号: %v, 无法转换为整数，请核对", dataAnchor[2])
-			return
-		}
-		lineNo = lineNoTmp
-	}
-
-	if len(dataAnchor[3]) == 0 {
-		coloumnNo = -1
-	} else {
-		coloumnNoTmp, errTmp := strconv.Atoi(dataAnchor[3])
-		if errTmp != nil {
-			coloumnName = dataAnchor[3]
-		} else {
-			coloumnNo = coloumnNoTmp
-		}
+	for _, item := range runeList {
+		tagRune = tagRune + item
 	}
 
 	fh, errTmp := os.Open(filePath)
@@ -839,19 +650,12 @@ func GetTargetValueFromCSV(source, filePath string) (target []string, err error)
 
 	reader := csv.NewReader(fh)
 
-	runeList := []rune(splitTag)
-	var tagRune rune
-	for _, item := range runeList {
-		tagRune = tagRune + item
-	}
-
 	if len(splitTag) > 0 {
 		reader.Comma = tagRune
 	} else {
 		reader.Comma = ','
 	}
 
-	Logger.Debug("%v", tagRune)
 	curLine := 0
 	if lineNo > 0 {
 		for {
@@ -871,7 +675,7 @@ func GetTargetValueFromCSV(source, filePath string) (target []string, err error)
 
 			if curLine == lineNo {
 				if len(record) <= coloumnNo && len(coloumnName) == 0 {
-					err = fmt.Errorf("列号: %d超出索引范围，请核对")
+					err = fmt.Errorf("列号: %d超出索引范围，请核对", coloumnNo)
 					return
 				}
 				if coloumnNo > 0 {
@@ -910,11 +714,64 @@ func GetTargetValueFromCSV(source, filePath string) (target []string, err error)
 			}
 		}
 	}
+
 	return
 }
 
-func GetTargetValueFromEXCEL(source, filePath string) (target []string, err error) {
-	var coloumnName string
+func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int) (target []string, err error) {
+	fh, err := xlsx.OpenFile(filePath)
+	if err != nil {
+		Logger.Error("%v", err)
+		return
+	}
+
+	sheet := fh.Sheets[0]
+	//var lineNo, coloumnNo int
+
+	if len(coloumnName) > 0 {
+		titles := sheet.Row(1).Cells
+		for index, item := range titles {
+			if item.Value == coloumnName {
+				coloumnNo = index
+			}
+		}
+	}
+
+	maxRowNo := sheet.MaxRow
+	maxColNo := sheet.MaxCol
+
+	if lineNo > maxRowNo {
+		err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
+		return
+	}
+
+	if coloumnNo > maxColNo {
+		err = fmt.Errorf("行号: %d超出索引范围，请核对", coloumnNo)
+		return
+	}
+
+	if lineNo > 0 {
+		if coloumnNo > 0 {
+			targetSingle := sheet.Cell(lineNo-1, coloumnNo)
+			target = []string{targetSingle.String()}
+		} else {
+			for i := 0; i < maxColNo; i++ {
+				targetSingle := sheet.Cell(lineNo-1, i)
+				target = append(target, targetSingle.String())
+			}
+		}
+	} else if lineNo == -1 {
+		for i := 1; i < maxRowNo; i++ {
+			targetSingle := sheet.Cell(i, coloumnNo)
+			target = append(target, targetSingle.String())
+		}
+	}
+
+	return
+}
+
+func GetTargetValueFromStructFile(fileType, source, filePath string) (target []string, err error) {
+	var splitTag, coloumnName string
 	var lineNo, coloumnNo int
 
 	dataAnchor := strings.Split(source, ":")
@@ -943,55 +800,190 @@ func GetTargetValueFromEXCEL(source, filePath string) (target []string, err erro
 		if errTmp != nil {
 			coloumnName = dataAnchor[3]
 		} else {
-			coloumnNo = coloumnNoTmp
+			coloumnNo = coloumnNoTmp - 1
 		}
 	}
 
-	fh, err := xlsx.OpenFile(filePath)
-	if err != nil {
-		Logger.Error("%v", err)
-		return
-	}
-	sheet := fh.Sheets[0]
-
-	if len(coloumnName) > 0 {
-		titles := sheet.Row(1).Cells
-		Logger.Debug("titles: %v", titles)
-		for index, item := range titles {
-			if item.Value == coloumnName {
-				coloumnNo = index
-			}
-		}
-	}
-
-	maxRowNo := sheet.MaxRow
-	maxColNo := sheet.MaxCol
-
-	if lineNo > maxRowNo {
-		err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
-		return
-	}
-
-	if coloumnNo > maxColNo {
-		err = fmt.Errorf("行号: %d超出索引范围，请核对", coloumnNo)
-		return
-	}
-
-	if lineNo > 0 {
-		if coloumnNo > 0 {
-			targetSingle := sheet.Cell(lineNo-1, coloumnNo-1)
-			target = []string{targetSingle.String()}
+	if fileType == "excel" {
+		target, err = GetTargetValueFromEXCEL(filePath, coloumnName, lineNo, coloumnNo)
+		//fh, err := xlsx.OpenFile(filePath)
+		//if err != nil {
+		//	Logger.Error("%v", err)
+		//	return nil, err
+		//}
+		//sheet := fh.Sheets[0]
+		//
+		//if len(coloumnName) > 0 {
+		//	titles := sheet.Row(1).Cells
+		//	for index, item := range titles {
+		//		if item.Value == coloumnName {
+		//			coloumnNo = index
+		//		}
+		//	}
+		//}
+		//
+		//maxRowNo := sheet.MaxRow
+		//maxColNo := sheet.MaxCol
+		//
+		//if lineNo > maxRowNo {
+		//	err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
+		//	return nil, err
+		//}
+		//
+		//if coloumnNo > maxColNo {
+		//	err = fmt.Errorf("行号: %d超出索引范围，请核对", coloumnNo)
+		//	return nil, err
+		//}
+		//
+		//if lineNo > 0 {
+		//	if coloumnNo > 0 {
+		//		targetSingle := sheet.Cell(lineNo-1, coloumnNo)
+		//		target = []string{targetSingle.String()}
+		//	} else {
+		//		for i := 0; i < maxColNo; i++ {
+		//			targetSingle := sheet.Cell(lineNo-1, i)
+		//			target = append(target, targetSingle.String())
+		//		}
+		//	}
+		//} else if lineNo == -1 {
+		//	for i := 1; i < maxRowNo; i++ {
+		//		targetSingle := sheet.Cell(i, coloumnNo)
+		//		target = append(target, targetSingle.String())
+		//	}
+		//}
+	} else if fileType == "csv" {
+		if len(dataAnchor) >= 5 {
+			splitTag = dataAnchor[4]
 		} else {
-			for i := 0; i < maxColNo; i++ {
-				targetSingle := sheet.Cell(lineNo-1, i)
-				target = append(target, targetSingle.String())
-			}
+			splitTag = ","
 		}
-	} else if lineNo == -1 {
-		for i := 1; i < maxRowNo; i++ {
-			targetSingle := sheet.Cell(i, coloumnNo-1)
-			target = append(target, targetSingle.String())
-		}
+		target, err = GetTargetValueFromCSV(filePath, coloumnName, splitTag, lineNo, coloumnNo)
+
+		//runeList := []rune(splitTag)
+		//var tagRune rune
+		//for _, item := range runeList {
+		//	tagRune = tagRune + item
+		//}
+		//
+		//fh, errTmp := os.Open(filePath)
+		//if errTmp != nil {
+		//	err = errTmp
+		//	return
+		//}
+		//
+		//defer fh.Close()
+		//
+		//reader := csv.NewReader(fh)
+		//
+		//if len(splitTag) > 0 {
+		//	reader.Comma = tagRune
+		//} else {
+		//	reader.Comma = ','
+		//}
+		//
+		//curLine := 0
+		//if lineNo > 0 {
+		//	for {
+		//		record, errTmp := reader.Read()
+		//		if errTmp == io.EOF {
+		//			break
+		//		}
+		//		curLine++
+		//
+		//		if len(coloumnName) > 0 && curLine == 1 {
+		//			for index, item := range record {
+		//				if coloumnName == item {
+		//					coloumnNo = index
+		//				}
+		//			}
+		//		}
+		//
+		//		if curLine == lineNo {
+		//			if len(record) <= coloumnNo && len(coloumnName) == 0 {
+		//				err = fmt.Errorf("列号: %d超出索引范围，请核对", coloumnNo)
+		//				return
+		//			}
+		//			if coloumnNo > 0 {
+		//				target = []string{record[coloumnNo]}
+		//			} else if coloumnNo == -1 {
+		//				target = record
+		//			}
+		//			break
+		//		}
+		//	}
+		//} else if lineNo == -1 {
+		//	for {
+		//		record, errTmp := reader.Read()
+		//		if errTmp == io.EOF {
+		//			break
+		//		}
+		//
+		//		if len(coloumnName) > 0 && curLine == 1 {
+		//			for index, item := range record {
+		//				if coloumnName == item {
+		//					coloumnNo = index
+		//				}
+		//			}
+		//			continue
+		//		}
+		//
+		//		if len(record) <= coloumnNo {
+		//			err = fmt.Errorf("列号: %d超出索引范围，请核对")
+		//			return
+		//		}
+		//
+		//		for index, item := range record {
+		//			if index == coloumnNo {
+		//				target = append(target, item)
+		//			}
+		//		}
+		//	}
+		//}
+	}
+
+	return
+}
+
+func (assert SceneAssert) GetTargetValueFromNoStructFile(fileType, filePath string) (target []string, err error) {
+	dataAnchor := strings.Split(assert.Source, ":")
+	if len(dataAnchor) < 3 {
+		err = fmt.Errorf("source: %s, 取数信息定义不全，请核对", assert.Source)
+		return
+	}
+
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	var resDict map[string]interface{}
+	resDict = make(map[string]interface{})
+
+	if fileType == "json" {
+		err = json.Unmarshal([]byte(content), &resDict)
+	} else if fileType == "yml" {
+		err = yaml.Unmarshal([]byte(content), &resDict)
+	}
+
+	if err != nil {
+		Logger.Error("err: %v", err)
+		return
+	}
+
+	var valueList []interface{}
+
+	assert.Source = dataAnchor[2]
+	switch assert.Type {
+	case "output_re":
+		_, valueList, err = assert.GetOutputRe(content)
+	default:
+		_, valueList, err = assert.GetOutput(resDict)
+	}
+
+	for _, item := range valueList {
+		vStr := Interface2Str(item)
+		target = append(target, vStr)
 	}
 
 	return
