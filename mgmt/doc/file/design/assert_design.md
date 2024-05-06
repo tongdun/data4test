@@ -8,11 +8,11 @@
 - 从返回信息Response当作整体断言
 - 数据源定义(source)为raw或ResponseBody
 
-#### 性能值断言(未实现)
+#### 性能值断言(待实现)
 - 从请求到得到Response的返回时间
 - 数据源定义(source)为RT/ResponseTime
 
-#### 文件值断言(未实现)
+#### 文件值断言(实现中)
 - 从接口获取下载的文件，对文件的内容进行断言
 - 数据源定义(source)为FileType:line:column:split
 - 具体FileType支持如下(全大写)
@@ -21,7 +21,7 @@
   File:EXCEL:line:column     // line为行号，值需为整数，column为列信息，可以为列号，也可以为列名
   File:JSON:data-total[0]    // 与字段值取值使用规则一致
   File:YML:data-total        // 与字段值取值使用规则一致
-  File:XML:未细化             // 
+  File:XML:未细化             //
 
 ##### 全部返回断言类型
 - equal: 字符串相等

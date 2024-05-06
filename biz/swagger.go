@@ -485,8 +485,8 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 	if len(dbApiStringDefinition.ApiId) == 0 {
 		apiStringDefinition.ApiStatus = 1
 		apiStringDefinition.Version = 1
-		apiStringDefinition.IsAuto = 0
-		apiStringDefinition.IsNeedAuto = 1
+		apiStringDefinition.IsAuto = "-1"
+		apiStringDefinition.IsNeedAuto = "1"
 		err = models.Orm.Table("api_definition").Create(&apiStringDefinition).Error
 	} else {
 		var oldHeaderList, oldBodyList, oldPathList, oldQueryList, oldRespList []VarDefModel
@@ -577,7 +577,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 
 		models.Orm.Table("scene_data").Where("id = ?", dbApiStringDefinition.ApiId).Count(&dataCount)
 		if dataCount > 0 {
-			apiStringDefinition.IsAuto = 1
+			apiStringDefinition.IsAuto = "1"
 			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition.IsAuto).Error
 		}
 	}

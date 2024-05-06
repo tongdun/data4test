@@ -28,8 +28,8 @@ type ApiStringDefinition struct {
 	Version            int    `gorm:"column:version" json:"version"`
 	Check              string `gorm:"column:check" json:"check"`
 	ApiStatus          int    `gorm:"column:api_status" json:"api_status"`
-	IsAuto             int    `gorm:"column:is_auto" json:"is_auto"`
-	IsNeedAuto         int    `gorm:"column:is_need_auto" json:"is_need_auto"`
+	IsAuto             string `gorm:"column:is_auto" json:"is_auto"`
+	IsNeedAuto         string `gorm:"column:is_need_auto" json:"is_need_auto"`
 	ChangeContent      string `gorm:"column:change_content" json:"change_content"`
 	ApiCheckFailReason string `gorm:"column:api_check_fail_reason" json:"api_check_fail_reason"`
 	App                string `gorm:"column:app" json:"app"`

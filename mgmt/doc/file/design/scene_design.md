@@ -19,6 +19,11 @@
 
 ##### 参数定义：
 - header：鉴权数据， 请求类型等, application/json， form/data, 文件
+- respHeader：下载文件, 对Content-Disposition进行设置(下载文件时必填)，filename=XXX.filetype, 可根据实际情况进行设置， Content-Type根据接口请求查看，按实时填写，请求后，response会自动置为XXX.filetype,然后使用文件类型进行断言判断
+```respHeader:
+  Content-Disposition: attachment; filenamefilename=XX模块-XX管理-XX配置-XX导出.csv
+  Content-Type: application/csv
+  ```
 - query
 - path
 - body: 如果header文件配置了文件类型，生成文件路径占位符，支持文件上传和下载
