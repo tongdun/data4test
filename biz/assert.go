@@ -357,11 +357,10 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 		expectValue := Interface2Str(subV)
 		errTmp := sceneAssert.AsserValueComparion(expectValue)
 		if errTmp != nil {
-			//Logger.Error("%s", errTmp)
 			if err == nil {
 				err = errTmp
 			} else {
-				err = fmt.Errorf("%s; %s", err, errTmp)
+				err = fmt.Errorf("%s\n%s", err, errTmp)
 			}
 		}
 	}
@@ -596,7 +595,8 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 	return
 }
 
-func (assert SceneAssert) GetValueFromFile(filePath string) (targetList []string, err error) {
+func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string, err error) {
+	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName) // 下载文件统一保存至下载文件路径
 	_, err = os.Stat(filePath)
 	if os.IsNotExist(err) {
 		err = fmt.Errorf("%s不存在，请核对", filePath)

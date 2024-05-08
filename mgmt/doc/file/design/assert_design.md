@@ -1,4 +1,5 @@
 说明：源数据定义(source)为raw时，返回数据当做一个整体做数据校验
+
 ### 支持的断言大类
 #### 字段值断言
 - 从JSON中取特定的字段进行断言
@@ -16,12 +17,12 @@
 - 从接口获取下载的文件，对文件的内容进行断言
 - 数据源定义(source)为FileType:line:column:split
 - 具体FileType支持如下(全大写)
-  File:TXT:line:column:split  //split若未定义，默认为英文逗号,
-  File:CSV:line:column:split  //split若未定义，默认为英文逗号,
-  File:EXCEL:line:column     // line为行号，值需为整数，column为列信息，可以为列号，也可以为列名
-  File:JSON:data-total[0]    // 与字段值取值使用规则一致
-  File:YML:data-total        // 与字段值取值使用规则一致
-  File:XML:未细化             //
+  - File:TXT:line:column:split  //split若未定义，默认为英文逗号,
+  - File:CSV:line:column:split  //split若未定义，默认为英文逗号,
+  - File:EXCEL:line:column     // line为行号，值需为整数，column为列信息，可以为列号，也可以为列名
+  - File:JSON:data-total[0]    // 与字段值取值使用规则一致
+  - File:YML:data-total        // 与字段值取值使用规则一致
+  - File:XML:未细化             // 待有需要再开发
 
 ##### 全部返回断言类型
 - equal: 字符串相等
@@ -43,10 +44,10 @@
 - regex:  正则匹配
 - regexp:  正则匹配
 - output_re:   正则匹配 ()匹配到的值取出来，如果匹配到多个值，均会进行提取
-   - e.g.1:  {type: output_re, source: '\\"taskId\\":\\"([0-9]+)\\"', value: taskId}  
-     定义输出变量，(.+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+   - e.g.1:  {type: output_re, source: '\\"taskId\\":\\"(.+)\\"', value: taskId}  
+     - 定义输出变量，(.+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
    - e.g.2:  {type: output_re, source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"', value: taskId}  
-     定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+     - 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
 
 
 ##### 字段值断言类型

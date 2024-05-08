@@ -276,8 +276,6 @@ func RunNonStandard(fileType int, filePath string) (result, dst string, err erro
 	case 2, 3:
 		strCommand := fmt.Sprintf("%s %s", runEngine, filePath)
 		outputStr, errTmp0 := exec.Command(runEngine, filePath).Output()
-		//Logger.Debug("strCommand: %v", strCommand)
-		//Logger.Debug("outputStr: %v", string(outputStr))
 		if errTmp0 != nil {
 			Logger.Error("%s", errTmp0)
 			if err != nil {
@@ -293,7 +291,6 @@ func RunNonStandard(fileType int, filePath string) (result, dst string, err erro
 			err = fmt.Errorf("%s; %s", err, errTmp1)
 		}
 		dst = dstTmp
-		//Logger.Debug("dst: %s", dst)
 		errTmp2 := ioutil.WriteFile(dst, outputStr, 0644)
 		if errTmp2 != nil {
 			Logger.Error("%s", errTmp2)
@@ -445,8 +442,8 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
 		if errTmp != nil {
-			Logger.Debug("rawContent: %s", string(content))
-			Logger.Debug("afterContent: %s", contentStr)
+			Logger.Debug("rawContent:\n%s", string(content))
+			Logger.Debug("afterContent:\n%s", contentStr)
 			Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -454,8 +451,8 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
 		if errTmp != nil {
-			Logger.Debug("rawContent: %s", string(content))
-			Logger.Debug("afterContent: %s", contentStr)
+			Logger.Debug("\nrawContent: %s", string(content))
+			Logger.Debug("\nafterContent: %s", contentStr)
 			Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -1278,7 +1275,6 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 }
 
 func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
-	//var outputDict map[string][]interface{}
 	outputDict = make(map[string][]interface{})
 	isPass := 0
 
@@ -1352,9 +1348,9 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 			if assert.Source == "raw" || assert.Source == "ResponseBody" {
 				err1 := assert.AsserValueComparion(string(res[i]))
 				if err1 != nil {
-					Logger.Error("err1: %v", err1)
+					Logger.Error("\n%v", err1)
 					if err != nil {
-						err = fmt.Errorf("%s; %s", err, err1)
+						err = fmt.Errorf("%s\n%s", err, err1)
 					} else {
 						err = err1
 					}
@@ -1392,7 +1388,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						vStr := Interface2Str(item)
 						errTmp = assert.AsserValueComparion(vStr)
 						if errTmp != nil {
-							Logger.Error("%v", errTmp)
+							Logger.Error("\n%v", errTmp)
 							if err != nil {
 								err = fmt.Errorf("%v;%v", err, errTmp)
 							} else {
