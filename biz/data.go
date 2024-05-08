@@ -1163,7 +1163,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 
 	if err == nil && isFail == 0 {
 		result = "pass"
-		lastFile = " "
+		lastFile = ""
 	} else {
 		result = "fail"
 	}

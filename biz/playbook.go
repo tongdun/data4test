@@ -306,7 +306,6 @@ func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envTy
 		if len(lastFile) == 0 {
 			dbScene.LastFile = " " // 用空格字符串刷新数据
 		} else {
-			Logger.Debug("lastFile: %v", lastFile)
 			b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
 			if b {
 				dirName := GetHistoryDataDirName(path.Base(lastFile))
@@ -328,17 +327,20 @@ func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envTy
 			Logger.Error("%v", err)
 		}
 	} else if source == "task" {
-		Logger.Debug("lastFile: %v", lastFile)
+		//Logger.Debug("lastFile: %v", lastFile)
 	}
 
 	sceneRecode.Name = dbScene.Name
-	b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
-	if b {
-		dirName := GetHistoryDataDirName(path.Base(lastFile))
-		sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(lastFile), path.Base(lastFile))
-	} else {
-		sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(lastFile), path.Base(lastFile))
+	if len(lastFile) > 0 {
+		b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
+		if b {
+			dirName := GetHistoryDataDirName(path.Base(lastFile))
+			sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(lastFile), path.Base(lastFile))
+		} else {
+			sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(lastFile), path.Base(lastFile))
+		}
 	}
+
 	sceneRecode.SceneType = dbScene.SceneType
 	sceneRecode.Result = result
 	if errIn != nil {
