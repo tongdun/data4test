@@ -221,7 +221,18 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 		return
 	}
 	var sceneDataRecord SceneDataRecord
-	sceneDataRecord.Content = path.Base(dst)
+	//sceneDataRecord.Content = path.Base(dst)
+
+	if len(dst) > 0 {
+		b, _ := IsStrEndWithTimeFormat(path.Base(dst))
+		if b {
+			dirName := GetHistoryDataDirName(path.Base(dst))
+			sceneDataRecord.Content = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
+		} else {
+			sceneDataRecord.Content = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(dst), path.Base(dst))
+		}
+	}
+
 	sceneDataRecord.Name = dbSceneData.Name
 	sceneDataRecord.ApiId = dbSceneData.ApiId
 	sceneDataRecord.App = dbSceneData.App
@@ -1481,9 +1492,9 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 				default:
 					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
-						Logger.Error("%v", err1)
+						Logger.Error("\n%v", err1)
 						if err != nil {
-							err = fmt.Errorf("%s, %s", err, err1)
+							err = fmt.Errorf("%s\n %s", err, err1)
 						} else {
 							err = err1
 						}

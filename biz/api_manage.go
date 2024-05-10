@@ -468,6 +468,7 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 	envType, errTmp := GetEnvTypeByName(apiModel.Product)
 	if errTmp != nil {
 		Logger.Warning("未取环境信息异常: %v", errTmp)
+		//return
 		if err != nil {
 			err = fmt.Errorf("%s;%s", err, errTmp)
 		} else {
@@ -1342,11 +1343,21 @@ func GetSceneHistory(name string) (sceneModel SceneHistorySaveModel, err error) 
 	models.Orm.Table("scene_test_history").Where("id = ?", tmpList[0]).Find(&sceneRecord)
 	sceneModel.RunNum = 1
 	sceneModel.Name = sceneRecord.Name
-	if sceneRecord.SceneType == 2 {
-		sceneModel.SceneType = "比较"
-	} else {
-		sceneModel.SceneType = "默认"
+	switch sceneRecord.SceneType {
+	case 1:
+		sceneModel.SceneType = "串行中断"
+	case 2:
+		sceneModel.SceneType = "串行比较"
+	case 3:
+		sceneModel.SceneType = "串行继续"
+	case 4:
+		sceneModel.SceneType = "普通并发"
+	case 5:
+		sceneModel.SceneType = "并发比较"
+	default:
+		sceneModel.SceneType = "串行中断"
 	}
+
 	sceneModel.FailReason = sceneRecord.FailReason
 	sceneModel.TestResult = sceneRecord.Result
 	sceneModel.LastFile = sceneRecord.LastFile

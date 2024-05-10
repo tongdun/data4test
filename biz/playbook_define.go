@@ -1,14 +1,13 @@
 package biz
 
 type Playbook struct {
-	Name      string
-	Apis      []string
-	LastFile  string
-	Tag       int
-	Product   string
-	IsThread  string
-	SceneType int
-	//BatchTag    string
+	Name        string
+	Apis        []string
+	LastFile    string
+	Tag         int
+	Product     string
+	IsThread    string
+	SceneType   int
 	HistoryApis []string
 }
 

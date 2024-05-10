@@ -417,6 +417,10 @@ func WritePlaybookHistoryResult(id, result, lastFile, mode string, envType int, 
 }
 
 func WritePlaybookRecord(sceneRecode SceneRecord) (err error) {
+	// 场景类型若未设置，置为默认值，串行中断: 1
+	if sceneRecode.SceneType == 0 {
+		sceneRecode.SceneType = 1
+	}
 	err = models.Orm.Table("scene_test_history").Create(sceneRecode).Error
 	if err != nil {
 		Logger.Error("%s", err)
