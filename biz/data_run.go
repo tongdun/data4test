@@ -221,7 +221,6 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 		return
 	}
 	var sceneDataRecord SceneDataRecord
-	//sceneDataRecord.Content = path.Base(dst)
 
 	if len(dst) > 0 {
 		b, _ := IsStrEndWithTimeFormat(path.Base(dst))
@@ -336,7 +335,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		for _, preApiFile := range df.Api.PreApi {
 			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
 			Logger.Debug("开始执行前置用例: %v", preFilePath)
-			result, dst, err = RunStandard(df.Api.App, preFilePath, product, depOutVars)
+			result, dst, err = RunStandard(df.Api.App, preFilePath, product, source, depOutVars)
 			if err != nil {
 				Logger.Error("%s", err)
 				return
@@ -355,6 +354,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 	} else if len(df.Api.App) > 0 {
 		targetApp = df.Api.App
 	}
+
 	envConfig, err = GetEnvConfig(targetApp, "data")
 	if err != nil {
 		Logger.Warning("%s", err)
@@ -661,7 +661,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 	return
 }
 
-func RunStandard(app, filePath, product string, depOutVars map[string][]interface{}) (result, dst string, err error) {
+func RunStandard(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		Logger.Error("%s", err)
@@ -679,12 +679,12 @@ func RunStandard(app, filePath, product string, depOutVars map[string][]interfac
 		return
 	}
 
-	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, "mode", "", depOutVars)
+	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, "mode", source, depOutVars)
 
 	return
 }
 
-func RunDataFile(app, filePath, product string, depOutVars map[string][]interface{}) (result, dst string, err error) {
+func RunDataFile(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
 	fileType, err := InitDataFileByName(filePath)
 	if err != nil {
 		Logger.Debug("filePath: %s", filePath)
@@ -694,17 +694,17 @@ func RunDataFile(app, filePath, product string, depOutVars map[string][]interfac
 
 	switch fileType {
 	case 1:
-		result, dst, err = RunStandard(app, filePath, product, depOutVars)
+		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	case 2, 3, 4, 5, 99:
 		result, dst, err = RunNonStandard(fileType, filePath)
 	default:
-		result, dst, err = RunStandard(app, filePath, product, depOutVars)
+		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	}
 
 	return
 }
 
-func RepeatRunDataFile(id, product string) (err error) {
+func RepeatRunDataFile(id, product, source string) (err error) {
 	dataInfo, appInfo, err := GetRunTimeData(id)
 	var envType, maxThreadNum int
 	var isThread string
@@ -757,7 +757,7 @@ func RepeatRunDataFile(id, product string) (err error) {
 					}
 					wg.Add(1)
 					go func() {
-						result, dst, err1 := RunDataFile(app, filePath, product, nil)
+						result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
 						if err1 != nil {
 							err = err1
 							err = WriteSceneDataResult(id, result, dst, product, envType, err1)
@@ -776,7 +776,7 @@ func RepeatRunDataFile(id, product string) (err error) {
 			for i := 0; i < dataInfo.RunTime; i++ {
 				wg.Add(1)
 				go func() {
-					result, dst, err1 := RunDataFile(app, filePath, product, nil)
+					result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
 					if err1 != nil {
 						err = WriteSceneDataResult(id, result, dst, product, envType, err1)
 						return
@@ -798,11 +798,11 @@ func RepeatRunDataFile(id, product string) (err error) {
 			case 2, 3, 4, 5, 99:
 				result, dst, err1 = RunNonStandard(dataInfo.FileType, filePath)
 			default:
-				result, dst, err1 = RunStandard(app, filePath, product, nil)
+				result, dst, err1 = RunStandard(app, filePath, product, source, nil)
 			}
 
 			if err1 != nil {
-				Logger.Error("%s", err1)
+				Logger.Error("\n%s", err1)
 				err = err1
 			}
 			err = WriteSceneDataResult(id, result, dst, product, envType, err1)
@@ -812,7 +812,7 @@ func RepeatRunDataFile(id, product string) (err error) {
 			}
 
 			if result != "pass" {
-				err = fmt.Errorf("test %v", result)
+				err = fmt.Errorf("test %s", result)
 				return
 			}
 		}
@@ -821,7 +821,7 @@ func RepeatRunDataFile(id, product string) (err error) {
 	return
 }
 
-func RunSceneDataOnce(id, product string) (err error) {
+func RunSceneDataOnce(id, product, source string) (err error) {
 	dataInfo, _, err := GetRunTimeData(id)
 	var envType int
 	if len(product) > 0 {
@@ -847,7 +847,7 @@ func RunSceneDataOnce(id, product string) (err error) {
 		return
 	}
 
-	result, dst, err1 := RunDataFile(app, filePath, product, nil)
+	result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
 	if err1 != nil {
 		Logger.Error("%s", err1)
 		err = err1

@@ -167,7 +167,7 @@ func OneTask(id string) (err error) {
 	sceneList, _, _ := dbSchedule.GetSceneIds()
 	if dbSchedule.TaskType == "data" {
 		for _, dataId := range dataList {
-			err1 = RunSceneDataOnce(dataId, dbSchedule.ProductList)
+			err1 = RunSceneDataOnce(dataId, dbSchedule.ProductList, "task")
 			if err1 != nil {
 				err = err1
 				Logger.Error("%s", err)
@@ -332,7 +332,7 @@ func RunOnceTask(id string) (err error) {
 	case "data":
 		dataIds, _ := task.GetDataIds()
 		for _, dataId := range dataIds {
-			err1 := RepeatRunDataFile(dataId, task.ProductList)
+			err1 := RepeatRunDataFile(dataId, task.ProductList, "task")
 			if err1 != nil {
 				err = err1
 				Logger.Error("%v", err)
@@ -345,7 +345,6 @@ func RunOnceTask(id string) (err error) {
 			var err1 error
 			err1 = RepeatRunPlaybook(sceneId, "", task.ProductList, "task")
 			if err1 != nil {
-				//Logger.Error("%v", err1)
 				if err != nil {
 					err = fmt.Errorf("%v; %v", err, err1)
 				} else {

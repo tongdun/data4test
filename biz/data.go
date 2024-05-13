@@ -1062,9 +1062,8 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
 			if errTmp != nil {
-				//Logger.Error("%s", errTmp)
 				if err != nil {
 					err = fmt.Errorf("%s; %s", err, errTmp)
 				} else {
@@ -1090,7 +1089,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
 			if errTmp != nil {
 				Logger.Error("%v", errTmp)
 				if err != nil {
@@ -1125,7 +1124,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType)
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source)
 				if errTmp != nil {
 					Logger.Error("%v", errTmp)
 					if errIn != nil {
@@ -1173,7 +1172,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
 
-	err = playbook.WritePlaybookResult(ds.Id, result, lastFile, source, envType, err)
+	err = playbook.WritePlaybookResult(ds.Id, result, source, lastFile, envType, err)
 	if err != nil {
 		Logger.Error("%v", err)
 		return

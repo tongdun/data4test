@@ -186,14 +186,14 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 	return
 }
 
-func (p Playbook) RunPlaybookContent(envType int) (result, historyApi string, err error) {
+func (p Playbook) RunPlaybookContent(envType int, source string) (result, historyApi string, err error) {
 	filePath := p.Apis[p.Tag]
 	depOutVars, err := p.GetPalybookDepParams()
 	if err != nil {
 		Logger.Error("%s", err)
 	}
 
-	result, dst, errTmp := RunDataFile("", filePath, p.Product, depOutVars)
+	result, dst, errTmp := RunDataFile("", filePath, p.Product, source, depOutVars)
 	if errTmp != nil {
 		result = "fail"
 		if err != nil {
@@ -842,7 +842,7 @@ func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel,
 	runResp.TestResult = "pass"
 	for k := range playbook.Apis {
 		playbook.Tag = k
-		result, historyApi, errTmp := playbook.RunPlaybookContent(envType)
+		result, historyApi, errTmp := playbook.RunPlaybookContent(envType, "console")
 		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 		if errTmp != nil || result != "pass" {
 			runResp.TestResult = result
