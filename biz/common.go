@@ -888,6 +888,20 @@ func ExecCommand(strCommand string) (result string, err error) {
 	return
 }
 
+func ExecCommandWithOutput(strCommand string) (result string) {
+	cmd := exec.Command("/bin/bash", "-c", strCommand)
+	out_bytes, err := cmd.Output()
+	if err != nil {
+		Logger.Info("cmd: %s", strCommand)
+		Logger.Warning("%s", err)
+		return
+	}
+
+	result = strings.Replace(string(out_bytes), "\n", "", -1)
+
+	return
+}
+
 func WriteJson(data []byte, path string) (err error) {
 	var str bytes.Buffer
 	_ = json.Indent(&str, data, "", "    ")

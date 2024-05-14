@@ -665,121 +665,99 @@ func CreateSceneData(ids, source, mode string) (err error) {
 
 func WriteContent2File(fileName, content string) (err error) {
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
-	_, err = os.Stat(filePath)
-	if _, err = os.Stat(filePath); err != nil {
-		if os.IsNotExist(err) {
-			err = ioutil.WriteFile(filePath, []byte(content), 0644)
-		}
-	}
+	err = ioutil.WriteFile(filePath, []byte(content), 0644)
+	//_, err = os.Stat(filePath)
+	//if _, err = os.Stat(filePath); err != nil {
+	//	if os.IsNotExist(err) {
+	//		err = ioutil.WriteFile(filePath, []byte(content), 0644)
+	//	}
+	//}
 	return
 }
 
-func BakOldVer(id, afterTxt, fileName string) (err error) {
-	var dataFile DataFile
-	if strings.HasSuffix(fileName, ".json") {
-		err = json.Unmarshal([]byte(afterTxt), &dataFile)
-	} else {
-		err = yaml.Unmarshal([]byte(afterTxt), &dataFile)
-	}
-
-	if err != nil {
-		Logger.Error("%s", err)
+func GetFileHistoryVersion(fileName, fileType string) (vOld int) {
+	cmdStr := fmt.Sprintf("ls -lt %s/%s/%s_V*.%s | head -n 1 | awk '{print $9}'", OldFilePath, fileName, fileName, fileType)
+	oldFileName := ExecCommandWithOutput(cmdStr)
+	if len(oldFileName) == 0 {
 		return
 	}
 
+	tmps := strings.Split(oldFileName, "_V")
+	tStr := tmps[len(tmps)-1]
+	suffixStr := fmt.Sprintf(".%s", fileType)
+	vStr := strings.TrimSuffix(tStr, suffixStr)
+
+	vOld, err := strconv.Atoi(vStr)
+	if err != nil {
+		Logger.Error("%v", err)
+	}
+
+	return
+}
+
+func BakOldVer(id, content, fileName string) (err error) {
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
-	_, err = os.Stat(filePath)
-	if _, err = os.Stat(filePath); err != nil {
-		if os.IsNotExist(err) {
-			dataFile.Version = 1
-			var dataInfo []byte
-			var err1 error
-			if strings.HasSuffix(fileName, ".json") {
-				dataInfo, err1 = json.MarshalIndent(dataFile, "", "    ")
-			} else {
-				dataInfo, err1 = yaml.Marshal(dataFile)
-			}
 
-			if err1 != nil {
-				Logger.Error("%s", err1)
-				return err1
-			}
-			err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
-			if err2 != nil {
-				Logger.Error("%s", err2)
-				return err2
-			}
+	fileTypeTmp := strings.Split(fileName, ".")
+	fileType := fileTypeTmp[len(fileTypeTmp)-1]
+	fileNameOnly := fileName[:len(fileName)-len(fileType)-1]
+
+	curVer := GetFileHistoryVersion(fileNameOnly, fileType) + 1
+
+	// 判断目录是否存在，若不存在，则自动新建
+	targetDirName := fmt.Sprintf("%s/%s", OldFilePath, fileNameOnly)
+	_, err = os.Stat(targetDirName)
+	if os.IsNotExist(err) {
+		//mask := syscall.Umask(0)  // 后续根据系统不同做适配
+		//defer syscall.Umask(mask)
+		err = os.MkdirAll(targetDirName, 0644)
+		if err != nil {
+			Logger.Error("%s", err)
+			return
 		}
-		return nil
 	}
 
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
+	var historyFilePath string
+	switch fileType {
+	case "yml", "yaml", "json":
+		strReg := regexp.MustCompile(`version\:\s{1}([0-9.]+)`)
+		strMatch := strReg.FindAllSubmatch([]byte(content), -1)
+
+		for _, item := range strMatch {
+			rawStr := string(item[0])
+			newVer := fmt.Sprintf("version: %d", curVer)
+			content = strings.Replace(content, rawStr, newVer, 1)
+
+			var dbContents []string
+			models.Orm.Table("scene_data").Where("id = ?", id).Pluck("content", &dbContents)
+			if len(dbContents) == 0 {
+				err = fmt.Errorf("未找到[%v]数据，请核对", id)
+				Logger.Error("%s", err)
+				return
+			}
+			dbContent := dbContents[0]
+			dbContent = strings.Replace(dbContent, rawStr, newVer, 1)
+			models.Orm.Table("scene_data").Where("id = ?", id).Update("content", dbContent)
+			break
+		}
 	}
 
-	var oldSceneFile DataFile
-	if strings.HasSuffix(fileName, ".json") {
-		err = json.Unmarshal(content, &oldSceneFile)
-	} else {
-		err = yaml.Unmarshal(content, &oldSceneFile)
+	historyFilePath = fmt.Sprintf("%s/%s/%s_V%d.%s", OldFilePath, fileNameOnly, fileNameOnly, curVer, fileType)
+
+	// 写到最新的文件中
+	errTmp := ioutil.WriteFile(filePath, []byte(content), 0644)
+	if errTmp != nil {
+		Logger.Error("%s", errTmp)
+		return errTmp
 	}
 
-	if err != nil {
-		Logger.Error("%s", err)
-		return
+	// 写到old历史版本中
+	errTmp = ioutil.WriteFile(historyFilePath, []byte(content), 0644)
+	if errTmp != nil {
+		Logger.Error("%s", errTmp)
+		return errTmp
 	}
 
-	oldVer := oldSceneFile.Version
-	newVer := oldSceneFile.Version + 1
-
-	dataFile.Version = newVer
-	var dataInfo []byte
-	if strings.HasSuffix(fileName, ".json") {
-		dataInfo, err = json.MarshalIndent(dataFile, "", "    ")
-	} else {
-		dataInfo, err = yaml.Marshal(dataFile)
-	}
-
-	err = ioutil.WriteFile(filePath, dataInfo, 0644)
-	if err != nil {
-		Logger.Error("%s", err)
-	}
-
-	var dbSceneData DbSceneData
-	models.Orm.Table("scene_data").Where("id = ?", id).Find(&dbSceneData)
-	dbSceneData.Content = fmt.Sprintf("<pre><code>%s</code></pre>", dataInfo)
-	err = models.Orm.Table("scene_data").Where("id = ?", id).Update(&dbSceneData).Error
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	basePath := path.Base(filePath)
-	var tmpStr, oldFileName string
-	if strings.HasSuffix(fileName, ".json") {
-		tmpStr = fmt.Sprintf("_V%.0f.json", oldVer)
-		oldFileName = strings.ReplaceAll(basePath, ".json", tmpStr)
-	} else {
-		tmpStr = fmt.Sprintf("_V%.0f.yml", oldVer)
-		oldFileName = strings.ReplaceAll(basePath, ".yml", tmpStr)
-	}
-
-	dataFile.Version = oldVer
-	oldVerPath := fmt.Sprintf("%s/%s", OldFilePath, oldFileName)
-	var oldData []byte
-	if strings.HasSuffix(fileName, ".json") {
-		oldData, err = yaml.Marshal(dataFile)
-	} else {
-		oldData, err = yaml.Marshal(dataFile)
-	}
-
-	err = ioutil.WriteFile(oldVerPath, oldData, 0644)
-	if err != nil {
-		Logger.Debug("oldFilePath: %s", oldVerPath)
-		Logger.Error("%s", err)
-	}
 	return
 }
 
@@ -958,8 +936,15 @@ func InitDataFileByName(filePath string) (fileType int, err error) {
 		Logger.Error("%s", err)
 		return
 	}
+
 	fileType = sceneData.FileType
-	content = GetStrFromHtml(sceneData.Content)
+
+	if strings.Contains(sceneData.Content, "<pre><code>") {
+		content = strings.Replace(sceneData.Content, "<pre><code>", "", -1)
+		content = strings.Replace(content, "</code></pre>", "", -1)
+	} else {
+		content = sceneData.Content
+	}
 
 	var dataFile DataFile
 	var dataInfo []byte
@@ -976,6 +961,7 @@ func InitDataFileByName(filePath string) (fileType int, err error) {
 		Logger.Error("%s", err1)
 		return fileType, err1
 	}
+
 	err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
 	if err2 != nil {
 		Logger.Error("%s", err2)

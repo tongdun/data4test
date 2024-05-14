@@ -119,10 +119,18 @@ func GetStrFromHtml(rawStr string) (afterTxt string) {
 		Logger.Error("%s", err)
 		return
 	}
+
+	//handle := doc.Find("code")
+	//afterTxt = handle.Text()
+	//if len(afterTxt) == 0 {
+	//	Logger.Warning("未找到有效信息，请核对~")
+	//}
+
 	afterTxt = doc.Text()
 	if len(afterTxt) == 0 {
 		Logger.Warning("未找到有效信息，请核对~")
 	}
+
 	return
 }
 

@@ -282,7 +282,7 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 			return
 		}
 	} else {
-		Logger.Info("从Swagger路径获取接口文档信息: %v", envConfig.SwaggerPath)
+		Logger.Info("从Swagger路径获取接口文档信息: %s", envConfig.SwaggerPath)
 		for i := 1; i < 30; i++ {
 			resp, errTemp := http.Get(envConfig.SwaggerPath)
 			Logger.Info("第%d次获取Swagger接口信息", i)

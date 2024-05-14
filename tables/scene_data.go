@@ -14,7 +14,6 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
-	"github.com/PuerkitoBio/goquery"
 	template2 "html/template"
 	"strings"
 )
@@ -182,7 +181,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RepeatRunDataFile(id, ""); err == nil {
+				if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
 					status = "测试完成，请刷新列表查看测试结果"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -196,7 +195,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RepeatRunDataFile(id, ""); err == nil {
+			if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
 				status = "测试完成，请刷新列表查看测试结果"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -234,7 +233,9 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
 
 	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
-		FieldDefault("<pre><code>\nname: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n</code></pre>")
+		//FieldDefault("<pre><code>\nname: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n</code></pre>")
+		// 去年富文本的东西，兼容XML的内容可原样请求
+		FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
 
 	formList.AddField("执行次数", "run_time", db.Int, form.Number).
 		FieldDefault("1")
@@ -258,29 +259,8 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		content := values["content"][0]
 		fileName := values["file_name"][0]
-		var newTxt string
-		if strings.HasSuffix(fileName, ".yml") {
-			newTxt = strings.ReplaceAll(content, "<br>", "\n")
-		} else if strings.HasSuffix(fileName, ".sh") || strings.HasSuffix(fileName, ".py") || strings.HasSuffix(fileName, ".bat") || strings.HasSuffix(fileName, ".jmx") {
-			_ = biz.WriteContent2File(fileName, content)
-			return
-		} else {
-			newTxt = content
-		}
-
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(newTxt))
-		if err != nil {
-			biz.Logger.Error("%s", err)
-			return
-		}
-		handle := doc.Find("code")
-		afterTxt := handle.Text()
-		if len(afterTxt) == 0 {
-			afterTxt = newTxt
-		}
-
 		id := values["id"][0]
-		err = biz.BakOldVer(id, afterTxt, fileName)
+		err = biz.BakOldVer(id, content, fileName)
 		return
 	})
 
