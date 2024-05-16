@@ -15,10 +15,150 @@ import (
 	"time"
 )
 
-func RepeatRunPlaybook(id, mode, product, source string) (err error) {
+//func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, exeNum int, mode, source string) (err error) {
+//	if productInfo.Threading == "yes" && playbookInfo.RunTime > 1 && productInfo.ThreadNumber > 1 {
+//		if playbookInfo.RunTime > productInfo.ThreadNumber {
+//			loopNum := playbookInfo.RunTime/productInfo.ThreadNumber + 1
+//			count := 1
+//			for i := 0; i < loopNum; i++ {
+//				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
+//				wg := sync.WaitGroup{}
+//				for j := 0; j < productInfo.ThreadNumber; j++ {
+//					if count > playbookInfo.RunTime {
+//						break
+//					}
+//					Logger.Info("并发模式-执行次数:%d", count)
+//					wg.Add(1)
+//					go func(playbookInfo DbScene, productInfo DbProduct) {
+//						playbook := playbookInfo.GetPlaybook()
+//						err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
+//						if err1 != nil {
+//							err = err1
+//							Logger.Error("%s", err)
+//							return
+//						}
+//						wg.Done()
+//					}(playbookInfo, productInfo)
+//					count++
+//				}
+//				wg.Wait()
+//			}
+//		} else {
+//			wg := sync.WaitGroup{}
+//			for i := 0; i < playbookInfo.RunTime; i++ {
+//				Logger.Info("并发模式-执行次数:%d", i+1)
+//				wg.Add(1)
+//				go func(playbookInfo DbScene) {
+//					playbook := playbookInfo.GetPlaybook()
+//					err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
+//					if err1 != nil {
+//						err = err1
+//						Logger.Error("%s", err)
+//						return
+//					}
+//					wg.Done()
+//				}(playbookInfo)
+//			}
+//			wg.Wait()
+//		}
+//	} else {
+//		for i := 0; i < playbookInfo.RunTime; i++ {
+//			if playbookInfo.RunTime > 1 {
+//				Logger.Info("串行模式-执行次数:%d", i+1)
+//			}
+//			playbook := playbookInfo.GetPlaybook()
+//			//err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
+//			err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
+//			if err1 != nil {
+//				if err != nil {
+//					err = fmt.Errorf("%v; %v", err, err1)
+//				} else {
+//					err = err1
+//				}
+//				break // 循环进行多次测试，如果遇错即退出
+//			}
+//		}
+//	}
+//
+//	return
+//}
+//
+
+func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId string) (result, lastFile string, err error) {
+	if productInfo.Threading == "yes" && runNum > 1 && productInfo.ThreadNumber > 1 {
+		if runNum > productInfo.ThreadNumber {
+			loopNum := runNum/productInfo.ThreadNumber + 1
+			count := 1
+			for i := 0; i < loopNum; i++ {
+				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
+				wg := sync.WaitGroup{}
+				for j := 0; j < productInfo.ThreadNumber; j++ {
+					if count > runNum {
+						break
+					}
+					Logger.Info("并发模式-执行次数:%d", count)
+					wg.Add(1)
+					go func(playbook Playbook, dbId string) {
+						subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+						result = subResult
+						lastFile = subLastFile
+						if err1 != nil {
+							err = err1
+							Logger.Error("%s", err)
+							return
+						}
+						wg.Done()
+					}(playbook, dbId)
+					count++
+				}
+				wg.Wait()
+			}
+		} else {
+			wg := sync.WaitGroup{}
+			for i := 0; i < runNum; i++ {
+				Logger.Info("并发模式-执行次数:%d", i+1)
+				wg.Add(1)
+				go func(playbook Playbook, dbId string) {
+					subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+					result = subResult
+					lastFile = subLastFile
+					if err1 != nil {
+						err = err1
+						Logger.Error("%s", err)
+						return
+					}
+					wg.Done()
+				}(playbook, dbId)
+			}
+			wg.Wait()
+		}
+	} else {
+		for i := 0; i < runNum; i++ {
+			if runNum > 1 {
+				Logger.Info("串行模式-执行次数:%d", i+1)
+			}
+
+			subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+			result = subResult
+			lastFile = subLastFile
+			if err1 != nil {
+				if err != nil {
+					err = fmt.Errorf("%v; %v", err, err1)
+				} else {
+					err = err1
+				}
+				break // 循环进行多次测试，如果遇错即退出
+			}
+		}
+	}
+
+	return
+}
+
+func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	var productList []DbProduct
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
-
+	playbook := playbookInfo.GetPlaybook()
 	if err != nil {
 		return
 	}
@@ -30,67 +170,53 @@ func RepeatRunPlaybook(id, mode, product, source string) (err error) {
 	}
 
 	for _, productInfo := range productList {
-		if productInfo.Threading == "yes" && playbookInfo.RunTime > 1 && productInfo.ThreadNumber > 1 {
-			if playbookInfo.RunTime > productInfo.ThreadNumber {
-				loopNum := playbookInfo.RunTime/productInfo.ThreadNumber + 1
-				count := 1
-				for i := 0; i < loopNum; i++ {
-					Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
-					wg := sync.WaitGroup{}
-					for j := 0; j < productInfo.ThreadNumber; j++ {
-						if count > playbookInfo.RunTime {
-							break
-						}
-						Logger.Info("并发模式-执行次数:%d", count)
-						wg.Add(1)
-						go func(playbookInfo DbScene, productInfo DbProduct) {
-							err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-							if err1 != nil {
-								err = err1
-								Logger.Error("%s", err)
-								return
-							}
-							wg.Done()
-						}(playbookInfo, productInfo)
-						count++
-					}
-					wg.Wait()
-				}
-			} else {
-				wg := sync.WaitGroup{}
-				for i := 0; i < playbookInfo.RunTime; i++ {
-					Logger.Info("并发模式-执行次数:%d", i+1)
-					wg.Add(1)
-					go func(playbookInfo DbScene) {
-						err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-						if err1 != nil {
-							err = err1
-							Logger.Error("%s", err)
-							return
-						}
-						wg.Done()
-					}(playbookInfo)
-				}
-				wg.Wait()
-			}
-		} else {
-			for i := 0; i < playbookInfo.RunTime; i++ {
-				if playbookInfo.RunTime > 1 {
-					Logger.Info("串行模式-执行次数:%d", i+1)
-				}
-
-				err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-				if err1 != nil {
-					if err != nil {
-						err = fmt.Errorf("%v; %v", err, err1)
-					} else {
-						err = err1
-					}
-					break // 循环进行多次测试，如果遇错即退出
-				}
-			}
+		_, _, err = RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id)
+		if err != nil {
+			Logger.Error("%s", err)
 		}
 	}
+	return
+}
+
+func RunPlaybookFromConsole(sceneModel SceneSaveModel) (runResp RunSceneRespModel, err error) {
+	var productInfo DbProduct
+	var playbook Playbook
+
+	productList, _ := GetProductInfo(sceneModel.Product)
+	productInfo = productList[0]
+
+	playbook.Product = sceneModel.Product
+	if len(sceneModel.Name) == 0 {
+		tmpStr := GetRandomStr(4, "")
+		playbook.Name = fmt.Sprintf("临时测试场景-%s", tmpStr)
+	} else {
+		playbook.Name = sceneModel.Name
+	}
+
+	playbook.SceneType = sceneModel.SceneType
+
+	for _, item := range sceneModel.DataList {
+		var dirName, filePath string
+		b, _ := IsStrEndWithTimeFormat(item.DataFile)
+		if b {
+			dirName = GetHistoryDataDirName(item.DataFile)
+			filePath = fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, item.DataFile)
+		} else {
+			filePath = fmt.Sprintf("%s/%s", DataBasePath, item.DataFile)
+		}
+
+		playbook.Apis = append(playbook.Apis, filePath)
+	}
+
+	runResp.TestResult = "pass"
+
+	runResp.TestResult, runResp.LastFile, err = RepeatRunPlaybook(productInfo, playbook, sceneModel.RunNum, "start", "consolePlaybook", "")
+	if runResp.TestResult != "pass" {
+		if err != nil {
+			runResp.FailReason = fmt.Sprintf("%s", err)
+		}
+	}
+
 	return
 }
 
@@ -125,13 +251,13 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 			return
 		}
 		var err2 error
-		if mode == "json" {
+		switch mode {
+		case "json":
 			err2 = json.Unmarshal([]byte(content), &sceneFile)
-		} else if mode == "yaml" {
-			err2 = yaml.Unmarshal([]byte(content), &sceneFile)
-		} else {
+		case "yaml", "yml":
 			err2 = yaml.Unmarshal([]byte(content), &sceneFile)
 		}
+
 		if err2 != nil {
 			err = err2
 			Logger.Error("Err: %s, filePath: %s", err, filePath)
@@ -230,9 +356,9 @@ func (p Playbook) RunPlaybookContent(envType int, source string) (result, histor
 	return
 }
 
-func (p Playbook) GetHistoryApiList(dbScene DbScene) (apiStr string) {
+func (p Playbook) GetHistoryApiList() (apiStr string) {
 	var lastFileName string
-	baseName := path.Base(dbScene.LastFile)
+	baseName := path.Base(p.LastFile)
 	b, _ := IsStrEndWithTimeFormat(baseName)
 	if b {
 		dirName := GetHistoryDataDirName(baseName)
@@ -242,7 +368,8 @@ func (p Playbook) GetHistoryApiList(dbScene DbScene) (apiStr string) {
 		lastFileName = baseName
 	}
 
-	rawApiList := GetListFromHtml(dbScene.ApiList)
+	//rawApiList := GetListFromHtml(p.Apis)
+	rawApiList := p.Apis
 	for index, item := range p.HistoryApis {
 		// 如果执行过的数据中有空值，则跳过
 		if len(item) == 0 {
@@ -282,20 +409,20 @@ func (p Playbook) GetHistoryApiList(dbScene DbScene) (apiStr string) {
 }
 
 func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envType int, errIn error) (err error) {
-	var dbScene DbScene
 	var sceneRecode SceneRecord
 
-	s, _ := strconv.Atoi(id)
-	models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
-	if len(dbScene.Name) == 0 {
-		return
-	}
-
-	apiStr := p.GetHistoryApiList(dbScene)
+	apiStr := p.GetHistoryApiList()
 
 	sceneRecode.ApiList = apiStr
 
 	if source == "playbook" {
+		var dbScene DbScene
+		s, _ := strconv.Atoi(id)
+		models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
+		if len(dbScene.Name) == 0 {
+			return
+		}
+
 		curTime := time.Now()
 		dbScene.UpdatedAt = curTime.Format(baseFormat)
 		if len(result) == 0 {
@@ -330,7 +457,7 @@ func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envTy
 		//Logger.Debug("lastFile: %v", lastFile)
 	}
 
-	sceneRecode.Name = dbScene.Name
+	sceneRecode.Name = p.Name
 	if len(lastFile) > 0 {
 		b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
 		if b {
@@ -341,7 +468,7 @@ func (p Playbook) WritePlaybookResult(id, result, source, lastFile string, envTy
 		}
 	}
 
-	sceneRecode.SceneType = dbScene.SceneType
+	sceneRecode.SceneType = p.SceneType
 	sceneRecode.Result = result
 	if errIn != nil {
 		sceneRecode.FailReason = fmt.Sprintf("%v", errIn)
@@ -421,6 +548,7 @@ func WritePlaybookRecord(sceneRecode SceneRecord) (err error) {
 	if sceneRecode.SceneType == 0 {
 		sceneRecode.SceneType = 1
 	}
+
 	err = models.Orm.Table("scene_test_history").Create(sceneRecode).Error
 	if err != nil {
 		Logger.Error("%s", err)
@@ -737,10 +865,20 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 	sceneInfo.Name = name
 	sceneInfo.Product = dbScene.Product
 	sceneInfo.RunNum = dbScene.RunTime
-	if dbScene.SceneType == 2 {
-		sceneInfo.SceneType = "比较"
-	} else {
-		sceneInfo.SceneType = "默认"
+
+	switch dbScene.SceneType {
+	case 1:
+		sceneInfo.SceneType = "串行中断"
+	case 2:
+		sceneInfo.SceneType = "串行比较"
+	case 3:
+		sceneInfo.SceneType = "串行继续"
+	case 4:
+		sceneInfo.SceneType = "普通并发"
+	case 5:
+		sceneInfo.SceneType = "并发比较"
+	default:
+		sceneInfo.SceneType = "串行中断"
 	}
 
 	dataList := GetListFromHtml(dbScene.ApiList)
@@ -807,99 +945,6 @@ func SaveScene(sceneSave SceneSaveModel) (err error) {
 	return
 }
 
-func RunPlaybookDebugData(sceneModel SceneSaveModel) (runResp RunSceneRespModel, err error) {
-	var playbook Playbook
-	playbook.Product = sceneModel.Product
-
-	if len(sceneModel.Name) == 0 {
-		tmpStr := GetRandomStr(4, "")
-		playbook.Name = fmt.Sprintf("临时测试场景-%s", tmpStr)
-	} else {
-		playbook.Name = sceneModel.Name
-	}
-
-	var apisStr string
-	for _, item := range sceneModel.DataList {
-		var dirName, filePath string
-		b, _ := IsStrEndWithTimeFormat(item.DataFile)
-		if b {
-			dirName = GetHistoryDataDirName(item.DataFile)
-			filePath = fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, item.DataFile)
-		} else {
-			filePath = fmt.Sprintf("%s/%s", DataBasePath, item.DataFile)
-		}
-
-		playbook.Apis = append(playbook.Apis, filePath)
-		if len(apisStr) == 0 {
-			apisStr = item.DataFile
-		} else {
-			apisStr = fmt.Sprintf("%s %s", apisStr, item.DataFile)
-		}
-	}
-
-	envType, _ := GetEnvTypeByName(playbook.Product)
-
-	runResp.TestResult = "pass"
-	for k := range playbook.Apis {
-		playbook.Tag = k
-		result, historyApi, errTmp := playbook.RunPlaybookContent(envType, "console")
-		playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
-		if errTmp != nil || result != "pass" {
-			runResp.TestResult = result
-
-			if errTmp != nil {
-				err = errTmp
-				runResp.FailReason = fmt.Sprintf("%s", errTmp)
-			}
-
-			runResp.LastFile = historyApi
-			playbook.LastFile = historyApi
-			goto Record
-			return
-		}
-	}
-	if sceneModel.SceneType == 2 {
-		result, errTmp := CompareResult(playbook.HistoryApis, "")
-		runResp.TestResult = result
-		if errTmp != nil {
-			err = errTmp
-		}
-	}
-
-	if runResp.TestResult != "pass" {
-		if err != nil {
-			runResp.FailReason = fmt.Sprintf("%s", err)
-		}
-		runResp.LastFile = path.Base(playbook.LastFile)
-	}
-
-Record:
-	var sceneRecode SceneRecord
-	sceneRecode.Name = playbook.Name
-
-	var dbScene DbScene
-	var lastFileStr string
-
-	if len(playbook.LastFile) > 0 {
-		lastFileStr = GetLastFileLink(playbook.LastFile)
-		dbScene.LastFile = path.Base(playbook.LastFile)
-	}
-
-	dbScene.ApiList = apisStr
-	apiAfter := playbook.GetHistoryApiList(dbScene)
-	sceneRecode.ApiList = apiAfter
-	sceneRecode.LastFile = lastFileStr
-	sceneRecode.SceneType = sceneModel.SceneType
-	sceneRecode.Result = runResp.TestResult
-	sceneRecode.FailReason = runResp.FailReason
-	sceneRecode.Product = sceneModel.Product
-	sceneRecode.EnvType = envType
-
-	err = WritePlaybookRecord(sceneRecode)
-
-	return
-}
-
 func ReadSceneFromExcel(fileName string) (sceneList []SceneWithNoUpdateTime, err error) {
 	xlsFile, err := xlsx.OpenFile(fileName)
 	if err != nil {
@@ -922,8 +967,16 @@ func ReadSceneFromExcel(fileName string) (sceneList []SceneWithNoUpdateTime, err
 			}
 			scene.Name = values[0]
 			scene.ApiList = values[1]
-			if values[3] == "比较" {
+			if values[3] == "串行中断" {
+				scene.SceneType = 1
+			} else if values[3] == "串行比较" {
 				scene.SceneType = 2
+			} else if values[3] == "串行继续" {
+				scene.SceneType = 3
+			} else if values[3] == "普通并发" {
+				scene.SceneType = 4
+			} else if values[3] == "并发比较" {
+				scene.SceneType = 5
 			} else {
 				scene.SceneType = 1
 			}

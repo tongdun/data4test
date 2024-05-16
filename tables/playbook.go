@@ -179,7 +179,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RepeatRunPlaybook(id, "", "", "playbook"); err == nil {
+				if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook"); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -193,7 +193,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RepeatRunPlaybook(id, "", "", "playbook"); err == nil {
+			if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook"); err == nil {
 				status = "测试完成，请前往[结果详情]列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -219,7 +219,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 				if len(id) == 0 {
 					continue
 				}
-				if err := biz.RepeatRunPlaybook(id, "continue", "", "playbook"); err == nil {
+				if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook"); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -234,7 +234,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 
-			if err := biz.RepeatRunPlaybook(id, "continue", "", "playbook"); err == nil {
+			if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook"); err == nil {
 				status = "测试完成，请前往[结果详情]列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)

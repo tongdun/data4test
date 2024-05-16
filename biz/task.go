@@ -176,12 +176,13 @@ func OneTask(id string) (err error) {
 		}
 	} else if dbSchedule.TaskType == "scene" {
 		for _, sceneId := range sceneList {
-			playbookInfo, productList, err := GetPlRunInfo("", sceneId)
+			playbookInfo, productList, err := GetPlRunInfo("task", sceneId)
+			playbook := playbookInfo.GetPlaybook()
 			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
-				err1 = playbookInfo.RunPlaybook("", "task", productSceneInfo)
+				_, _, err1 = playbook.RunPlaybook(playbookInfo.Id, "start", "task", productSceneInfo)
 			} else {
-				err1 = playbookInfo.RunPlaybook("", "task", productTaskInfo)
+				_, _, err1 = playbook.RunPlaybook(playbookInfo.Id, "start", "task", productTaskInfo)
 			}
 
 			if err1 != nil {
@@ -343,7 +344,7 @@ func RunOnceTask(id string) (err error) {
 		sceneIds, _, _ := task.GetSceneIds()
 		for _, sceneId := range sceneIds {
 			var err1 error
-			err1 = RepeatRunPlaybook(sceneId, "", task.ProductList, "task")
+			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task")
 			if err1 != nil {
 				if err != nil {
 					err = fmt.Errorf("%v; %v", err, err1)

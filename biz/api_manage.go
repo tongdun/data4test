@@ -599,7 +599,7 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, request
 	fileName := fmt.Sprintf("%s-%s-%s.yml", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
 
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "console", nil)
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", nil)
 
 	return
 }

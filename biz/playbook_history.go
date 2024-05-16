@@ -142,7 +142,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 	}
 
 	var errTmp error
-	if playbookInfo.SceneType == 2 || playbookInfo.SceneType == 4 {
+	if playbookInfo.SceneType == 2 || playbookInfo.SceneType == 5 {
 		Logger.Debug("开始比较")
 		result, errTmp = CompareResult(playbook.HistoryApis, mode)
 		if errTmp != nil {

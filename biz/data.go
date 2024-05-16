@@ -930,6 +930,7 @@ func InitDataFileByName(filePath string) (fileType int, err error) {
 
 	var sceneData SceneData
 	var content string
+	var byteContent []byte
 	models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
 	if len(sceneData.FileName) == 0 {
 		err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
@@ -939,30 +940,35 @@ func InitDataFileByName(filePath string) (fileType int, err error) {
 
 	fileType = sceneData.FileType
 
-	if strings.Contains(sceneData.Content, "<pre><code>") {
-		content = strings.Replace(sceneData.Content, "<pre><code>", "", -1)
-		content = strings.Replace(content, "</code></pre>", "", -1)
-	} else {
-		content = sceneData.Content
+	switch fileType {
+	case 1:
+		if strings.Contains(sceneData.Content, "<pre><code>") {
+			content = strings.Replace(sceneData.Content, "<pre><code>", "", -1)
+			content = strings.Replace(content, "</code></pre>", "", -1)
+		} else {
+			content = sceneData.Content
+		}
+
+		var dataFile DataFile
+		var err1 error
+		if strings.HasSuffix(fileName, ".json") {
+			err = json.Unmarshal([]byte(content), &dataFile)
+			byteContent, err1 = json.MarshalIndent(dataFile, "", "    ")
+		} else {
+			err = yaml.Unmarshal([]byte(content), &dataFile)
+			byteContent, err1 = yaml.Marshal(dataFile)
+		}
+
+		if err1 != nil {
+			Logger.Error("%s", err1)
+			return fileType, err1
+		}
+
+	default:
+		byteContent = []byte(sceneData.Content)
 	}
 
-	var dataFile DataFile
-	var dataInfo []byte
-	var err1 error
-	if strings.HasSuffix(fileName, ".json") {
-		err = json.Unmarshal([]byte(content), &dataFile)
-		dataInfo, err1 = json.MarshalIndent(dataFile, "", "    ")
-	} else {
-		err = yaml.Unmarshal([]byte(content), &dataFile)
-		dataInfo, err1 = yaml.Marshal(dataFile)
-	}
-
-	if err1 != nil {
-		Logger.Error("%s", err1)
-		return fileType, err1
-	}
-
-	err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
+	err2 := ioutil.WriteFile(filePath, byteContent, 0644)
 	if err2 != nil {
 		Logger.Error("%s", err2)
 		return fileType, err2
@@ -1015,8 +1021,7 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 	return
 }
 
-func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err error) {
-	playbook := ds.GetPlaybook()
+func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct DbProduct) (result, lastFile string, err error) {
 	if len(dbProduct.Name) > 0 {
 		playbook.Product = dbProduct.Name
 	}
@@ -1042,7 +1047,6 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 
 	envType, _ := GetEnvTypeByName(playbook.Product)
 	isFail := 0
-	var lastFile, result string
 
 	switch playbook.SceneType {
 	case 1, 2:
@@ -1059,7 +1063,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(ds.Id, subResult, source, historyApi, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(playbookId, subResult, source, historyApi, envType, errTmp)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -1092,7 +1096,7 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(ds.Id, tmpResult, source, "", envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, "", envType, err) // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1126,13 +1130,13 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 				if errIn != nil {
 					Logger.Error("%v", errIn)
 				}
-			}(playbook, ds.Id, tag, k, envType, err)
+			}(playbook, playbookId, tag, k, envType, err)
 		}
 
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(ds.Id, tmpResult, source, "", envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, "", envType, err) // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1153,12 +1157,12 @@ func (ds DbScene) RunPlaybook(mode, source string, dbProduct DbProduct) (err err
 		result = "fail"
 	}
 
-	if ds.SceneType == 2 || ds.SceneType == 4 {
-		Logger.Debug("开始比较")
+	if playbook.SceneType == 2 || playbook.SceneType == 5 {
+		//Logger.Debug("开始比较")
 		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
 
-	err = playbook.WritePlaybookResult(ds.Id, result, source, lastFile, envType, err)
+	err = playbook.WritePlaybookResult(playbookId, result, source, lastFile, envType, err)
 	if err != nil {
 		Logger.Error("%v", err)
 		return

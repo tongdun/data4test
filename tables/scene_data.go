@@ -234,7 +234,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
 		//FieldDefault("<pre><code>\nname: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n</code></pre>")
-		// 去年富文本的东西，兼容XML的内容可原样请求
+		// 去除富文本的东西，兼容XML的内容可原样请求
 		FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
 
 	formList.AddField("执行次数", "run_time", db.Int, form.Number).

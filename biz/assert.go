@@ -573,7 +573,8 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 
 	if !b {
 		var expectPrompt string
-		if assert.Source == "raw" || assert.Source == "ResponseBody" {
+		switch assert.Source {
+		case "raw", "ResponseBody", "Response":
 			if len(rawTargetStr) > 0 {
 				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, rawTargetStr)
 			} else {
@@ -581,7 +582,7 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 			}
 			actualPrompt := fmt.Sprintf("实际: ResponseBody %s %s", assert.Type, curStr)
 			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
-		} else {
+		default:
 			if len(rawTargetStr) > 0 {
 				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
 			} else {
@@ -611,14 +612,14 @@ func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string
 
 	fileType := dataAnchor[1]
 	switch fileType {
-	case "CSV":
+	case "CSV", "csv", "Csv":
 		targetList, err = GetTargetValueFromStructFile("csv", assert.Source, filePath)
-	case "EXCEL":
+	case "EXCEL", "excel", "Excel":
 		targetList, err = GetTargetValueFromStructFile("excel", assert.Source, filePath)
 	//case "TXT":  // 待实现
-	case "JSON":
+	case "JSON", "json", "Json":
 		targetList, err = assert.GetTargetValueFromNoStructFile("json", filePath)
-	case "YML":
+	case "YML", "YAML", "yml", "yaml", "Yaml", "Yml":
 		targetList, err = assert.GetTargetValueFromNoStructFile("yml", filePath)
 	//case "XML":    // 待实现
 	default:

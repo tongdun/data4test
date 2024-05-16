@@ -97,17 +97,35 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 		Logger.Error("Error: %s, filePath: %s", err, src)
 		return
 	}
-	if strings.HasSuffix(src, ".yml") || strings.HasSuffix(src, ".yaml") {
-		err = yaml.Unmarshal([]byte(content), &df)
-	} else if strings.HasSuffix(src, ".json") {
-		err = json.Unmarshal([]byte(content), &df)
-	} else {
-		err = fmt.Errorf("不支持当前文件: %s, 请核对", src)
-		Logger.Error("%s", err)
-	}
+
+	tmps := strings.Split(src, ".")
+	fileType := tmps[len(tmps)-1]
 
 	var sceneDataRecord SceneDataRecord
 	var apiStr string
+
+	switch fileType {
+	case ".yml", "yaml":
+		err = yaml.Unmarshal([]byte(content), &df)
+	case "json":
+		err = json.Unmarshal([]byte(content), &df)
+	}
+
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+
+	switch fileType {
+	case ".yml", "yaml", "json":
+		sceneDataRecord.ApiId = df.ApiId
+		sceneDataRecord.App = df.Api.App
+	default:
+		var dbSD DbSceneData
+		fileName := path.Base(src)
+		models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&dbSD)
+		sceneDataRecord.ApiId = dbSD.ApiId
+		sceneDataRecord.App = dbSD.App
+	}
 
 	apiStr = GetLastFileLink(dst)
 
@@ -119,8 +137,6 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 		sceneDataRecord.Name = df.Name
 	}
 
-	sceneDataRecord.ApiId = df.ApiId
-	sceneDataRecord.App = df.Api.App
 	sceneDataRecord.Result = result
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
@@ -249,7 +265,86 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 	return
 }
 
-func RunNonStandard(fileType int, filePath string) (result, dst string, err error) {
+func RunNonStandard(app, filePath, product, source string, fileType int, depOutVars map[string][]interface{}) (result, dst string, err error) {
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	header := make(map[string]interface{})
+
+	if len(product) > 0 {
+		sceneEnvConfig, errTmp := GetEnvConfig(product, source)
+		if errTmp != nil {
+			Logger.Warning("%s", errTmp)
+		}
+
+		depOutVars["host"] = append(depOutVars["host"], sceneEnvConfig.Ip)
+		depOutVars["protocol"] = append(depOutVars["protocol"], sceneEnvConfig.Protocol)
+
+		if len(sceneEnvConfig.Auth) > 2 {
+			err = json.Unmarshal([]byte(sceneEnvConfig.Auth), &header)
+			if err != nil {
+				Logger.Error("%s", err)
+				return
+			}
+
+			for k, v := range header {
+				depOutVars[k] = append(depOutVars[k], v)
+			}
+		}
+
+		dbProductList, err := GetProductInfo(product)
+		dbProduct := dbProductList[0]
+		if err != nil {
+			Logger.Error("%v", err)
+		}
+
+		privateParameter := dbProduct.GetPrivateParameter()
+		for k, v := range privateParameter {
+			if _, ok := depOutVars[k]; !ok {
+				depOutVars[k] = append(depOutVars[k], v)
+			}
+		}
+	} else if len(app) > 0 {
+		envConfig, err := GetEnvConfig(app, source)
+		if err != nil {
+			Logger.Warning("%s", err)
+		}
+
+		depOutVars["host"] = append(depOutVars["host"], envConfig.Ip)
+		depOutVars["protocol"] = append(depOutVars["protocol"], envConfig.Protocol)
+
+		if len(envConfig.Auth) > 2 {
+			err = json.Unmarshal([]byte(envConfig.Auth), &header)
+			if err != nil {
+				Logger.Error("%s", err)
+				return "fail", dst, err
+			}
+
+			for k, v := range header {
+				depOutVars[k] = append(depOutVars[k], v)
+			}
+		}
+	}
+
+	lang := GetRequestLangage(header)
+
+	contentStr, notDefVars, falseCount := GetIndexStr(lang, string(content), "", "", depOutVars)
+	if falseCount > 0 {
+		err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		Logger.Error("%s", err)
+		return
+	}
+
+	// 全部更新脚本的内容
+	err2 := ioutil.WriteFile(filePath, []byte(contentStr), 0644)
+	if err2 != nil {
+		Logger.Error("%s", err2)
+		return "fail", dst, err2
+	}
+
 	var runEngine string
 	if fileType == 2 || fileType == 3 {
 		fHandle, errTmp := os.Open(filePath)
@@ -265,6 +360,7 @@ func RunNonStandard(fileType int, filePath string) (result, dst string, err erro
 			firstLine = scanner.Text()
 			break
 		}
+
 		if scanner.Err() != nil {
 			errTmp = fmt.Errorf("读取文件时发生错误")
 			Logger.Error("%s", errTmp)
@@ -285,32 +381,47 @@ func RunNonStandard(fileType int, filePath string) (result, dst string, err erro
 	switch fileType {
 	case 2, 3:
 		strCommand := fmt.Sprintf("%s %s", runEngine, filePath)
-		outputStr, errTmp0 := exec.Command(runEngine, filePath).Output()
+		outputStr, errTmp0 := exec.Command(runEngine, filePath).CombinedOutput()
+
 		if errTmp0 != nil {
+			Logger.Error("%s", outputStr)
 			Logger.Error("%s", errTmp0)
 			if err != nil {
-				err = fmt.Errorf("%v,%v", err, errTmp0)
+				err = fmt.Errorf("%s;%s%s", err, outputStr, errTmp0)
 			} else {
-				err = errTmp0
+				err = fmt.Errorf("%s%s", outputStr, errTmp0)
 			}
 		}
 
 		dstTmp, errTmp1 := GetResultFilePath(filePath)
 		if errTmp1 != nil {
 			Logger.Error("%s", errTmp1)
-			err = fmt.Errorf("%s; %s", err, errTmp1)
+			if err != nil {
+				err = fmt.Errorf("%s; %s", err, errTmp1)
+			} else {
+				err = errTmp1
+			}
+
 		}
+
 		dst = dstTmp
 		errTmp2 := ioutil.WriteFile(dst, outputStr, 0644)
 		if errTmp2 != nil {
 			Logger.Error("%s", errTmp2)
-			err = fmt.Errorf("%s; %s", err, errTmp2)
+			if err != nil {
+				err = fmt.Errorf("%s; %s", err, errTmp2)
+			} else {
+				err = errTmp2
+			}
+
 		}
 
 		if err != nil {
 			Logger.Info("cmd: %s", strCommand)
-			Logger.Error("%s", err)
+			result = "fail"
 			return
+		} else {
+			result = "pass"
 		}
 	case 4:
 		runEngine = "dos"
@@ -486,9 +597,9 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		rHeader = df.Single.RespHeader
 	}
 
-	_ = df.CreateDataOrderByKey(lang, filePath, depOutVars) // 执行动作：create_xxx
-	_ = df.RecordDataOrderByKey(bodys)                      // 执行动作：record_xxx
-	_ = df.ModifyFileWithData(bodys)                        // 执行动作：modify_file
+	go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
+	_ = df.RecordDataOrderByKey(bodys)                     // 执行动作：record_xxx
+	_ = df.ModifyFileWithData(bodys)                       // 执行动作：modify_file
 
 	if err != nil {
 		Logger.Error("%s", err)
@@ -696,7 +807,7 @@ func RunDataFile(app, filePath, product, source string, depOutVars map[string][]
 	case 1:
 		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	case 2, 3, 4, 5, 99:
-		result, dst, err = RunNonStandard(fileType, filePath)
+		result, dst, err = RunNonStandard(app, filePath, product, source, fileType, depOutVars)
 	default:
 		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	}
@@ -796,7 +907,7 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 			var err1 error
 			switch dataInfo.FileType {
 			case 2, 3, 4, 5, 99:
-				result, dst, err1 = RunNonStandard(dataInfo.FileType, filePath)
+				result, dst, err1 = RunNonStandard(app, filePath, product, source, dataInfo.FileType, nil)
 			default:
 				result, dst, err1 = RunStandard(app, filePath, product, source, nil)
 			}
@@ -849,7 +960,7 @@ func RunSceneDataOnce(id, product, source string) (err error) {
 
 	result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
 	if err1 != nil {
-		Logger.Error("%s", err1)
+		Logger.Error("\n%s", err1)
 		err = err1
 	}
 	err = WriteSceneDataResult(id, result, dst, product, envType, err1)

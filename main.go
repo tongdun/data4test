@@ -528,9 +528,19 @@ func startServer() {
 		} else {
 			sceneSave.RunNum = runNum
 		}
-		if typeTag == "比较" {
+
+		switch typeTag {
+		case "串行中断":
+			sceneSave.SceneType = 1
+		case "串行比较":
 			sceneSave.SceneType = 2
-		} else {
+		case "串行继续":
+			sceneSave.SceneType = 3
+		case "普通并发":
+			sceneSave.SceneType = 4
+		case "并发比较":
+			sceneSave.SceneType = 5
+		default:
 			sceneSave.SceneType = 1
 		}
 
@@ -596,9 +606,11 @@ func startServer() {
 		sceneSave.Product = c.PostForm("product")[1 : len(c.PostForm("product"))-1]
 		sceneSave.Name = c.PostForm("name")[1 : len(c.PostForm("name"))-1]
 		typeTag := c.PostForm("type")[1 : len(c.PostForm("type"))-1]
-		runNumTag := c.PostForm("runNum")
+		runNumTag := c.PostForm("runNum")[1 : len(c.PostForm("runNum"))-1]
 		runNum, err := strconv.Atoi(runNumTag)
+
 		if err != nil {
+			biz.Logger.Error("%s", err)
 			sceneSave.RunNum = 1
 		} else {
 			sceneSave.RunNum = runNum
@@ -615,11 +627,13 @@ func startServer() {
 			sceneSave.SceneType = 4
 		case "并发比较":
 			sceneSave.SceneType = 5
+		default:
+			sceneSave.SceneType = 1
 		}
 
 		json.Unmarshal([]byte(c.PostForm("dataList")), &sceneSave.DataList)
 
-		reqDataResps, err := biz.RunPlaybookDebugData(sceneSave)
+		reqDataResps, err := biz.RunPlaybookFromConsole(sceneSave)
 		data := make(map[string]interface{})
 		if err != nil {
 			data["code"] = 400
