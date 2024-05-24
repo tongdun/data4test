@@ -1,7 +1,6 @@
 package biz
 
 import (
-	"bufio"
 	"data4perf/models"
 	"encoding/json"
 	"fmt"
@@ -93,6 +92,7 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 func WriteDataResultByFile(src, result, dst, product string, envType int, errIn error) (err error) {
 	var df DataFile
 	content, err := ioutil.ReadFile(src)
+
 	if err != nil {
 		Logger.Error("Error: %s, filePath: %s", err, src)
 		return
@@ -105,10 +105,10 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 	var apiStr string
 
 	switch fileType {
-	case ".yml", "yaml":
-		err = yaml.Unmarshal([]byte(content), &df)
+	case "yml", "yaml":
+		err = yaml.Unmarshal(content, &df)
 	case "json":
-		err = json.Unmarshal([]byte(content), &df)
+		err = json.Unmarshal(content, &df)
 	}
 
 	if err != nil {
@@ -116,7 +116,7 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 	}
 
 	switch fileType {
-	case ".yml", "yaml", "json":
+	case "yml", "yaml", "json":
 		sceneDataRecord.ApiId = df.ApiId
 		sceneDataRecord.App = df.Api.App
 	default:
@@ -265,11 +265,13 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 	return
 }
 
-func RunNonStandard(app, filePath, product, source string, fileType int, depOutVars map[string][]interface{}) (result, dst string, err error) {
-	content, err := ioutil.ReadFile(filePath)
+func RunNonStandard(app, rawFilePath, logFilePath, product, source string, fileType int, depOutVars map[string][]interface{}) (result, dst string, err error) {
+	content, err := ioutil.ReadFile(rawFilePath)
+
 	if err != nil {
+		Logger.Debug("rawFilePath: %s", rawFilePath)
 		Logger.Error("%s", err)
-		return
+		return "fail", rawFilePath, err
 	}
 
 	header := make(map[string]interface{})
@@ -280,6 +282,10 @@ func RunNonStandard(app, filePath, product, source string, fileType int, depOutV
 			Logger.Warning("%s", errTmp)
 		}
 
+		if depOutVars == nil {
+			depOutVars = make(map[string][]interface{})
+		}
+
 		depOutVars["host"] = append(depOutVars["host"], sceneEnvConfig.Ip)
 		depOutVars["protocol"] = append(depOutVars["protocol"], sceneEnvConfig.Protocol)
 
@@ -287,7 +293,7 @@ func RunNonStandard(app, filePath, product, source string, fileType int, depOutV
 			err = json.Unmarshal([]byte(sceneEnvConfig.Auth), &header)
 			if err != nil {
 				Logger.Error("%s", err)
-				return
+				return "fail", rawFilePath, err
 			}
 
 			for k, v := range header {
@@ -320,7 +326,7 @@ func RunNonStandard(app, filePath, product, source string, fileType int, depOutV
 			err = json.Unmarshal([]byte(envConfig.Auth), &header)
 			if err != nil {
 				Logger.Error("%s", err)
-				return "fail", dst, err
+				return "fail", rawFilePath, err
 			}
 
 			for k, v := range header {
@@ -335,65 +341,50 @@ func RunNonStandard(app, filePath, product, source string, fileType int, depOutV
 	if falseCount > 0 {
 		err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
 		Logger.Error("%s", err)
-		return
+		return "fail", rawFilePath, err
 	}
 
 	// 全部更新脚本的内容
-	err2 := ioutil.WriteFile(filePath, []byte(contentStr), 0644)
+	err2 := ioutil.WriteFile(rawFilePath, []byte(contentStr), 0644)
 	if err2 != nil {
 		Logger.Error("%s", err2)
-		return "fail", dst, err2
+		return "fail", rawFilePath, err2
 	}
 
 	var runEngine string
-	if fileType == 2 || fileType == 3 {
-		fHandle, errTmp := os.Open(filePath)
-		if errTmp != nil {
-			Logger.Error("%s", errTmp)
-			err = errTmp
-			return
-		}
-		defer fHandle.Close()
-		scanner := bufio.NewScanner(fHandle)
-		var firstLine string
-		for scanner.Scan() {
-			firstLine = scanner.Text()
-			break
-		}
-
-		if scanner.Err() != nil {
-			errTmp = fmt.Errorf("读取文件时发生错误")
-			Logger.Error("%s", errTmp)
-			err = errTmp
-			return
-		}
-
-		if strings.Contains(firstLine, "#!") {
-			runEngine = strings.Trim(firstLine, "#!")
-		} else {
-			errTmp = fmt.Errorf("首行未找到执行引擎，请先定义执行引擎， e.g.: #!/bin/bash")
-			Logger.Error("%s", errTmp)
-			err = errTmp
-			return
+	suffix := GetStrSuffix(rawFilePath)
+	runEngine, err = GetValueFromMapDef("scriptRunEngine", suffix)
+	if err != nil {
+		runEngine, err = GetScriptRunEngin(rawFilePath)
+		if err != nil {
+			return "fail", rawFilePath, err
 		}
 	}
 
-	switch fileType {
-	case 2, 3:
-		strCommand := fmt.Sprintf("%s %s", runEngine, filePath)
-		outputStr, errTmp0 := exec.Command(runEngine, filePath).CombinedOutput()
-
-		if errTmp0 != nil {
-			Logger.Error("%s", outputStr)
-			Logger.Error("%s", errTmp0)
-			if err != nil {
-				err = fmt.Errorf("%s;%s%s", err, outputStr, errTmp0)
-			} else {
-				err = fmt.Errorf("%s%s", outputStr, errTmp0)
-			}
+	var outputStr, resultStr, newFilePath string
+	strCommand := fmt.Sprintf("%s %s", runEngine, rawFilePath)
+	outputStrTmp, errTmp0 := exec.Command(runEngine, rawFilePath).CombinedOutput()
+	outputStr = string(outputStrTmp)
+	if errTmp0 != nil {
+		Logger.Info("cmd: %s", strCommand)
+		Logger.Debug("output: \n%s", outputStr)
+		Logger.Error("err: %s", errTmp0)
+		if err != nil {
+			err = fmt.Errorf("%s;%s%s", err, outputStr, errTmp0)
+		} else {
+			err = fmt.Errorf("%s%s", outputStr, errTmp0)
 		}
+	}
 
-		dstTmp, errTmp1 := GetResultFilePath(filePath)
+	switch source {
+	case "historyContinue":
+		if len(logFilePath) > 0 {
+			dst = logFilePath
+		}
+	}
+
+	if len(dst) == 0 {
+		dstTmp, errTmp1 := GetResultFilePath(rawFilePath)
 		if errTmp1 != nil {
 			Logger.Error("%s", errTmp1)
 			if err != nil {
@@ -401,37 +392,53 @@ func RunNonStandard(app, filePath, product, source string, fileType int, depOutV
 			} else {
 				err = errTmp1
 			}
-
 		}
-
 		dst = dstTmp
-		errTmp2 := ioutil.WriteFile(dst, outputStr, 0644)
-		if errTmp2 != nil {
-			Logger.Error("%s", errTmp2)
-			if err != nil {
-				err = fmt.Errorf("%s; %s", err, errTmp2)
-			} else {
-				err = errTmp2
-			}
+	}
 
-		}
+	var errTmp2 error
+	if err != nil {
+		resultStrTmp := fmt.Sprintf("cmd: %s\nerr: %s", strCommand, err)
+		resultStr = resultStrTmp
+		errTmp2 = ioutil.WriteFile(dst, []byte(resultStr), 0644)
+	} else {
+		errTmp2 = ioutil.WriteFile(dst, []byte(outputStr), 0644)
+	}
 
+	if errTmp2 != nil {
+		Logger.Debug("dst: %s", dst)
+		Logger.Error("%s", errTmp2)
 		if err != nil {
-			Logger.Info("cmd: %s", strCommand)
-			result = "fail"
-			return
+			err = fmt.Errorf("%s; %s", err, errTmp2)
 		} else {
-			result = "pass"
+			err = errTmp2
 		}
-	case 4:
-		runEngine = "dos"
-		err = fmt.Errorf(".bat脚本暂未适配，敬请期待")
-	case 5:
-		runEngine = "jmeter"
-		err = fmt.Errorf(".jmx脚本暂未适配，敬请期待")
-	case 99:
-		runEngine = "other"
-		err = fmt.Errorf("other脚本暂未适配，敬请期待")
+	}
+
+	if err != nil {
+		result = "fail"
+	} else {
+		result = "pass"
+	}
+
+	if source == "data" || source == "playbook" {
+		prefix := GetHistoryDataDirName(path.Base(dst))
+		suffix := GetStrSuffix(path.Base(dst))
+		newFilePath = fmt.Sprintf("%s/%s%s", DataBasePath, prefix, suffix)
+
+		var errTmp error
+		if err != nil {
+			errTmp = ioutil.WriteFile(newFilePath, []byte(resultStr), 0644) // 执行失败才记录log
+		}
+
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%v,%v", err, errTmp)
+			} else {
+				err = errTmp
+			}
+		}
 	}
 
 	return
@@ -781,22 +788,29 @@ func RunStandard(app, filePath, product, source string, depOutVars map[string][]
 
 	var df DataFile
 	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal([]byte(content), &df)
+		err = json.Unmarshal(content, &df)
 	} else {
-		err = yaml.Unmarshal([]byte(content), &df)
+		err = yaml.Unmarshal(content, &df)
 	}
 	if err != nil {
+		Logger.Debug("filePath: %s", filePath)
+		Logger.Debug("content:\n%s", content)
 		Logger.Error("%s", err)
 		return
 	}
 
-	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, "mode", source, depOutVars)
+	var mode string
+	if source == "historyAgain" {
+		mode = "again"
+	}
+
+	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, mode, source, depOutVars)
 
 	return
 }
 
 func RunDataFile(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
-	fileType, err := InitDataFileByName(filePath)
+	rawFilePath, fileType, err := InitDataFileByName(filePath)
 	if err != nil {
 		Logger.Debug("filePath: %s", filePath)
 		Logger.Error("%s", err)
@@ -807,7 +821,11 @@ func RunDataFile(app, filePath, product, source string, depOutVars map[string][]
 	case 1:
 		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	case 2, 3, 4, 5, 99:
-		result, dst, err = RunNonStandard(app, filePath, product, source, fileType, depOutVars)
+		var logFilePath string
+		if strings.HasSuffix(filePath, ".log") {
+			logFilePath = filePath
+		}
+		result, dst, err = RunNonStandard(app, rawFilePath, logFilePath, product, source, fileType, depOutVars)
 	default:
 		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
 	}
@@ -907,7 +925,7 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 			var err1 error
 			switch dataInfo.FileType {
 			case 2, 3, 4, 5, 99:
-				result, dst, err1 = RunNonStandard(app, filePath, product, source, dataInfo.FileType, nil)
+				result, dst, err1 = RunNonStandard(app, filePath, "", product, source, dataInfo.FileType, nil)
 			default:
 				result, dst, err1 = RunStandard(app, filePath, product, source, nil)
 			}
@@ -1655,6 +1673,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 	}
 
 	errTmp = ioutil.WriteFile(dst, dataWithHeaher, 0644)
+
 	if errTmp != nil {
 		Logger.Error("%s", errTmp)
 		if err != nil {

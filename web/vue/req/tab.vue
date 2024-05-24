@@ -438,7 +438,7 @@
                     <Select v-model="sceneSave.type" :placeholder="$t('scene.typeTips')" clearable filterable style="width:10%;">
                       <Option v-for="item in sceneTypeOptions" :key="item" :value="item">{{ item }}</Option>
                     </Select>
-                    <Input v-model="sceneSave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" clearable  style="width:10%;" type='number'></Input>
+                    <Input v-model="sceneSave.runNum" :disabled="isSending" :placeholder="$t('scene.runNumTips')" style="width:10%;" type='number'></Input>
                     <Select v-model="sceneSave.product" :placeholder="$t('api.envTips')" clearable  filterable style="width:20%;" @on-change="getSceneEnv">
                       <Option v-for="item in depDataTableData" :key="item" :value="item">{{ item }}</Option>
                     </Select>
@@ -3041,7 +3041,7 @@ export default class Tab extends Vue {
     if (this.apiRunSave.bodyMode == 'raw') {
       data.append('bodyMode', JSON.stringify(this.rawRunContentType))
     } else {
-      data.append('bodyMode', JSON.stringify(this.bodyMode))
+      data.append('bodyMode', JSON.stringify(this.apiRunSave.bodyMode))
     }
 
     this.start = moment().valueOf()

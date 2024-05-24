@@ -7,8 +7,18 @@ import (
 
 func RunHistoryPlaybook(id, mode string) (err error) {
 	playbook, _ := GetHistoryPlaybook(id)
-	playbookInfo, productList, err := GetPlRunInfo("history", id)
+
+	switch playbook.SceneType {
+	case 3, 4, 5:
+		if mode == "continue" {
+			err = fmt.Errorf("当前模式不支持继续运行, 支持继续运行模式: 串行继续/串行比较")
+			return
+		}
+	}
+
+	productList, err := GetProductInfo(playbook.Product)
 	if err != nil {
+		Logger.Error("%s", err)
 		return
 	}
 
@@ -16,43 +26,49 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 
 	var runApis []string
 	var tag int
-	if len(playbook.LastFile) != 0 {
-		index := GetSliceIndex(playbook.Apis, playbook.LastFile)
-		if index != -1 {
-			runApis = playbook.Apis[index:]
-			tag = index
-		} else {
-			runApis = playbook.Apis
-		}
-	}
+	var source string
 
-	// 数据置为最初状态
-	if mode != "continue" {
+	switch mode {
+	case "continue":
+		if len(playbook.LastFile) != 0 {
+			index := GetSliceIndex(playbook.Apis, playbook.LastFile)
+			if index != -1 {
+				runApis = playbook.Apis[index:]
+				tag = index
+			} else {
+				runApis = playbook.Apis
+			}
+		}
+		source = "historyContinue"
+	default:
+		// 数据置为最初状态
 		runApis = playbook.Apis
 		tag = 0
+		source = "historyAgain"
 	}
 
 	envType, _ := GetEnvTypeByName(playbook.Product)
 	isFail := 0
-	var lastFile string
 	var result string
 
 	switch playbook.SceneType {
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, "history")
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
 			if errTmp != nil {
-				Logger.Error("%s", errTmp)
+				//Logger.Error("%s", errTmp)
 				if err != nil {
 					err = errTmp
 				} else {
 					err = fmt.Errorf("%s; %s", err, errTmp)
 				}
 			}
+
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			if subResult == "fail" {
-				errTmp2 := WritePlaybookHistoryResult(id, subResult, historyApi, mode, envType, errTmp)
+				playbook.LastFile = historyApi
+				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
 				if errTmp2 != nil {
 					Logger.Error("%s", errTmp2)
 					if err != nil {
@@ -67,7 +83,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, "history")
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
 			if errTmp != nil {
 				Logger.Error("%s", errTmp)
 				if err != nil {
@@ -79,7 +95,8 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			if subResult == "fail" {
 				isFail++
-				errTmp2 := WritePlaybookHistoryResult(id, subResult, historyApi, mode, envType, errTmp)
+				playbook.LastFile = historyApi
+				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
 				if errTmp2 != nil {
 					Logger.Error("%s", errTmp2)
 					if err != nil {
@@ -96,7 +113,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, "history")
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -109,7 +126,8 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 				inPlaybook.HistoryApis = append(inPlaybook.HistoryApis, historyApi)
 				if subResult == "fail" {
 					isFail++
-					errTmp2 := WritePlaybookHistoryResult(id, subResult, historyApi, mode, envType, errTmp)
+					inPlaybook.LastFile = historyApi
+					errTmp2 := inPlaybook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
 					if errTmp2 != nil {
 						Logger.Error("%s", errTmp2)
 						if errIn != nil {
@@ -129,28 +147,28 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 
 	if err == nil && isFail == 0 {
 		result = "pass"
-		lastFile = " "
+		playbook.LastFile = " "
 	} else {
 		result = "fail"
 	}
 
 	if err == nil && isFail == 0 {
 		result = "pass"
-		lastFile = " "
+		playbook.LastFile = " "
 	} else {
 		result = "fail"
 	}
 
 	var errTmp error
-	if playbookInfo.SceneType == 2 || playbookInfo.SceneType == 5 {
+	if playbook.SceneType == 2 || playbook.SceneType == 5 {
 		Logger.Debug("开始比较")
 		result, errTmp = CompareResult(playbook.HistoryApis, mode)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
 		}
 	}
-	Logger.Debug("lastFile: %s", lastFile)
-	errTmp = WritePlaybookHistoryResult(id, result, lastFile, mode, productInfo.EnvType, err)
+
+	errTmp = playbook.WritePlaybookHistoryResult(id, result, mode, productInfo.EnvType, err)
 
 	if errTmp != nil {
 		Logger.Error("%s", errTmp)

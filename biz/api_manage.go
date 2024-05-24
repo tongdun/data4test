@@ -34,7 +34,8 @@ func GetSceneHistoryDateList() (dateList []string) {
 }
 
 func GetDataList() (dataList []string) {
-	models.Orm.Table("scene_data").Group("name").Order("created_at desc").Pluck("name", &dataList)
+	// 控制台控制列表和数据列表只关联标准类型的数据用例
+	models.Orm.Table("scene_data").Group("name").Where("file_type = 1").Order("created_at desc").Pluck("name", &dataList)
 	return
 }
 
@@ -872,14 +873,14 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 	var sceneData SceneData
 	var fullName string
 	if len(appName) == 0 {
-		models.Orm.Table("scene_data").Where("name = ?", dataDesc).Find(&sceneData)
+		models.Orm.Table("scene_data").Where("name = ? and file_type = 1", dataDesc).Find(&sceneData)
 		appName = sceneData.App
 	} else {
-		models.Orm.Table("scene_data").Where("app = ? and name = ?", appName, dataDesc).Find(&sceneData)
+		models.Orm.Table("scene_data").Where("app = ? and name = ?  and file_type = 1", appName, dataDesc).Find(&sceneData)
 	}
 	if len(sceneData.ApiId) == 0 {
 		fullName = fmt.Sprintf("控制台-%s-%s-%s", module, apiDesc, dataDesc)
-		models.Orm.Table("scene_data").Where("app = ? and name = ?", appName, fullName).Find(&sceneData)
+		models.Orm.Table("scene_data").Where("app = ? and name = ?  and file_type = 1", appName, fullName).Find(&sceneData)
 	}
 
 	if len(sceneData.ApiId) > 0 {

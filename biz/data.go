@@ -915,31 +915,62 @@ func UpdateApiDefVer(id string) (err error) {
 }
 
 // 执行场景，如果数据文件不存在，则进行创建
-func InitDataFileByName(filePath string) (fileType int, err error) {
+func InitDataFileByName(filePath string) (rawFilePath string, fileType int, err error) {
 	// 如果数据文件为历史数据，则不进行数据文件的创建
 	fileName := path.Base(filePath)
+
+	var prefixName, newFileName string
+	if strings.HasSuffix(fileName, ".log") {
+		contentLog, err2 := ioutil.ReadFile(filePath)
+		if err2 != nil {
+			Logger.Error("%s", err2)
+			return "", fileType, err2
+		}
+		tmpList := strings.Split(string(contentLog), "\n")
+		if len(tmpList) > 0 {
+			if strings.HasPrefix(tmpList[0], "cmd:") {
+				splitFilePath := strings.Split(tmpList[0], " ")
+				rawFilePath = splitFilePath[len(splitFilePath)-1]
+				fileName = path.Base(rawFilePath)
+				filePath = rawFilePath
+			} else {
+				prefixName = GetHistoryDataDirName(fileName)
+			}
+		} else {
+			prefixName = GetHistoryDataDirName(fileName)
+		}
+	}
+
 	timeReg, err := regexp.Compile(`_[0-9]{8}_[0-9]{6}\.[0-9]+\.`)
 	if err != nil {
 		Logger.Error("%v", err)
 	}
-	timeMatch := timeReg.FindString(fileName)
 
+	timeMatch := timeReg.FindString(fileName)
 	if len(timeMatch) > 0 {
-		return
+		newFileName = strings.Replace(fileName, timeMatch, ".", -1)
 	}
 
 	var sceneData SceneData
 	var content string
 	var byteContent []byte
-	models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
+	if len(prefixName) > 0 {
+		models.Orm.Table("scene_data").Where("file_name like ?", prefixName+"%").Find(&sceneData)
+	} else if len(newFileName) > 0 {
+		models.Orm.Table("scene_data").Where("file_name = ?", newFileName).Find(&sceneData)
+	} else {
+		models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
+	}
+
 	if len(sceneData.FileName) == 0 {
 		err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
 		Logger.Error("%s", err)
 		return
+	} else {
+		rawFilePath = fmt.Sprintf("%s/%s", DataBasePath, sceneData.FileName)
 	}
 
 	fileType = sceneData.FileType
-
 	switch fileType {
 	case 1:
 		if strings.Contains(sceneData.Content, "<pre><code>") {
@@ -950,28 +981,32 @@ func InitDataFileByName(filePath string) (fileType int, err error) {
 		}
 
 		var dataFile DataFile
-		var err1 error
+
 		if strings.HasSuffix(fileName, ".json") {
 			err = json.Unmarshal([]byte(content), &dataFile)
-			byteContent, err1 = json.MarshalIndent(dataFile, "", "    ")
+			byteContent, err = json.MarshalIndent(dataFile, "", "    ")
 		} else {
 			err = yaml.Unmarshal([]byte(content), &dataFile)
-			byteContent, err1 = yaml.Marshal(dataFile)
+			byteContent, err = yaml.Marshal(dataFile)
 		}
 
-		if err1 != nil {
-			Logger.Error("%s", err1)
-			return fileType, err1
+		if err != nil {
+			Logger.Error("%s", err)
+			return
 		}
 
 	default:
 		byteContent = []byte(sceneData.Content)
 	}
 
-	err2 := ioutil.WriteFile(filePath, byteContent, 0644)
-	if err2 != nil {
-		Logger.Error("%s", err2)
-		return fileType, err2
+	// 当原文件是历史文件时，不对历史原文件进行覆盖
+	if len(newFileName) == 0 {
+		err = ioutil.WriteFile(filePath, byteContent, 0644)
+	}
+
+	if err != nil {
+		Logger.Error("%s", err)
+		return
 	}
 
 	return
@@ -1047,6 +1082,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 
 	envType, _ := GetEnvTypeByName(playbook.Product)
 	isFail := 0
+	result = "fail"
 
 	switch playbook.SceneType {
 	case 1, 2:
@@ -1062,8 +1098,9 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 			}
 
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
+			playbook.LastFile = historyApi
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(playbookId, subResult, source, historyApi, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(playbookId, subResult, source, envType, errTmp)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -1096,7 +1133,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, "", envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1136,7 +1173,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, "", envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1153,16 +1190,14 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 	if err == nil && isFail == 0 {
 		result = "pass"
 		lastFile = ""
-	} else {
-		result = "fail"
 	}
 
 	if playbook.SceneType == 2 || playbook.SceneType == 5 {
 		//Logger.Debug("开始比较")
 		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
-
-	err = playbook.WritePlaybookResult(playbookId, result, source, lastFile, envType, err)
+	playbook.LastFile = lastFile
+	err = playbook.WritePlaybookResult(playbookId, result, source, envType, err)
 	if err != nil {
 		Logger.Error("%v", err)
 		return

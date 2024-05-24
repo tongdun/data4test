@@ -606,9 +606,13 @@ func startServer() {
 		sceneSave.Product = c.PostForm("product")[1 : len(c.PostForm("product"))-1]
 		sceneSave.Name = c.PostForm("name")[1 : len(c.PostForm("name"))-1]
 		typeTag := c.PostForm("type")[1 : len(c.PostForm("type"))-1]
-		runNumTag := c.PostForm("runNum")[1 : len(c.PostForm("runNum"))-1]
+		var runNumTag string
+		if strings.Contains(c.PostForm("runNum"), "\"") {
+			runNumTag = c.PostForm("runNum")[1 : len(c.PostForm("runNum"))-1]
+		} else {
+			runNumTag = c.PostForm("runNum")
+		}
 		runNum, err := strconv.Atoi(runNumTag)
-
 		if err != nil {
 			biz.Logger.Error("%s", err)
 			sceneSave.RunNum = 1

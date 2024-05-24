@@ -161,7 +161,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 				status = "发起测试任务失败"
 				return false, status, fmt.Sprintf("%s", err)
 			}
-			//status = "已开启任务执行，请稍后查看测试结果，可在任务列表管理任务"
+
 			status = "已创建任务，请前往任务列表查看，确认后再发起任务执行"
 			return true, status, ""
 		}))
@@ -211,7 +211,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	info.SetTable("scene_data").SetTitle("数据列表").SetDescription("数据列表")
 
 	fileNameHelp := template.HTML("e.g.: 类型-模块-功能描述.yml / 类型-模块-功能描述.json / 类型-模块-功能描述.py / 类型-模块-功能描述.sh / 类型-模块-功能描述.jmx")
-	fileTypeMsg := template.HTML("默认值为: 标准数据<br>标准数据: 系统支持的数据编排格式,自动解析并执行，推荐使用标准数据，结构化编写测试数据，简单高效<br>Python脚本: 标准数据无法支持的场景，使用python的引擎执行，脚本若有定义执行引擎，优先使用定义的执行引擎<br>Shell脚本: 标准数据无法支持的场景，默认使用sh的引擎执行，脚本若有定义执行引擎，优先使用定义的执行引擎<br>Bat脚本: dos系统支持的.bat文件<br>Jmeter脚本: 标准数据无法支持的场景，默认有内置的jmeter引擎执行，参数若需变更，可以系统参数中配置JmeterRunConfig<br>其他脚本: 系统自动给脚本设置可执行权限，直接执行，依赖部署系统的环境是否有对应的执行引擎")
+	fileTypeMsg := template.HTML("默认值: 标准数据<br>标准数据: 推荐优先使用，结构化编写，简单高效<br>Python脚本: 标准数据无法支持的场景<br>Shell脚本: 标准数据无法支持的场景<br>Bat脚本: 适用于windows系统,.bat文件<br>Jmeter脚本: 适用于性能测试，.jmt文件，系统参数JmeterRunConfig可控制执行参数(待合入)<br>其他脚本: 根据文件后缀从系统参数中获取执行引擎或脚本中自定义有执行引擎<br>脚本执行引擎优先级: 系统参数scriptRunEngine定义 > 脚本中首行定义<br>执行引擎以文件名后缀为key可任意扩展，执行引擎需自行配置环境")
 
 	formList := sceneData.GetForm()
 	formList.AddField("唯一标识", "id", db.Int, form.Default).
@@ -233,8 +233,6 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
 
 	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
-		//FieldDefault("<pre><code>\nname: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []\n</code></pre>")
-		// 去除富文本的东西，兼容XML的内容可原样请求
 		FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
 
 	formList.AddField("执行次数", "run_time", db.Int, form.Number).

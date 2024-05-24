@@ -116,3 +116,33 @@ func IsInRouter4Add(path string) (isIn bool) {
 
 	return false
 }
+
+func GetValueFromMapDef(parameterName, keyName string) (value string, err error) {
+	var sysParameter SysParameter
+	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
+	if len(sysParameter.ValueList) == 0 {
+		return
+	}
+
+	valueRaw := sysParameter.ValueList
+
+	if len(sysParameter.ValueList) > 0 {
+		valueDefine := make(map[string]string)
+		errTmp := json.Unmarshal([]byte(valueRaw), &valueDefine)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			return
+		}
+		if v, ok := valueDefine[keyName]; ok {
+			value = v
+		} else {
+			err = fmt.Errorf("[%s]参数中未定义[%s]的值，请核对~", parameterName, keyName)
+			Logger.Warning("%s", err)
+		}
+	} else {
+		err = fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		Logger.Warning("%s", err)
+	}
+
+	return
+}

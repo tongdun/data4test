@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"bufio"
 	"bytes"
 	"data4perf/models"
 	"encoding/json"
@@ -12,6 +13,7 @@ import (
 	chIdNo "github.com/sleagon/chinaid"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -296,13 +298,6 @@ func GetStrSuffix(s string) (suffix string) {
 	tmpList := strings.Split(s, ".")
 
 	suffix = fmt.Sprintf(".%s", tmpList[len(tmpList)-1])
-
-	//switch suffixTmp {
-	//case ".json", ".yaml", ".yml":
-	//	suffix = suffixTmp
-	//default:
-	//	suffix = ".log"
-	//}
 
 	return
 }
@@ -1159,5 +1154,39 @@ func GetOneValueFromStringList(in string) (out string) {
 	}
 	index := GetRandomInt(0, len(values))
 	out = values[index]
+	return
+}
+
+func GetScriptRunEngin(filePath string) (runEngine string, err error) {
+	fHandle, errTmp := os.Open(filePath)
+	if errTmp != nil {
+		Logger.Error("%s", errTmp)
+		err = errTmp
+		return
+	}
+	defer fHandle.Close()
+	scanner := bufio.NewScanner(fHandle)
+	var firstLine string
+	for scanner.Scan() {
+		firstLine = scanner.Text()
+		break
+	}
+
+	if scanner.Err() != nil {
+		errTmp = fmt.Errorf("读取文件时发生错误")
+		Logger.Error("%s", errTmp)
+		err = errTmp
+		return
+	}
+
+	if strings.Contains(firstLine, "#!") {
+		runEngine = strings.Trim(firstLine, "#!")
+	} else {
+		errTmp = fmt.Errorf("首行未找到执行引擎，请先定义执行引擎， e.g.: #!/bin/bash")
+		Logger.Error("%s", errTmp)
+		err = errTmp
+		return
+	}
+
 	return
 }
