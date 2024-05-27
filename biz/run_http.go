@@ -321,7 +321,7 @@ func RunHttpJson(method, url string, data map[string]interface{}, header map[str
 		Logger.Error("%s", err)
 		return
 	}
-	//Logger.Debug("header: %v", header)
+
 	for k, v := range header {
 		vStr := Interface2Str(v)
 		req.Header.Add(k, vStr)

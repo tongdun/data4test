@@ -986,8 +986,9 @@ func InitDataFileByName(filePath string) (rawFilePath string, fileType int, err 
 			err = json.Unmarshal([]byte(content), &dataFile)
 			byteContent, err = json.MarshalIndent(dataFile, "", "    ")
 		} else {
-			err = yaml.Unmarshal([]byte(content), &dataFile)
-			byteContent, err = yaml.Marshal(dataFile)
+			byteContent = []byte(content) // YML未进行格式化，无需重新校正
+			//err = yaml.Unmarshal([]byte(content), &dataFile)
+			//byteContent, err = yaml.Marshal(dataFile)
 		}
 
 		if err != nil {
@@ -1362,8 +1363,23 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 						vStr = Interface2Str(value[0])
 					}
 				} else {
-					vStr = Interface2Str(value[0])
+					allValueDef1 := fmt.Sprintf("'*%s*'", rawStrDef)
+					allValueDef2 := fmt.Sprintf("\"*%s*\"", rawStrDef)
+					allValueDef3 := fmt.Sprintf("**%s**", rawStrDef)
+					if strings.Contains(indexStr, allValueDef1) {
+						rawStrDef = allValueDef1
+						vStr = Interface2Str(value)
+					} else if strings.Contains(indexStr, allValueDef2) {
+						rawStrDef = allValueDef2
+						vStr = Interface2Str(value)
+					} else if strings.Contains(indexStr, allValueDef3) {
+						rawStrDef = allValueDef3
+						vStr = Interface2Str(value)
+					} else {
+						vStr = Interface2Str(value[0]) // 未定义，默认取第1个值
+					}
 				}
+
 				indexStr = strings.Replace(indexStr, rawStrDef, vStr, 1)
 				countMap[key] = countMap[key] + 1
 			} else {

@@ -570,6 +570,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
+
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
@@ -781,6 +782,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 
 func RunStandard(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
 	content, err := ioutil.ReadFile(filePath)
+
 	if err != nil {
 		Logger.Error("%s", err)
 		return
@@ -792,6 +794,7 @@ func RunStandard(app, filePath, product, source string, depOutVars map[string][]
 	} else {
 		err = yaml.Unmarshal(content, &df)
 	}
+
 	if err != nil {
 		Logger.Debug("filePath: %s", filePath)
 		Logger.Debug("content:\n%s", content)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gohobby/deepcopy"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mritd/chinaid"
 	uuid "github.com/satori/go.uuid"
 	chIdNo "github.com/sleagon/chinaid"
@@ -130,8 +131,21 @@ func Interface2Str(value interface{}) (strValue string) {
 	//	//}
 	//	//Logger.Debug("strValue: %v", strValue)
 	default:
-		err := fmt.Errorf("不支持类型: %v 的转换, 值: %v,  原样请求，如有需要，请联系管理员~", varType, value)
-		Logger.Warning("%s", err)
+		valueByte, err := json.Marshal(value)
+		if err != nil {
+			var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+			readerNew, err1 := jsonNew.Marshal(&value)
+			if err1 != nil {
+				Logger.Error("%s", err1)
+				errTmp := fmt.Errorf("不支持类型: %v 的转换为字符串, 值: %v,  原样请求，如有需要，请联系管理员~", varType, value)
+				Logger.Warning("%s", errTmp)
+			} else {
+				strValue = string(readerNew)
+			}
+
+		} else {
+			strValue = string(valueByte)
+		}
 	}
 
 	return

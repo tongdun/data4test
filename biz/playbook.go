@@ -15,75 +15,6 @@ import (
 	"time"
 )
 
-//func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, exeNum int, mode, source string) (err error) {
-//	if productInfo.Threading == "yes" && playbookInfo.RunTime > 1 && productInfo.ThreadNumber > 1 {
-//		if playbookInfo.RunTime > productInfo.ThreadNumber {
-//			loopNum := playbookInfo.RunTime/productInfo.ThreadNumber + 1
-//			count := 1
-//			for i := 0; i < loopNum; i++ {
-//				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
-//				wg := sync.WaitGroup{}
-//				for j := 0; j < productInfo.ThreadNumber; j++ {
-//					if count > playbookInfo.RunTime {
-//						break
-//					}
-//					Logger.Info("并发模式-执行次数:%d", count)
-//					wg.Add(1)
-//					go func(playbookInfo DbScene, productInfo DbProduct) {
-//						playbook := playbookInfo.GetPlaybook()
-//						err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
-//						if err1 != nil {
-//							err = err1
-//							Logger.Error("%s", err)
-//							return
-//						}
-//						wg.Done()
-//					}(playbookInfo, productInfo)
-//					count++
-//				}
-//				wg.Wait()
-//			}
-//		} else {
-//			wg := sync.WaitGroup{}
-//			for i := 0; i < playbookInfo.RunTime; i++ {
-//				Logger.Info("并发模式-执行次数:%d", i+1)
-//				wg.Add(1)
-//				go func(playbookInfo DbScene) {
-//					playbook := playbookInfo.GetPlaybook()
-//					err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
-//					if err1 != nil {
-//						err = err1
-//						Logger.Error("%s", err)
-//						return
-//					}
-//					wg.Done()
-//				}(playbookInfo)
-//			}
-//			wg.Wait()
-//		}
-//	} else {
-//		for i := 0; i < playbookInfo.RunTime; i++ {
-//			if playbookInfo.RunTime > 1 {
-//				Logger.Info("串行模式-执行次数:%d", i+1)
-//			}
-//			playbook := playbookInfo.GetPlaybook()
-//			//err1 := playbookInfo.RunPlaybook(mode, source, productInfo)
-//			err1 := playbook.RunPlaybook(playbookInfo.Id, mode, source, productInfo)
-//			if err1 != nil {
-//				if err != nil {
-//					err = fmt.Errorf("%v; %v", err, err1)
-//				} else {
-//					err = err1
-//				}
-//				break // 循环进行多次测试，如果遇错即退出
-//			}
-//		}
-//	}
-//
-//	return
-//}
-//
-
 func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId string) (result, lastFile string, err error) {
 	if productInfo.Threading == "yes" && runNum > 1 && productInfo.ThreadNumber > 1 {
 		if runNum > productInfo.ThreadNumber {
@@ -676,9 +607,12 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			//Logger.Error("%s", err)  //在上层链路展示错误信息
 			return
 		}
-		if strings.HasSuffix(filePath, ".json") {
+
+		suffix := GetStrSuffix(filePath)
+		switch suffix {
+		case ".json":
 			err1 = json.Unmarshal(content, &sceneFile)
-		} else if strings.HasSuffix(filePath, ".yml") || strings.HasSuffix(filePath, ".yaml") {
+		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &sceneFile)
 		}
 
@@ -721,11 +655,15 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			Logger.Error("%s", err)
 			return
 		}
-		if strings.HasSuffix(selfApi, ".json") {
+
+		suffix := GetStrSuffix(selfApi)
+		switch suffix {
+		case ".json":
 			err1 = json.Unmarshal(content, &selfScene)
-		} else if strings.HasSuffix(selfApi, ".yml") {
+		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &selfScene)
 		}
+
 		if err1 != nil {
 			err = err1
 			Logger.Error("%s", err)
@@ -746,11 +684,15 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				err = err1
 				Logger.Error("%s", err)
 			}
-			if strings.HasSuffix(filePath, ".json") {
+
+			suffix := GetStrSuffix(filePath)
+			switch suffix {
+			case ".json":
 				err1 = json.Unmarshal(content, &sceneFile)
-			} else if strings.HasSuffix(filePath, ".yml") {
+			case ".yml", ".yaml":
 				err1 = yaml.Unmarshal(content, &sceneFile)
 			}
+
 			if err1 != nil {
 				err = err1
 				Logger.Error("%s", err)
