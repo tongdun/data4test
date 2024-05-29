@@ -9,6 +9,7 @@
 - 参数应用说明: design/parameter_design.md
 - 断言应用说明: design/assert_design.md
 - Mock应用说明: design/mock_design.md
+- 脚本应用说明: design/script_design.md
 - 测试用例说明: design/testcase_design.md
 - 性能测试设计: design/perf_design.md
 - 开发待办: plan/todo.md
