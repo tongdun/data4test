@@ -8,7 +8,7 @@
   "is_use_env_config": "yes",
   "env": {
     "protocol": "http",
-    "host": "X.X.X.X:8089",
+    "host": "X.X.X.X:8088",
     "prepath": "/prefix"
   },
   "api": {
@@ -25,12 +25,29 @@
     "header": {
       "Content-Type": "multipart/form-data"
     },
+    "resHeader": {
+      "Content-Disposition": "attachment; filename=XX模块-XX管理-XX配置-XX导出.csv",
+      "Content-Type": "application/csv"
+    },
     "query": {},
     "path": {},
     "body": {
-      "uuid": "{self}",
-      "condition": "{\"children\":[{\"logicOperator\":\"&&\",\"property\":\"watchlist/customList\",\"operator\":\"==\",\"value\":\"1\",\"type\":\"alias\",\"description\":\"\",\"propertyDataType\":\"\",\"children\":[],\"describe\":\"是否命中名单\",\"params\":[{\"name\":\"calcField\",\"type\":\"string\",\"value\":\"S_DC_VS_NAME\"},{\"name\":\"definitionList\",\"type\":\"string\",\"value\":\"{nameList}\"},{\"name\":\"conditionValue\",\"type\":\"int\",\"value\":\"1\"}]}],\"logicOperator\":\"&&\"}"
-    }
+      "condition": "{\"children\":[{\"name\":\"definitionList\",\"type\":\"string\",\"value\":\"{nameList}\"}]",
+      "vaLue": "{FlowType}",
+      "name": "*{Name}*",
+      "name2": "**{Name}**",
+      "XXName": "{self}"
+    },
+    "bodyList": [
+      {
+        "name": "{Name}",
+        "sex": "{Sex}"
+      },
+      {
+        "name": "{Rune(4)}",
+        "sex": "{Sex}"
+      }
+    ]
   },
   "multi": {
     "query": {},
@@ -91,6 +108,11 @@
       "value": "成功|重复|已存在"
     },
     {
+      "type": "re",
+      "source": "message",
+      "value": "{successTemplate}"
+    },
+    {
       "type": "output",
       "source": "data-contents*uuid",
       "value": "uuid"
@@ -99,12 +121,94 @@
       "type": "output",
       "source": "data-contents*uuid",
       "value": "ProductUuid"
+    },
+    {
+      "type": "output_re",
+      "source": "\\\\\"taskId\\\\\":\\\\\"(.+)\\\\\"",
+      "value": "taskId"
+    },
+    {
+      "type": "output_re",
+      "source": "\\\\\"taskId\\\":\\\\\"([a-zA-Z0-9]+)\\\\\"",
+      "value": "taskId"
+    },
+    {
+      "type": "output",
+      "source": "File:TXT:1:1:,",
+      "value": "taskId"
+    },
+    {
+      "type": "output",
+      "source": "File:CSV:1:1:|",
+      "value": "taskId"
+    },
+    {
+      "type": "output",
+      "source": "File:CSV:1:1:|",
+      "value": "taskId"
+    },
+    {
+      "type": "output",
+      "source": "File:EXCEL:1:1",
+      "value": "taskId"
+    },
+    {
+      "type": "output",
+      "source": "File:JSON:data-total",
+      "value": "XXXCount"
+    },
+    {
+      "type": "output",
+      "source": "File:YML:data-total",
+      "value": "XXXCount"
+    }
+  ],
+  "action": [
+    {
+      "type": "sleep",
+      "value": "1    // 表示等待1秒种，时间可根据需要自动设置，单位为秒"
+    },
+    {
+      "type": "create_csv",
+      "value": "name:number    // 生成文件名:生成的数据条数，默认生成10条"
+    },
+    {
+      "type": "create_xls",
+      "value": "name:number    // 生成文件名:生成的数据条数, 默认生成10条"
+    },
+    {
+      "type": "record_csv",
+      "value": "name.csv    // 记录实时请求的body数据,title为body请求的字段名，如果多个数据输出到一个记录文件中,自动追加"
+    },
+    {
+      "type": "record_xls",
+      "value": "name.xls    // 记录实时请求的body数据,title为body请求的字段名，如果多个数据输出到一个记录文件中,自动追加"
+    },
+    {
+      "type": "modify_file",
+      "value": "name.xml:name_{certid}.xml  // 冒号前为模板文件，文件的内容中需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录"
+    },
+    {
+      "type": "modify_file",
+      "value": "name.txt:{phoneno}.txt  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖"
+    },
+    {
+      "type": "modify_file",
+      "value": "name.json:{phoneno}.json  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖"
+    },
+    {
+      "type": "modify_file",
+      "value": "name.yaml:{phoneno}.yaml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖"
+    },
+    {
+      "type": "modify_file",
+      "value": "name.yml:{phoneno}.yml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖"
     }
   ],
   "output": {
     "uuid": [
-      "xxx1",
-      "xxx2"
+      "XXX",
+      "XXX"
     ]
   },
   "test_result": [

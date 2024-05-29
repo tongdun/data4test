@@ -29,63 +29,98 @@ api:
 single:
   header:
     Content-Type: multipart/form-data   # 如果api为导入文件功能，需要把Content-Type定义为multipart/form-data进行公用环境值的覆盖，优化级：数据文件>应用配置>产品配置
+  resHeader:
+    Content-Disposition: attachment; filename=XX模块-XX管理-XX配置-XX导出.csv  # 如果文件名为前端生成，对filename进行设置
+    Content-Type: application/csv  # 根据接口请求查看，按实际填写，请求后，response会自动置为XXX.filetype,然后使用文件类型进行断言判断
   query: {}                             # GET请求时，请求参数定义，只定义一个值，共用的参数放在这里，无需反复定义
   path: {}                              # PATH 变量参数定义，只定义一个值
-  body: 
-    uuid: '{self}'                      # '{self}'代表该值从依赖用例的输出参数中获取
-    condition: '{"children":[{"logicOperator":"&&","property":"test","operator":"==","value":"1","type":"alias","description":"","propertyDataType":"","children":[],"describe":"测试","params":[{"name":"calcField","type":"string","value":""},{"name":"definitionList","type":"string","value":"{nameList}"},{"name":"conditionValue","type":"int","value":"1"}]}],"logicOperator":"&&"}'  # {nameList} 代表字符串里有需替换的变更，nameList为 ouput 中输出的参数名字，在前置的用例中有定义同名变量，即会替换
+  body:
+    condition: '{"children":[{"name":"definitionList","type":"string","value":"{nameList}"}]'  # {nameList} 代表字符串里有需替换的变更，nameList为 ouput 中输出的参数名字，在前置的用例中有定义同名变量，即会替换
     vaLue: '{FlowType}'   # 在'系统参数'菜单下，进行参数定义定义，支持多语种定
+    name: '*{Name}*'      # 引用上文Name变量，当做一个整体，JSON格式
+    name2: '**{Name}**'   # 引用上文Name变量，当做一个整体，字符串格式
+    XXName: '{self}'      # 引用上文XXName变量的值，[{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
+  bodyList:              # 当请求body直接是List时，相关请求参数放到bodyList下
+    - name: '{Name}'
+      sex: '{Sex}'
+    - name: '{Rune(4)}'
+      sex: '{Sex}'
 # 定义多值参数
 multi:
   query: {}                   # GET请求时，请求参数定义，定义的值为列表
   path: {}                    # PATH 变更参数定义，定义的值为列表
   body:
     description:              # 定义多值时，取各项定义的个数最少的数据，一一对应
-    - '{Rune(128)}'    # 获取设置长度的汉字
-    - '{Str(64)}'      # 获取设置长度的字符串
-    - '{Int(10,100)}'  # 获取设置范围内的整数
+      - '{Rune(128)}'    # 获取设置长度的汉字
+      - '{Str(64)}'      # 获取设置长度的字符串
+      - '{Int(10,100)}'  # 获取设置范围内的整数
     displayName:
-    - '{Date(-2)}'      # 获取两天前的日期
-    - '{Date(2)}'       # 获取两天后的日期
-    - '{Timestamp(-2)}' # 获取两天前的时间戳
+      - '{Date(-2)}'      # 获取两天前的日期
+      - '{Date(2)}'       # 获取两天后的日期
+      - '{Timestamp(-2)}' # 获取两天前的时间戳
     name:
-    - '{IDNo}'          # 获取身份证字符串
-    - '{Name}'          # 获取名字字符串
-    - '{Address}'       # 获取地址字符串
-    - '{BankNo}'        # 获取银行卡号字符串
+      - '{IDNo}'          # 获取身份证字符串
+      - '{Name}'          # 获取名字字符串
+      - '{Address}'       # 获取地址字符串
+      - '{BankNo}'        # 获取银行卡号字符串
 
 # 断言，数据校验，根据需要写不同类型的断言，不写断言，只要返回为200，即算 PASS
 assert:
-- type: equal   # 验证code的值等于200
-  source: code    # 返回的json信息，取key为code的值
-  value: 200 
-- type: "!=" # 验证code的值不等于200
-  source: code    # 返回的json信息，取key为code的值
-  value: 200 
-- type: ">="    # 验证source字段大于等于1
-  source: data-total     # 返回的json信息，data字典-取出productDesc的值
-  value: 1
-- type:  contain
-  source: data-contents*productDesc  # 返回的json信息，data字典-content字典-字典列表，取出productDesc的值, 并校验是否包含 value中的值
-  value: 待删除的产品描述
-- type: "!in"   # 验证取到的productName的值包含删除
-  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值, 不包含 value 中的值
-  value: 删除
-- type: not_contain   # 验证取到的productName的值不包含删除
-  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值
-  value: 产品
-- type: re
-  source: message
-  value: 成功|重复|已存在
-- type: re
-  source: message
-  value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
-- type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
-  source: data-contents*uuid
-  value: uuid
-- type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
-  source: data-contents*uuid
-  value: ProductUuid
+  - type: equal   # 验证code的值等于200
+    source: code    # 返回的json信息，取key为code的值
+    value: 200
+  - type: "!=" # 验证code的值不等于200
+    source: code    # 返回的json信息，取key为code的值
+    value: 200
+  - type: ">="    # 验证source字段大于等于1
+    source: data-total     # 返回的json信息，data字典-取出productDesc的值
+    value: 1
+  - type:  contain
+    source: data-contents*productDesc  # 返回的json信息，data字典-content字典-字典列表，取出productDesc的值, 并校验是否包含 value中的值
+    value: 待删除的产品描述
+  - type: "!in"   # 验证取到的productName的值包含删除
+    source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值, 不包含 value 中的值
+    value: 删除
+  - type: not_contain   # 验证取到的productName的值不包含删除
+    source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值
+    value: 产品
+  - type: re
+    source: message
+    value: 成功|重复|已存在
+  - type: re
+    source: message
+    value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
+  - type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
+    source: data-contents*uuid
+    value: uuid
+  - type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
+    source: data-contents*uuid
+    value: ProductUuid
+  - type: output_re  # 从整体返回中进行正则匹配提取，并重命名为taskId，()中匹配到的值取出来，如果匹配到多个值，均会进行提取
+    source: '\\"taskId\\":\\"(.+)\\"'
+    value: taskId
+  - type: output_re  # 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+    source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"'
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source: File:TXT:1:1:,
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:CSV:1:1:|
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:CSV:1:1:|
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:EXCEL:1:1
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
+    source: File:JSON:data-total    #
+    value: XXXCount
+  - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
+    source: File:YML:data-total
+    value: XXXCount
+
 # 数据执行后的动作
 action:
   - type: sleep
@@ -94,22 +129,37 @@ action:
     value: name:number    // 生成文件名:生成的数据条数，默认生成10条
   - type: create_xls
     value: name:number    // 生成文件名:生成的数据条数, 默认生成10条
+  - type: record_csv
+    value: name.csv    // 记录实时请求的body数据,title为body请求的字段名，如果多个数据输出到一个记录文件中,自动追加
+  - type: record_xls
+    value: name.xls    // 记录实时请求的body数据,title为body请求的字段名，如果多个数据输出到一个记录文件中,自动追加
+  - type: modify_file
+    value: name.xml:name_{certid}.xml  // 冒号前为模板文件，文件的内容中需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录
+  - type: modify_file
+    value: name.txt:{phoneno}.txt  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  - type: modify_file
+    value: name.json:{phoneno}.json  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  - type: modify_file
+    value: name.yaml:{phoneno}.yaml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  - type: modify_file
+    value: name.yml:{phoneno}.yml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+
 # 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
 output:
   uuid:
-  - XXX
-  - XXX
+    - XXX
+    - XXX
 
 # 测试结果：pass, fail, untest, 自动生成，断言全部符合要求设为pass, 请求若返回非200，直接置为 fail, 如果执行次数测试为0，测置为 untest
 # 保留最新测试结果
 test_result:
-- pass
-- fail
-- untest
+  - pass
+  - fail
+  - untest
 
 # 请求 URL，自动生成， 保留最新测试结果
 urls:
-- http://X.X.X.X:8089/prefix/path
+  - http://X.X.X.X:8089/prefix/path
 
 # 请求数据，body, query, 自动生成, 保留最新测试结果
 requests:
@@ -117,5 +167,5 @@ requests:
 
 # 返回信息, 自动生成， 保留最新测试结果
 response:
-- "response1"
-- "response2"
+  - "response1"
+  - "response2"
