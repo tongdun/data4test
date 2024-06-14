@@ -16,6 +16,7 @@
 - 实时，离线，批转流，外部数据等多方数据特征需保持一致，且数据值需关联上
 - 低并发测试需要常态化，靠手工不可能，靠脚本实现和维护成本过高
 - 被测系统支持国际化，支持多语种，需要多语种的测试数据，且已建设的用例能直接复用，减少建设成本
+- 部分接口存在加密或逻辑写在前端需要进行UI自动化，需要脚本的管理和执行
 - 等等，多个原因促成了本系统的诞生
 
 ### 系统
@@ -25,6 +26,19 @@
 - 启动服务：docker-compose up -d
 - 默认访问：http://127.0.0.1:9088
 - 默认用户：admin / admin
+
+### 功能
+#### 适用测试类型
+- 功能测试: 正向路径功能测试，自定义或自动生成符合特征的测试数据
+- 并发测试: 单接口多测试数据的并行执行，多接口的并行执行，以及场景维度的并行执行等
+- 异常测试: 通过占位符，快速构造超长边界值，特殊字符等
+- 模糊测试: 自动生成模糊数据，开启健壮性测试(功能待充分验证)
+- 场景测试: 复杂场景可视化编排，支持跨应用，多接口，多鉴权，多环境测试，同时支持实时，离线，外部数据等多方数据对齐
+- 长时间测试: 定时任务，持续构造测试数据
+- Mock测试: 构造指定特征的数据，当外部数据给被测系统使用
+- 国际化测试：根据请求语种，自动生成对应语种的测试数据，同时支持多语种的数据定义和断言判断，无需编写多个数据用例
+- 大数据测试：通过动作自动生成海量的测试数据，以及数据和场景支持执行次数控制，实现实时和离线的大数据量
+- 性能测试：支持控制并发数，开展性能压测(功能待增强)
 
 #### 架构设计
 - [架构图](./mgmt/doc/file/arch/arch.md)
@@ -41,41 +55,28 @@
 #### 系统介绍
 - [特性简介](./mgmt/doc/file/function/feature_introduction.md)
 - [模块功能](./mgmt/doc/file/function/module_function.md)
-- [场景组合](./mgmt/doc/file/design/scene_design.md)
-- [数据用例](./mgmt/common/模板使用说明.yml)
-- [参数应用](./mgmt/doc/file/design/parameter_design.md)
-- [动作应用](./mgmt/doc/file/design/action_design.md)
-- [断言应用](./mgmt/doc/file/design/assert_design.md)
+- [接口管理](./mgmt/doc/file/design/api_mgmt_design.md)
+- [用例管理](./mgmt/doc/file/design/testcase_design.md)
+- [场景管理](./mgmt/doc/file/design/playbook_design.md)
+- [数据文件管理](./mgmt/doc/file/design/data_file_design.md)
+- [任务管理](./mgmt/doc/file/design/task_design.md)
 - [Mock应用](./mgmt/doc/file/design/mock_design.md)
-- [模糊测试](./mgmt/doc/file/design/relation_design.md)
 
 #### 近长期规划
 - [长期规划](./mgmt/doc/file/plan/blue_print.md)
 - [近期规划](./mgmt/doc/file/plan/todo.md)
-- [性能测试](./mgmt/doc/file/design/perf_design.md)  待增强，或集成k6或Jmeter或其他
+- [性能测试](./mgmt/doc/file/design/perf_design.md) 
 
 #### 开发须知
 - [变更须知](./mgmt/doc/file/development/must_know.md)
 - [更新记录](./mgmt/doc/file/update/change_log.md)
+- [发布记录](./mgmt/doc/file/update/release.md)
 
 #### 生产环境
-[生产环境部署](./deploy/README_EN.md)
+[生产环境部署](./deploy/README.md)
 
 #### 开发环境
 [开发环境部署](./mgmt/doc/file/development/dev_env.md)
-
-### 功能
-#### 适用测试类型
-- 功能测试: 正向路径功能测试，自定义或自动生成符合特征的测试数据
-- 并发测试: 单接口多测试数据的并行执行，多接口的并行执行，以及场景维度的并行执行等
-- 异常测试: 通过占位符，快速构造超长边界值，特殊字符等
-- 模糊测试: 自动生成模糊数据，开启健壮性测试(功能待充分验证)
-- 场景测试: 复杂场景可视化编排，支持跨应用，多接口，多鉴权，多环境测试，同时支持实时，离线，外部数据等多方数据对齐
-- 长时间测试: 定时任务，持续构造测试数据
-- Mock测试: 构造指定特征的数据，当外部数据给被测系统使用
-- 国际化测试：根据请求语种，自动生成对应语种的测试数据，同时支持多语种的数据定义和断言判断，无需编写多个数据用例
-- 大数据测试：通过动作自动生成海量的测试数据，以及数据和场景支持执行次数控制，实现实时和离线的大数据量
-- 性能测试：支持控制并发数，开展性能压测(功能待增强)
 
 ### 其他
 #### 周边技术

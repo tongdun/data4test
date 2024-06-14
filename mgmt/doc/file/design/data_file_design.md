@@ -39,6 +39,20 @@
 - 测试结果：通过断言关系判断，符合要求则 PASS, 无断言定义则接口请求成功即为 PASS， 多值多结果
 - 返回信息: 记录接口返回的信息，多值多返回
 
+#### header设置
+- header：鉴权数据， 请求类型等, application/json， form/data, 文件等
+- respHeader：下载文件, 如果文件名为前端生成，对Content-Disposition进行设置，filename=XXX.filetype, 可根据实际情况进行设置,    
+  Content-Type根据接口请求查看，按实际填写，请求后，response会自动置为XXX.filetype,然后使用文件类型进行断言判断
+- respHeader:  
+  Content-Disposition: attachment; filename=XX模块-XX管理-XX配置-XX导出.csv  
+  Content-Type: application/csv
+- 如果下载文件名为后端生成，直接断言进行设置即可，可以通过返回的文件名进行断言判断
+    - {type: =, source: raw, value: XX模块-XX管理-XX配置-XX导出.csv}
+    - {type: =, source: ResponseBody, value: XX模块-XX管理-XX配置-XX导出.csv}
+
+#### 标准数据文件版本管理
+- 根据历史记录自动累加版本，每次更新数据文件，备份一份至历史版本目录下
+
 #### 标准数据文件子项详情
 - [参数应用](./parameter_design.md)
 - [动作应用](./action_design.md)

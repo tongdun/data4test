@@ -21,6 +21,8 @@
   - File:JSON:data-total[0]    // 与字段值取值使用规则一致
   - File:YML:data-total        // 与字段值取值使用规则一致
   - File:XML:未细化             // 待有需要再实现
+  - File:Other:'\\"taskId\\":\\"(.+)\\"'   //待实现，提取(.+)中匹配到的值断言
+  - File:JSON:'\\"taskId\":\\"([a-zA-Z0-9]+)\\"'   //待实现，提取([a-zA-Z0-9]+)中匹配到的值断言
 
 ### 断言支持的类型
 ##### 整体返回支持的断言类型
@@ -95,4 +97,3 @@
 ```{type: re, source: data-message, value: {successTemplate}```
 - 在"环境-断言值模板"列表增加名为successTemplate的模板信息：  
 ```{"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}```
-

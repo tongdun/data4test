@@ -46,13 +46,14 @@ Data4Test (盾测) enables quick implementation of automated testing and managem
 - [Parameter Application](./mgmt/doc/file/design/parameter_design_en.md)
 - [Action Application](./mgmt/doc/file/design/action_design_en.md)
 - [Assertion Application](./mgmt/doc/file/design/assert_design_en.md)
+- [Script Application](./mgmt/doc/file/design/script_design.md)
 - [Mock Application](./mgmt/doc/file/design/mock_design_en.md)
 - [Fuzzy Testing](./mgmt/doc/file/design/relation_design_en.md)
 
 #### Near-Term and Long-Term Plans
 - [Long-Term Plan](./mgmt/doc/file/plan/blue_print_en.md)
 - [Near-Term Plan](./mgmt/doc/file/plan/todo_en.md)
-- [Performance Testing](./mgmt/doc/file/design/perf_design_en.md)  To be enhanced or integrated with k6, Jmeter, or others
+- [Performance Testing](./mgmt/doc/file/design/perf_design_en.md)  
 
 #### Development Notes
 - [Change Notes](./mgmt/doc/file/development/must_know_en.md)

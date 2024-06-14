@@ -1,16 +1,30 @@
 nav:
   - 概览: README.md
-  - 架构图: arch/arch.md
-  - 系统蓝图: plan/blue_print.md
-  - 场景测试说明: design/scene_design.md
-  - 参数应用说明: design/parameter_design.md
-  - 动作应用说明: design/action_design.md
-  - 断言应用说明: design/assert_design.md
-  - Mock应用说明: design/mock_design.md
-  - 脚本应用说明: design/script_design.md
-  - 模糊测试说明: design/relation_design.md
-  - 测试用例说明: design/testcase_design.md
-  - 性能测试设计: design/perf_design.md
-  - 开发待办: plan/todo.md
-  - 开发须知: development/must_know.md
-  - 更新记录: update/change_log.md
+  - 系统使用:
+      - 控制台使用: design/console_design.md
+      - 接口管理: design/api_mgmt_design.md
+      - 用例管理: design/testcase_design.md
+      - 场景管理: design/playbook_design.md
+      - 数据管理: design/data_file_design.md
+      - 任务管理: design/task_design.md
+      - Mock使用: design/mock_design.md
+      - 常见问题: question/FAQ.md
+  - 数据文件:
+      - 参数说明: design/parameter_design.md
+      - 动作说明: design/action_design.md
+      - 断言说明: design/assert_design.md
+      - 脚本说明: design/script_design.md
+  - 系统设计:
+      - 架构图: arch/arch.md
+      - 发展规划: plan/blue_print.md
+      - 功能特性: function/feature_introduction.md
+      - 模块特性: function/module_function.md
+      - 性能测试设计: design/perf_design.md
+      - 模糊测试设计: design/fuzzing_design.md
+  - 研发事项:
+      - 数据库设计: design/db_design.md
+      - 开发待办: plan/todo.md
+      - 开发须知: development/must_know.md
+  - 系统变更:
+      - 最新发布: update/release.md
+      - 变更日志: update/change_log.md
