@@ -38,36 +38,36 @@ func GetFilePath(id string) (app, filePath string, err error) {
 	}
 	filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
 	app = dbSceneData.App
-	_, err = os.Stat(filePath)
-
-	content := GetStrFromHtml(dbSceneData.Content)
-
-	if os.IsNotExist(err) {
-		var df DataFile
-		var dataInfo []byte
-		var err1 error
-		if strings.HasSuffix(filePath, ".json") {
-			err = json.Unmarshal([]byte(content), &df)
-			df.Version = 1
-			dataInfo, err1 = json.MarshalIndent(df, "", "    ")
-		} else {
-			err = yaml.Unmarshal([]byte(content), &df)
-			df.Version = 1
-			dataInfo, err1 = yaml.Marshal(df)
-		}
-
-		if err1 != nil {
-			Logger.Error("%s", err1)
-			err = err1
-			return
-		}
-		err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
-		if err2 != nil {
-			Logger.Error("%s", err2)
-			err = err2
-			return
-		}
-	}
+	//_, err = os.Stat(filePath)
+	//
+	//content := GetStrFromHtml(dbSceneData.Content)
+	//
+	//if os.IsNotExist(err) {
+	//	var df DataFile
+	//	var dataInfo []byte
+	//	var err1 error
+	//	if strings.HasSuffix(filePath, ".json") {
+	//		err = json.Unmarshal([]byte(content), &df)
+	//		df.Version = 1
+	//		dataInfo, err1 = json.MarshalIndent(df, "", "    ")
+	//	} else {
+	//		err = yaml.Unmarshal([]byte(content), &df)
+	//		df.Version = 1
+	//		dataInfo, err1 = yaml.Marshal(df)
+	//	}
+	//
+	//	if err1 != nil {
+	//		Logger.Error("%s", err1)
+	//		err = err1
+	//		return
+	//	}
+	//	err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
+	//	if err2 != nil {
+	//		Logger.Error("%s", err2)
+	//		err = err2
+	//		return
+	//	}
+	//}
 	return
 }
 
@@ -971,6 +971,7 @@ func InitDataFileByName(filePath string) (rawFilePath string, fileType int, err 
 	}
 
 	fileType = sceneData.FileType
+
 	switch fileType {
 	case 1:
 		if strings.Contains(sceneData.Content, "<pre><code>") {

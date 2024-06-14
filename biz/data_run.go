@@ -924,22 +924,22 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 			if i > 0 {
 				Logger.Info("串行模式-执行次数:%d", i+1)
 			}
-			var result, dst string
-			var err1 error
-			switch dataInfo.FileType {
-			case 2, 3, 4, 5, 99:
-				result, dst, err1 = RunNonStandard(app, filePath, "", product, source, dataInfo.FileType, nil)
-			default:
-				result, dst, err1 = RunStandard(app, filePath, product, source, nil)
-			}
+
+			result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
 
 			if err1 != nil {
 				Logger.Error("\n%s", err1)
 				err = err1
 			}
-			err = WriteSceneDataResult(id, result, dst, product, envType, err1)
-			if err != nil {
-				Logger.Error("%s", err)
+
+			err2 := WriteSceneDataResult(id, result, dst, product, envType, err1)
+			if err2 != nil {
+				Logger.Error("%s", err2)
+				if err != nil {
+					err = fmt.Errorf("%v; %v", err, err2)
+				} else {
+					err = err2
+				}
 				return
 			}
 
