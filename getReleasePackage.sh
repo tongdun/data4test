@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 当你执行该脚本时，请先执行getDeployContent.sh脚本，获取depoy目录的内容
+# 当你执行该脚本时，请先执行getDeployContent.sh脚本，获取deploy目录的内容
 # 再执行该脚本进行打包和数据清理
 
 # Release打包

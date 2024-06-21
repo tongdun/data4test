@@ -19,17 +19,21 @@ sudo rm -f deploy/mgmt/api/*
 sudo rm -rf deploy/mgmt/old/*
 sudo rm -rf deploy/mgmt/history/*
 cd deploy/mgmt/data
-sudo rm -f `ls | grep -v "示例-用户管理-新建用户.yml"`
+sudo rm -rf `ls | grep -v "示例-用户管理-新建用户.yml"`
 cd -
 cd deploy/mgmt/case
-sudo rm -f `ls | grep -v "project_V1.0.0_testcase_demo.xmind"`
+sudo rm -rf `ls | grep -v "project_V1.0.0_testcase_demo.xmind"`
 cd -
 cd deploy/mgmt/common
-sudo rm -f `ls| grep -v "模板使用说明."`
+sudo rm -rf `ls| grep -v "模板使用说明."`
 cd -
 cd deploy/mgmt/upload
-sudo rm -f `ls | grep -v "_template."`
+sudo rm -rf `ls | grep -v "_template."`
 cd -
+cd deploy/mgmt/download
+sudo rm -rf `ls`
+cd -
+
 mv deploy/mgmt/doc/file/arch/image deploy/mgmt/common
 
 #linux版本

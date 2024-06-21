@@ -6,15 +6,17 @@
 # Usage:
 #
 # # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
-# docker build -f appDockerfile -t data4test:1.0 .
+# docker build -f appDockerfile -t data4test:2.0 .
+# docker tag data4test:2.0 josingcjx/data4test:2.0
+# docker push josingcjx/data4test:2.0
 # use this image in docker-compose.yml
 # docker-compose up -d
 # docker-compose up
 # You can visit Data4Test by http://127.0.0.1:9088 admin / admin to use it ~
 
-FROM centos
+FROM centos:latest
 MAINTAINER josingcjx
-# Start it after get the ./deloy content finish
+# Start it after get the ./deploy content finish
 COPY ./deploy/ /home/data4test
 WORKDIR /home/data4test
 RUN cd /home/data4test && \
