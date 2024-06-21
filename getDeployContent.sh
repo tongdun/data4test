@@ -53,6 +53,12 @@ sed -i '' 's/<img src=".\/image\/全局使用流程图.jpg">/[链接](\/admin\/f
 sed -i '' 's/<img src=".\/image\/数据流程图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/数据流程图.png)/g' deploy/mgmt/doc/file/arch/arch.md
 sed -i '' 's/<img src=".\/image\/系统数据关系图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/系统数据关系图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
 
+sed -i '' 's/parameter_design.md/parameter_design/g' deploy/mgmt/doc/file/design/data_file_design.md
+sed -i '' 's/action_design.md/action_design/g' deploy/mgmt/doc/file/design/data_file_design.md
+sed -i '' 's/assert_design.md/assert_design/g' deploy/mgmt/doc/file/design/data_file_design.md
+sed -i '' 's/script_design.md/script_design/g' deploy/mgmt/doc/file/design/data_file_design.md
+
+
 echo '''
 {
 	"custom_foot_html": "./html/tongdun.html",
