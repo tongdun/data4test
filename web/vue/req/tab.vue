@@ -3038,11 +3038,12 @@ export default class Tab extends Vue {
     data.append('postApis', JSON.stringify(this.apiRunSave.postApis))
     data.append('product', JSON.stringify(this.apiRunSave.product))
     data.append('otherConfig', JSON.stringify(this.apiRunSave.otherConfigs))
-    if (this.apiRunSave.bodyMode == 'raw') {
-      data.append('bodyMode', JSON.stringify(this.rawRunContentType))
-    } else {
-      data.append('bodyMode', JSON.stringify(this.apiRunSave.bodyMode))
-    }
+    data.append('bodyMode', JSON.stringify(this.apiRunSave.bodyMode))
+    // if (this.apiRunSave.bodyMode == 'raw') {  //后端再改raw模式的
+    //   data.append('bodyMode', JSON.stringify(this.rawRunContentType))
+    // } else {
+    //   data.append('bodyMode', JSON.stringify(this.apiRunSave.bodyMode))
+    // }
 
     this.start = moment().valueOf()
     let result = await API.post<Req.ResponseModel[]>('/dataRun', data)
