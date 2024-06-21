@@ -17,5 +17,5 @@ CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -o ./release/data4test_windows_i3
 
 
 cd deploy
-rm -rf `ls | grep -v "README.md"`
+rm -rf `ls | grep -v "README"`
 cd -
