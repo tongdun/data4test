@@ -263,8 +263,8 @@
                 </Card>
               </Form-item>
               <Form-item v-show="isResponse">
-                <RespInfo :requestData="reqDataRespList"></RespInfo>
                 <RequestInfo :requestData="reqDataRespList"></RequestInfo>
+                <RespInfo :requestData="reqDataRespList"></RespInfo>
               </Form-item>
             </Form>
           </i-col>

@@ -310,7 +310,6 @@ func GetHistoryDataDirName(fileName string) (dirName string) {
 
 func GetStrSuffix(s string) (suffix string) {
 	tmpList := strings.Split(s, ".")
-
 	suffix = fmt.Sprintf(".%s", tmpList[len(tmpList)-1])
 
 	return

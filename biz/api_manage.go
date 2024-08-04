@@ -466,16 +466,7 @@ func RunApiDebugData(apiModel ApiDataSaveModel) (runResp RunRespModel, err error
 		runResp.FailReason = fmt.Sprintf("%v", err)
 	}
 
-	envType, errTmp := GetEnvTypeByName(apiModel.Product)
-	if errTmp != nil {
-		Logger.Warning("未取环境信息异常: %v", errTmp)
-		//return
-		if err != nil {
-			err = fmt.Errorf("%s;%s", err, errTmp)
-		} else {
-			err = errTmp
-		}
-	}
+	envType := GetEnvTypeByName(apiModel.Product)
 
 	runResp.Output = outputStr
 
@@ -499,7 +490,7 @@ func RunHistoryData(apiModel HistorySaveModel) (runResp RunRespModel, err error)
 		runResp.FailReason = fmt.Sprintf("%s", err)
 	}
 
-	envType, _ := GetEnvTypeByName(apiModel.Product)
+	envType := GetEnvTypeByName(apiModel.Product)
 
 	runResp.Output = outputStr
 
@@ -531,7 +522,11 @@ func GetDataFileFromModel(apiModel ApiDataSaveModel) (dataFile DataFile) {
 	dataFile.IsUseEnvConfig = "no"
 	dataFile.IsRunPostApis = "no"
 	dataFile.IsRunPreApis = "no"
-	dataFile.IsParallel = "yes"
+	if len(apiModel.Other) > 0 {
+		dataFile.IsParallel = apiModel.Other[0].IsParallel
+	} else {
+		dataFile.IsParallel = "no"
+	}
 
 	for _, item := range apiModel.PreApis {
 		dataFile.Api.PreApi = append(dataFile.Api.PreApi, item.DataFile)
@@ -597,7 +592,21 @@ func GetDataFileFromModel(apiModel ApiDataSaveModel) (dataFile DataFile) {
 
 func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
 	df := GetDataFileFromModel(apiModel)
-	fileName := fmt.Sprintf("%s-%s-%s.yml", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+	var fileName string
+	if strings.Contains(apiModel.DataDesc, "_") || strings.Contains(apiModel.DataDesc, "-") {
+		fileName = fmt.Sprintf("%s.yml", apiModel.DataDesc)
+	} else {
+		if len(apiModel.Module) > 0 && len(apiModel.ApiDesc) > 0 {
+			fileName = fmt.Sprintf("%s-%s-%s.yml", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
+		} else if len(apiModel.Module) > 0 {
+			fileName = fmt.Sprintf("%s-%s.yml", apiModel.Module, apiModel.DataDesc)
+		} else if len(apiModel.ApiDesc) > 0 {
+			fileName = fmt.Sprintf("%s-%s.yml", apiModel.ApiDesc, apiModel.DataDesc)
+		} else {
+			fileName = fmt.Sprintf("%s.yml", apiModel.DataDesc)
+		}
+	}
+
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
 
 	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", nil)
@@ -610,20 +619,30 @@ func (df DataFile) GetResponseStr() (urlStr, headerStr, requestStr, responseStr,
 		for _, item := range df.Response {
 			responseMap := make(map[string]interface{})
 			errTmp := json.Unmarshal([]byte(item), &responseMap)
-			resJson, errTmp := json.MarshalIndent(responseMap, "", "    ")
+			var resJson []byte
 			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-				if err != nil {
-					err = fmt.Errorf("%s; %s", err, errTmp)
+				if len(responseStr) == 0 {
+					responseStr = string(resJson)
 				} else {
-					err = errTmp
+					responseStr = fmt.Sprintf("%s\n%s", responseStr, item)
+				}
+			} else {
+				resJson, errTmp = json.MarshalIndent(responseMap, "", "    ")
+				if errTmp != nil {
+					Logger.Error("%s", errTmp)
+					if err != nil {
+						err = fmt.Errorf("%s; %s", err, errTmp)
+					} else {
+						err = errTmp
+					}
+				}
+				if len(responseStr) == 0 {
+					responseStr = string(resJson)
+				} else {
+					responseStr = fmt.Sprintf("%s\n%s", responseStr, string(resJson))
 				}
 			}
-			if len(responseStr) == 0 {
-				responseStr = string(resJson)
-			} else {
-				responseStr = fmt.Sprintf("%s\n%s", responseStr, string(resJson))
-			}
+
 		}
 	}
 	if len(df.Urls) > 0 {
@@ -878,19 +897,14 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 	} else {
 		models.Orm.Table("scene_data").Where("app = ? and name = ?  and file_type = 1", appName, dataDesc).Find(&sceneData)
 	}
+
 	if len(sceneData.ApiId) == 0 {
 		fullName = fmt.Sprintf("控制台-%s-%s-%s", module, apiDesc, dataDesc)
 		models.Orm.Table("scene_data").Where("app = ? and name = ?  and file_type = 1", appName, fullName).Find(&sceneData)
 	}
 
-	if len(sceneData.ApiId) > 0 {
-		pathTmps := strings.Split(sceneData.ApiId, "_")
-		apiModel.Method = pathTmps[0]
-		apiModel.Path = pathTmps[1]
-	}
-
 	var apiDef ApiStringDefinition
-	models.Orm.Table("api_definition").Where("app = ? and http_method = ? and path = ?", appName, apiModel.Method, apiModel.Path).Find(&apiDef)
+	models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, sceneData.ApiId).Find(&apiDef)
 	if len(appName) == 0 {
 		apiModel.App = apiDef.App
 	} else {
@@ -919,18 +933,20 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 
 	var dataFile DataFile
 
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(sceneData.Content))
-	if err != nil {
-		Logger.Error("%s", err)
-		return
+	var afterTxt string
+	if strings.Contains(sceneData.Content, "<pre><code>") {
+		afterTxt = strings.Replace(sceneData.Content, "<pre><code>", "", -1)
+		afterTxt = strings.Replace(afterTxt, "</code></pre>", "", -1)
+	} else {
+		afterTxt = sceneData.Content
 	}
-	handle := doc.Find("code")
-	afterTxt := handle.Text()
+
 	if len(afterTxt) == 0 {
+		Logger.Error("数据文件内容为空，请校对~")
 		return
 	}
 
-	err = yaml.Unmarshal([]byte(afterTxt), &dataFile)
+	err := yaml.Unmarshal([]byte(afterTxt), &dataFile)
 	if err != nil {
 		Logger.Error("%s", err)
 	}
@@ -950,6 +966,8 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 	apiModel.Asserts = dataFile.Assert
 	apiModel.Actions = dataFile.Action
 	apiModel.Prefix = dataFile.Env.Prepath
+	apiModel.Method = dataFile.Api.Method
+	apiModel.Path = dataFile.Api.Path
 
 	if len(appName) == 0 || len(module) == 0 || len(apiDesc) == 0 {
 		apiModel.Path = dataFile.Api.Path

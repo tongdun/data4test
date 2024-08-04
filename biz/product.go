@@ -21,13 +21,12 @@ func GetProductName(id string) (name string, err error) {
 	return
 }
 
-func GetEnvTypeByName(product string) (envType int, err error) {
+func GetEnvTypeByName(product string) (envType int) {
 	var envTypes []int
 	models.Orm.Table("product").Where("product = ?", product).Pluck("env_type", &envTypes)
 
 	if len(envTypes) == 0 {
-		err = fmt.Errorf("未找到[%v]产品信息，请核对", product)
-		Logger.Warning("%s", err)
+		Logger.Warning("未找到[%v]产品信息，请核对", product)
 		return
 	}
 

@@ -201,6 +201,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	defer resp.Body.Close()
 
 	resBody, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
 		Logger.Error("%s", err)
 	}
@@ -212,15 +213,14 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
 		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
-		Logger.Error("%s", err)
 	}
 
-	var dowloadFileName, downlodFilePath string
+	var dowloadFileName, downloadFilePath string
 	if respContentype != "application/json" && len(downloadInfo) > 0 {
 		tmps := strings.Split(downloadInfo, "=")
 		if len(tmps) > 1 {
 			dowloadFileName = tmps[1]
-			downlodFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
+			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
 		}
 	} else {
 		for k, v := range responseHeader {
@@ -229,15 +229,15 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 				tmps := strings.Split(vStr, "=")
 				if len(tmps) > 1 {
 					dowloadFileName = tmps[1]
-					downlodFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
+					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
 				}
 				break
 			}
 		}
 	}
 
-	if len(downlodFilePath) > 0 {
-		fh, errTmp := os.Create(downlodFilePath)
+	if len(downloadFilePath) > 0 {
+		fh, errTmp := os.Create(downloadFilePath)
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
 			if err != nil {
@@ -437,5 +437,6 @@ func RunHttp(method, url string, data map[string]interface{}, acceptHeader, resp
 	default:
 		res, err = RunHttpUrlencoded(method, url, data, acceptHeader, responseHeader)
 	}
+
 	return
 }

@@ -47,7 +47,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 		source = "historyAgain"
 	}
 
-	envType, _ := GetEnvTypeByName(playbook.Product)
+	envType := GetEnvTypeByName(playbook.Product)
 	isFail := 0
 	var result string
 
@@ -57,7 +57,6 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 			playbook.Tag = tag + k
 			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
 			if errTmp != nil {
-				//Logger.Error("%s", errTmp)
 				if err != nil {
 					err = errTmp
 				} else {

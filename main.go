@@ -767,6 +767,13 @@ func startServer() {
 		c.String(http.StatusOK, data)
 	})
 
+	r.GET("/mock/file", func(c *gin.Context) {
+		fileName := c.Query("name")
+		lang := c.Query("lang")
+		data := biz.GetFileContent(lang, fileName)
+		c.String(http.StatusOK, data)
+	})
+
 	r.GET("/mock/systemParameter/:name", func(c *gin.Context) {
 		name := c.Param("name")
 		lang := c.Query("lang")
@@ -804,7 +811,22 @@ func startServer() {
 	})
 
 	r.GET("/mock/data/certid/:idno", func(c *gin.Context) {
-		idno := c.Param("name")
+		idno := c.Param("idno")
+		data := biz.GetInfoFromIDNo(idno)
+		c.JSON(http.StatusOK, gin.H{
+			"city":     data.City,
+			"sex":      data.Sex,
+			"code":     data.Code,
+			"birthday": data.Birthday,
+			"district": data.District,
+			"province": data.Province,
+			"address":  data.Addr,
+			"country":  "中国",
+		})
+	})
+
+	r.GET("/mock/data/certid", func(c *gin.Context) {
+		idno := c.Query("idno")
 		data := biz.GetInfoFromIDNo(idno)
 		c.JSON(http.StatusOK, gin.H{
 			"city":     data.City,

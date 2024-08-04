@@ -1082,7 +1082,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 		}
 	}
 
-	envType, _ := GetEnvTypeByName(playbook.Product)
+	envType := GetEnvTypeByName(playbook.Product)
 	isFail := 0
 	result = "fail"
 
@@ -1235,7 +1235,6 @@ func (ds DbScene) GetPlaybook() (playbook Playbook) {
 func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out string, err error) {
 	var allFalseCount int
 	var notDefVars, tmpDefVars map[string]string
-
 	in, notDefVars, falseCount := GetIndexStr(lang, in, "env:\n", "api:\n", depOutVars)
 	allFalseCount = allFalseCount + falseCount
 
@@ -1257,8 +1256,8 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 	//	notDefVars[k] = v
 	//}
 
-	in, _, _ = GetIndexStr(lang, in, "assert:\n", "output:", depOutVars)
-	allFalseCount = allFalseCount + falseCount // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
+	in, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
+	allFalseCount = allFalseCount + falseCount                              // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
 	for k, v := range tmpDefVars {
 		notDefVars[k] = v
 	}
@@ -1270,6 +1269,7 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 		Logger.Error("%s", err)
 		return
 	}
+
 	return
 }
 
@@ -1277,35 +1277,25 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int) {
 	var indexStr string
 	var startIndex, endIndex int
+
 	if len(startStr) == 0 && len(endStr) == 0 {
 		indexStr = rawStr
 	} else {
 		startIndex = strings.Index(rawStr, startStr)
 		endIndex = strings.Index(rawStr, endStr)
-		if startIndex == -1 && endIndex == -1 {
+		if startIndex == -1 { // 开始未找到，相当于无相关定义，可直接跳过
 			targetStr = rawStr
 			return
-		} else if startIndex == -1 {
-			indexStr = rawStr[:endIndex]
 		} else if endIndex == -1 {
 			indexStr = rawStr[startIndex:]
 		} else if startIndex > endIndex {
 			Logger.Debug("rawStr: %s", rawStr)
+			Logger.Debug("startStr: %s，endStr: %s", startStr, endStr)
 			Logger.Error("rawStr[%d:%d], 索引有问题，请校对", startIndex, endIndex)
 		} else {
 			indexStr = rawStr[startIndex:endIndex]
 		}
 	}
-
-	//if strings.Contains(startStr, "assert") && strings.Contains(endStr, "output") {
-	//	Logger.Debug("startStr: %v", startStr)
-	//	Logger.Debug("output: %v", endStr)
-	//	assertVale := GetAssertTemplateAllValue(lang)
-	//	Logger.Debug("assertVale: %v", assertVale)
-	//	for k, v := range assertVale {
-	//		depOutVars[k] = v
-	//	}
-	//}
 
 	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
 	strMatch := strReg.FindAllSubmatch([]byte(indexStr), -1)
@@ -1356,6 +1346,12 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 			}
 		} else {
 			if value, ok := depOutVars[key]; ok {
+				if len(value) == 0 {
+					Logger.Error("%s:%v", key, value)
+					falseCount++
+					continue
+				}
+
 				var vStr string
 				if count, ok := countMap[key]; ok {
 					if len(value) > count {

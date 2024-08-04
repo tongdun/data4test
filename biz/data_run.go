@@ -162,8 +162,8 @@ func (apiModel ApiDataSaveModel) WriteDataFileHistoryResult(result, dst string, 
 	apiStr := fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
 
 	sceneDataRecord.Content = apiStr
-	sceneDataRecord.Name = fmt.Sprintf("%s-%s-%s", apiModel.Module, apiModel.ApiDesc, apiModel.DataDesc)
 
+	sceneDataRecord.Name = dirName
 	sceneDataRecord.ApiId = fmt.Sprintf("%s_%s", apiModel.Method, apiModel.Path)
 	sceneDataRecord.App = apiModel.App
 	sceneDataRecord.Result = result
@@ -474,9 +474,9 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 	}
 
 	envConfig, err = GetEnvConfig(targetApp, "data")
-	if err != nil {
-		Logger.Warning("%s", err)
-	}
+	//if err != nil {
+	//	Logger.Warning("%s", err)
+	//}
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -605,9 +605,10 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		rHeader = df.Single.RespHeader
 	}
 
+	// 后续可优化，有依赖和无依赖进行控制
 	go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
-	_ = df.RecordDataOrderByKey(bodys)                     // 执行动作：record_xxx
-	_ = df.ModifyFileWithData(bodys)                       // 执行动作：modify_file
+	_ = df.RecordDataOrderByKey(bodys)                     // 有依赖，同步执行记录动作：record_xxx
+	_ = df.ModifyFileWithData(bodys)                       // 有依赖，同步执行模板动作：modify_file
 
 	if err != nil {
 		Logger.Error("%s", err)
@@ -618,8 +619,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 	var resList [][]byte
 	var errs []error
 	tag := 0
-
-	if df.GetIsParallel() {
+	if df.GetIsParallel() { //控制台过来的并发有bug
 		wg := sync.WaitGroup{}
 		for _, url := range urls {
 			if len(querys) > 0 {
@@ -718,7 +718,6 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					}
-
 					_ = df.SetSleepAction()
 				}
 			} else if len(bodys) > 0 {
@@ -999,7 +998,7 @@ func RunSceneDataOnce(id, product, source string) (err error) {
 }
 
 func (df DataFile) GetIsParallel() (b bool) {
-	if value := df.IsParallel; value == "yes" {
+	if df.IsParallel == "yes" {
 		b = true
 	} else {
 		b = false
@@ -1071,33 +1070,41 @@ func (df DataFile) GetHeader(envConfig EnvConfig) (header map[string]interface{}
 func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 	var rawUrl string
 	envInfo := []string{envConfig.Protocol, "://", envConfig.Ip, envConfig.Prepath, df.Api.Path}
-	sceneInfo := []string{df.Env.Protocol, "://", df.Env.Host, envConfig.Prepath, df.Api.Path}
+	sceneInfo := []string{df.Env.Protocol, "://", df.Env.Host, df.Env.Prepath, df.Api.Path}
 	tag := 0
-	for i := 0; i < len(envInfo); i++ {
-		if df.IsUseEnvConfig == "no" {
-			if len(sceneInfo[i]) == 0 && i != 3 {
-				tag++
+	for i := 0; i < 5; i++ {
+		if df.IsUseEnvConfig == "no" { //不使用公共环境，自身数据文件配置优先级高
+			if len(sceneInfo[i]) > 0 {
+				rawUrl = rawUrl + sceneInfo[i]
+			} else if len(envInfo[i]) > 0 {
+				rawUrl = rawUrl + envInfo[i]
+			} else {
+				if i != 3 { //允许未设置公共路径
+					tag++
+				}
 			}
-			rawUrl = rawUrl + sceneInfo[i]
-		} else {
-			if len(envInfo[i]) == 0 && i != 3 {
-				tag++
+		} else { //使用公共环境，公共配置优先级高
+			if len(envInfo[i]) > 0 {
+				rawUrl = rawUrl + envInfo[i]
+			} else if len(sceneInfo[i]) > 0 {
+				rawUrl = rawUrl + sceneInfo[i]
+			} else {
+				if i != 3 { //允许未设置公共路径
+					tag++
+				}
 			}
-			rawUrl = rawUrl + envInfo[i]
 		}
 	}
 
 	if tag != 0 {
 		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s", rawUrl)
 		err = err1
-		//Logger.Error("%s", err)
 		return
 	}
 
 	if strings.Contains(rawUrl, "{") {
 		if df.Single.Path == nil && df.Multi.Path == nil {
 			err = fmt.Errorf("未进行Path变量定义，请先定义")
-			//Logger.Error("%s", err)
 			return
 		}
 		pathVarsReg := regexp.MustCompile(`{[[:alpha:]]+}`)
@@ -1125,7 +1132,6 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 
 			if tag == 0 {
 				err = fmt.Errorf("未找到Path:%s变量的定义值，请先进行定义", v)
-				//Logger.Error("%s", err)
 				return
 			}
 		}
@@ -1420,7 +1426,6 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
 	outputDict = make(map[string][]interface{})
 	isPass := 0
-
 	dst, err = GetResultFilePath(filePath)
 	if err != nil {
 		Logger.Error("获取目标文件目录: %s", err)

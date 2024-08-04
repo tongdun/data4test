@@ -17,36 +17,14 @@ func GetEnvConfig(name, source string) (envConfig EnvConfig, err error) {
 			envConfig.Testmode = dbProduct.Testmode
 			envConfig.Ip = dbProduct.Ip
 		} else {
-			err = fmt.Errorf("未找到[%s]产品配置信息", name)
-			//Logger.Warning("%s", err)  // 日志在链路上打印
+			Logger.Warning("未找到[%s]产品配置信息", name)
 		}
 	case "data", "consoleData", "taskData":
 		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
 		if len(envConfig.App) == 0 {
-			err = fmt.Errorf("未找到[%s]应用配置信息", name)
-			//Logger.Warning("%s", err)
+			Logger.Warning("未找到[%s]应用配置信息", name)
 		}
 	}
-	//if source == "scene" ||  {
-	//	var dbProduct DbProduct
-	//	models.Orm.Table("product").Where("product = ?", name).Find(&dbProduct)
-	//	if len(dbProduct.Name) > 0 {
-	//		envConfig.Product = name
-	//		envConfig.Protocol = dbProduct.Protocol
-	//		envConfig.Auth = dbProduct.Auth
-	//		envConfig.Testmode = dbProduct.Testmode
-	//		envConfig.Ip = dbProduct.Ip
-	//	} else {
-	//		err = fmt.Errorf("未找到[%s]产品配置信息", name)
-	//		//Logger.Warning("%s", err)  // 日志在链路上打印
-	//	}
-	//} else if source == "data" {
-	//	models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
-	//	if len(envConfig.App) == 0 {
-	//		err = fmt.Errorf("未找到[%s]应用配置信息", name)
-	//		//Logger.Warning("%s", err)
-	//	}
-	//}
 
 	return
 }
