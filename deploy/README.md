@@ -21,7 +21,7 @@
 
 ##### 已有环境更新
 - 变更日志：./mgmt/doc/file/update/change_log.md
-- 若有定时任务，在新的环境中无需执行，可以把运行中的任务暂停，运行中的任务重新部署后会自动拉起
+- 若有定时任务，运行中的任务重新部署后会自动拉起
 - 导入最新变动的SQL: mysql -h x.x.x.x -u user -p data4test < ./mgmt/sql/update.sql (拉取对应日志的SQL进行更新)
 - kill已有进程：ps aux | grep -i data4test | head -n 1 | awk '{print $2}' | xargs kill -9
 
