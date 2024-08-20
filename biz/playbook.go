@@ -631,8 +631,8 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			requestMap := make(map[string]interface{})
 			errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
 			if errTmp != nil {
-				Logger.Debug("%v", sceneFile.Request[0])
-				Logger.Error("%v", errTmp)
+				Logger.Info("%v", sceneFile.Request[0])
+				Logger.Warning("%v", errTmp) // 优化日志等级，当请求入参直接为数组list时，无法转为map
 			} else {
 				for k, v := range requestMap {
 					if _, ok := outputDict[k]; !ok {
@@ -864,7 +864,8 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 }
 
 func GetAllPlaybook() (names []string, err error) {
-	models.Orm.Table("playbook").Order("created_at desc").Group("name").Pluck("name", &names)
+	//models.Orm.Table("playbook").Order("created_at desc").Group("name").Pluck("name", &names)  //去重再优化
+	models.Orm.Table("playbook").Order("created_at desc").Pluck("name", &names)
 	if len(names) == 0 {
 		Logger.Warning("暂无场景数据")
 		return

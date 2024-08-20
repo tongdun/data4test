@@ -580,7 +580,7 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 			} else {
 				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, targetStr)
 			}
-			actualPrompt := fmt.Sprintf("实际: ResponseBody %s %s", assert.Type, curStr)
+			actualPrompt := fmt.Sprintf("实际: ResponseBody = %s", curStr)
 			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
 		default:
 			if len(rawTargetStr) > 0 {
@@ -588,7 +588,7 @@ func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
 			} else {
 				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
 			}
-			actualPrompt := fmt.Sprintf("实际: %s %s %s", assert.Source, assert.Type, curStr)
+			actualPrompt := fmt.Sprintf("实际: %s = %s", assert.Source, curStr)
 			err = fmt.Errorf("%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
 		}
 	}

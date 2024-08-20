@@ -110,6 +110,7 @@ echo '''
 	"server_port": 9088,
 	"log_level": "debug",
 	"cicd_host": "X.X.X.X:8088",
-	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1"
+	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
+	"redirect_path": "/admin/info/schedule"
 }
 ''' > deploy/config.json

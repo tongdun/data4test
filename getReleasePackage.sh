@@ -15,7 +15,6 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ./release/data4test_linux_aarc
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./release/data4test_windows_x86_64_${curDate}.exe main.go
 CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -o ./release/data4test_windows_i386_${curDate}.exe main.go
 
-
 cd deploy
 rm -rf `ls | grep -v "README"`
 cd -

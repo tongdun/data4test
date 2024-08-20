@@ -132,12 +132,12 @@ func startServer() {
 	}, true)
 
 	r.GET("/", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusMovedPermanently, "/admin/likePostman")
+		ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH)
 		return
 	})
 
 	r.GET("/admin", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusMovedPermanently, "/admin/likePostman")
+		ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH)
 	})
 
 	r.GET("/admin/dashboard", ada.Content(pages.GetDashBoardContent))

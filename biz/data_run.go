@@ -568,9 +568,9 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
-
+		Logger.Debug("content: %s", content)
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
-
+		Logger.Debug("contentStr: %s", contentStr)
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
@@ -580,6 +580,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			return
 		}
 		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
+
 		if errTmp != nil {
 			Logger.Debug("\nrawContent: %s", string(content))
 			Logger.Debug("\nafterContent: %s", contentStr)
@@ -690,6 +691,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		for _, url := range urls {
 			if len(querys) > 0 {
 				for _, data := range querys {
+					var tUrl string
 					dJson, _ := json.Marshal(data)
 					if tag == 0 {
 						df.Request = []string{string(dJson)}
@@ -702,13 +704,13 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 						for k, v := range data {
 							strV := Interface2Str(v)
 							if subTag == 0 {
-								url = fmt.Sprintf("%s?%s=%s", url, k, strV)
+								tUrl = fmt.Sprintf("%s?%s=%s", url, k, strV)
 							} else {
-								url = fmt.Sprintf("%s&%s=%s", url, k, strV)
+								tUrl = fmt.Sprintf("%s&%s=%s", tUrl, k, strV)
 							}
 							subTag++
 						}
-						res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
+						res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
 						resList = append(resList, res)
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
@@ -720,31 +722,46 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 					}
 					_ = df.SetSleepAction()
 				}
-			} else if len(bodys) > 0 {
-				for _, data := range bodys {
-					var dJson []byte
-					dJson, errTmp := json.Marshal(data)
-					if errTmp != nil {
+			} else if len(bodys) > 0 || len(bodyList) > 0 {
+				if len(bodyList) > 0 {
+					if len(bodyList) > 0 {
 						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-						dJsonTmp, err2 := jsonNew.Marshal(&data)
-						if err2 != nil {
-							Logger.Error("%s", err2)
-							err = err2
-							return
+						readerNew, _ := jsonNew.Marshal(&bodyList)
+						df.Request = []string{string(readerNew)}
+						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
+						if err != nil {
+							Logger.Debug("%s", err)
 						}
-						dJson = dJsonTmp
+						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
+						errs = append(errs, err)
 					}
-					if tag == 0 {
-						df.Request = []string{string(dJson)}
-					} else {
-						df.Request = append(df.Request, string(dJson))
+				} else {
+					for _, data := range bodys {
+						var dJson []byte
+						dJson, errTmp := json.Marshal(data)
+						if errTmp != nil {
+							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+							dJsonTmp, err2 := jsonNew.Marshal(&data)
+							if err2 != nil {
+								Logger.Error("%s", err2)
+								err = err2
+								return
+							}
+							dJson = dJsonTmp
+						}
+						if tag == 0 {
+							df.Request = []string{string(dJson)}
+						} else {
+							df.Request = append(df.Request, string(dJson))
+						}
+						tag++
+						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
+						errs = append(errs, err)
+						_ = df.SetSleepAction()
 					}
-					tag++
-					res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
-					resList = append(resList, res)
-					df.Response = append(df.Response, string(res))
-					errs = append(errs, err)
-					_ = df.SetSleepAction()
 				}
 			} else {
 				df.Request = []string{}
@@ -1525,6 +1542,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					}
 					continue
 				}
+
 				switch aType {
 				case "output", "output_re":
 					k := Interface2Str(assert.Value)
@@ -1601,7 +1619,8 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						break
 					}
 
-					outputDict[keyName] = values
+					//outputDict[keyName] = values
+					outputDict[keyName] = append(outputDict[keyName], values...)
 
 				case "output_re":
 					keyName, values, err1 := assert.GetOutputRe(res[i])
@@ -1625,7 +1644,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						break
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
-
 				default:
 					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {

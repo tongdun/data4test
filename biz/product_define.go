@@ -19,6 +19,7 @@ type Product struct {
 	Testmode         string `gorm:"column:testmode" json:"testmode"`
 	EnvType          int    `gorm:"column:env_type" json:"env_type"`
 	PrivateParameter string `gorm:"column:private_parameter" json:"private_parameter"`
+	Remark           string `gorm:"column:remark" json:"remark"`
 }
 
 type DbProduct struct {

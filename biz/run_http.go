@@ -399,7 +399,6 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 	if err != nil {
 		Logger.Error("%s", err)
 	}
-	Logger.Debug("resBody: %s", string(resBody))
 
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {

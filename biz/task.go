@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
-
 	"strconv"
 	"strings"
 	"time"
@@ -442,6 +441,418 @@ func CopySchedule(id, userName string) (err error) {
 	if err != nil {
 		Logger.Error("%s", err)
 	}
+	return
+}
+
+func ExportSchedule(id, userName string) (fileName string, err error) {
+	sqlRule1 := "# SQL生成规则：产品配置/应用配置，存在则跳过; 其他不存在则插入，存在则更新"
+	sqlRule2 := "# 数据的创建人统一为导出操作人的信息，所属产品或关联产品统一为导出任务第一个产品的信息"
+
+	curTime := time.Now().Format("20060102150405")
+	fileName = fmt.Sprintf("%s_%s.sql", "任务数据SQL", curTime)
+	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName)
+	_ = WriteDataInCommonFile(filePath, sqlRule1)
+	_ = WriteDataInCommonFile(filePath, sqlRule2)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	_ = WriteDataInCommonFile(filePath, "# 选择数据库, 默认data4test")
+	_ = WriteDataInCommonFile(filePath, "use data4test;")
+	_ = WriteDataInCommonFile(filePath, "set names utf8;")
+	_ = WriteDataInCommonFile(filePath, "")
+
+	dataMapFromTask, playbookMap, productMap, err := GetTaskSQL(userName, id, filePath)
+	if err != nil {
+		return
+	}
+
+	productName, appMap, err := GetProductSQL(filePath, productMap)
+	if err != nil {
+		return
+	}
+
+	err = GetAppSQL(productName, filePath, appMap)
+	if err != nil {
+		return
+	}
+
+	dataMap, err := GetPlaybookSQL(userName, productName, filePath, playbookMap)
+	if err != nil {
+		return
+	}
+	for k, _ := range dataMapFromTask {
+		if _, ok := dataMap[k]; !ok {
+			dataMap[k] = true
+		}
+	}
+
+	assertMap, sysParameterMap, err := GetDataSQL(userName, filePath, dataMap)
+	if err != nil {
+		return
+	}
+
+	err = GetAssertTemplateSQL(filePath, assertMap)
+	if err != nil {
+		return
+	}
+
+	err = GetSysParameterSQL(filePath, sysParameterMap)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error) {
+	appSQLDesc := "# 应用配置"
+	var appNames []string
+	for k, _ := range appMap {
+		if len(k) == 0 {
+			continue
+		}
+		appNames = append(appNames, k)
+	}
+
+	var appList []EnvConfig
+	models.Orm.Table("env_config").Where("app in (?)", appNames).Find(&appList)
+	if len(appList) == 0 {
+		err = fmt.Errorf("未找到[%v]应用配置信息", appList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var appValueStr, appNameDesc string
+	for index, item := range appList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			appValueStr = fmt.Sprintf("('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
+			appNameDesc = fmt.Sprintf("# 导出的应用为: %s", item.App)
+		} else {
+			appValueStr = fmt.Sprintf("%s, ('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", appValueStr, productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
+			appNameDesc = fmt.Sprintf("%s / %s", appNameDesc, item.App)
+		}
+	}
+
+	appSQL := fmt.Sprintf("INSERT IGNORE INTO `env_config`(product, app, ip, protocol, prepath, threading, auth, testmode, swagger_path, remark) VALUES %s;", appValueStr)
+	_ = WriteDataInCommonFile(filePath, appSQLDesc)
+	_ = WriteDataInCommonFile(filePath, appNameDesc)
+	_ = WriteDataInCommonFile(filePath, appSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetProductSQL(filePath string, productMap map[string]bool) (productName string, appMap map[string]bool, err error) {
+	productSQLDesc := "# 产品配置"
+	var productNameList []string
+	for k, _ := range productMap {
+		if len(k) == 0 {
+			continue
+		}
+		productNameList = append(productNameList, k)
+	}
+
+	var productList []DbProduct
+	models.Orm.Table("product").Where("product in (?)", productNameList).Find(&productList)
+	if len(productList) == 0 {
+		err = fmt.Errorf("未找到: %v 环境信息，请核对", productNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var productValueStr, productNameDesc string
+	var appNameList []string
+	for index, item := range productList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			productName = item.Product.Name
+			productValueStr = fmt.Sprintf("('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s')", item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.Remark)
+			appNameList = strings.Split(item.Apps, ",")
+			productNameDesc = fmt.Sprintf("# 导出的产品为: %s", item.Name)
+		} else {
+			productValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s')", productValueStr, item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.Remark)
+			appTmp := strings.Split(item.Apps, ",")
+			appNameList = append(appNameList, appTmp...)
+			productNameDesc = fmt.Sprintf("%s / %s", productNameDesc, item.Name)
+		}
+
+	}
+
+	appMap = make(map[string]bool)
+	for _, item := range appNameList {
+		if _, ok := appMap[item]; !ok {
+			appMap[item] = true
+		}
+	}
+
+	productSQL := fmt.Sprintf("INSERT IGNORE INTO `product`(product, ip, protocol, threading, thread_number, auth,testmode, apps, env_type, private_parameter, remark) VALUES %s;", productValueStr)
+
+	_ = WriteDataInCommonFile(filePath, productSQLDesc)
+	_ = WriteDataInCommonFile(filePath, productNameDesc)
+	_ = WriteDataInCommonFile(filePath, productSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetTaskSQL(userName, taskId, filePath string) (dataMap, playbookMap, productMap map[string]bool, err error) {
+	taskSQLDesc := "# 任务信息"
+	var taskList []DbSchedule
+	ids := strings.Split(taskId, ",")
+	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
+	if len(taskList) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", taskId)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var productNames []string
+	var taskValueStr, taskNameDesc string
+	for index, item := range taskList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			taskValueStr = fmt.Sprintf("('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')", item.TaskName, item.TaskMode, item.Threading, item.TaskType, item.DataNumber, item.DataList, item.SceneNumber, item.SceneList, item.ProductList, item.Time4week, item.Time4day, item.Week, item.Remark, userName)
+			productNames = strings.Split(item.ProductList, ",")
+			taskNameDesc = fmt.Sprintf("# 导出的任务为: %s", item.TaskName)
+		} else {
+			taskValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')", taskValueStr, item.TaskName, item.TaskMode, item.Threading, item.TaskType, item.DataNumber, item.DataList, item.SceneNumber, item.SceneList, item.ProductList, item.Time4week, item.Time4day, item.Week, item.Remark, userName)
+			productTmp := strings.Split(item.ProductList, ",")
+			productNames = append(productNames, productTmp...)
+			taskNameDesc = fmt.Sprintf("%s / %s", taskNameDesc, item.TaskName)
+		}
+	}
+
+	productMap = make(map[string]bool)
+	for _, item := range productNames {
+		if _, ok := productMap[item]; !ok {
+			productMap[item] = true
+		}
+	}
+
+	playbookMap = make(map[string]bool)
+	dataMap = make(map[string]bool)
+	for _, item := range taskList {
+		if item.TaskType == "data" {
+			dataTmp := strings.Split(item.DataList, ",")
+			for _, item := range dataTmp {
+				if _, ok := dataMap[item]; !ok {
+					dataMap[item] = true
+				}
+			}
+		} else if item.TaskType == "scene" {
+			playbookTmp := strings.Split(item.SceneList, ",")
+			for _, item := range playbookTmp {
+				if _, ok := playbookMap[item]; !ok {
+					playbookMap[item] = true
+				}
+			}
+		}
+	}
+
+	taskSQL := fmt.Sprintf("REPLACE INTO `schedule`(task_name, task_mode, threading, task_type, data_number, data_list, scene_number, scene_list, product_list, time4week, time4day, week, remark, user_name) VALUES %s;", taskValueStr)
+	_ = WriteDataInCommonFile(filePath, taskSQLDesc)
+	_ = WriteDataInCommonFile(filePath, taskNameDesc)
+	_ = WriteDataInCommonFile(filePath, taskSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[string]bool) (dataMap map[string]bool, err error) {
+	playbookSQLDesc := "# 场景信息"
+	var playbookNameList []string
+	var playbookValueStr string
+	for k, _ := range playbookMap {
+		playbookNameList = append(playbookNameList, k)
+	}
+
+	var playbookList []DbScene
+	models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
+	if len(playbookList) == 0 {
+		err = fmt.Errorf("未找到对应场景，请核对: %s", playbookNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	dataMap = make(map[string]bool)
+	for index, item := range playbookList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			playbookValueStr = fmt.Sprintf("('%s','%s','%s',%d,%d,'%s','%s','%s')", item.Name, item.DataNumber, item.ApiList, item.SceneType, item.RunTime, item.Remark, userName, productName)
+		} else {
+			playbookValueStr = fmt.Sprintf("%s, ('%s','%s','%s',%d,%d,'%s','%s','%s')", playbookValueStr, item.Name, item.DataNumber, item.ApiList, item.SceneType, item.RunTime, item.Remark, userName, productName)
+		}
+		dataTmp := GetListFromHtml(item.ApiList)
+		for _, dataItem := range dataTmp {
+			if _, ok := dataMap[dataItem]; !ok {
+				dataMap[dataItem] = true
+			}
+		}
+	}
+
+	playbookNoDesc := fmt.Sprintf("# 导出的场景数量为: %d", len(playbookList))
+
+	playbookSQL := fmt.Sprintf("REPLACE INTO `playbook`(name, data_number, api_list, scene_type, run_time, remark, user_name, product) VALUES %s;", playbookValueStr)
+	_ = WriteDataInCommonFile(filePath, playbookSQLDesc)
+	_ = WriteDataInCommonFile(filePath, playbookNoDesc)
+	_ = WriteDataInCommonFile(filePath, playbookSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap map[string]bool, err error) {
+	dataSQLDesc := "# 数据信息"
+	var dataNameList []string
+	var dataValueStr string
+	for k, _ := range dataMap {
+		dataNameList = append(dataNameList, k)
+	}
+
+	var dataList []DbSceneData
+	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Find(&dataList)
+	if len(dataList) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", dataNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	assertMap = make(map[string]bool)
+	sysParameterMap = make(map[string]bool)
+
+	for index, item := range dataList {
+		if strings.Contains(item.Content, "'") {
+			item.Content = strings.Replace(item.Content, "'", "\\'", -1)
+		}
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			dataValueStr = fmt.Sprintf("('%s','%s','%s','%s',%d,'%s',%d,'%s','%s')", item.Name, item.ApiId, item.App, item.FileName, item.FileType, item.Content, item.RunTime, item.Remark, userName)
+		} else {
+			dataValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s',%d,'%s','%s')", dataValueStr, item.Name, item.ApiId, item.App, item.FileName, item.FileType, item.Content, item.RunTime, item.Remark, userName)
+		}
+
+		indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:\n", "output: {}")
+		if len(indexStr) > 0 {
+			assertVars, _ := GetInStrDef(indexStr)
+			for item, _ := range assertVars {
+				if _, ok := assertMap[item]; !ok {
+					assertMap[item] = true
+				}
+			}
+		}
+
+		indexStr, _, _, _ = GetStrByIndex(item.Content, "env::\n", "action:")
+		if len(indexStr) > 0 {
+			systemParameterVars, _ := GetInStrDef(indexStr)
+			for item, _ := range systemParameterVars {
+				if _, ok := sysParameterMap[item]; !ok {
+					sysParameterMap[item] = true
+				}
+			}
+		}
+	}
+
+	dataNoDesc := fmt.Sprintf("# 导出的数据数量为: %d", len(dataList))
+
+	dataSQL := fmt.Sprintf("REPLACE INTO `scene_data`(name, api_id, app, file_name, file_type, content, run_time, remark, user_name) VALUES %s;", dataValueStr)
+	_ = WriteDataInCommonFile(filePath, dataSQLDesc)
+	_ = WriteDataInCommonFile(filePath, dataNoDesc)
+	_ = WriteDataInCommonFile(filePath, dataSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error) {
+	assertTemplateSQLDesc := "# 断言模板信息"
+	var assertNameList []string
+	var assertValueStr string
+
+	for k, _ := range assertMap {
+		assertNameList = append(assertNameList, k)
+	}
+
+	var assertList []AssertValueDefine
+	models.Orm.Table("assert_template").Where("name in (?)", assertNameList).Find(&assertList)
+	if len(assertList) == 0 {
+		err = fmt.Errorf("未关联到断言值定义:%v", assertList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	for index, item := range assertList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			assertValueStr = fmt.Sprintf("('%s','%s','%s','%s')", item.Name, item.Value, item.Remark, item.UerName)
+		} else {
+			assertValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s')", assertValueStr, item.Name, item.Value, item.Remark, item.UerName)
+		}
+	}
+
+	assertNoDesc := fmt.Sprintf("# 导出的断言模板数量为: %d", len(assertList))
+
+	assertTemplateSQL := fmt.Sprintf("REPLACE INTO `assert_template`(name, value, remark, user_name) VALUES %s;", assertValueStr)
+	_ = WriteDataInCommonFile(filePath, assertTemplateSQLDesc)
+	_ = WriteDataInCommonFile(filePath, assertNoDesc)
+	_ = WriteDataInCommonFile(filePath, assertTemplateSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (err error) {
+	sysParameterSQLDesc := "# 系统参数信息"
+	var sysParameterNameList []string
+	var sysParameterValueStr string
+
+	for k, _ := range systemParameterMap {
+		sysParameterNameList = append(sysParameterNameList, k)
+	}
+
+	if len(sysParameterNameList) == 0 {
+		return
+	}
+
+	var sysParameterList []SysParameter
+	models.Orm.Table("sys_parameter").Where("name in (?)", sysParameterNameList).Find(&sysParameterList)
+
+	if len(sysParameterList) == 0 {
+		err = fmt.Errorf("未找到系统参数[%s]，请先定义，再使用", sysParameterNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	for index, item := range sysParameterList {
+		if strings.Contains(item.Remark, "'") {
+			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
+		}
+		if index == 0 {
+			sysParameterValueStr = fmt.Sprintf("('%s','%s','%s')", item.Name, item.ValueList, item.Remark)
+		} else {
+			sysParameterValueStr = fmt.Sprintf("%s, ('%s','%s','%s')", sysParameterValueStr, item.Name, item.ValueList, item.Remark)
+		}
+	}
+
+	sysParamterNoDesc := fmt.Sprintf("# 导出的系统参数数量为: %d", len(sysParameterList))
+
+	sysParameterSQL := fmt.Sprintf("REPLACE INTO `sys_parameter`(name, value_list, remark) VALUES %s;", sysParameterValueStr)
+	_ = WriteDataInCommonFile(filePath, sysParameterSQLDesc)
+	_ = WriteDataInCommonFile(filePath, sysParamterNoDesc)
+	_ = WriteDataInCommonFile(filePath, sysParameterSQL)
+	_ = WriteDataInCommonFile(filePath, "")
+
 	return
 }
 

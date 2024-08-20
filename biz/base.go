@@ -8,12 +8,13 @@ import (
 )
 
 var (
-	BASEPATH     string
-	SERVER_PORT  int
-	LOG_LEVEL    string
-	CICD_HOST    string
-	SWAGGER_PATH string
-	HOST_IP      string
+	BASEPATH      string
+	SERVER_PORT   int
+	LOG_LEVEL     string
+	CICD_HOST     string
+	SWAGGER_PATH  string
+	HOST_IP       string
+	REDIRECT_PATH string
 )
 
 var (
@@ -37,6 +38,7 @@ type Config struct {
 	CicdHost     string `json:"cicd_host"`
 	SwaggerPath  string `json:"swagger_path"`
 	HostIp       string `json:"host_ip"`
+	RedirectPath string `json:"redirect_path"`
 }
 
 func init() {
@@ -61,6 +63,7 @@ func init() {
 	CICD_HOST = config.CicdHost
 	SWAGGER_PATH = config.SwaggerPath
 	HOST_IP = config.HostIp
+	REDIRECT_PATH = config.RedirectPath
 
 	DataBasePath = fmt.Sprintf("%s/data", BASEPATH)
 	UploadBasePath = fmt.Sprintf("%s/upload", BASEPATH)
