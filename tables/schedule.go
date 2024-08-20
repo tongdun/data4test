@@ -143,6 +143,39 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
+	info.AddButton("一键导出", icon.Android, action.Ajax("schedule_batch_export",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = "请先选择数据再一键导出"
+				return false, status, ""
+			}
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if fileName, err := biz.ExportSchedule(idStr, userNameSub); err == nil {
+				status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为: %s", fileName)
+			} else {
+				status = fmt.Sprintf("一键导出失败：%s: %s", idStr, err)
+				return false, status, ""
+			}
+			return true, status, ""
+		}))
+
+	info.AddActionButton("一键导出", action.Ajax("schedule_export",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id := ctx.FormValue("id")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if fileName, err := biz.ExportSchedule(id, userNameSub); err == nil {
+				status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为:[%s]", fileName)
+			} else {
+				status = fmt.Sprintf("一键导出失败：%s: %s", id, err)
+			}
+			return true, status, ""
+		}))
+
 	info.AddButton("复制", icon.Android, action.Ajax("schedule_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
