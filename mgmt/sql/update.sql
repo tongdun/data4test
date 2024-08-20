@@ -17,6 +17,3 @@ alter table api_definition modify api_status enum('1', '2', '3', '4') default '1
 alter table api_definition modify is_auto enum('1', '0') default '0' null comment '是否已自动化';
 alter table api_definition modify is_auto enum('1', '-1') default '-1' null comment '是否已自动化,1:已自动化，-1:未自动化';
 alter table api_definition modify is_need_auto enum('1', '-1') default '-1' null comment '是否需自动化,1:需自动化，-1:无需自动化';
-
-INSERT INTO sys_parameter (name, value_list, remark) VALUES ('scriptRunEngine', '{".py": "/usr/local/bin/python3", ".sh": "/bin/sh", ".jmx": "xxxx", ".bat": "xxxx"}', '脚本执行引擎优先级：系统参数 > 脚本定义
-执行引擎以文件后缀为key可任意扩展，所有执行引擎需自行配置环境');

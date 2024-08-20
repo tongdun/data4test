@@ -1005,6 +1005,7 @@ UNLOCK TABLES;
 LOCK TABLES `sys_parameter` WRITE;
 /*!40000 ALTER TABLE `sys_parameter` DISABLE KEYS */;
 INSERT INTO `sys_parameter` VALUES (1,'fileName','file, gradeModel, model, pickleFiles, templateFile','当header头中Content-Type值multipart/form-data时，请求参数名称为值列表中的名称时，请求时以文件模式加载','2021-08-06 03:56:05','2021-08-06 09:14:51',NULL);
+INSERT INTO `sys_parameter` VALUES (2,'scriptRunEngine', '{".py": "/usr/local/bin/python3", ".sh": "/bin/sh", ".jmx": "xxxx", ".bat": "xxxx"}', '脚本执行引擎优先级：系统参数 > 脚本定义,  执行引擎以文件后缀为key可任意扩展，所有执行引擎需自行配置环境','2021-08-06 03:56:05','2021-08-06 09:14:51',NULL);
 /*!40000 ALTER TABLE `sys_parameter` ENABLE KEYS */;
 UNLOCK TABLES;
 

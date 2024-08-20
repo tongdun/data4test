@@ -6,9 +6,9 @@
 # Usage:
 #
 # # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
-# docker build -f dbDockerfile -t db-data4test:2.0 .
-# docker tag db-data4test:2.0 josingcjx/db-data4test:2.0
-# docker push josingcjx/db-data4test:2.0
+# docker build -f dbDockerfile -t db-data4test:3.0 .
+# docker tag db-data4test:3.0 josingcjx/db-data4test:3.0
+# docker push josingcjx/db-data4test:3.0
 # use this image in docker-compose.yml
 
 # use office image
