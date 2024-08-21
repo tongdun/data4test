@@ -75,6 +75,41 @@ func GetValueFromSysParameter(lang, src string) (dst string) {
 	return
 }
 
+func GetValuesFromSysParameter(lang, src string) (values []string) {
+	var sysParameter SysParameter
+	models.Orm.Table("sys_parameter").Where("name = ?", src).Find(&sysParameter)
+	if len(sysParameter.ValueList) == 0 {
+		return
+	}
+
+	valueRaw := sysParameter.ValueList
+
+	var valueTmp string
+	if len(valueRaw) > 0 {
+		if strings.Contains(valueRaw, "{") && strings.Contains(valueRaw, "}") {
+			valueDefine := make(map[string]string)
+			json.Unmarshal([]byte(valueRaw), &valueDefine)
+			if v, ok := valueDefine[lang]; ok {
+				valueTmp = v
+			} else if v1, ok1 := valueDefine["default"]; ok1 {
+				valueTmp = v1
+			} else if v2, ok2 := valueDefine["ch"]; ok2 {
+				valueTmp = v2
+			} else if v3, ok3 := valueDefine["en"]; ok3 {
+				valueTmp = v3
+			}
+
+			if len(valueTmp) > 0 {
+				values = GetValuesFromStringList(valueTmp)
+			}
+		} else {
+			values = GetValuesFromStringList(valueRaw)
+		}
+	}
+
+	return
+}
+
 func GetRUID(keyName string) (isExist bool) {
 	var sysParameter SysParameter
 	models.Orm.Table("sys_parameter").Where("name = ?", "RUID").Find(&sysParameter)

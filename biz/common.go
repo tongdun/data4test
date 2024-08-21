@@ -1170,6 +1170,17 @@ func GetOneValueFromStringList(in string) (out string) {
 	return
 }
 
+func GetValuesFromStringList(in string) (values []string) {
+	tmps := strings.Split(in, ",")
+	for _, item := range tmps {
+		info := strings.TrimSpace(item)
+		if len(info) > 0 {
+			values = append(values, info)
+		}
+	}
+	return
+}
+
 func GetScriptRunEngin(filePath string) (runEngine string, err error) {
 	fHandle, errTmp := os.Open(filePath)
 	if errTmp != nil {

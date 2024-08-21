@@ -1,10 +1,16 @@
 package biz
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"data4perf/models"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
+	"gopkg.in/yaml.v2"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -445,14 +451,18 @@ func CopySchedule(id, userName string) (err error) {
 }
 
 func ExportSchedule(id, userName string) (fileName string, err error) {
-	sqlRule1 := "# SQL生成规则：产品配置/应用配置，存在则跳过; 其他不存在则插入，存在则更新"
-	sqlRule2 := "# 数据的创建人统一为导出操作人的信息，所属产品或关联产品统一为导出任务第一个产品的信息"
+	sqlRule1 := "# SQL生成规则: "
+	sqlRule2 := "# (1)产品配置/应用配置，存在则跳过; 其他不存在则插入，存在则更新"
+	sqlRule3 := "# (2)创建人统一为导出操作人的信息，所属产品或关联产品统一为导出任务第一个产品的信息"
 
 	curTime := time.Now().Format("20060102150405")
-	fileName = fmt.Sprintf("%s_%s.sql", "任务数据SQL", curTime)
+	fileName = fmt.Sprintf("%s_%s.sql", "数据SQL", curTime)
+	importFileName := fmt.Sprintf("%s_%s.tgz", "导入文件", curTime)
 	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName)
+	importFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, importFileName)
 	_ = WriteDataInCommonFile(filePath, sqlRule1)
 	_ = WriteDataInCommonFile(filePath, sqlRule2)
+	_ = WriteDataInCommonFile(filePath, sqlRule3)
 	_ = WriteDataInCommonFile(filePath, "")
 
 	_ = WriteDataInCommonFile(filePath, "# 选择数据库, 默认data4test")
@@ -465,12 +475,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
-	productName, appMap, err := GetProductSQL(filePath, productMap)
-	if err != nil {
-		return
-	}
-
-	err = GetAppSQL(productName, filePath, appMap)
+	productName, appMapFromProduct, err := GetProductSQL(filePath, productMap)
 	if err != nil {
 		return
 	}
@@ -485,7 +490,18 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		}
 	}
 
-	assertMap, sysParameterMap, err := GetDataSQL(userName, filePath, dataMap)
+	assertMap, sysParameterMap, appMap, fileNameImportMap, err := GetDataSQL(userName, filePath, dataMap)
+	if err != nil {
+		return
+	}
+
+	for k, _ := range appMapFromProduct {
+		if _, ok := appMap[k]; !ok {
+			appMap[k] = true
+		}
+	}
+
+	err = GetAppSQL(productName, filePath, appMap)
 	if err != nil {
 		return
 	}
@@ -498,6 +514,15 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 	err = GetSysParameterSQL(filePath, sysParameterMap)
 	if err != nil {
 		return
+	}
+
+	isExist, err := GetImportFilePackage(importFileName, importFilePath, fileNameImportMap)
+	if err != nil {
+		return
+	}
+
+	if isExist {
+		fileName = fmt.Sprintf("%s, %s", fileName, importFileName)
 	}
 
 	return
@@ -579,7 +604,6 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 			appNameList = append(appNameList, appTmp...)
 			productNameDesc = fmt.Sprintf("%s / %s", productNameDesc, item.Name)
 		}
-
 	}
 
 	appMap = make(map[string]bool)
@@ -709,7 +733,7 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 	return
 }
 
-func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap map[string]bool, err error) {
+func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap, appMap, fileNameImportMap map[string]bool, err error) {
 	dataSQLDesc := "# 数据信息"
 	var dataNameList []string
 	var dataValueStr string
@@ -725,10 +749,74 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 		return
 	}
 
+	var appNames []string
+	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Group("app").Select("app").Pluck("app", &appNames)
+
+	if len(appNames) == 0 {
+		err = fmt.Errorf("未找到[%v]应用信息，请核对", dataNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	appMap = make(map[string]bool)
+	for _, value := range appNames {
+		appMap[value] = true
+	}
+
+	fileNameDef := GetValuesFromSysParameter("default", "fileName")
+
 	assertMap = make(map[string]bool)
 	sysParameterMap = make(map[string]bool)
+	fileNameImportMap = make(map[string]bool)
 
+	var isGetMockFile bool
 	for index, item := range dataList {
+		// 历史数据修正
+		if strings.Contains(item.Content, "<pre><code>") {
+			item.Content = strings.Replace(item.Content, "<pre><code>", "", -1)
+			item.Content = strings.Replace(item.Content, "</code></pre>", "", -1)
+		} else {
+			item.Content = item.Content
+		}
+
+		if strings.Contains(item.Content, "multipart/form-data") {
+			var df DataFile
+			if strings.HasSuffix(item.FileName, ".json") {
+				err = json.Unmarshal([]byte(item.Content), &df)
+			} else {
+				err = yaml.Unmarshal([]byte(item.Content), &df)
+			}
+
+			if err != nil {
+				Logger.Debug("fileName: %s", item.FileName)
+				Logger.Error("%s", err)
+				return
+			}
+
+			for _, value := range fileNameDef {
+				if _, ok := df.Single.Body[value]; ok {
+					fileNameImport := Interface2Str(df.Single.Body[value])
+					fileNameImportMap[fileNameImport] = true
+				}
+				if _, ok := df.Multi.Body[value]; ok {
+					for _, subV := range df.Multi.Body[value] {
+						fileNameImport := Interface2Str(subV)
+						fileNameImportMap[fileNameImport] = true
+					}
+				}
+			}
+
+		}
+
+		if strings.Contains(item.Content, "/mock/file/") && !isGetMockFile {
+			isGetMockFile = true
+			sysParameterMap["MockTemplateFile"] = true
+			values := GetValuesFromSysParameter("", "MockTemplateFile")
+			for _, v := range values {
+				fileNameImportMap[v] = true
+			}
+		}
+
 		if strings.Contains(item.Content, "'") {
 			item.Content = strings.Replace(item.Content, "'", "\\'", -1)
 		}
@@ -781,11 +869,14 @@ func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error
 	for k, _ := range assertMap {
 		assertNameList = append(assertNameList, k)
 	}
-
+	//无断言模板信息，直接跳过
+	if len(assertNameList) == 0 {
+		return
+	}
 	var assertList []AssertValueDefine
 	models.Orm.Table("assert_template").Where("name in (?)", assertNameList).Find(&assertList)
 	if len(assertList) == 0 {
-		err = fmt.Errorf("未关联到断言值定义:%v", assertList)
+		err = fmt.Errorf("未关联到断言值定义:%v", assertNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -852,6 +943,61 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 	_ = WriteDataInCommonFile(filePath, sysParamterNoDesc)
 	_ = WriteDataInCommonFile(filePath, sysParameterSQL)
 	_ = WriteDataInCommonFile(filePath, "")
+
+	return
+}
+
+func GetImportFilePackage(fileName, filePath string, fileNameImportMap map[string]bool) (isExist bool, err error) {
+	count := 0
+
+	fw, err := os.Create(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+	defer fw.Close()
+	// gzip write
+	gw := gzip.NewWriter(fw)
+	defer gw.Close()
+	// tar write
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	for item, _ := range fileNameImportMap {
+		count++
+		srcFilePath := fmt.Sprintf("%s/%s", UploadBasePath, item)
+		fi, errTmp := os.Stat(srcFilePath)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			err = errTmp
+			return
+		}
+		fr, errTmp := os.Open(srcFilePath)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			err = errTmp
+			return
+		}
+
+		h := new(tar.Header)
+		h.Name = fi.Name()
+		h.Size = fi.Size()
+		h.Mode = int64(fi.Mode())
+		h.ModTime = fi.ModTime()
+		// 写信息头
+		err = tw.WriteHeader(h)
+		if err != nil {
+			panic(err)
+		}
+		// 写文件
+		_, err = io.Copy(tw, fr)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if count > 0 {
+		isExist = true
+	}
 
 	return
 }
