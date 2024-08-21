@@ -83,10 +83,10 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}).FieldWidth(80)
-	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(160)
+	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(160).FieldHide()
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace().FieldWidth(80)
+		FieldTrimSpace().FieldWidth(80).FieldHide()
 	info.AddField("所属产品", "product", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products).FieldWidth(120)
 	info.AddField("创建人", "user_name", db.Varchar).

@@ -839,7 +839,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			}
 		}
 
-		indexStr, _, _, _ = GetStrByIndex(item.Content, "env::\n", "action:")
+		indexStr, _, _, _ = GetStrByIndex(item.Content, "env:\n", "action:")
 		if len(indexStr) > 0 {
 			systemParameterVars, _ := GetInStrDef(indexStr)
 			for item, _ := range systemParameterVars {

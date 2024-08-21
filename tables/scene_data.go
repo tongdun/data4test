@@ -84,7 +84,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(120)
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().FieldHide()
 	info.AddField("创建人", "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)

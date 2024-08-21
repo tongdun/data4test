@@ -126,7 +126,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().FieldHide()
 	info.AddField("上次执行时间", "last_at", db.Timestamp).FieldWidth(100).FieldSortable()
 	info.AddField("下次执行时间", "next_at", db.Timestamp).FieldWidth(100).FieldSortable()
 	info.AddField("创建人", "user_name", db.Varchar).

@@ -473,10 +473,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		targetApp = df.Api.App
 	}
 
-	envConfig, err = GetEnvConfig(targetApp, "data")
-	//if err != nil {
-	//	Logger.Warning("%s", err)
-	//}
+	envConfig, _ = GetEnvConfig(targetApp, "data")
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -570,7 +567,6 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
-
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
@@ -579,6 +575,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
+
 		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
 
 		if errTmp != nil {
@@ -1198,7 +1195,7 @@ func (df DataFile) GetBody() (bodys []map[string]interface{}, bodyAfterList []in
 	} else {
 		var body map[string]interface{}
 		if df.Single.Body != nil {
-			body = df.Single.Body
+			body = CopyMap(df.Single.Body)
 		}
 
 		if len(df.Multi.Body) > 0 {
@@ -1619,7 +1616,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						break
 					}
 
-					//outputDict[keyName] = values
 					outputDict[keyName] = append(outputDict[keyName], values...)
 
 				case "output_re":

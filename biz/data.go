@@ -1299,27 +1299,11 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int) {
 	var indexStr string
 	var startIndex, endIndex int
-	//
-	//if len(startStr) == 0 && len(endStr) == 0 {
-	//	indexStr = rawStr
-	//} else {
-	//	startIndex = strings.Index(rawStr, startStr)
-	//	endIndex = strings.Index(rawStr, endStr)
-	//	if startIndex == -1 { // 开始未找到，相当于无相关定义，可直接跳过
-	//		targetStr = rawStr
-	//		return
-	//	} else if endIndex == -1 {
-	//		indexStr = rawStr[startIndex:]
-	//	} else if startIndex > endIndex {
-	//		Logger.Debug("rawStr: %s", rawStr)
-	//		Logger.Debug("startStr: %s，endStr: %s", startStr, endStr)
-	//		Logger.Error("rawStr[%d:%d], 索引有问题，请校对", startIndex, endIndex)
-	//	} else {
-	//		indexStr = rawStr[startIndex:endIndex]
-	//	}
-	//}
 
 	indexStr, targetStr, startIndex, endIndex = GetStrByIndex(rawStr, startStr, endStr)
+	if startIndex == -1 { //开始为-1说明没找到开始的信息，应该原样返回
+		return
+	}
 
 	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
 	strMatch := strReg.FindAllSubmatch([]byte(indexStr), -1)
@@ -1453,9 +1437,7 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 	if len(startStr) == 0 && len(endStr) == 0 {
 		targetStr = indexStr
 	} else {
-		if startIndex == -1 {
-			targetStr = indexStr + rawStr[endIndex:]
-		} else if endIndex == -1 {
+		if endIndex == -1 {
 			targetStr = rawStr[:startIndex] + indexStr
 		} else {
 			targetStr = rawStr[:startIndex] + indexStr + rawStr[endIndex:]
