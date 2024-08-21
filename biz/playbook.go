@@ -342,7 +342,7 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 				break
 			}
 		default:
-			if item == lastFileName {
+			if path.Base(item) == lastFileName { // item的值是全路径
 				lastFileTag = index
 				break
 			}

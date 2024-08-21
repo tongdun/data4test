@@ -46,7 +46,7 @@
 ├── html         
 │   └── index.html
 ├── mgmt
-│   ├── README.md    // 文档目前说明
+│   ├── README.md    // 文档目录说明
 │   ├── api
 │   ├── case
 │   │   └── project_V1.0.0_testcase_demo.xmind   // 用例Xmind模板

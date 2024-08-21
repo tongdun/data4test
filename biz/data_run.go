@@ -568,9 +568,9 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
-		Logger.Debug("content: %s", content)
+
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
-		Logger.Debug("contentStr: %s", contentStr)
+
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
