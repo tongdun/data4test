@@ -912,6 +912,7 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 		sysParameterNameList = append(sysParameterNameList, k)
 	}
 
+	//无系统定义，无需拦截
 	if len(sysParameterNameList) == 0 {
 		return
 	}
@@ -919,9 +920,8 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 	var sysParameterList []SysParameter
 	models.Orm.Table("sys_parameter").Where("name in (?)", sysParameterNameList).Find(&sysParameterList)
 
+	//无系统参数，无需拦截
 	if len(sysParameterList) == 0 {
-		err = fmt.Errorf("未找到系统参数[%s]，请先定义，再使用", sysParameterNameList)
-		Logger.Error("%s", err)
 		return
 	}
 
