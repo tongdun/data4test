@@ -4,6 +4,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	"html/template"
 )
@@ -24,9 +25,11 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 	info.AddField("值定义", "value_list", db.Longtext)
 	info.AddField("备注", "remark", db.Longtext)
 	info.AddField("创建时间", "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(110)
+		FieldSortable().FieldWidth(110).
+		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("更新时间", "updated_at", db.Timestamp).
-		FieldSortable().FieldWidth(110)
+		FieldSortable().FieldWidth(110).
+		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
 

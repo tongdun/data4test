@@ -35,15 +35,17 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("所属应用", "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件", "content", db.Varchar).FieldDisplay(func(value types.FieldModel) interface{} {
-		return template.Default().
-			Link().
-			SetURL("/admin/fm/history/preview?path=" + value.Value).
-			SetContent(template2.HTML(value.Value)).
-			OpenInNewTab().
-			SetTabTitle(template.HTML("历史记录")).
-			GetContent()
-	}).FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+	info.AddField("数据文件", "content", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(value types.FieldModel) interface{} {
+			return template.Default().
+				Link().
+				SetURL("/admin/fm/history/preview?path=" + value.Value).
+				SetContent(template2.HTML(value.Value)).
+				OpenInNewTab().
+				SetTabTitle(template.HTML("历史记录")).
+				GetContent()
+		})
 	info.AddField("测试结果", "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "pass", Text: "pass"},
@@ -78,7 +80,8 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace()
 	info.AddField("创建时间", "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(160)
+		FieldSortable().FieldWidth(160).
+		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("更新时间", "updated_at", db.Timestamp).
 		FieldHide()
 	info.AddField("删除时间", "deleted_at", db.Timestamp).

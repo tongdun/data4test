@@ -64,9 +64,11 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace()
 	info.AddField("创建时间", "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(160)
+		FieldSortable().FieldWidth(160).
+		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("更新时间", "updated_at", db.Timestamp).
-		FieldSortable().FieldWidth(160)
+		FieldSortable().FieldWidth(160).
+		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
 
