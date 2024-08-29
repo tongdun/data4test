@@ -401,109 +401,113 @@ nextHere:
 
 func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini VarMapList) (checkTag bool, err error) {
 	var apiDefinition ApiDefinition
-	var apiStringDefinition ApiStringDefinition
-	var dbApiStringDefinition DbApiStringDefinition
+	var apiStrDef ApiStringDefinition
+	var dbApiStrDef DbApiStringDefinition
 	var apiId string
 	var apiDetail ApiDetail
-	//var sceneData SceneData
 	var dataCount int
 	switch method {
 	case "put":
 		apiDetail = pathDef.Put
 		apiId = "put_" + path
 		apiDefinition.HttpMethod = "put"
-		apiStringDefinition.HttpMethod = "put"
+		apiStrDef.HttpMethod = "put"
 	case "post":
 		apiDetail = pathDef.Post
 		apiId = "post_" + path
 		apiDefinition.HttpMethod = "post"
-		apiStringDefinition.HttpMethod = "post"
+		apiStrDef.HttpMethod = "post"
 	case "delete":
 		apiDetail = pathDef.Delete
 		apiId = "delete_" + path
 		apiDefinition.HttpMethod = "delete"
-		apiStringDefinition.HttpMethod = "delete"
+		apiStrDef.HttpMethod = "delete"
 	case "get":
 		apiDetail = pathDef.Get
 		apiId = "get_" + path
 		apiDefinition.HttpMethod = "get"
-		apiStringDefinition.HttpMethod = "get"
+		apiStrDef.HttpMethod = "get"
 	}
 	apiDefinition.ApiId = apiId
-	apiStringDefinition.ApiId = apiId
+	apiStrDef.ApiId = apiId
 	if len(apiDetail.Tags) > 0 {
 		apiDefinition.ApiModule = apiDetail.Tags[0]
-		apiStringDefinition.ApiModule = apiDetail.Tags[0]
+		apiStrDef.ApiModule = apiDetail.Tags[0]
 	} else {
 		apiDefinition.ApiModule = "other"
-		apiStringDefinition.ApiModule = "other"
+		apiStrDef.ApiModule = "other"
 	}
 
 	var headerList, bodyList, pathList, queryList, respList []VarDefModel
 	headerList, bodyList, pathList, queryList, respList = apiDetail.GetRequestData(allDefini)
 
 	apiDefinition.ApiDesc = desc
-	apiStringDefinition.ApiDesc = desc
+	apiStrDef.ApiDesc = desc
 	apiDefinition.Path = path
-	apiStringDefinition.Path = path
+	apiStrDef.Path = path
 	apiDefinition.App = app
-	apiStringDefinition.App = app
+	apiStrDef.App = app
 
 	mh, _ := json.Marshal(headerList)
-	apiStringDefinition.Header = string(mh)
+	apiStrDef.Header = string(mh)
 	apiDefinition.Header = headerList
 
 	mp, _ := json.Marshal(pathList)
-	apiStringDefinition.PathVariable = string(mp)
+	apiStrDef.PathVariable = string(mp)
 	apiDefinition.PathVariable = pathList
 
 	mq, _ := json.Marshal(queryList)
-	apiStringDefinition.QueryParameter = string(mq)
+	apiStrDef.QueryParameter = string(mq)
 	apiDefinition.QueryParameter = queryList
 
 	mb, _ := json.Marshal(bodyList)
-	apiStringDefinition.Body = string(mb)
+	apiStrDef.Body = string(mb)
 	apiDefinition.Body = bodyList
 
 	ms, _ := json.Marshal(respList)
-	apiStringDefinition.Response = string(ms)
+	apiStrDef.Response = string(ms)
 	apiDefinition.Response = respList
 
 	checkTag, checkResult := ApiDetailCheck(method, path, bodyList, pathList, queryList, respList)
 
 	if !checkTag {
 		apiDefinition.Check = "fail"
-		apiStringDefinition.Check = "fail"
-		apiStringDefinition.ApiCheckFailReason = fmt.Sprintf("%v", checkResult)
+		apiStrDef.Check = "fail"
+		apiStrDef.ApiCheckFailReason = fmt.Sprintf("%v", checkResult)
 		apiDefinition.ApiCheckFailReason = fmt.Sprintf("%v", checkResult)
 	} else {
 		apiDefinition.Check = "pass"
-		apiStringDefinition.Check = "pass"
+		apiStrDef.Check = "pass"
 	}
 
-	models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, apiId).Find(&dbApiStringDefinition)
-	if len(dbApiStringDefinition.ApiId) == 0 {
-		apiStringDefinition.ApiStatus = 1
-		apiStringDefinition.Version = 1
-		apiStringDefinition.IsAuto = "-1"
-		apiStringDefinition.IsNeedAuto = "1"
-		err = models.Orm.Table("api_definition").Create(&apiStringDefinition).Error
+	models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, apiId).Find(&dbApiStrDef)
+	if len(dbApiStrDef.ApiId) == 0 {
+		apiStrDef.ApiStatus = 1
+		apiStrDef.Version = 1
+		apiStrDef.IsNeedAuto = "1"
+		models.Orm.Table("scene_data").Where("app = ? and api_id = ?", app, apiId).Count(&dataCount)
+		if dataCount > 0 {
+			apiStrDef.IsAuto = "1"
+		} else {
+			apiStrDef.IsAuto = "-1"
+		}
+		err = models.Orm.Table("api_definition").Create(&apiStrDef).Error
 	} else {
 		var oldHeaderList, oldBodyList, oldPathList, oldQueryList, oldRespList []VarDefModel
-		if dbApiStringDefinition.Header != "null" {
-			json.Unmarshal([]byte(dbApiStringDefinition.Header), &oldHeaderList)
+		if dbApiStrDef.Header != "null" {
+			json.Unmarshal([]byte(dbApiStrDef.Header), &oldHeaderList)
 		}
-		if dbApiStringDefinition.Body != "null" {
-			json.Unmarshal([]byte(dbApiStringDefinition.Body), &oldBodyList)
+		if dbApiStrDef.Body != "null" {
+			json.Unmarshal([]byte(dbApiStrDef.Body), &oldBodyList)
 		}
-		if dbApiStringDefinition.PathVariable != "null" {
-			json.Unmarshal([]byte(dbApiStringDefinition.PathVariable), &oldPathList)
+		if dbApiStrDef.PathVariable != "null" {
+			json.Unmarshal([]byte(dbApiStrDef.PathVariable), &oldPathList)
 		}
-		if dbApiStringDefinition.QueryParameter != "null" {
-			json.Unmarshal([]byte(dbApiStringDefinition.QueryParameter), &oldQueryList)
+		if dbApiStrDef.QueryParameter != "null" {
+			json.Unmarshal([]byte(dbApiStrDef.QueryParameter), &oldQueryList)
 		}
-		if dbApiStringDefinition.Response != "null" {
-			json.Unmarshal([]byte(dbApiStringDefinition.Response), &oldRespList)
+		if dbApiStrDef.Response != "null" {
+			json.Unmarshal([]byte(dbApiStrDef.Response), &oldRespList)
 		}
 
 		var allChanged, headerChanged, bodyChanged, pathChanged, queryChanged, respChanged string
@@ -511,7 +515,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(headerList) > 0 || len(oldHeaderList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStringDefinition.Check = "fail"
+				apiStrDef.Check = "fail"
 				headerChanged = GetChangedContent("Header", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -519,7 +523,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(bodyList) > 0 || len(oldBodyList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStringDefinition.Check = "fail"
+				apiStrDef.Check = "fail"
 				bodyChanged = GetChangedContent("Body", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -527,7 +531,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(pathList) > 0 || len(oldPathList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStringDefinition.Check = "fail"
+				apiStrDef.Check = "fail"
 				pathChanged = GetChangedContent("Path", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -535,7 +539,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(queryList) > 0 || len(oldQueryList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStringDefinition.Check = "fail"
+				apiStrDef.Check = "fail"
 				queryChanged = GetChangedContent("Query", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -543,7 +547,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(respList) > 0 || len(oldRespList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStringDefinition.Check = "fail"
+				apiStrDef.Check = "fail"
 				respChanged = GetChangedContent("Resp", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -566,19 +570,32 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(allChanged) > 0 {
-			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).UpdateColumn(&ApiStringDefinition{ApiStatus: 2, ChangeContent: allChanged}).Error
-			if err != nil {
-				Logger.Error("%v", err)
-			}
+			apiStrDef.ApiStatus = 2
+			apiStrDef.ChangeContent = allChanged
+			//err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).UpdateColumn(&ApiStringDefinition{ApiStatus: 2, ChangeContent: allChanged}).Error
 		} else {
-			apiStringDefinition.ApiStatus = 4
-			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition.ApiStatus).Error
+			apiStrDef.ApiStatus = 4
+			//err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).UpdateColumn(&ApiStringDefinition{ApiStatus: 4}).Error
 		}
 
-		models.Orm.Table("scene_data").Where("id = ?", dbApiStringDefinition.ApiId).Count(&dataCount)
+		models.Orm.Table("scene_data").Where("api_id = ?", dbApiStrDef.ApiId).Count(&dataCount)
 		if dataCount > 0 {
-			apiStringDefinition.IsAuto = "1"
-			err = models.Orm.Table("api_definition").Where("id = ?", dbApiStringDefinition.Id).Update(&apiStringDefinition.IsAuto).Error
+			//err = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", dbApiStrDef.App, dbApiStrDef.ApiId).UpdateColumn(&ApiStringDefinition{IsAuto: "1"}).Error
+			apiStrDef.IsAuto = "1"
+		}
+
+		apiStrDef.IsNeedAuto = dbApiStrDef.IsNeedAuto
+		apiStrDef.Version = dbApiStrDef.Version
+		apiStrDef.Remark = dbApiStrDef.Remark
+
+		err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).Update(&apiStrDef).Error
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+
+		if dbApiStrDef.ApiId == "post_/decisiontool/modifyContent" {
+			Logger.Debug("dbApiStrDef: %+v", dbApiStrDef)
+			Logger.Debug("apiStrDef: %+v", apiStrDef)
 		}
 	}
 

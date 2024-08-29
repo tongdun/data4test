@@ -327,7 +327,7 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 				dirName = GetHistoryDataDirName(path.Base(item))
 				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", apiStr, dirName, path.Base(item), path.Base(item))
 			} else {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, item, path.Base(item))
+				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
 			}
 		}
 	}

@@ -216,6 +216,7 @@ func GetInStrDef(rawStr string) (allDef map[string]string, allListDef map[string
 			}
 		}
 	}
+
 	return
 }
 

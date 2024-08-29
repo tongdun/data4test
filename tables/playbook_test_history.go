@@ -27,11 +27,12 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddField("唯一标识", "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace()
-	info.AddField("场景描述", "name", db.Varchar).
+	info.AddField("场景描述", "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件列表", "api_list", db.Longtext).
+	info.AddField("数据文件列表", "api_list", db.Longtext).FieldWidth(250).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("最近数据文件", "last_file", db.Longtext).FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+	info.AddField("最近数据文件", "last_file", db.Longtext).FieldWidth(160).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
@@ -62,7 +63,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	})
-	info.AddField("失败原因", "fail_reason", db.Longtext).
+	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(200).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("环境类型", "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -87,11 +88,12 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	})
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().FieldWidth(120)
 	info.AddField("所属产品", "product", db.Varchar).
+		FieldWidth(120).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("创建时间", "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(160).
+		FieldSortable().FieldWidth(120).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("更新时间", "updated_at", db.Timestamp).
 		FieldHide()

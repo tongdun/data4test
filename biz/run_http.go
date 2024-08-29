@@ -44,9 +44,13 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 			_, errTmp := os.Stat(filePath)
 			if errTmp != nil {
 				if os.IsNotExist(errTmp) {
-					err = fmt.Errorf("[%s]文件不存在，请核对", filePath)
-					Logger.Error("%s", err)
-					return
+					filePath = fmt.Sprintf("%s/%s", DownloadBasePath, strValue)
+					_, errTmp := os.Stat(filePath)
+					if errTmp != nil {
+						err = fmt.Errorf("[%s]在[文件-上传文件]和[文件-下载文件]目录下均不存在，请核对", filePath)
+						Logger.Error("%s", err)
+						return
+					}
 				} else {
 					Logger.Error("%s", errTmp)
 					err = errTmp
@@ -55,7 +59,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 			}
 			file, errFile2 := os.Open(filePath)
 			defer file.Close()
-
+			Logger.Debug("filePath: %s", filePath)
 			part2, errFile2 := writer.CreateFormFile(k, filepath.Base(filePath))
 			_, errFile2 = io.Copy(part2, file)
 			if errFile2 != nil {
@@ -220,6 +224,13 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 		tmps := strings.Split(downloadInfo, "=")
 		if len(tmps) > 1 {
 			dowloadFileName = tmps[1]
+			if strings.Contains(dowloadFileName, "\"") {
+				dowloadFileName = strings.Replace(dowloadFileName, "\"", "", -1)
+			}
+			if strings.Contains(dowloadFileName, "'") {
+				dowloadFileName = strings.Replace(dowloadFileName, "'", "", -1)
+			}
+
 			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
 		}
 	} else {

@@ -1235,29 +1235,47 @@ func (ds DbScene) GetPlaybook() (playbook Playbook) {
 func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out string, err error) {
 	var allFalseCount int
 	var notDefVars, tmpDefVars map[string]string
-	in, notDefVars, falseCount := GetIndexStr(lang, in, "env:\n", "api:\n", depOutVars)
+	in, notDefVars, falseCount, err := GetIndexStr(lang, in, "env:\n", "api:\n", depOutVars)
 	allFalseCount = allFalseCount + falseCount
 
-	in, tmpDefVars, falseCount = GetIndexStr(lang, in, "single:\n", "multi:\n", depOutVars)
-	allFalseCount = allFalseCount + falseCount
-	for k, v := range tmpDefVars {
-		notDefVars[k] = v
-	}
-
-	in, tmpDefVars, falseCount = GetIndexStr(lang, in, "multi:\n", "action:", depOutVars)
+	in, tmpDefVars, falseCount, errTmp := GetIndexStr(lang, in, "single:\n", "multi:\n", depOutVars)
 	allFalseCount = allFalseCount + falseCount
 	for k, v := range tmpDefVars {
 		notDefVars[k] = v
 	}
 
-	in, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
+	if errTmp != nil {
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
+
+	}
+
+	in, tmpDefVars, falseCount, errTmp = GetIndexStr(lang, in, "multi:\n", "action:", depOutVars)
+	allFalseCount = allFalseCount + falseCount
+	for k, v := range tmpDefVars {
+		notDefVars[k] = v
+	}
+
+	if errTmp != nil {
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
+
+	}
+
+	in, _, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
 	//allFalseCount = allFalseCount + falseCount  // 如果是自身的变量，无法替换，不进入未定义拦截
 	//for k, v := range tmpDefVars {
 	//	notDefVars[k] = v
 	//}
 
-	in, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
-	allFalseCount = allFalseCount + falseCount                              // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
+	in, _, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
+	allFalseCount = allFalseCount + falseCount                                 // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
 	for k, v := range tmpDefVars {
 		notDefVars[k] = v
 	}
@@ -1265,8 +1283,17 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 	out = in
 
 	if allFalseCount > 0 {
-		err = fmt.Errorf("存在未定义参数: %+v，请先定义或关联", notDefVars)
-		Logger.Error("%s", err)
+		if err != nil {
+			if len(notDefVars) > 0 {
+				err = fmt.Errorf("%s; 存在未定义参数: %v，请先定义或关联", err, notDefVars)
+			}
+		} else {
+			if len(notDefVars) > 0 {
+				err = fmt.Errorf("存在未定义参数: %v，请先定义或关联", notDefVars)
+			}
+			Logger.Error("%s", err)
+		}
+
 		return
 	}
 
@@ -1296,7 +1323,7 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 }
 
 // 分区匹配和替换  env匹配区，single匹配区，multi匹配区，断言匹配区
-func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int) {
+func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int, err error) {
 	var indexStr string
 	var startIndex, endIndex int
 
@@ -1347,8 +1374,13 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 					}
 					indexStr = strings.Replace(indexStr, rawStrDef, tmpKey, -1)
 				} else {
-					err := fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
-					Logger.Error("%s", err)
+					errTmp := fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
+					Logger.Error("%s", errTmp)
+					if err != nil {
+						err = fmt.Errorf("%s;%s", err, errTmp)
+					} else {
+						err = errTmp
+					}
 					falseCount++
 				}
 			}
@@ -1396,7 +1428,14 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 						value, errTmp := GetAssertTemplateValue(lang, key)
 						if errTmp != nil {
 							falseCount++
+							//Logger.Error("%s", errTmp)
+							if err != nil {
+								err = fmt.Errorf("%s;%s", err, errTmp)
+							} else {
+								err = errTmp
+							}
 						}
+
 						indexStr = strings.Replace(indexStr, rawStrDef, value, -1)
 					}
 				}

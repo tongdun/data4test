@@ -337,9 +337,14 @@ func RunNonStandard(app, rawFilePath, logFilePath, product, source string, fileT
 
 	lang := GetRequestLangage(header)
 
-	contentStr, notDefVars, falseCount := GetIndexStr(lang, string(content), "", "", depOutVars)
+	contentStr, notDefVars, falseCount, errTmp := GetIndexStr(lang, string(content), "", "", depOutVars)
 	if falseCount > 0 {
-		err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		if errTmp != nil {
+			err = fmt.Errorf("%s; 存在未定义参数: %s，请先定义或关联", errTmp, notDefVars)
+		} else {
+			err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		}
+
 		Logger.Error("%s", err)
 		return "fail", rawFilePath, err
 	}
@@ -570,7 +575,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
-			Logger.Error("%v", errTmp)
+			//Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return

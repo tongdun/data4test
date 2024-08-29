@@ -346,9 +346,13 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 	}
 
 	targetValueStr := Interface2Str(sceneAssert.Value)
-	targetValueStr, notDefVars, falseCount := GetIndexStr("", targetValueStr, "", "", inOutPutDict)
+	targetValueStr, notDefVars, falseCount, errTmp := GetIndexStr("", targetValueStr, "", "", inOutPutDict)
 	if falseCount > 0 {
-		err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		if errTmp != nil {
+			err = fmt.Errorf("%s; 存在未定义参数: %s，请先定义或关联", errTmp, notDefVars)
+		} else {
+			err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+		}
 		Logger.Error("%s", err)
 		return
 	}
@@ -721,6 +725,7 @@ func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, colou
 
 func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int) (target []string, err error) {
 	fh, err := xlsx.OpenFile(filePath)
+	Logger.Debug("filePath: %s", filePath)
 	if err != nil {
 		Logger.Error("%v", err)
 		return

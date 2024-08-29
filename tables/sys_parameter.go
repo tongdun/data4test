@@ -13,7 +13,7 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 
 	sysParameter := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	info := sysParameter.GetInfo()
+	info := sysParameter.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
