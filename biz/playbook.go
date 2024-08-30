@@ -968,6 +968,44 @@ func ReadSceneFromExcel(fileName string) (sceneList []SceneWithNoUpdateTime, err
 	return
 }
 
+//func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
+//	var dbScene DbScene
+//	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
+//	var apiStr, numStr string
+//	if len(dbScene.Name) == 0 {
+//		return
+//	} else {
+//		for index, value := range apiList {
+//			if len(value) == 0 {
+//				continue
+//			}
+//			if len(numList) > index {
+//				numValue := numList[index]
+//				if len(numValue) == 0 {
+//					numList[index] = fmt.Sprintf("%d", index+1)
+//				}
+//			} else {
+//				numList = append(numList, fmt.Sprintf("%d", index+1))
+//			}
+//			if index == 0 {
+//				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
+//				numStr = fmt.Sprintf("%v", numList[index])
+//			} else {
+//				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
+//				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
+//			}
+//		}
+//
+//		dbScene.ApiList = apiStr
+//		dbScene.DataNumber = numStr
+//		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
+//		if err != nil {
+//			Logger.Error("%s", err)
+//		}
+//	}
+//	return
+//}
+
 func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 	var dbScene DbScene
 	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
@@ -976,6 +1014,9 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 		return
 	} else {
 		for index, value := range apiList {
+			if len(value) == 0 {
+				continue
+			}
 			if len(numList) > index {
 				numValue := numList[index]
 				if len(numValue) == 0 {
@@ -992,7 +1033,6 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
 			}
 		}
-
 		dbScene.ApiList = apiStr
 		dbScene.DataNumber = numStr
 		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
@@ -1000,6 +1040,39 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 			Logger.Error("%s", err)
 		}
 	}
+	return
+}
+
+func GetPlaybookApiStr(id string) (apiStr string) {
+	var dbScene DbScene
+	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
+	if len(dbScene.Name) == 0 {
+		return
+	}
+
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+	handle := doc.Text()
+	afterTxt1 := strings.Replace(handle, ".yml", ".yml\n", -1)
+	afterTxt2 := strings.Replace(afterTxt1, ".json", ".json\n", -1)
+	apiStr = strings.Replace(afterTxt2, ".yaml", ".yaml\n", -1)
+
+	return apiStr
+}
+
+func GetPlaybookApiList(id string) (apiList []string) {
+	var dbScene DbScene
+	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
+	if len(dbScene.Name) == 0 {
+		return
+	}
+
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+	handle := doc.Text()
+	afterTxt1 := strings.Replace(handle, ".yml", ".yml,", -1)
+	afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
+	afterTxt := strings.Replace(afterTxt2, ".yaml", ".yaml,", -1)
+	apiList = strings.Split(afterTxt, ",")
+
 	return
 }
 
@@ -1135,6 +1208,19 @@ func GetLastFileLink(filePath string) (linkStr string) {
 		linkStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, lastFile, lastFile)
 	} else {
 		linkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", lastFile, lastFile)
+	}
+
+	return
+}
+
+func GetPlaybookEditTypeById(id string) (editType string) {
+	var p DbScene
+	models.Orm.Table("playbook").Where("id = ?", id).Find(&p)
+
+	if len(p.Name) > 0 {
+		editType = "input"
+	} else {
+		editType = "select"
 	}
 
 	return

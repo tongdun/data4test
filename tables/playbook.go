@@ -14,7 +14,6 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
-	"github.com/PuerkitoBio/goquery"
 	template2 "html/template"
 	"strings"
 )
@@ -262,32 +261,40 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	sceneTypeMsg := template.HTML("默认值为: 串行中断<br>串行中断: 场景内的数据用例若存在执行失败，失败后的数据用例不再执行<br>串行比较: 场景内的数据用例串行执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过<br>串行继续: 场景内的数据用例串行执行存在失败数据用例，失败后的数据用例继续执行<br>普通并发: 场景内的数据用例并发执行<br>并发比较: 场景内的数据用例并发执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过")
 	dataHelp := template.HTML("关联数据必填")
-	formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
+
+	formList.AddField("编辑模式", "edit_type", db.Enum, form.SelectSingle).
+		FieldOptions(types.FieldOptions{
+			{Value: "input", Text: "输入"},
+			{Value: "select", Text: "选择"},
+		}).
+		FieldOnChooseHide("input", "select_table").
+		FieldOnChooseHide("select", "input_list").
+		FieldOnChooseShow("select", "select_table").
+		FieldOnChooseShow("input", "input_list").
+		FieldDefault("input").
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookEditTypeById(model.ID)
+		})
+
+	formList.AddTable("选择数据", "select_table", func(panel *types.FormPanel) {
 		panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
 			FieldHideLabel().
 			FieldDisplay(func(model types.FieldModel) interface{} {
 				return strings.Split(model.Value, ",")
 			})
-		panel.AddField("关联数据", "api_list", db.Varchar, form.SelectSingle).
+		panel.AddField("关联数据", "select_list", db.Varchar, form.SelectSingle).
 			FieldHideLabel().
 			FieldOptions(files).
 			FieldDisplay(func(model types.FieldModel) interface{} {
-				var afterTxt string
-				if !strings.Contains(model.Value, "</a>") && !strings.Contains(model.Value, "</p>") {
-					afterTxt = model.Value
-				} else {
-					doc, _ := goquery.NewDocumentFromReader(strings.NewReader(model.Value))
-					handle := doc.Text()
-					afterTxt1 := strings.Replace(handle, ".yml", ".yml,", -1)
-					afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
-					afterTxt = strings.Replace(afterTxt2, ".yaml", ".yaml,", -1)
-				}
-				dataList := strings.Split(afterTxt, ",")
-
-				return dataList
+				return biz.GetPlaybookApiList(model.ID)
 			})
 		panel.SetInputWidth(10)
 	}).FieldHelpMsg(dataHelp)
+
+	formList.AddField("输入数据", "input_list", db.Varchar, form.TextArea).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookApiStr(model.ID)
+		}).FieldHelpMsg(dataHelp)
 
 	formList.AddField("最近数据文件", "last_file", db.Varchar, form.SelectSingle).
 		FieldOptions(files)
@@ -318,8 +325,15 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	formList.SetTable("playbook").SetTitle("场景列表").SetDescription("场景列表")
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
+		edit_Type := values["edit_type"][0]
+		inputInfo := values["input_list"][0]
+		var apiList []string
+		if edit_Type == "select" {
+			apiList = values["select_list"]
+		} else {
+			apiList = strings.Split(inputInfo, "\r\n")
+		}
 		id := values["id"][0]
-		apiList := values["api_list"]
 		numList := values["data_number"]
 		err = biz.UpdatePlaybookApiList(id, apiList, numList)
 		return

@@ -114,7 +114,7 @@ func GetFilesFromMySQL() (files []types.FieldOption) {
 func GetDatas() (dataNames []types.FieldOption) {
 	var dataList []string
 	var dataName types.FieldOption
-	models.Orm.Table("scene_data").Order("created_at desc").Pluck("name", &dataList)
+	models.Orm.Table("scene_data").Order("created_at desc").Pluck("file_name", &dataList)
 	if len(dataList) > 0 {
 		for _, item := range dataList {
 			dataName.Value = fmt.Sprintf("%s", item) // 去掉换行

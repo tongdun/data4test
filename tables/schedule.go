@@ -259,19 +259,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 				status = fmt.Sprintf("任务暂停失败：%s", err)
 				return false, status, ""
 			}
-			//ids := strings.Split(idStr, ",")
-			//for _, id := range ids {
-			//	if len(id) == 0 {
-			//		status = "请先选择任务再暂停"
-			//		continue
-			//	}
-			//	if err := biz.StopTask(id); err == nil {
-			//		status = "任务已暂停"
-			//	} else {
-			//		status = fmt.Sprintf("任务暂停失败：%s", err)
-			//		return false, status, ""
-			//	}
-			//}
+
 			return true, status, ""
 		}))
 
@@ -311,13 +299,6 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	formList.AddField("自增主键", "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
 	formList.AddField("任务名称", "task_name", db.Varchar, form.Text)
-	//formList.AddField("任务模式", "task_mode", db.Enum, form.Radio).
-	//	FieldOptions(types.FieldOptions{
-	//	{Value: "cron", Text: "自定义"},
-	//	{Value: "once", Text: "一次"},
-	//	{Value: "day", Text: "每天"},
-	//	{Value: "week", Text: "每周"},
-	//	}).FieldDefault("once")
 
 	formList.AddField("任务模式", "task_mode", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
@@ -349,18 +330,32 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			{Text: "否", Value: "no"},
 		}).FieldDefault("no")
 
-	formList.AddField("任务类型", "task_type", db.Enum, form.SelectSingle).
+	formList.AddField("编辑模式", "edit_type", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
-			{Value: "data", Text: "数据"},
-			{Value: "scene", Text: "场景"},
+			{Value: "select_scene", Text: "选择场景"},
+			{Value: "input_scene", Text: "输入场景"},
+			{Value: "select_data", Text: "选择数据"},
+			{Value: "input_data", Text: "输入数据"},
 		}).
-		FieldOnChooseHide("scene", "data_table").
-		FieldOnChooseHide("data", "scene_table").
-		FieldOnChooseShow("scene", "scene_table").
-		FieldOnChooseShow("data", "data_table").
-		FieldDefault("scene")
+		FieldOnChooseHide("input_scene", "scene_table", "data_table", "input_data").
+		FieldOnChooseHide("select_scene", "input_data", "data_table", "input_scene").
+		FieldOnChooseHide("select_data", "input_scene", "scene_table", "data_table").
+		FieldOnChooseHide("input_data", "scene_table", "scene_table", "input_scene").
+		FieldOnChooseShow("select_scene", "scene_table").
+		FieldOnChooseShow("input_scene", "input_scene").
+		FieldOnChooseShow("select_data", "data_table").
+		FieldOnChooseShow("input_data", "input_data").
+		FieldDefault("input_scene").
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskEditTypeById(model.ID)
+		})
 
 	dataHelp := template.HTML("关联数据必填")
+	formList.AddField("输入数据", "input_data", db.Varchar, form.TextArea).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskDataStr(model.ID)
+		}).FieldHelpMsg(dataHelp)
+
 	formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
 		panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
 			FieldHideLabel().
@@ -377,6 +372,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	}).FieldHelpMsg(dataHelp)
 
 	sceneHelp := template.HTML("关联场景必填")
+	formList.AddField("输入场景", "input_scene", db.Varchar, form.TextArea).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskDataStr(model.ID)
+		}).FieldHelpMsg(sceneHelp)
+
 	formList.AddTable("关联场景", "scene_table", func(panel *types.FormPanel) {
 		panel.AddField("序号/标签", "scene_number", db.Varchar, form.Text).
 			FieldHideLabel().
@@ -416,11 +416,28 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		id := values["id"][0]
-		dataList := values["data_list"]
-		dataNumList := values["data_number"]
-		sceneList := values["scene_list"]
-		sceneNumList := values["scene_number"]
-		err = biz.UpdateTaskInfoList(id, dataList, dataNumList, sceneList, sceneNumList)
+		edit_Type := values["edit_type"][0]
+		var dataList, dataNumList []string
+		var taskType string
+		if edit_Type == "select_data" {
+			dataList = values["data_list"]
+			dataNumList = values["data_number"]
+			taskType = "data"
+		} else if edit_Type == "select_scene" {
+			dataList = values["scene_list"]
+			dataNumList = values["scene_number"]
+			taskType = "scene"
+		} else if edit_Type == "input_data" {
+			dataInputInfo := values["input_data"][0]
+			dataList = strings.Split(dataInputInfo, "\r\n")
+			taskType = "data"
+		} else {
+			sceneInputInfo := values["input_scene"][0]
+			dataList = strings.Split(sceneInputInfo, "\r\n")
+			taskType = "scene"
+		}
+
+		err = biz.UpdateTaskInfoList(id, taskType, dataList, dataNumList)
 		return
 	})
 
@@ -436,11 +453,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	detail.AddField("任务类型", "task_type", db.Enum)
 	detail.AddField("关联数据", "data_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", ",<br>", -1)
+			return strings.Replace(model.Value, ",", "<br>", -1)
 		})
 	detail.AddField("关联场景", "scene_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", ",<br>", -1)
+			return strings.Replace(model.Value, ",", "<br>", -1)
 		})
 	detail.AddField("关联产品", "product_list", db.Varchar)
 	detail.AddField("任务状态", "task_status", db.Enum)

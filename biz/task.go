@@ -1002,58 +1002,57 @@ func GetImportFilePackage(fileName, filePath string, fileNameImportMap map[strin
 	return
 }
 
-func UpdateTaskInfoList(id string, dataList, dataNumList, sceneList, sceneNumList []string) (err error) {
+func UpdateTaskInfoList(id, taskType string, dataList, dataNumList []string) (err error) {
 	var dbSchedule DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&dbSchedule)
-	var dataStr, dataNumStr, sceneStr, sceneNumStr string
+	var dataStr, dataNumStr string
 	if len(dbSchedule.TaskName) == 0 {
 		return
-	} else {
-		for index, value := range dataList {
-			if len(dataList) > index {
-				numValue := dataList[index]
-				if len(numValue) == 0 {
-					dataNumList[index] = fmt.Sprintf("%d", index+1)
-				}
-			} else {
+	}
+
+	var tDataList []string
+
+	for _, v := range dataList {
+		if len(v) == 0 {
+			continue
+		}
+		tDataList = append(tDataList, v)
+	}
+
+	for index, value := range tDataList {
+		if index == 0 {
+			dataStr = value
+			if len(dataNumList) == 0 {
 				dataNumList = append(dataNumList, fmt.Sprintf("%d", index+1))
 			}
-			if index == 0 {
-				dataStr = value
-				dataNumStr = fmt.Sprintf("%v", dataNumList[index])
-			} else {
-				dataStr = fmt.Sprintf("%s,%v", dataStr, value)
-				dataNumStr = fmt.Sprintf("%s,%v", dataNumStr, dataNumList[index])
+			dataNumStr = fmt.Sprintf("%v", dataNumList[index])
+		} else {
+			dataStr = fmt.Sprintf("%s,%s", dataStr, value)
+			if len(dataNumList)-1 < index {
+				dataNumList = append(dataNumList, fmt.Sprintf("%d", index+1))
+			} else if len(dataNumList[index]) == 0 {
+				dataNumList[index] = fmt.Sprintf("%d", index+1)
 			}
-		}
+			dataNumStr = fmt.Sprintf("%s,%v", dataNumStr, dataNumList[index])
 
-		for index, value := range sceneList {
-			if len(sceneList) > index {
-				numValue := sceneNumList[index]
-				if len(numValue) == 0 {
-					sceneNumList[index] = fmt.Sprintf("%d", index+1)
-				}
-			} else {
-				sceneNumList = append(sceneNumList, fmt.Sprintf("%d", index+1))
-			}
-			if index == 0 {
-				sceneStr = value
-				sceneNumStr = fmt.Sprintf("%v", sceneNumList[index])
-			} else {
-				sceneStr = fmt.Sprintf("%s,%v", sceneStr, value)
-				sceneNumStr = fmt.Sprintf("%s,%v", sceneNumStr, sceneNumList[index])
-			}
-		}
-
-		dbSchedule.DataList = dataStr
-		dbSchedule.DataNumber = dataNumStr
-		dbSchedule.SceneList = sceneStr
-		dbSchedule.SceneNumber = sceneNumStr
-		err = models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Update(dbSchedule).Error
-		if err != nil {
-			Logger.Error("%s", err)
 		}
 	}
+
+	dbSchedule.TaskType = taskType
+
+	if dbSchedule.TaskType == "data" {
+		dbSchedule.DataList = dataStr
+		dbSchedule.DataNumber = dataNumStr
+	} else {
+		dbSchedule.SceneList = dataStr
+		dbSchedule.SceneNumber = dataNumStr
+	}
+
+	err = models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Update(dbSchedule).Error
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+
 	return
 }
 
@@ -1132,6 +1131,50 @@ func AutoCreateSchedule(id string, taskType string) (err error) {
 	//if taskType == "scene" {
 	//	err = RunTask(dbSchedule.Id)
 	//}
+
+	return
+}
+
+func GetTaskDataStr(id string) (dataStr string) {
+	var task DbSchedule
+	models.Orm.Table("schedule").Where("id = ?", id).Find(&task)
+	if len(task.TaskName) == 0 {
+		return
+	}
+
+	if task.TaskType == "data" {
+		dataStr = task.DataList
+	} else {
+		dataStr = task.SceneList
+	}
+
+	dataStr = strings.Replace(dataStr, ",", "\r\n", -1)
+
+	return
+}
+
+func GetTaskEditTypeById(id string) (editType string) {
+	var task DbSchedule
+	models.Orm.Table("schedule").Where("id = ?", id).Find(&task)
+	if len(task.TaskName) == 0 {
+		return "select_scene"
+	}
+
+	if task.TaskType == "data" {
+		if len(task.DataList) > 0 {
+			editType = "input_data"
+		} else {
+			editType = "select_data"
+		}
+	} else if task.TaskType == "scene" {
+		if len(task.SceneList) > 0 {
+			editType = "input_scene"
+		} else {
+			editType = "select_scene"
+		}
+	} else {
+		editType = "input_scene"
+	}
 
 	return
 }
