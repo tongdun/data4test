@@ -2,8 +2,13 @@
     Note: Support for automatic data generation: Common render variables (can refer to variables supported by Jmeter).
           Variable composition supports English, numbers, underscores, hyphens, e.g.: {name_test-1}
 
-### Context-Specific Variables:
-- {self}: Parameters required by other test cases.
+
+#### Context Variable References:
+- '*{Name}*': Refers to the Name variable from the previous context, treated as a whole in JSON format.
+- '**{Name}**': Refers to the Name variable from the previous context, treated as a whole in string format.
+- '*{Name[2:3]}*': (To be incorporated) Refers to the values from the 3rd to the 4th position (inclusive of the 3rd, exclusive of the 4th due to Python slicing convention) of the Name variable from the previous context, treated as a whole in JSON format. Note: This exact syntax may need adjustment based on the programming language or framework being used, as Python slicing is 0-indexed and does not include the end index.
+- '**{Name[2:3]}**': (To be incorporated) Refers to the values from the 3rd to the 4th position (similar caveats as above) of the Name variable from the previous context, treated as a whole in string format. This again may require adjustment based on the specific context and language being used.
+- XXName: '{self}': Refers to the value of the XXName variable from the previous context. **Note**: The use of '{self}' as a placeholder for the variable's own value is being deprecated. It is recommended to replace all existing instances of '{self}' with the specific variable name as soon as possible.
 
 #### Product Environment-Specific Parameters:
 - Define some special parameters in the product configuration, in JSON format, e.g.: {"name1": "value1", "name2": "value2"}

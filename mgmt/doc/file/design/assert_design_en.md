@@ -1,67 +1,76 @@
-Explanation:
-When the source data definition is set to "raw", the returned data is treated as a whole for data verification.
+### Supported Assertion Categories
 
-##### All Return Assertion Types:
-- equal: Strings are equal
-- not_equal: Strings are not equal
-- contain: Contains a specific string
-- not_contain: Does not contain a specific string
-- null: Is null
-- not_null: Is not null
-- in: Contains
-- not_in: Does not contain
-- empty: Is empty
-- not_empty: Is not empty
-- '=': Equals
-- '!=': Does not equal
-- re: Regular expression match
-- regex: Regular expression match
-- regexp: Regular expression match
-- output_re: Regular expression match to extract values enclosed in (). If multiple values match, all will be extracted.
-    e.g.1: {type: output_re, source: '\\"taskId\\":\\"([0-9]+)\\"', value: taskId}
-    Define an output variable, assign the value matched within (.+) to taskId for use by other interface dependencies.
-    e.g.2: {type: output_re, source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"', value: taskId}
-    Define an output variable, assign the value matched within ([a-zA-Z0-9]+) to taskId for use by other interface dependencies.
+#### Field Value Assertions
+- **Purpose**: Validate specific fields within a JSON response.
+- **Data Source Definition (source)**: Defines the relationship to the specific field being asserted.
 
-##### Field Value Assertion Types:
-- output: {type: output, source: data-contents*uuid, value: uuid}, Define an output variable for use by other interface dependencies.
-- equal: {type: equal, source: data-total, value: 0}
-- not_equal: {type: not_equal, source: code, value: 200}
-- contain: {type: contain, source: message, value: Already exists}
-- not_contain:
-- null: Is null
-- not_null: Is not null
-- in: Contains
-- not_in: Does not contain
-- empty: Is empty
-- not_empty: Is not empty
-- '=': Equals
-- '!=': Not equal to
-- in: Contains
-- '!in': Does not contain
-- not_in: Does not contain
-- re: Regular expression match
-- regex: Regular expression match
-- regexp: Regular expression match
-- '>': Greater than
-- '<': Less than
-- '>=': Greater than or equal to
-- '<=': Less than or equal to
+#### Overall Value Assertions
+- **Purpose**: Validate the entire response body or raw response.
+- **Data Source Definition (source)**: Can be `raw` or `ResponseBody`.
 
-##### Special Notes:
-For the output type, values can be extracted based on array indices, e.g.,:
-```
-{type: output, source: data-contents*uuid[-1], value: codeUuid}, Extract the last uuid from the uuid array and assign it to codeUuid.
-For the output type, all values can be extracted at once from an array in the returned information, e.g.:
-{type: output, source: data-contents**uuid, value: codeUuid}, ** means treat uuid as a whole data and assign it to codeUuid.
-```
+#### Performance Value Assertions (To Be Implemented)
+- **Purpose**: Measure the time taken from request to response.
+- **Data Source Definition (source)**: `RT` or `ResponseTime`.
 
-##### Assertion Value Templates, Support for Multilingual Definitions:
-- JSON format: e.g.:
-```{"default": "v1,v2,v3,v4,...", "ch": "v1,v2,v3,v4,...", "en": "v1,v2,v3,v4,..."}```
-- Standard format definition: e.g.:
-```v1,v2,v3,v4,...```
-- When the assertion value is a template, use placeholders. During execution, it will automatically retrieve the value. If multiple languages are set, it will retrieve the corresponding value based on the language, e.g.:
-```{type: re, source: data-message, value: {successTemplate}```
-- Add a template named "successTemplate" to the "Environment-Assertion Value Templates" list:
-  ```{"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}```
+#### File Value Assertions
+- **Purpose**: Validate the content of files downloaded from APIs.
+- **Data Source Definition (source)**: `FileType:line:column:split`
+    - Supported File Types:
+        - `File:TXT:line:column:split` - Split defaults to comma `,` if not defined.
+        - `File:CSV:line:column:split` - Split defaults to comma `,` if not defined.
+        - `File:EXCEL:line:column` - Line is an integer, column can be a number or name.
+        - `File:JSON:data-total[0]` - Uses the same rules as field value extraction.
+        - `File:YML:data-total` - Uses the same rules as field value extraction.
+        - `File:XML` - Not detailed, to be implemented as needed.
+        - `File:Other` - Supports regex extraction patterns, e.g., `'\"taskId\":\"(.+)\"'` (to be implemented).
+        - Advanced JSON and YML patterns for extracting specific values, e.g., `'\"taskId\":\"([a-zA-Z0-9]+)\"'` (to be implemented).
+
+#### Supported Assertion Types
+
+##### Overall Response Assertions
+- `equal`: Checks if the strings are equal.
+- `not_equal`: Checks if the strings are not equal.
+- `contain`: Checks if the string contains a specified substring.
+- `not_contain`: Checks if the string does not contain a specified substring.
+- `null`: Checks if the value is null.
+- `not_null`: Checks if the value is not null.
+- `in`: Checks if the value is in a specified list.
+- `not_in`/`!in`: Checks if the value is not in a specified list.
+- `empty`: Checks if the value is empty.
+- `not_empty`: Checks if the value is not empty.
+- `=`, `!=`, `re`, `regex`, `regexp`: Aliases for equal, not_equal, and regex matching.
+- `output_re`: Extracts and validates values matched by a regex, supporting multiple matches.
+
+##### Field Value Assertions
+- Same as overall response assertions, plus:
+    - `output`: Defines an output variable for use in subsequent API calls.
+    - `>`, `<`, `>=`, `<=`: Compares numeric values.
+
+#### Other Features
+
+##### Output Type Explanation
+- The `output` type allows extracting values from arrays by index or as a whole.
+    - Examples:
+        - `{type: output, source: data-contents*uuid[-1], value: codeUuid}` - Extracts the last item in the `uuid` array.
+        - `{type: output, source: data-contents*uuid[0], value: codeUuid}` - Extracts the first item.
+        - `{type: output, source: data-contents**uuid, value: codeUuid}` - Extracts the entire `uuid` array as a single value.
+
+##### Assertion Value Templates
+- Supports multi-language definitions for assertion values.
+- JSON Format Example:
+  ```json
+  {"default": "v1,v2,v3,v4,…", "ch": "v1,v2,v3,v4,…", "en": "v1,v2,v3,v4,…"}
+  ```
+- Plain Text Format Example:
+  ```
+  v1,v2,v3,v4,…
+  ```
+- Placeholder support for dynamic values based on templates and language settings.
+- Example usage with template:
+  ```json
+  {type: re, source: data-message, value: {successTemplate}}
+  ```
+  Where `successTemplate` is defined in the "Environment-Assertion Value Templates" list as:
+  ```json
+  {"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}
+  ```
