@@ -217,6 +217,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 					keyName = items[1]
 				}
 			}
+
 			if isHit {
 				dataLen := len(data[items[0]].([]interface{}))
 				if dataLen == 0 {
@@ -232,12 +233,23 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 								return keyName, values, err
 							}
 							tmpDict = data[items[0]].([]interface{})[dataLen+index].(map[string]interface{})
-							//outputDict[targetValueStr] = append(outputDict[targetValueStr], tmpDict[keyName])
-							values = append(values, tmpDict[keyName])
 						} else {
 							tmpDict = data[items[0]].([]interface{})[index].(map[string]interface{})
-							values = append(values, tmpDict[keyName])
 						}
+
+						if strings.Contains(items[1], "-") {
+							subItems := strings.Split(items[1], "-")
+							sceneAssert.Source = subItems[1]
+							varType := fmt.Sprintf("%T", tmpDict[keyName])
+							if varType != "map[string]interface {}" {
+								err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+								//Logger.Error("%s", err)
+								return keyName, values, err
+							}
+							subDict := tmpDict[keyName].(map[string]interface{})
+							return sceneAssert.GetOutput(subDict)
+						}
+						values = append(values, tmpDict[keyName])
 					} else {
 						Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
 						tmpDict = data[items[0]].([]interface{})[0].(map[string]interface{})
@@ -249,7 +261,6 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 				varType := fmt.Sprintf("%T", data[items[0]])
 				if varType != "[]interface {}" {
 					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-					Logger.Error("%s", err)
 					return keyName, values, err
 				}
 
@@ -270,9 +281,7 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 						return keyName, values, err
 					}
 					if strings.Contains(keyName, "-") {
-
 						sceneAssert.Source = keyName
-
 						return sceneAssert.GetOutput(tmpInfo.(map[string]interface{}))
 					}
 
@@ -723,22 +732,21 @@ func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, colou
 	return
 }
 
-func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int) (target []string, err error) {
+func GetTargetValueFromEXCEL(filePath, columnName string, lineNo, columnNo int) (target []string, err error) {
 	fh, err := xlsx.OpenFile(filePath)
-	Logger.Debug("filePath: %s", filePath)
 	if err != nil {
+		Logger.Debug("filePath: %s", filePath)
 		Logger.Error("%v", err)
 		return
 	}
 
 	sheet := fh.Sheets[0]
-	//var lineNo, coloumnNo int
 
-	if len(coloumnName) > 0 {
+	if len(columnName) > 0 {
 		titles := sheet.Row(1).Cells
 		for index, item := range titles {
-			if item.Value == coloumnName {
-				coloumnNo = index
+			if item.Value == columnName {
+				columnNo = index
 			}
 		}
 	}
@@ -751,14 +759,14 @@ func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int
 		return
 	}
 
-	if coloumnNo > maxColNo {
-		err = fmt.Errorf("行号: %d超出索引范围，请核对", coloumnNo)
+	if columnNo > maxColNo {
+		err = fmt.Errorf("行号: %d超出索引范围，请核对", columnNo)
 		return
 	}
 
 	if lineNo > 0 {
-		if coloumnNo > 0 {
-			targetSingle := sheet.Cell(lineNo-1, coloumnNo)
+		if columnNo > 0 {
+			targetSingle := sheet.Cell(lineNo-1, columnNo)
 			target = []string{targetSingle.String()}
 		} else {
 			for i := 0; i < maxColNo; i++ {
@@ -768,7 +776,7 @@ func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int
 		}
 	} else if lineNo == -1 {
 		for i := 1; i < maxRowNo; i++ {
-			targetSingle := sheet.Cell(i, coloumnNo)
+			targetSingle := sheet.Cell(i, columnNo)
 			target = append(target, targetSingle.String())
 		}
 	}
@@ -777,8 +785,8 @@ func GetTargetValueFromEXCEL(filePath, coloumnName string, lineNo, coloumnNo int
 }
 
 func GetTargetValueFromStructFile(fileType, source, filePath string) (target []string, err error) {
-	var splitTag, coloumnName string
-	var lineNo, coloumnNo int
+	var splitTag, columnName string
+	var lineNo, columnNo int
 
 	dataAnchor := strings.Split(source, ":")
 
@@ -796,155 +804,29 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 			err = fmt.Errorf("行号: %v, 无法转换为整数，请核对", dataAnchor[2])
 			return
 		}
-		lineNo = lineNoTmp
+		lineNo = lineNoTmp - 1
 	}
 
 	if len(dataAnchor[3]) == 0 {
-		coloumnNo = -1
+		columnNo = -1
 	} else {
-		coloumnNoTmp, errTmp := strconv.Atoi(dataAnchor[3])
+		columnNoTmp, errTmp := strconv.Atoi(dataAnchor[3])
 		if errTmp != nil {
-			coloumnName = dataAnchor[3]
+			columnName = dataAnchor[3]
 		} else {
-			coloumnNo = coloumnNoTmp - 1
+			columnNo = columnNoTmp - 1
 		}
 	}
 
 	if fileType == "excel" {
-		target, err = GetTargetValueFromEXCEL(filePath, coloumnName, lineNo, coloumnNo)
-		//fh, err := xlsx.OpenFile(filePath)
-		//if err != nil {
-		//	Logger.Error("%v", err)
-		//	return nil, err
-		//}
-		//sheet := fh.Sheets[0]
-		//
-		//if len(coloumnName) > 0 {
-		//	titles := sheet.Row(1).Cells
-		//	for index, item := range titles {
-		//		if item.Value == coloumnName {
-		//			coloumnNo = index
-		//		}
-		//	}
-		//}
-		//
-		//maxRowNo := sheet.MaxRow
-		//maxColNo := sheet.MaxCol
-		//
-		//if lineNo > maxRowNo {
-		//	err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
-		//	return nil, err
-		//}
-		//
-		//if coloumnNo > maxColNo {
-		//	err = fmt.Errorf("行号: %d超出索引范围，请核对", coloumnNo)
-		//	return nil, err
-		//}
-		//
-		//if lineNo > 0 {
-		//	if coloumnNo > 0 {
-		//		targetSingle := sheet.Cell(lineNo-1, coloumnNo)
-		//		target = []string{targetSingle.String()}
-		//	} else {
-		//		for i := 0; i < maxColNo; i++ {
-		//			targetSingle := sheet.Cell(lineNo-1, i)
-		//			target = append(target, targetSingle.String())
-		//		}
-		//	}
-		//} else if lineNo == -1 {
-		//	for i := 1; i < maxRowNo; i++ {
-		//		targetSingle := sheet.Cell(i, coloumnNo)
-		//		target = append(target, targetSingle.String())
-		//	}
-		//}
+		target, err = GetTargetValueFromEXCEL(filePath, columnName, lineNo, columnNo)
 	} else if fileType == "csv" {
 		if len(dataAnchor) >= 5 {
 			splitTag = dataAnchor[4]
 		} else {
 			splitTag = ","
 		}
-		target, err = GetTargetValueFromCSV(filePath, coloumnName, splitTag, lineNo, coloumnNo)
-
-		//runeList := []rune(splitTag)
-		//var tagRune rune
-		//for _, item := range runeList {
-		//	tagRune = tagRune + item
-		//}
-		//
-		//fh, errTmp := os.Open(filePath)
-		//if errTmp != nil {
-		//	err = errTmp
-		//	return
-		//}
-		//
-		//defer fh.Close()
-		//
-		//reader := csv.NewReader(fh)
-		//
-		//if len(splitTag) > 0 {
-		//	reader.Comma = tagRune
-		//} else {
-		//	reader.Comma = ','
-		//}
-		//
-		//curLine := 0
-		//if lineNo > 0 {
-		//	for {
-		//		record, errTmp := reader.Read()
-		//		if errTmp == io.EOF {
-		//			break
-		//		}
-		//		curLine++
-		//
-		//		if len(coloumnName) > 0 && curLine == 1 {
-		//			for index, item := range record {
-		//				if coloumnName == item {
-		//					coloumnNo = index
-		//				}
-		//			}
-		//		}
-		//
-		//		if curLine == lineNo {
-		//			if len(record) <= coloumnNo && len(coloumnName) == 0 {
-		//				err = fmt.Errorf("列号: %d超出索引范围，请核对", coloumnNo)
-		//				return
-		//			}
-		//			if coloumnNo > 0 {
-		//				target = []string{record[coloumnNo]}
-		//			} else if coloumnNo == -1 {
-		//				target = record
-		//			}
-		//			break
-		//		}
-		//	}
-		//} else if lineNo == -1 {
-		//	for {
-		//		record, errTmp := reader.Read()
-		//		if errTmp == io.EOF {
-		//			break
-		//		}
-		//
-		//		if len(coloumnName) > 0 && curLine == 1 {
-		//			for index, item := range record {
-		//				if coloumnName == item {
-		//					coloumnNo = index
-		//				}
-		//			}
-		//			continue
-		//		}
-		//
-		//		if len(record) <= coloumnNo {
-		//			err = fmt.Errorf("列号: %d超出索引范围，请核对")
-		//			return
-		//		}
-		//
-		//		for index, item := range record {
-		//			if index == coloumnNo {
-		//				target = append(target, item)
-		//			}
-		//		}
-		//	}
-		//}
+		target, err = GetTargetValueFromCSV(filePath, columnName, splitTag, lineNo, columnNo)
 	}
 
 	return

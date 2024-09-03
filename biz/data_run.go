@@ -504,6 +504,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		envConfig.Ip = sceneEnvConfig.Ip
 		envConfig.Auth = sceneEnvConfig.Auth
 		envConfig.Product = product
+		envConfig.Protocol = sceneEnvConfig.Protocol
 
 		dbProductList, err := GetProductInfo(product)
 		dbProduct := dbProductList[0]
@@ -575,7 +576,6 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)
-			//Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
@@ -594,6 +594,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 
 		urls, errTmp = df.GetUrl(envConfig)
 		if errTmp != nil {
+			Logger.Debug("fileName: %s", path.Base(filePath))
 			Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -1117,6 +1118,8 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 
 	if tag != 0 {
 		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s", rawUrl)
+		Logger.Debug("appEnvWithDataEnv: %v", envInfo)
+		Logger.Debug("playbookEnvWithDataEnv: %v", sceneInfo)
 		err = err1
 		return
 	}
@@ -1650,7 +1653,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					if err1 != nil {
 						Logger.Error("\n%v", err1)
 						if err != nil {
-							err = fmt.Errorf("%s\n %s", err, err1)
+							err = fmt.Errorf("%s\n%s", err, err1)
 						} else {
 							err = err1
 						}

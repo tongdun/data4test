@@ -26,10 +26,10 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	info.AddField("唯一标识", "id", db.Int).
 		FieldFilterable().
-		FieldTrimSpace()
+		FieldTrimSpace().FieldWidth(60)
 	info.AddField("场景描述", "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件列表", "api_list", db.Longtext).FieldWidth(250).
+	info.AddField("数据文件列表", "api_list", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("最近数据文件", "last_file", db.Longtext).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
@@ -57,12 +57,12 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "3", Text: "串行继续"},
 		{Value: "4", Text: "普通并发"},
 		{Value: "5", Text: "并发比较"},
-	})
+	}).FieldWidth(60)
 	info.AddField("测试结果", "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
-	})
+	}).FieldWidth(70)
 	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(200).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("环境类型", "env_type", db.Int).
@@ -85,15 +85,15 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "3", Text: "预发"},
 		{Value: "4", Text: "演示"},
 		{Value: "5", Text: "生产"},
-	})
+	}).FieldWidth(60)
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(120)
 	info.AddField("所属产品", "product", db.Varchar).
-		FieldWidth(120).
+		FieldWidth(60).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("创建时间", "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(120).
+		FieldSortable().FieldWidth(100).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("更新时间", "updated_at", db.Timestamp).
 		FieldHide()

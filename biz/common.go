@@ -767,6 +767,7 @@ func GetSlicesIndex(src string) (isHit bool, index int, keyName string) {
 		index, _ = strconv.Atoi(string(indexMatch[0][2]))
 		keyName = string(indexMatch[0][1])
 		isHit = true
+
 	}
 	return
 }

@@ -627,22 +627,42 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				outputDict[k] = v
 			}
 		}
-		if len(sceneFile.Request) > 0 && len(sceneFile.Request[0]) > 0 {
-			requestMap := make(map[string]interface{})
-			errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
-			if errTmp != nil {
-				Logger.Info("%v", sceneFile.Request[0])
-				Logger.Warning("%v", errTmp) // 优化日志等级，当请求入参直接为数组list时，无法转为map
-			} else {
-				for k, v := range requestMap {
-					if _, ok := outputDict[k]; !ok {
-						outputDict[k] = append(outputDict[k], v)
-					}
 
-				}
+		for index, request := range sceneFile.Request {
+			requestMap := make(map[string]interface{})
+			errTmp := json.Unmarshal([]byte(request), &requestMap)
+			if errTmp != nil {
+				Logger.Debug("request: %v", request)
+				Logger.Warning("%v", errTmp)
+				continue
 			}
 
+			for k, v := range requestMap {
+				if index == 0 {
+					outputDict[k] = outputDict[k][:0] // 如果是不同数据文件的请求参数，同名参数进行重置
+					outputDict[k] = append(outputDict[k], v)
+				} else {
+					outputDict[k] = append(outputDict[k], v)
+				}
+			}
 		}
+
+		//if len(sceneFile.Request) > 0 && len(sceneFile.Request[0]) > 0 {
+		//	requestMap := make(map[string]interface{})
+		//	errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
+		//	if errTmp != nil {
+		//		Logger.Info("%v", sceneFile.Request[0])
+		//		Logger.Warning("%v", errTmp) // 优化日志等级，当请求入参直接为数组list时，无法转为map
+		//	} else {
+		//		for k, v := range requestMap {
+		//			if _, ok := outputDict[k]; !ok {
+		//				outputDict[k] = append(outputDict[k], v)
+		//			}
+		//
+		//		}
+		//	}
+		//
+		//}
 	}
 
 	if len(playbook.Apis) == 1 {
@@ -704,20 +724,39 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				}
 			}
 
-			if len(sceneFile.Request) > 0 {
-				requestMap := make(map[string]string)
-				errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
+			for index, request := range sceneFile.Request {
+				requestMap := make(map[string]interface{})
+				errTmp := json.Unmarshal([]byte(request), &requestMap)
 				if errTmp != nil {
-					Logger.Error("%v", errTmp)
-				} else {
-					for k, v := range requestMap {
-						if _, ok := outputDict[k]; !ok {
-							outputDict[k] = append(outputDict[k], v)
-						}
-					}
+					Logger.Debug("request: %v", request)
+					Logger.Warning("%v", errTmp)
+					continue
 				}
 
+				for k, v := range requestMap {
+					if index == 0 {
+						outputDict[k] = outputDict[k][:0] // 如果是不同数据文件的请求参数，同名参数进行重置
+						outputDict[k] = append(outputDict[k], v)
+					} else {
+						outputDict[k] = append(outputDict[k], v)
+					}
+				}
 			}
+
+			//if len(sceneFile.Request) > 0 {
+			//	requestMap := make(map[string]string)
+			//	errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
+			//	if errTmp != nil {
+			//		Logger.Error("%v", errTmp)
+			//	} else {
+			//		for k, v := range requestMap {
+			//			if _, ok := outputDict[k]; !ok {
+			//				outputDict[k] = append(outputDict[k], v)
+			//			}
+			//		}
+			//	}
+			//
+			//}
 		}
 	}
 
