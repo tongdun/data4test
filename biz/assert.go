@@ -65,7 +65,6 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 			} else {
 				err := fmt.Errorf("未关联到断言值定义 :%s", name)
 				Logger.Warning("%s", err)
-				//return
 			}
 
 		}
@@ -243,7 +242,6 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 							varType := fmt.Sprintf("%T", tmpDict[keyName])
 							if varType != "map[string]interface {}" {
 								err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-								//Logger.Error("%s", err)
 								return keyName, values, err
 							}
 							subDict := tmpDict[keyName].(map[string]interface{})
@@ -643,9 +641,7 @@ func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string
 	return
 }
 
-func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, coloumnNo int) (target []string, err error) {
-	//var coloumnName string
-	//var lineNo, coloumnNo int
+func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, columnNo int) (target []string, err error) {
 	var tagRune rune
 
 	runeList := []rune(splitTag)
@@ -679,22 +675,22 @@ func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, colou
 			}
 			curLine++
 
-			if len(coloumnName) > 0 && curLine == 1 {
+			if len(columnName) > 0 && curLine == 1 {
 				for index, item := range record {
-					if coloumnName == item {
-						coloumnNo = index
+					if columnName == item {
+						columnNo = index
 					}
 				}
 			}
 
 			if curLine == lineNo {
-				if len(record) <= coloumnNo && len(coloumnName) == 0 {
-					err = fmt.Errorf("列号: %d超出索引范围，请核对", coloumnNo)
+				if len(record) <= columnNo && len(columnName) == 0 {
+					err = fmt.Errorf("列号: %d超出索引范围，请核对", columnNo)
 					return
 				}
-				if coloumnNo > 0 {
-					target = []string{record[coloumnNo]}
-				} else if coloumnNo == -1 {
+				if columnNo > 0 {
+					target = []string{record[columnNo]}
+				} else if columnNo == -1 {
 					target = record
 				}
 				break
@@ -707,22 +703,22 @@ func GetTargetValueFromCSV(filePath, coloumnName, splitTag string, lineNo, colou
 				break
 			}
 
-			if len(coloumnName) > 0 && curLine == 1 {
+			if len(columnName) > 0 && curLine == 1 {
 				for index, item := range record {
-					if coloumnName == item {
-						coloumnNo = index
+					if columnName == item {
+						columnNo = index
 					}
 				}
 				continue
 			}
 
-			if len(record) <= coloumnNo {
+			if len(record) <= columnNo {
 				err = fmt.Errorf("列号: %d超出索引范围，请核对")
 				return
 			}
 
 			for index, item := range record {
-				if index == coloumnNo {
+				if index == columnNo {
 					target = append(target, item)
 				}
 			}
@@ -766,7 +762,7 @@ func GetTargetValueFromEXCEL(filePath, columnName string, lineNo, columnNo int) 
 
 	if lineNo > 0 {
 		if columnNo > 0 {
-			targetSingle := sheet.Cell(lineNo-1, columnNo)
+			targetSingle := sheet.Cell(lineNo-1, columnNo-1)
 			target = []string{targetSingle.String()}
 		} else {
 			for i := 0; i < maxColNo; i++ {
@@ -776,17 +772,17 @@ func GetTargetValueFromEXCEL(filePath, columnName string, lineNo, columnNo int) 
 		}
 	} else if lineNo == -1 {
 		for i := 1; i < maxRowNo; i++ {
-			targetSingle := sheet.Cell(i, columnNo)
+			targetSingle := sheet.Cell(i, columnNo-1)
 			target = append(target, targetSingle.String())
 		}
 	}
-
 	return
 }
 
 func GetTargetValueFromStructFile(fileType, source, filePath string) (target []string, err error) {
 	var splitTag, columnName string
 	var lineNo, columnNo int
+	var errTmp error
 
 	dataAnchor := strings.Split(source, ":")
 
@@ -798,23 +794,21 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 	if len(dataAnchor[2]) == 0 {
 		lineNo = -1
 	} else {
-		lineNoTmp, errTmp := strconv.Atoi(dataAnchor[2])
+		lineNo, errTmp = strconv.Atoi(dataAnchor[2])
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
 			err = fmt.Errorf("行号: %v, 无法转换为整数，请核对", dataAnchor[2])
 			return
 		}
-		lineNo = lineNoTmp - 1
 	}
 
 	if len(dataAnchor[3]) == 0 {
 		columnNo = -1
 	} else {
-		columnNoTmp, errTmp := strconv.Atoi(dataAnchor[3])
+		columnNo, errTmp = strconv.Atoi(dataAnchor[3])
 		if errTmp != nil {
+			Logger.Warning("%s", errTmp)
 			columnName = dataAnchor[3]
-		} else {
-			columnNo = columnNoTmp - 1
 		}
 	}
 

@@ -646,23 +646,6 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				}
 			}
 		}
-
-		//if len(sceneFile.Request) > 0 && len(sceneFile.Request[0]) > 0 {
-		//	requestMap := make(map[string]interface{})
-		//	errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
-		//	if errTmp != nil {
-		//		Logger.Info("%v", sceneFile.Request[0])
-		//		Logger.Warning("%v", errTmp) // 优化日志等级，当请求入参直接为数组list时，无法转为map
-		//	} else {
-		//		for k, v := range requestMap {
-		//			if _, ok := outputDict[k]; !ok {
-		//				outputDict[k] = append(outputDict[k], v)
-		//			}
-		//
-		//		}
-		//	}
-		//
-		//}
 	}
 
 	if len(playbook.Apis) == 1 {
@@ -742,21 +725,6 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 					}
 				}
 			}
-
-			//if len(sceneFile.Request) > 0 {
-			//	requestMap := make(map[string]string)
-			//	errTmp := json.Unmarshal([]byte(sceneFile.Request[0]), &requestMap)
-			//	if errTmp != nil {
-			//		Logger.Error("%v", errTmp)
-			//	} else {
-			//		for k, v := range requestMap {
-			//			if _, ok := outputDict[k]; !ok {
-			//				outputDict[k] = append(outputDict[k], v)
-			//			}
-			//		}
-			//	}
-			//
-			//}
 		}
 	}
 
@@ -1006,44 +974,6 @@ func ReadSceneFromExcel(fileName string) (sceneList []SceneWithNoUpdateTime, err
 	}
 	return
 }
-
-//func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
-//	var dbScene DbScene
-//	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
-//	var apiStr, numStr string
-//	if len(dbScene.Name) == 0 {
-//		return
-//	} else {
-//		for index, value := range apiList {
-//			if len(value) == 0 {
-//				continue
-//			}
-//			if len(numList) > index {
-//				numValue := numList[index]
-//				if len(numValue) == 0 {
-//					numList[index] = fmt.Sprintf("%d", index+1)
-//				}
-//			} else {
-//				numList = append(numList, fmt.Sprintf("%d", index+1))
-//			}
-//			if index == 0 {
-//				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
-//				numStr = fmt.Sprintf("%v", numList[index])
-//			} else {
-//				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
-//				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
-//			}
-//		}
-//
-//		dbScene.ApiList = apiStr
-//		dbScene.DataNumber = numStr
-//		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
-//		if err != nil {
-//			Logger.Error("%s", err)
-//		}
-//	}
-//	return
-//}
 
 func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 	var dbScene DbScene

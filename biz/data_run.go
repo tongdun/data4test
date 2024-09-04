@@ -1535,7 +1535,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					isPass++
 					continue // 遇到失败，进入下一个断言值的校对
 				}
-
 			} else if strings.HasPrefix(assert.Source, "File:") || strings.HasPrefix(assert.Source, "FILE:") {
 				targetList, errTmp := assert.GetValueFromFile(df.Response[i])
 				if errTmp != nil {
@@ -1545,6 +1544,15 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					} else {
 						err = errTmp
 					}
+					failReason := fmt.Sprintf("%v", err)
+					if len(df.TestResult) < i+1 {
+						df.TestResult = append(df.TestResult, "fail")
+						df.FailReason = append(df.FailReason, failReason)
+					} else {
+						df.TestResult[i] = "fail"
+						df.FailReason[i] = failReason
+					}
+					isPass++
 					continue
 				}
 
@@ -1567,8 +1575,25 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 							}
 						}
 					}
-				}
 
+					if err != nil {
+						failReason := fmt.Sprintf("%v", err)
+
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							if len(df.FailReason) < i+1 {
+								df.FailReason = append(df.FailReason, failReason)
+							} else {
+								df.FailReason[i] = failReason
+							}
+						}
+						isPass++
+						continue
+					}
+				}
 			} else {
 				// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
 				var resDict map[string]interface{}
@@ -1597,6 +1622,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						df.FailReason[i] = failReason
 					}
 					isPass++
+
 					continue
 				}
 
@@ -1653,7 +1679,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 					if err1 != nil {
 						Logger.Error("\n%v", err1)
 						if err != nil {
-							err = fmt.Errorf("%s\n%s", err, err1)
+							err = fmt.Errorf("%s;\n%s", err, err1)
 						} else {
 							err = err1
 						}
@@ -1671,9 +1697,19 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 				}
 			}
 		}
+
 		if len(df.TestResult) <= i {
 			df.TestResult = append(df.TestResult, "pass")
+		} else {
+			df.TestResult[i] = "pass"
 		}
+	}
+
+	if isPass != 0 {
+		result = "fail"
+	} else {
+		result = "pass"
+		df.FailReason = []string{}
 	}
 
 	df.Output = outputDict
@@ -1723,12 +1759,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 				err = errTmp
 			}
 		}
-	}
-
-	if isPass != 0 {
-		result = "fail"
-	} else {
-		result = "pass"
 	}
 
 	return

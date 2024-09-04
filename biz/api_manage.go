@@ -416,7 +416,7 @@ func SaveApiData(apiModel ApiDataSaveModel) (err error) {
 
 	var dbSceneData DbSceneData
 	models.Orm.Table("scene_data").Where("api_id = ? and app = ? and name = ?", sceneData.ApiId, sceneData.App, sceneData.Name).Find(&dbSceneData)
-	sceneData.Content = fmt.Sprintf("<pre><code>%s</code></pre>", dataInfo)
+	sceneData.Content = fmt.Sprintf("%s", dataInfo)
 	sceneData.FileType = 1
 
 	if len(dbSceneData.ApiId) == 0 {
