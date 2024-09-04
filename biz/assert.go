@@ -298,6 +298,8 @@ func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName s
 				values = append(values, strValue)
 			}
 		} else {
+			Logger.Debug("sceneAssert.Source: %v", sceneAssert.Source)
+			Logger.Debug("data: %+v", data)
 			err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", sceneAssert.Source, sceneAssert.Value)
 			err = err1
 			Logger.Error("%s", err)

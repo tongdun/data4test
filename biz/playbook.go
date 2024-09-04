@@ -101,10 +101,17 @@ func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	}
 
 	for _, productInfo := range productList {
-		_, _, err = RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id)
-		if err != nil {
-			Logger.Error("%s", err)
+		_, _, errTmp := RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id)
+		if errTmp != nil {
+			if err != nil {
+				err = fmt.Errorf("%s;%s", err, errTmp)
+			} else {
+				err = errTmp
+			}
 		}
+		//if err != nil {
+		//	Logger.Error("%s", err)
+		//}
 	}
 	return
 }
@@ -622,12 +629,6 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			return
 		}
 
-		if len(sceneFile.Output) > 0 {
-			for k, v := range sceneFile.Output {
-				outputDict[k] = v
-			}
-		}
-
 		for index, request := range sceneFile.Request {
 			requestMap := make(map[string]interface{})
 			errTmp := json.Unmarshal([]byte(request), &requestMap)
@@ -644,6 +645,12 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				} else {
 					outputDict[k] = append(outputDict[k], v)
 				}
+			}
+		}
+		// Output的参数在请求参数之后，优先级更高
+		if len(sceneFile.Output) > 0 {
+			for k, v := range sceneFile.Output {
+				outputDict[k] = v
 			}
 		}
 	}

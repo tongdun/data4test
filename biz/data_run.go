@@ -1455,6 +1455,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 	}
 
 	for i := 0; i < len(res); i++ {
+		inIsPass := 0
 		if i == 0 {
 			df.Response = []string{string(res[i])}
 			// 请求时有返回 Error 信息，结果设置为失败，不再走后续流程
@@ -1511,7 +1512,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 		for _, assert := range df.Assert {
 			aType := assert.Type
 			// 若返回断言已经失败了，不再进行output动作
-			if isPass != 0 && (aType == "output" || aType == "output_re") {
+			if inIsPass != 0 && (aType == "output" || aType == "output_re") {
 				continue
 			}
 
@@ -1533,6 +1534,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						df.FailReason[i] = failReason
 					}
 					isPass++
+					inIsPass++
 					continue // 遇到失败，进入下一个断言值的校对
 				}
 			} else if strings.HasPrefix(assert.Source, "File:") || strings.HasPrefix(assert.Source, "FILE:") {
@@ -1622,7 +1624,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 						df.FailReason[i] = failReason
 					}
 					isPass++
-
+					inIsPass++
 					continue
 				}
 
@@ -1646,7 +1648,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 							df.FailReason[i] = failReason
 						}
 						isPass++
-
+						inIsPass++
 						break
 					}
 
@@ -1671,6 +1673,7 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 							df.FailReason[i] = failReason
 						}
 						isPass++
+						inIsPass++
 						break
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
@@ -1692,16 +1695,21 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 							df.FailReason[i] = failReason
 						}
 						isPass++
+						inIsPass++
 						break
 					}
 				}
 			}
 		}
 
-		if len(df.TestResult) <= i {
-			df.TestResult = append(df.TestResult, "pass")
+		if inIsPass > 0 {
+			df.TestResult[i] = "fail"
 		} else {
-			df.TestResult[i] = "pass"
+			if len(df.TestResult) < i+1 {
+				df.TestResult = append(df.TestResult, "pass")
+			} else {
+				df.TestResult[i] = "pass"
+			}
 		}
 	}
 
