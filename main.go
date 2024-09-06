@@ -26,9 +26,7 @@ import (
 	//_ "github.com/mkevac/debugcharts"
 	//_ "net/http/pprof"
 
-	_ "github.com/GoAdminGroup/go-admin/adapter/gin" // web framework adapter
 	ada "github.com/GoAdminGroup/go-admin/adapter/gin"
-
 	_ "github.com/GoAdminGroup/go-admin/modules/db/drivers/mysql" // sql driver
 	_ "github.com/GoAdminGroup/go-admin/modules/db/drivers/sqlite"
 	"github.com/GoAdminGroup/go-admin/plugins"
@@ -103,7 +101,6 @@ func startServer() {
 	eng := engine.Default()
 
 	template.AddLoginComp(login.Get())
-
 	template.AddComp(chartjs.NewChart())
 
 	if err := eng.AddConfigFromJSON(args.Config).
@@ -470,6 +467,10 @@ func startServer() {
 	})
 
 	r.POST("/apiDataSave", func(c *gin.Context) {
+		// 获取登录用户
+		user, _ := engine.User(c)
+		userName := user.Name
+
 		var apiDataSave biz.ApiDataSaveModel
 		apiDataSave.App = c.PostForm("app")[1 : len(c.PostForm("app"))-1]
 		apiDataSave.Module = c.PostForm("module")[1 : len(c.PostForm("module"))-1]
@@ -503,7 +504,7 @@ func startServer() {
 			}
 		}
 
-		err := biz.SaveApiData(apiDataSave)
+		err := biz.SaveApiData(apiDataSave, userName)
 
 		if err != nil {
 			data["code"] = 400
@@ -517,6 +518,10 @@ func startServer() {
 	})
 
 	r.POST("/sceneSave", func(c *gin.Context) {
+		// 获取登录用户
+		user, _ := engine.User(c)
+		userName := user.Name
+
 		var sceneSave biz.SceneSaveModel
 		sceneSave.Product = c.PostForm("product")[1 : len(c.PostForm("product"))-1]
 		sceneSave.Name = c.PostForm("name")[1 : len(c.PostForm("name"))-1]
@@ -551,7 +556,7 @@ func startServer() {
 			data["code"] = 400
 			data["msg"] = "场景名称不能为空"
 		} else {
-			err := biz.SaveScene(sceneSave)
+			err := biz.SaveScene(sceneSave, userName)
 			if err != nil {
 				data["code"] = 400
 				data["msg"] = err
@@ -565,6 +570,10 @@ func startServer() {
 	})
 
 	r.POST("/historySave", func(c *gin.Context) {
+		// 获取登录用户
+		user, _ := engine.User(c)
+		userName := user.Name
+
 		var apiDataSave biz.ApiDataSaveModel
 		apiDataSave.App = c.PostForm("app")[1 : len(c.PostForm("app"))-1]
 		apiDataSave.Module = c.PostForm("module")[1 : len(c.PostForm("module"))-1]
@@ -588,7 +597,7 @@ func startServer() {
 		json.Unmarshal([]byte(c.PostForm("preApis")), &apiDataSave.PreApis)
 		json.Unmarshal([]byte(c.PostForm("postApis")), &apiDataSave.PostApis)
 
-		err := biz.SaveApiData(apiDataSave)
+		err := biz.SaveApiData(apiDataSave, userName)
 		data := make(map[string]interface{})
 		if err != nil {
 			data["code"] = 400

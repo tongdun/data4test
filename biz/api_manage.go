@@ -250,11 +250,12 @@ func SaveApiDef(apiModel ApiDefSaveModel) (err error) {
 	return
 }
 
-func SaveApiData(apiModel ApiDataSaveModel) (err error) {
+func SaveApiData(apiModel ApiDataSaveModel, userName string) (err error) {
 	var sceneData SceneData
 	sceneData.App = apiModel.App
 	sceneData.Name = apiModel.ApiDesc
 	sceneData.ApiId = fmt.Sprintf("%s_%s", apiModel.Method, apiModel.Path)
+	sceneData.UserName = userName
 
 	var fullName string
 	tagNum := strings.Count(apiModel.DataDesc, "-")

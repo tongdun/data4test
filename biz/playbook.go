@@ -887,12 +887,13 @@ func GetAllPlaybook() (names []string, err error) {
 	return
 }
 
-func SaveScene(sceneSave SceneSaveModel) (err error) {
+func SaveScene(sceneSave SceneSaveModel, userName string) (err error) {
 	var dbScene DbScene
 	var scene SceneWithNoUpdateTime
 	var apiStr, numStr string
 	scene.Product = sceneSave.Product
 	scene.Name = sceneSave.Name
+	scene.UserName = userName
 	for index, value := range sceneSave.DataList {
 		if index == 0 {
 			apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value.DataFile, value.DataFile)
