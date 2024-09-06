@@ -17,14 +17,12 @@ export default class AssertList extends Vue {
   @Prop() isSending: boolean = false
   @Prop() contentType: string
   @Prop() assertListData: Req.AssertListModel[]
-
   assertTableData: any[] = []
   assertType: string[] = ["re", "output", "output_re","=", "!=", ">", ">=", "<", "<=", "in", "!in", "sum", "avg", "count", "not_in", "equal", "not_equal", "contain", "not_contain", "null", "not_null", "regexp"]
   typeOptions: string[] = []
   sourceOptions: string[] = []
   valueOptions: string[] = []
   assertResultOptions: string[] = []
-
   assertTableColumns: any[] = [
     {
       title: '',
@@ -83,10 +81,12 @@ export default class AssertList extends Vue {
                 value: params.row.value,
                 transfer: true,
                 filterable: true,
+                data: this.getOptions("value"),
+                'on-create': this.onAddAssertTemplateValue(params.row.value),
                 'filter-method': this.onFilterMethod,
-                // data: this.getOptions("value"),
                 'allow-create': true,
-                'on-create': this.onAddAssertTemplateValue(params.row.value)
+                'clearable': true,
+                'placement': 'top-start',
               },
               on: {
                 'on-change': (value: string) => {
@@ -136,7 +136,12 @@ export default class AssertList extends Vue {
     }
   ]
 
-
+  async getAssertTemplateList() {
+    let result = await API.get<Req.ResponseModel[]>('/assertTemplateList')
+    if (result.data) {
+      this.valueOptions = result.data.map(item => (item['name']));
+    }
+  }
 
   created() {
     this.onLocale()
@@ -153,8 +158,8 @@ export default class AssertList extends Vue {
   }
 
   mounted() {
-    this.syncTableData()
     this.getAssertTemplateList()
+    this.syncTableData()
   }
 
   @Watch('assertListData')
@@ -230,13 +235,6 @@ export default class AssertList extends Vue {
       return this.assertResultOptions
     }
 
-  }
-
-  async getAssertTemplateList() {
-    let result = await API.get<Req.ResponseModel[]>('/assertTemplateList')
-    if (result.data) {
-      this.valueOptions = result.data.map(item => (item['name']));
-    }
   }
 
   syncTableData() {
