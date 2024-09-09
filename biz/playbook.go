@@ -8,6 +8,7 @@ import (
 	"github.com/tealeg/xlsx"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -1002,11 +1003,14 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 			} else {
 				numList = append(numList, fmt.Sprintf("%d", index+1))
 			}
+
 			if index == 0 {
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
+				//apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
+				apiStr = value
 				numStr = fmt.Sprintf("%v", numList[index])
 			} else {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
+				//apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
+				apiStr = fmt.Sprintf("%s,%s", apiStr, value)
 				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
 			}
 		}
@@ -1027,13 +1031,13 @@ func GetPlaybookApiStr(id string) (apiStr string) {
 		return
 	}
 
-	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
-	handle := doc.Text()
-	afterTxt1 := strings.Replace(handle, ".yml", ".yml\n", -1)
-	afterTxt2 := strings.Replace(afterTxt1, ".json", ".json\n", -1)
-	apiStr = strings.Replace(afterTxt2, ".yaml", ".yaml\n", -1)
+	//doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+	//handle := doc.Text()
+	//afterTxt1 := strings.Replace(handle, ".yml", ".yml\n", -1)
+	//afterTxt2 := strings.Replace(afterTxt1, ".json", ".json\n", -1)
+	//apiStr = strings.Replace(afterTxt2, ".yaml", ".yaml\n", -1)
 
-	return apiStr
+	return strings.Replace(dbScene.ApiList, ",", "\r\n", -1)
 }
 
 func GetPlaybookApiList(id string) (apiList []string) {
@@ -1043,17 +1047,17 @@ func GetPlaybookApiList(id string) (apiList []string) {
 		return
 	}
 
-	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
-	handle := doc.Text()
-	afterTxt1 := strings.Replace(handle, ".yml", ".yml,", -1)
-	afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
-	afterTxt := strings.Replace(afterTxt2, ".yaml", ".yaml,", -1)
-	apiList = strings.Split(afterTxt, ",")
+	//doc, _ := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+	//handle := doc.Text()
+	//afterTxt1 := strings.Replace(handle, ".yml", ".yml,", -1)
+	//afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
+	//afterTxt := strings.Replace(afterTxt2, ".yaml", ".yaml,", -1)
+	//apiList = strings.Split(afterTxt, ",")
 
-	return
+	return strings.Split(dbScene.ApiList, ",")
 }
 
-// ModifyPlaybookContent 场景数据升级函数
+// ModifyPlaybookContent 场景数据升级函数,增加序号/标签
 func ModifyPlaybookContent() (err error) {
 	var ids []string
 	models.Orm.Table("playbook").Order("id ASC").Where("id > 246").Pluck("id", &ids)
@@ -1113,6 +1117,48 @@ func ModifyPlaybookContent() (err error) {
 		}
 	}
 
+	return
+}
+
+// ModifyPlaybookApiList 场景数据升级函数, 关联数据去链超链存储
+func ModifyPlaybookApiList() (err error) {
+	var ids []int
+	Logger.Info("开始更新")
+	models.Orm.Table("playbook").Order("id ASC").Pluck("id", &ids)
+	for _, id := range ids {
+		var dbScene DbScene
+		models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
+		if len(dbScene.Name) == 0 {
+			Logger.Error("未找到id: %v场景数据，请核对", id)
+			return
+		}
+
+		if !strings.Contains(dbScene.ApiList, "</a>") {
+			Logger.Info("%d:%s场景无需更新", id, dbScene.Name)
+			continue
+		}
+
+		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+		if errTmp != nil {
+			Logger.Debug("dbScene.ApiList:%s", dbScene.ApiList)
+			Logger.Error("%d:%s场景信息获取异常，%s", id, dbScene.Name, errTmp)
+			err = errTmp
+			continue
+		}
+
+		handle := doc.Text()
+		afterTxt1 := strings.Replace(handle, ".yml", ".yml,", -1)
+		afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
+		afterTxt3 := strings.Replace(afterTxt2, ".sh", ".sh,", -1)
+		apiStr := strings.Replace(afterTxt3, ".yaml", ".yaml,", -1)
+		dbScene.ApiList = apiStr
+		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+
+	}
+	Logger.Info("结束更新")
 	return
 }
 
@@ -1199,6 +1245,69 @@ func GetPlaybookEditTypeById(id string) (editType string) {
 	} else {
 		editType = "select"
 	}
+
+	return
+}
+
+func GetDataFileLinkByDataStr(pStr string) (linkStr string) {
+	pList := strings.Split(pStr, ",")
+	for _, item := range pList {
+		if len(item) == 0 {
+			continue
+		}
+		if len(linkStr) == 0 {
+			linkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item) //跳详情，可自动点击编辑进行改写
+		} else {
+			linkStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", linkStr, item, item)
+		}
+	}
+	return
+}
+
+func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
+	dList := strings.Split(dStr, ",")
+	for _, item := range dList {
+		if len(item) == 0 {
+			continue
+		}
+		var ids []int
+		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
+		Logger.Debug("ids: %v", ids)
+		if len(dList) == 0 {
+			Logger.Warning("未数据找到数据文件[%s], 请核对", item)
+			if len(linkStr) == 0 {
+				linkStr = item //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item) // 如果被删了，显示普通信息，无链接
+			}
+		} else {
+			if len(linkStr) == 0 {
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+			}
+		}
+	}
+	return
+}
+
+func GetApiAutoDataList(apiId, pkId string) (linkStr string) {
+	var apiDef ApiDefDB
+	models.Orm.Table("api_definition").Where("id = ?", pkId).Find(&apiDef)
+	if len(apiDef.ApiId) == 0 {
+		Logger.Warning("未找到%d:%s接口定义, 请核对", pkId, apiId)
+		return apiId
+	}
+
+	var dataCount int
+	models.Orm.Table("scene_data").Where("api_id = ? and app = ?", apiId, apiDef.App).Limit(1).Count(&dataCount)
+	if dataCount == 0 {
+		return apiId
+	}
+	encodeApiId := url.QueryEscape(apiId)
+	encodeApp := url.QueryEscape("app[]")
+
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data?api_id=%s&%s=%s\">%s</a>", encodeApiId, encodeApp, apiDef.App, apiId) // 直接跑数据列表进行过滤
 
 	return
 }

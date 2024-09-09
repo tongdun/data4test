@@ -35,7 +35,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldWidth(220)
 	info.AddField("数据文件列表", "api_list", db.Longtext).FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", ",<br>", -1)
+			//return strings.Replace(model.Value, ",", ",<br>", -1)
+			return biz.GetDataFileLinkByDataStr(model.Value)
 		})
 
 	info.AddField("最近数据文件", "last_file", db.Varchar).FieldDisplay(func(value types.FieldModel) interface{} {
@@ -325,10 +326,10 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	formList.SetTable("playbook").SetTitle("场景列表").SetDescription("场景列表")
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
-		edit_Type := values["edit_type"][0]
+		pEditType := values["edit_type"][0]
 		inputInfo := values["input_list"][0]
 		var apiList []string
-		if edit_Type == "select" {
+		if pEditType == "select" {
 			apiList = values["select_list"]
 		} else {
 			apiList = strings.Split(inputInfo, "\r\n")
@@ -344,7 +345,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField("场景描述", "name", db.Varchar)
 	detail.AddField("数据文件列表", "api_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return model.Value
+			return biz.GetDataDetailLinkByDataStr(model.Value)
 		})
 	detail.AddField("最近数据文件", "last_file", db.Varchar)
 	detail.AddField("场景类型", "scene_type", db.Enum).
@@ -377,7 +378,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField("创建时间", "created_at", db.Timestamp)
 	detail.AddField("删除时间", "deleted_at", db.Timestamp)
 
-	detail.SetTable("playbook").SetTitle("场景列表").SetDescription("场景列表")
+	detail.SetTable("playbook").SetTitle("场景详情").SetDescription("场景详情")
 
 	return playbook
 }

@@ -1178,3 +1178,29 @@ func GetTaskEditTypeById(id string) (editType string) {
 
 	return
 }
+
+func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
+	pList := strings.Split(pStr, ",")
+	for _, item := range pList {
+		if len(item) == 0 {
+			continue
+		}
+		var ids []int
+		models.Orm.Table("playbook").Where("name = ?", item).Pluck("id", &ids)
+		if len(ids) == 0 {
+			Logger.Warning("未找到场景[%s], 请核对", item)
+			if len(linkStr) == 0 {
+				linkStr = item //跳详情，可点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item)
+			}
+		} else {
+			if len(linkStr) == 0 {
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳编辑区可直接改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+			}
+		}
+	}
+	return
+}

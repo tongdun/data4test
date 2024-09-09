@@ -237,6 +237,7 @@ func SaveApiDef(apiModel ApiDefSaveModel) (err error) {
 		err = models.Orm.Table("api_definition").Where("api_id = ? and app = ?", apiDef.ApiId, apiDef.App).Update(&apiDef).Error
 	} else {
 		apiDef.Version = 1
+		apiDef.ApiStatus = 1
 		if errTmp != nil {
 			apiDef.ChangeContent = fmt.Sprintf("%v", errTmp)
 		}

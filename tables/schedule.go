@@ -340,7 +340,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldOnChooseHide("input_scene", "scene_table", "data_table", "input_data").
 		FieldOnChooseHide("select_scene", "input_data", "data_table", "input_scene").
 		FieldOnChooseHide("select_data", "input_scene", "scene_table", "data_table").
-		FieldOnChooseHide("input_data", "scene_table", "scene_table", "input_scene").
+		FieldOnChooseHide("input_data", "scene_table", "data_table", "input_scene").
 		FieldOnChooseShow("select_scene", "scene_table").
 		FieldOnChooseShow("input_scene", "input_scene").
 		FieldOnChooseShow("select_data", "data_table").
@@ -444,23 +444,73 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	detail := schedule.GetDetail()
 	detail.AddField("自增主键", "id", db.Int)
 	detail.AddField("任务名称", "task_name", db.Varchar)
-	detail.AddField("任务模式", "task_mode", db.Enum)
+	detail.AddField("任务模式", "task_mode", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "cron" {
+				return "自定义"
+			}
+			if model.Value == "once" {
+				return "一次"
+			}
+			if model.Value == "day" {
+				return "每天"
+			}
+			if model.Value == "week" {
+				return "每周"
+			}
+			return "一次"
+		})
 	detail.AddField("每周", "week", db.Varchar)
 	detail.AddField("每天时刻", "time4day", db.Varchar)
 	detail.AddField("每周时刻", "time4week", db.Varchar)
 	detail.AddField("Cron表达式", "crontab", db.Varchar)
-	detail.AddField("是否并发", "threading", db.Enum)
-	detail.AddField("任务类型", "task_type", db.Enum)
+	detail.AddField("是否并发", "threading", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "yes" {
+				return "是"
+			}
+			if model.Value == "no" {
+				return "否"
+			}
+			return "否"
+		})
+	detail.AddField("任务类型", "task_type", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "data" {
+				return "数据"
+			}
+			if model.Value == "scene" {
+				return "场景"
+			}
+			return "场景"
+		})
 	detail.AddField("关联数据", "data_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", "<br>", -1)
+			return biz.GetDataDetailLinkByDataStr(model.Value)
 		})
 	detail.AddField("关联场景", "scene_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", "<br>", -1)
+			return biz.GetPlaybookLinkByPlaybookStr(model.Value)
+
 		})
 	detail.AddField("关联产品", "product_list", db.Varchar)
-	detail.AddField("任务状态", "task_status", db.Enum)
+	detail.AddField("任务状态", "task_status", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "running" {
+				return "运行中"
+			}
+			if model.Value == "stopped" {
+				return "已暂停"
+			}
+			if model.Value == "finished" {
+				return "已结束"
+			}
+			if model.Value == "not_started" {
+				return "未开始"
+			}
+
+			return "未开始"
+		})
 	detail.AddField("备注", "remark", db.Longtext)
 	detail.AddField("上次执行时间", "last_at", db.Timestamp)
 	detail.AddField("下次执行时间", "next_at", db.Timestamp)
@@ -468,7 +518,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	detail.AddField("创建时间", "created_at", db.Timestamp)
 	detail.AddField("更新时间", "updated_at", db.Timestamp)
 	detail.AddField("删除时间", "deleted_at", db.Timestamp)
-	detail.SetTable("schedule").SetTitle("定时任务").SetDescription("定时任务")
+	detail.SetTable("schedule").SetTitle("定时任务").SetDescription("定时详情")
 
 	return schedule
 }

@@ -29,7 +29,12 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 	info.AddField("自增主键", "id", db.Int).
 		FieldHide()
-	info.AddField("接口ID", "api_id", db.Varchar).FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).FieldWidth(150)
+	info.AddField("接口ID", "api_id", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldWidth(150).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiAutoDataList(model.Value, model.ID)
+		})
 	info.AddField("所属模块", "api_module", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).FieldWidth(120)
 	info.AddField("接口描述", "api_desc", db.Varchar).

@@ -454,6 +454,7 @@ func startServer() {
 		data := make(map[string]interface{})
 
 		err = biz.SaveApiDef(apiDefSave)
+		//biz.ModifyPlaybookApiList()   //更新数据使用，无需要时进行屏蔽
 
 		if err != nil {
 			data["code"] = 400

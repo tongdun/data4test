@@ -264,5 +264,49 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		return
 	})
 
+	detail := sceneData.GetDetail()
+	detail.AddField("唯一标识", "id", db.Int)
+	detail.AddField("数据描述", "name", db.Varchar)
+	detail.AddField("接口ID", "api_id", db.Varchar)
+	detail.AddField("所属应用", "app", db.Varchar)
+	detail.AddField("文件名", "file_name", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			linkStr := fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", model.Value, model.Value)
+			return linkStr
+		})
+	detail.AddField("文件类型", "file_type", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "1" {
+				return "标准"
+			}
+			if model.Value == "2" {
+				return "Python"
+			}
+			if model.Value == "3" {
+				return "Shell"
+			}
+			if model.Value == "4" {
+				return "Bat"
+			}
+			if model.Value == "5" {
+				return "Jmeter"
+			}
+			if model.Value == "99" {
+				return "其他"
+			}
+			return "标准"
+		})
+	//detail.AddField("文件内容", "content", db.Longtext)  // 格式没有换行，可读性差
+	detail.AddField("执行次数", "run_time", db.Int)
+	detail.AddField("测试结果", "result", db.Varchar)
+	detail.AddField("失败原因", "fail_reason", db.Longtext)
+	detail.AddField("备注", "remark", db.Longtext)
+	detail.AddField("创建人", "user_name", db.Varchar)
+	detail.AddField("更新时间", "updated_at", db.Timestamp)
+	detail.AddField("创建时间", "created_at", db.Timestamp)
+	detail.AddField("删除时间", "deleted_at", db.Timestamp)
+
+	detail.SetTable("scene_data").SetTitle("数据详情").SetDescription("数据详情")
+
 	return sceneData
 }
