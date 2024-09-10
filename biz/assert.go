@@ -661,21 +661,33 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 	defer fh.Close()
 
 	reader := csv.NewReader(fh)
+	//unicode.UTF8BOM.NewDecoder()
 
 	if len(splitTag) > 0 {
 		reader.Comma = tagRune
 	} else {
 		reader.Comma = ','
 	}
+	reader.LazyQuotes = true
+	//reader.FieldsPerRecord = -1
 
 	curLine := 0
 	if lineNo > 0 {
 		for {
-			record, errTmp := reader.Read()
+			rawRecord, errTmp := reader.Read()
 			if errTmp == io.EOF {
 				break
 			}
 			curLine++
+			var record []string
+			for _, item := range rawRecord {
+				if strings.Contains(item, "\"") {
+					newItem := strings.Trim(item, "\"")
+					record = append(record, newItem)
+				} else {
+					record = append(record, item)
+				}
+			}
 
 			if len(columnName) > 0 && curLine == 1 {
 				for index, item := range record {
@@ -686,12 +698,12 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 			}
 
 			if curLine == lineNo {
-				if len(record) <= columnNo && len(columnName) == 0 {
+				if len(record) < columnNo && len(columnName) == 0 {
 					err = fmt.Errorf("列号: %d超出索引范围，请核对", columnNo)
 					return
 				}
 				if columnNo > 0 {
-					target = []string{record[columnNo]}
+					target = []string{record[columnNo-1]}
 				} else if columnNo == -1 {
 					target = record
 				}
@@ -714,7 +726,7 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 				continue
 			}
 
-			if len(record) <= columnNo {
+			if len(record) < columnNo {
 				err = fmt.Errorf("列号: %d超出索引范围，请核对")
 				return
 			}
