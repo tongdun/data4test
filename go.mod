@@ -50,14 +50,14 @@ require (
 	github.com/sleagon/chinaid v0.4.2 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/tealeg/xlsx v1.0.5
+	github.com/tealeg/xlsx/v3 v3.0.0 // indirect
 	github.com/uudashr/gocognit v1.0.6 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xuri/excelize/v2 v2.7.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	syreclabs.com/go/faker v1.2.3 // indirect
 )
 
-replace (
-    github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => github.com/JosingCai/filemanager v0.0.8
-)
+replace github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => github.com/JosingCai/filemanager v0.0.8

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Knetic/govaluate"
+	"github.com/extrame/xls"
 	"github.com/tealeg/xlsx"
+	//xlsx3 "github.com/tealeg/xlsx/v3"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -742,7 +744,7 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 	return
 }
 
-func GetTargetValueFromEXCEL(filePath, columnName string, lineNo, columnNo int) (target []string, err error) {
+func GetTargetValueFromXLSX(filePath, columnName string, lineNo, columnNo int) (target []string, err error) {
 	fh, err := xlsx.OpenFile(filePath)
 	if err != nil {
 		Logger.Debug("filePath: %s", filePath)
@@ -793,6 +795,58 @@ func GetTargetValueFromEXCEL(filePath, columnName string, lineNo, columnNo int) 
 	return
 }
 
+func GetTargetValueFromXLS(filePath, columnName string, lineNo, columnNo int) (target []string, err error) {
+	fh, err := xls.Open(filePath, "utf-8")
+	if err != nil {
+		Logger.Debug("filePath: %s", filePath)
+		Logger.Error("%v", err)
+		return
+	}
+
+	sheet := fh.GetSheet(0)
+	titles := fh.ReadAllCells(1)[0]
+	if len(columnName) > 0 {
+		for index, item := range titles {
+			if item == columnName {
+				columnNo = index
+			}
+		}
+	}
+
+	maxRowNo := int(sheet.MaxRow)
+	maxColNo := len(titles)
+	if lineNo > maxRowNo {
+		err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
+		return
+	}
+
+	if columnNo > maxColNo {
+		err = fmt.Errorf("行号: %d超出索引范围，请核对", columnNo)
+		return
+	}
+
+	if lineNo > 0 {
+		if columnNo > 0 {
+			targetSingle := sheet.Row(lineNo - 1).Col(columnNo - 1)
+			Logger.Debug("targetSingle: %v", targetSingle)
+			target = []string{targetSingle}
+		} else {
+			for i := 0; i < maxColNo; i++ {
+				targetSingle := sheet.Row(lineNo - 1).Col(i)
+				Logger.Debug("targetSingle: %v", targetSingle)
+				target = append(target, targetSingle)
+			}
+		}
+	} else if lineNo == -1 {
+		for i := 1; i < maxRowNo; i++ {
+			targetSingle := sheet.Row(i).Col(columnNo - 1)
+			Logger.Debug("targetSingle: %v", targetSingle)
+			target = append(target, targetSingle)
+		}
+	}
+	return
+}
+
 func GetTargetValueFromStructFile(fileType, source, filePath string) (target []string, err error) {
 	var splitTag, columnName string
 	var lineNo, columnNo int
@@ -827,7 +881,15 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 	}
 
 	if fileType == "excel" {
-		target, err = GetTargetValueFromEXCEL(filePath, columnName, lineNo, columnNo)
+		//target, err = GetTargetValueFromEXCEL(filePath, columnName, lineNo, columnNo)
+		if strings.HasSuffix(filePath, ".xlsx") {
+			target, err = GetTargetValueFromXLSX(filePath, columnName, lineNo, columnNo)
+		} else if strings.HasSuffix(filePath, ".xls") {
+			target, err = GetTargetValueFromXLS(filePath, columnName, lineNo, columnNo)
+		} else {
+			Logger.Warning("%s文件格式不支持，请核对", filePath)
+			return
+		}
 	} else if fileType == "csv" {
 		if len(dataAnchor) >= 5 {
 			splitTag = dataAnchor[4]
