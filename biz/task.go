@@ -750,6 +750,9 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 	}
 
 	var appNames []string
+	var apiNum int
+	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Group("api_id").Count(&apiNum)
+
 	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Group("app").Select("app").Pluck("app", &appNames)
 
 	if len(appNames) == 0 {
@@ -850,7 +853,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 		}
 	}
 
-	dataNoDesc := fmt.Sprintf("# 导出的数据数量为: %d", len(dataList))
+	dataNoDesc := fmt.Sprintf("# 导出的数据数为: %d, 覆盖的接口数为: %d", len(dataList), apiNum)
 
 	dataSQL := fmt.Sprintf("REPLACE INTO `scene_data`(name, api_id, app, file_name, file_type, content, run_time, remark, user_name) VALUES %s;", dataValueStr)
 	_ = WriteDataInCommonFile(filePath, dataSQLDesc)
