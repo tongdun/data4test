@@ -625,16 +625,16 @@ func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string
 		return
 	}
 
-	fileType := dataAnchor[1]
+	fileType := strings.ToUpper(dataAnchor[1])
 	switch fileType {
-	case "CSV", "csv", "Csv":
+	case "CSV":
 		targetList, err = GetTargetValueFromStructFile("csv", assert.Source, filePath)
-	case "EXCEL", "excel", "Excel":
+	case "EXCEL":
 		targetList, err = GetTargetValueFromStructFile("excel", assert.Source, filePath)
 	//case "TXT":  // 待实现
-	case "JSON", "json", "Json":
+	case "JSON":
 		targetList, err = assert.GetTargetValueFromNoStructFile("json", filePath)
-	case "YML", "YAML", "yml", "yaml", "Yaml", "Yml":
+	case "YML", "YAML":
 		targetList, err = assert.GetTargetValueFromNoStructFile("yml", filePath)
 	//case "XML":    // 待实现
 	default:
@@ -828,19 +828,16 @@ func GetTargetValueFromXLS(filePath, columnName string, lineNo, columnNo int) (t
 	if lineNo > 0 {
 		if columnNo > 0 {
 			targetSingle := sheet.Row(lineNo - 1).Col(columnNo - 1)
-			Logger.Debug("targetSingle: %v", targetSingle)
 			target = []string{targetSingle}
 		} else {
 			for i := 0; i < maxColNo; i++ {
 				targetSingle := sheet.Row(lineNo - 1).Col(i)
-				Logger.Debug("targetSingle: %v", targetSingle)
 				target = append(target, targetSingle)
 			}
 		}
 	} else if lineNo == -1 {
 		for i := 1; i < maxRowNo; i++ {
 			targetSingle := sheet.Row(i).Col(columnNo - 1)
-			Logger.Debug("targetSingle: %v", targetSingle)
 			target = append(target, targetSingle)
 		}
 	}

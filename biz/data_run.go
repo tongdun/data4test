@@ -1138,16 +1138,14 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 			tag = 0
 			if value, ok := df.Single.Path[str1]; ok {
 				valueStr := Interface2Str(value)
-				url := strings.Replace(rawUrl, v, valueStr, -1)
-				rawUrls = append(rawUrls, url)
+				rawUrl = strings.Replace(rawUrl, v, valueStr, -1)
 				tag = tag + 1
 			}
 
 			if values, ok := df.Multi.Path[str1]; ok {
 				for _, value := range values {
 					valueStr := Interface2Str(value)
-					url := strings.Replace(rawUrl, v, valueStr, -1)
-					rawUrls = append(rawUrls, url)
+					rawUrl = strings.Replace(rawUrl, v, valueStr, -1)
 				}
 				tag = tag + 1
 			}
@@ -1157,6 +1155,7 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 				return
 			}
 		}
+		rawUrls = append(rawUrls, rawUrl)
 	} else {
 		rawUrls = append(rawUrls, rawUrl)
 	}
