@@ -33,7 +33,10 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	info.AddField("唯一标识", "id", db.Int).
 		FieldFilterable()
 	info.AddField("数据描述", "name", db.Varchar).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataUsedInPlaybookList(model.Value, model.ID)
+		})
 	info.AddField("接口ID", "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("所属应用", "app", db.Varchar).

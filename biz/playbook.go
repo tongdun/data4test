@@ -1272,7 +1272,6 @@ func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
 		}
 		var ids []int
 		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
-		Logger.Debug("ids: %v", ids)
 		if len(dList) == 0 {
 			Logger.Warning("未数据找到数据文件[%s], 请核对", item)
 			if len(linkStr) == 0 {
@@ -1295,7 +1294,7 @@ func GetApiAutoDataList(apiId, pkId string) (linkStr string) {
 	var apiDef ApiDefDB
 	models.Orm.Table("api_definition").Where("id = ?", pkId).Find(&apiDef)
 	if len(apiDef.ApiId) == 0 {
-		Logger.Warning("未找到%d:%s接口定义, 请核对", pkId, apiId)
+		Logger.Warning("未找到%s:%s接口定义, 请核对", pkId, apiId)
 		return apiId
 	}
 
@@ -1308,6 +1307,69 @@ func GetApiAutoDataList(apiId, pkId string) (linkStr string) {
 	encodeApp := url.QueryEscape("app[]")
 
 	linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data?api_id=%s&%s=%s\">%s</a>", encodeApiId, encodeApp, apiDef.App, apiId) // 直接跑数据列表进行过滤
+
+	return
+}
+
+func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
+	var dataDef DbSceneData
+	models.Orm.Table("scene_data").Where("id = ?", pkId).Find(&dataDef)
+	if len(dataDef.Name) == 0 {
+		Logger.Warning("未找到%s:%s数据定义, 请核对", pkId, dataName)
+		return dataName
+	}
+
+	var playbookCount int
+	matchStr := "%" + dataName + "%"
+	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Limit(1).Count(&playbookCount)
+	if playbookCount == 0 {
+		return dataName
+	}
+
+	var playbookIdList []int
+	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Group("name").Pluck("id", &playbookIdList)
+	encodeId := url.QueryEscape("id[]")
+	var queryStr string
+	for index, id := range playbookIdList {
+		if index == 0 {
+			queryStr = fmt.Sprintf("%s=%d", encodeId, id)
+		} else {
+			queryStr = fmt.Sprintf("%s&%s=%d", queryStr, encodeId, id)
+		}
+	}
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook?%s\">%s</a>", queryStr, dataName) // 直接跑数据列表进行过滤
+	return
+}
+
+func GetPlaybookUsedInTaskList(playbookName, pkId string) (linkStr string) {
+	var playbookDef DbScene
+	models.Orm.Table("playbook").Where("id = ?", pkId).Find(&playbookDef)
+	if len(playbookDef.Name) == 0 {
+		Logger.Warning("未找到%s:%s场景定义, 请核对", pkId, playbookName)
+		return playbookName
+	}
+
+	var playbookCount int
+	matchStr := "%" + playbookName + "%"
+	models.Orm.Table("schedule").Where("scene_list like ?", matchStr).Limit(1).Count(&playbookCount)
+	if playbookCount == 0 {
+		return playbookName
+	}
+
+	var taskIdList []int
+	models.Orm.Table("schedule").Where("scene_list like ?", matchStr).Group("task_name").Pluck("id", &taskIdList)
+
+	encodeId := url.QueryEscape("id[]")
+
+	var queryStr string
+	for index, id := range taskIdList {
+		if index == 0 {
+			queryStr = fmt.Sprintf("%s=%d", encodeId, id)
+		} else {
+			queryStr = fmt.Sprintf("%s&%s=%d", queryStr, encodeId, id)
+		}
+	}
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/schedule?%s\">%s</a>", queryStr, playbookName) // 直接跑数据列表进行过滤
 
 	return
 }

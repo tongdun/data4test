@@ -27,15 +27,17 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	userName := user.Name
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("唯一标识", "id", db.Int).
-		FieldFilterable().FieldWidth(150)
+	info.AddField("唯一标识", "id", db.Int).FieldWidth(150).
+		FieldFilterable()
 	info.AddField("场景描述", "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().
-		FieldWidth(220)
+		FieldWidth(220).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookUsedInTaskList(model.Value, model.ID)
+		})
 	info.AddField("数据文件列表", "api_list", db.Longtext).FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			//return strings.Replace(model.Value, ",", ",<br>", -1)
 			return biz.GetDataFileLinkByDataStr(model.Value)
 		})
 
