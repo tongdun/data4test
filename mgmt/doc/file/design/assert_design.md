@@ -85,8 +85,8 @@
   - {type: output, source: data.contents[1].uuid, value: codeUuid}, 取contents数组第二个值的uuid赋值给codeUuid
   
 - output类型时，可以针对数组一次全部提取（返回的信息中uuid是一个数组）,e.g.:
-  - {type: output, source: data-contents.uuid, value: codeUuid}, 如果uuid是一个数组，会当做一个整体数据赋值给codeUuid    
-  - {type: output, source: data-contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid  
+  - {type: output, source: data.contents.uuid, value: codeUuid}, 如果uuid是一个数组，会当做一个整体数据赋值给codeUuid    
+  - {type: output, source: data.contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid  
    
 
 ##### 断言值模板，支持多语种定义  
