@@ -58,19 +58,11 @@
 ##### Assertion Value Templates
 - Supports multi-language definitions for assertion values.
 - JSON Format Example:
-  ```json
-  {"default": "v1,v2,v3,v4,…", "ch": "v1,v2,v3,v4,…", "en": "v1,v2,v3,v4,…"}
-  ```
+  - {"default": "v1,v2,v3,v4,…", "ch": "v1,v2,v3,v4,…", "en": "v1,v2,v3,v4,…"}
 - Plain Text Format Example:
-  ```
-  v1,v2,v3,v4,…
-  ```
-- Placeholder support for dynamic values based on templates and language settings.
-- Example usage with template:
-  ```json
-  {type: re, source: data.message, value: {successTemplate}}
-  ```
-  Where `successTemplate` is defined in the "Environment-Assertion Value Templates" list as:
-  ```json
-  {"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}
-  ```
+  - v1,v2,v3,v4,…
+  - Placeholder support for dynamic values based on templates and language settings.
+  - Example usage with template:
+  - {type: re, source: data.message, value: {successTemplate}} 
+- Where `successTemplate` is defined in the "Environment-Assertion Value Templates" list as:
+  - {"ch": "成功|重复|已存在|已经存在", "en": "success|Success|exist|duplicate"}
