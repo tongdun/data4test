@@ -455,7 +455,7 @@ func startServer() {
 
 		err = biz.SaveApiDef(apiDefSave)
 		//biz.ModifyPlaybookApiList()   //更新数据使用，无需要时进行屏蔽
-
+		//biz.UpdateDataAssertContent() //更新断言数据使用，无需要时进行屏蔽
 		if err != nil {
 			data["code"] = 400
 			data["msg"] = err

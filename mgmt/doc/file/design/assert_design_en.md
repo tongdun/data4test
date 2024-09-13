@@ -51,9 +51,9 @@
 ##### Output Type Explanation
 - The `output` type allows extracting values from arrays by index or as a whole.
     - Examples:
-        - `{type: output, source: data-contents*uuid[-1], value: codeUuid}` - Extracts the last item in the `uuid` array.
-        - `{type: output, source: data-contents*uuid[0], value: codeUuid}` - Extracts the first item.
-        - `{type: output, source: data-contents**uuid, value: codeUuid}` - Extracts the entire `uuid` array as a single value.
+        - `{type: output, source: data.contents[1].uuid, value: codeUuid}` - Extracts the last item in the `uuid` array.
+        - `{type: output, source: data.contents[0].uuid, value: codeUuid}` - Extracts the first item.
+        - `{type: output, source: data.contents.uuid[:], value: codeUuid}` - Extracts the entire `uuid` array as a single value.
 
 ##### Assertion Value Templates
 - Supports multi-language definitions for assertion values.
@@ -68,7 +68,7 @@
 - Placeholder support for dynamic values based on templates and language settings.
 - Example usage with template:
   ```json
-  {type: re, source: data-message, value: {successTemplate}}
+  {type: re, source: data.message, value: {successTemplate}}
   ```
   Where `successTemplate` is defined in the "Environment-Assertion Value Templates" list as:
   ```json

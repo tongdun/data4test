@@ -759,28 +759,56 @@ func GetRangeData(rawStr string) (newStr string) {
 	return
 }
 
-func GetSlicesIndex(src string) (isHit bool, index int, keyName string) {
+func GetSlicesIndex(src string) (keyName string, index int) {
 	strByte := []byte(src)
 	indexReg := regexp.MustCompile(`(\w+)\[(\W*\d+)\]`)
 	indexMatch := indexReg.FindAllSubmatch(strByte, -1)
 	if len(indexMatch) > 0 {
 		index, _ = strconv.Atoi(string(indexMatch[0][2]))
 		keyName = string(indexMatch[0][1])
-		isHit = true
-
 	}
 	return
 }
 
-func Is2Split(src string) (b bool) {
+func Is2Split(src string) (indexType string, b bool) {
 	starIndex := strings.Index(src, "*")
 	barIndex := strings.Index(src, "-")
 	if (starIndex < barIndex) && (starIndex != -1) {
+		indexType = "list"
+		b = true
 		return
 	}
+
 	if barIndex >= 0 {
+		indexType = "map"
 		b = true
 	}
+	return
+}
+
+func GetSplitIndexType(src string) (indexType, splitTag string) {
+	indexType = "map"
+	if strings.Contains(src, ".") {
+		splitTag = "."
+	} else if strings.Contains(src, "-") {
+		splitTag = "-"
+	}
+
+	listIndex := strings.Index(src, "[")
+	mapIndex := strings.Index(src, splitTag)
+	listAllIndex := strings.Index(src, "[:]")
+
+	if listAllIndex > 0 {
+		indexType = "listAll"
+		return
+	}
+	
+	if listIndex < mapIndex && listIndex != -1 {
+		indexType = "list"
+	} else {
+		indexType = "map"
+	}
+
 	return
 }
 

@@ -38,36 +38,6 @@ func GetFilePath(id string) (app, filePath string, err error) {
 	}
 	filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
 	app = dbSceneData.App
-	//_, err = os.Stat(filePath)
-	//
-	//content := GetStrFromHtml(dbSceneData.Content)
-	//
-	//if os.IsNotExist(err) {
-	//	var df DataFile
-	//	var dataInfo []byte
-	//	var err1 error
-	//	if strings.HasSuffix(filePath, ".json") {
-	//		err = json.Unmarshal([]byte(content), &df)
-	//		df.Version = 1
-	//		dataInfo, err1 = json.MarshalIndent(df, "", "    ")
-	//	} else {
-	//		err = yaml.Unmarshal([]byte(content), &df)
-	//		df.Version = 1
-	//		dataInfo, err1 = yaml.Marshal(df)
-	//	}
-	//
-	//	if err1 != nil {
-	//		Logger.Error("%s", err1)
-	//		err = err1
-	//		return
-	//	}
-	//	err2 := ioutil.WriteFile(filePath, dataInfo, 0644)
-	//	if err2 != nil {
-	//		Logger.Error("%s", err2)
-	//		err = err2
-	//		return
-	//	}
-	//}
 	return
 }
 
@@ -1540,5 +1510,134 @@ func GetTreeData(in string) (out string, falseCount int) {
 		}
 	}
 	out = in
+	return
+}
+
+func UpdateDataAssertContent() {
+	var dataList []DbSceneData
+	var err error
+	models.Orm.Table("scene_data").Find(&dataList)
+	count := 0
+	errFileCount := 0
+	doubleCount := 0
+	lastCount := 0
+	for _, dataInfo := range dataList {
+		isChange := 0
+		if len(dataInfo.Content) == 0 {
+			err := fmt.Errorf("无断言信息%s", dataInfo.Name)
+			Logger.Error("%s", err)
+			continue
+		}
+
+		var content string
+		content = dataInfo.Content
+		if strings.Contains(content, "<pre><code>") {
+			content = strings.Replace(content, "<pre><code>", "", -1)
+			content = strings.Replace(content, "</code></pre>", "", -1)
+		}
+
+		var df DataFile
+		if strings.HasSuffix(dataInfo.FileName, ".json") {
+			err = json.Unmarshal([]byte(content), &df)
+		} else if strings.HasSuffix(dataInfo.FileName, ".yml") || strings.HasSuffix(dataInfo.FileName, ".yaml") {
+			err = yaml.Unmarshal([]byte(content), &df)
+		} else {
+			continue
+		}
+		if err != nil {
+			errFileCount++
+			continue
+		}
+
+		if len(df.Assert) > 0 {
+			for index, item := range df.Assert {
+				var newSource string
+				if !strings.Contains(item.Source, "*") {
+					if strings.Contains(item.Source, "-") {
+						newSource = strings.Replace(item.Source, "-", ".", -1)
+					} else {
+						continue
+					}
+
+				}
+
+				starIndex := strings.Index(item.Source, "*")
+				starLastIndex := strings.LastIndex(item.Source, "*")
+				boundIndex := strings.Index(item.Source, "[")
+				if starIndex != starLastIndex {
+					if !strings.Contains(item.Source, "[") {
+						newSource = strings.Replace(item.Source, "*", "[0].", -1)
+						newSource = strings.Replace(newSource, "-", ".", -1)
+						Logger.Debug("rawSource: %v", item.Source)
+						Logger.Debug("newSource: %v", newSource)
+						if isChange == 0 {
+							isChange++
+						}
+					} else {
+						Logger.Debug("%d, 双list断言变更数据描述: %v", doubleCount, dataInfo.Name)
+						Logger.Debug("rawSource: %v", item.Source)
+						if isChange == 0 {
+							isChange++
+						}
+						doubleCount++
+						continue
+					}
+				}
+
+				if starIndex < boundIndex && starIndex != -1 {
+					items := strings.Split(item.Source, "[")
+					if strings.Contains(items[0], "-") {
+						items[0] = strings.Replace(items[0], "-", ".", -1)
+					}
+					newSource = strings.Replace(items[0], "*", fmt.Sprintf("[%s.", items[1]), 1)
+					Logger.Debug("rawSource: %v", item.Source)
+					Logger.Debug("newSource: %v", newSource)
+					if isChange == 0 {
+						isChange++
+					}
+					count++
+				} else if boundIndex < starIndex && boundIndex != -1 {
+					newSource = strings.Replace(item.Source, "*", ".", 1)
+					if strings.Contains(newSource, "-") {
+						newSource = strings.Replace(newSource, "-", ".", -1)
+					}
+					Logger.Debug("rawSource: %v", item.Source)
+					Logger.Debug("newSource: %v", newSource)
+					if isChange == 0 {
+						isChange++
+					}
+					lastCount++
+				} else if starIndex > 0 && boundIndex == -1 {
+					if strings.Contains(item.Source, "-") && strings.Contains(item.Source, "*") {
+						newSource = strings.Replace(item.Source, "*", "[0].", -1)
+						newSource = strings.Replace(newSource, "-", ".", -1)
+					} else if strings.Contains(item.Source, "-") {
+						newSource = strings.Replace(item.Source, "-", ".", -1)
+					} else if strings.Contains(item.Source, "*") {
+						newSource = strings.Replace(item.Source, "*", "[0].", -1)
+					}
+					Logger.Debug("rawSource: %v", item.Source)
+					Logger.Debug("newSource: %v", newSource)
+					if isChange == 0 {
+						isChange++
+					}
+				}
+
+				if len(newSource) > 0 {
+					df.Assert[index].Source = newSource
+				}
+			}
+		}
+
+		if isChange > 0 {
+			Logger.Debug("afterSource: %v", df.Assert)
+			afterByte, _ := yaml.Marshal(df)
+			dataInfo.Content = string(afterByte)
+			models.Orm.Table("scene_data").Where("id = ?", dataInfo.Id).Update(&dataInfo)
+		}
+
+	}
+	Logger.Debug("单数组数量：%d", count)
+	Logger.Debug("多数组数量：%d", doubleCount)
 	return
 }
