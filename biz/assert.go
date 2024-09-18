@@ -411,7 +411,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			}
 
 			tmpType := fmt.Sprintf("%T", data)
-			if varType == "string" {
+			if varType == "string" { // 若取值遇到字符串，是标准的JSON格式，进行再次序列号
 				tmpStr := data.(string)
 				listIndex := strings.Index(tmpStr, "[")
 				boundIndex := strings.Index(tmpStr, "{")
@@ -428,6 +428,11 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					var tmpMap map[string]interface{}
 					json.Unmarshal([]byte(tmpStr), &tmpMap)
 					return sceneAssert.GetOutput(tmpMap[keyRawName])
+				} else if listIndex != -1 {
+					keyTmpName, index := GetSlicesIndex(keyRawName)
+					var tmpMap []interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
 				}
 			} else if tmpType != "map[string]interface {}" {
 				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
