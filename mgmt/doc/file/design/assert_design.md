@@ -21,8 +21,8 @@
   - File:JSON:data-total[0]    // 与字段值取值使用规则一致
   - File:YML:data-total        // 与字段值取值使用规则一致
   - File:XML:未细化             // 待有需要再实现
-  - File:Other:'\\"taskId\\":\\"(.+)\\"'   //待实现，提取(.+)中匹配到的值断言
-  - File:JSON:'\\"taskId\":\\"([a-zA-Z0-9]+)\\"'   //待实现，提取([a-zA-Z0-9]+)中匹配到的值断言
+  -  ```File:Other:'\\"taskId\\":\\"(.+)\\"' ```   //待实现，提取(.+)中匹配到的值断言
+  -  ```File:JSON:'\\"taskId\":\\"([a-zA-Z0-9]+)\\"' ```   //待实现，提取([a-zA-Z0-9]+)中匹配到的值断言
 
 ### 断言支持的类型
 ##### 整体返回支持的断言类型
@@ -45,9 +45,9 @@
 - regex:  正则匹配
 - regexp:  正则匹配
 - output_re:   正则匹配 ()匹配到的值取出来，如果匹配到多个值，均会进行提取
-   - e.g.1:  {type: output_re, source: '\\"taskId\\":\\"(.+)\\"', value: taskId}  
+   - e.g.1:  ```{type: output_re, source: '\\"taskId\\":\\"(.+)\\"', value: taskId}```
      - 定义输出变量，(.+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
-   - e.g.2:  {type: output_re, source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"', value: taskId}  
+   - e.g.2:  ```{type: output_re, source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"', value: taskId}```
      - 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
 
 
@@ -83,11 +83,11 @@
   - {type: output, source: data.contents[-1].uuid, value: codeUuid}, 取contents数组最后一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[0].uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[1].uuid, value: codeUuid}, 取contents数组第二个值的uuid赋值给codeUuid
+  - {type: output, source: data.contents.uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid，若contents为数组，但未定义索引，会默认取第一个值
   
 - output类型时，可以针对数组一次全部提取（返回的信息中uuid是一个数组）,e.g.:
   - {type: output, source: data.contents.uuid, value: codeUuid}, 如果uuid是一个数组，会当做一个整体数据赋值给codeUuid    
-  - {type: output, source: data.contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid  
-   
+  - {type: output, source: data.contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid
 
 ##### 断言值模板，支持多语种定义  
 - JSON格式：e.g.:

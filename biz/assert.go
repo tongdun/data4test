@@ -384,8 +384,8 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		}
 		return keyName, listInterface, err
 	} else {
+		varType := fmt.Sprintf("%T", data)
 		if len(sceneAssert.Source) == 0 {
-			varType := fmt.Sprintf("%T", data)
 			if varType == "[]interface {}" {
 				return keyName, data.([]interface{}), err
 			}
@@ -399,21 +399,46 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					values = append(values, strValue)
 				}
 			} else {
-				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", sceneAssert.Source, sceneAssert.Value)
+				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", keyRawName, sceneAssert.Value)
+				Logger.Debug("response: %v", data)
 				err = err1
 				Logger.Error("%s", err)
 				return
 			}
 		} else {
-			varType := fmt.Sprintf("%T", data)
 			if varType == "[]interface {}" {
 				data = data.([]interface{})[0] //如果是数据，未定义索引，自动取第0个值
+			}
+
+			tmpType := fmt.Sprintf("%T", data)
+			if varType == "string" {
+				tmpStr := data.(string)
+				listIndex := strings.Index(tmpStr, "[")
+				boundIndex := strings.Index(tmpStr, "{")
+				if boundIndex < listIndex && boundIndex != -1 {
+					var tmpMap map[string]interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					return sceneAssert.GetOutput(tmpMap[keyRawName])
+				} else if listIndex < boundIndex && listIndex != -1 {
+					keyTmpName, index := GetSlicesIndex(keyRawName)
+					var tmpMap []interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
+				} else if boundIndex != -1 {
+					var tmpMap map[string]interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					return sceneAssert.GetOutput(tmpMap[keyRawName])
+				}
+			} else if tmpType != "map[string]interface {}" {
+				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+				Logger.Error("%s", err)
+				return
 			}
 
 			if value, ok := data.(map[string]interface{})[keyRawName]; ok {
 				return sceneAssert.GetOutput(value)
 			} else {
-				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", sceneAssert.Source, sceneAssert.Value)
+				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", keyRawName, sceneAssert.Value)
 				err = err1
 				Logger.Error("%s", err)
 				return
