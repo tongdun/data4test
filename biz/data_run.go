@@ -1631,7 +1631,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 				case "output":
 					keyName, values, err1 := assert.GetOutput(resDict)
 					if err1 != nil {
-						Logger.Error("err1: %v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
 						} else {

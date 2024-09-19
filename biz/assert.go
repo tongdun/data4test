@@ -353,6 +353,16 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		listInterface := tmpInterface.([]interface{})
 		var targetInterface interface{}
 		varType := fmt.Sprintf("%T", tmpInterface)
+		if varType == "string" {
+			tmpStr := targetInterface.(string)
+			listIndex := strings.Index(tmpStr, "[")
+			if listIndex == 0 {
+				var tmpMap []interface{}
+				json.Unmarshal([]byte(tmpStr), &tmpMap)
+				return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
+			}
+		}
+
 		if varType != "[]interface {}" {
 			err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 			Logger.Error("%s", err)
@@ -366,8 +376,15 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 				targetInterface = listInterface[index]
 			}
 		} else {
-			Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
-			targetInterface = listInterface[0]
+			if len(listInterface) > 0 {
+				Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
+				targetInterface = listInterface[0]
+			} else {
+				err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+				Logger.Error("%s", err)
+				return keyName, values, err
+			}
+
 		}
 		return sceneAssert.GetOutput(targetInterface)
 	} else if splitIndexType == "listAll" {
@@ -375,13 +392,24 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		keyTmpName := items[0]
 		sceneAssert.Source = ""
 		tmpInterface = data.(map[string]interface{})[keyTmpName]
-		listInterface := tmpInterface.([]interface{})
 		varType := fmt.Sprintf("%T", tmpInterface)
+		if varType == "string" {
+			tmpStr := tmpInterface.(string)
+			listIndex := strings.Index(tmpStr, "[")
+			if listIndex == 0 { // 如果是字符串的JSON，进行再次序列化
+				var tmpMap []interface{}
+				json.Unmarshal([]byte(tmpStr), &tmpMap)
+				return keyName, tmpMap, err
+			}
+		}
+
 		if varType != "[]interface {}" {
 			err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 			Logger.Error("%s", err)
 			return keyName, values, err
 		}
+
+		listInterface := tmpInterface.([]interface{})
 		return keyName, listInterface, err
 	} else {
 		varType := fmt.Sprintf("%T", data)
@@ -407,35 +435,36 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			}
 		} else {
 			if varType == "[]interface {}" {
-				data = data.([]interface{})[0] //如果是数据，未定义索引，自动取第0个值
+				if len(data.([]interface{})) > 0 {
+					data = data.([]interface{})[0] //如果是数据，未定义索引，自动取第0个值
+				} else {
+					err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+					Logger.Error("%s", err)
+					return
+				}
 			}
 
 			tmpType := fmt.Sprintf("%T", data)
-			if varType == "string" { // 若取值遇到字符串，是标准的JSON格式，进行再次序列号
+			if varType == "string" {
 				tmpStr := data.(string)
-				listIndex := strings.Index(tmpStr, "[")
 				boundIndex := strings.Index(tmpStr, "{")
-				if boundIndex < listIndex && boundIndex != -1 {
+				listIndex := strings.Index(tmpStr, "[")
+				if boundIndex == 0 { // 如果是字符串的JSON，进行再次序列化
 					var tmpMap map[string]interface{}
 					json.Unmarshal([]byte(tmpStr), &tmpMap)
 					return sceneAssert.GetOutput(tmpMap[keyRawName])
-				} else if listIndex < boundIndex && listIndex != -1 {
-					keyTmpName, index := GetSlicesIndex(keyRawName)
-					var tmpMap []interface{}
-					json.Unmarshal([]byte(tmpStr), &tmpMap)
-					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
-				} else if boundIndex != -1 {
-					var tmpMap map[string]interface{}
-					json.Unmarshal([]byte(tmpStr), &tmpMap)
-					return sceneAssert.GetOutput(tmpMap[keyRawName])
-				} else if listIndex != -1 {
+				}
+
+				if listIndex == 0 { // 如果是字符串的JSON，为数组，进行再次序列化
 					keyTmpName, index := GetSlicesIndex(keyRawName)
 					var tmpMap []interface{}
 					json.Unmarshal([]byte(tmpStr), &tmpMap)
 					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
 				}
-			} else if tmpType != "map[string]interface {}" {
-				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+			}
+
+			if tmpType != "map[string]interface {}" {
+				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
 				Logger.Error("%s", err)
 				return
 			}
