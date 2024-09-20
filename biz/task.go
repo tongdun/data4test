@@ -799,11 +799,17 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			for _, value := range fileNameDef {
 				if _, ok := df.Single.Body[value]; ok {
 					fileNameImport := Interface2Str(df.Single.Body[value])
+					if strings.Contains(fileNameImport, "{") { // 如果名单名是占位符，则跳过
+						continue
+					}
 					fileNameImportMap[fileNameImport] = true
 				}
 				if _, ok := df.Multi.Body[value]; ok {
 					for _, subV := range df.Multi.Body[value] {
 						fileNameImport := Interface2Str(subV)
+						if strings.Contains(fileNameImport, "{") { // 如果名单名是占位符，则跳过
+							continue
+						}
 						fileNameImportMap[fileNameImport] = true
 					}
 				}
@@ -974,6 +980,7 @@ func GetImportFilePackage(fileName, filePath string, fileNameImportMap map[strin
 			err = errTmp
 			return
 		}
+
 		fr, errTmp := os.Open(srcFilePath)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
