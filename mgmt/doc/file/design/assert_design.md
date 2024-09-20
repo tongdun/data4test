@@ -83,8 +83,9 @@
   - {type: output, source: data.contents[-1].uuid, value: codeUuid}, 取contents数组最后一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[0].uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[1].uuid, value: codeUuid}, 取contents数组第二个值的uuid赋值给codeUuid
+  - {type: output, source: contents[:].uuid, value: codeUuid, 取contents全部数组的uuid赋值给codeUuid。不支持多层嵌套的取，如contents[:].uuidList[:].uuid
   - {type: output, source: data.contents.uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid，若contents为数组，但未定义索引，会默认取第一个值
-  
+
 - output类型时，可以针对数组一次全部提取（返回的信息中uuid是一个数组）,e.g.:
   - {type: output, source: data.contents.uuid, value: codeUuid}, 如果uuid是一个数组，会当做一个整体数据赋值给codeUuid    
   - {type: output, source: data.contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid
