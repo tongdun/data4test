@@ -4,8 +4,8 @@ nav:
       - 控制台使用: design/console_design.md
       - 接口管理: design/api_mgmt_design.md
       - 用例管理: design/testcase_design.md
-      - 场景管理: design/playbook_design.md
       - 数据管理: design/data_file_design.md
+      - 场景管理: design/playbook_design.md
       - 任务管理: design/task_design.md
       - Mock使用: design/mock_design.md
       - 常见问题: question/FAQ.md

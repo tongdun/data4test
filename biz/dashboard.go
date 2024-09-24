@@ -4,7 +4,6 @@ import (
 	"data4perf/models"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -52,45 +51,6 @@ func GetTestcaseType() (caseTypes []types.FieldOption) {
 			caseType.Value = item
 			caseType.Text = item
 			caseTypes = append(caseTypes, caseType)
-		}
-	}
-	return
-}
-
-// 功能废弃，持续观察一段时间
-func GetFiles() (files []types.FieldOption) {
-	var file types.FieldOption
-	dirHandle, err := ioutil.ReadDir(DataBasePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	var fileList []string
-	for _, fileH := range dirHandle {
-		if !fileH.IsDir() {
-			fileName := fileH.Name()
-			fileList = append(fileList, fileName)
-		}
-	}
-	var rawfiles []string
-	for _, fileName := range fileList {
-		if !strings.HasSuffix(fileName, ".yml") && !strings.HasSuffix(fileName, ".yaml") && !strings.HasSuffix(fileName, ".json") {
-			continue
-		}
-		rawfiles = append(rawfiles, fileName)
-	}
-
-	if len(rawfiles) >= 0 {
-		tag := 0
-		for _, item := range rawfiles {
-			if tag == 0 {
-				file.Value = fmt.Sprintf("%s", item)
-			} else {
-				file.Value = fmt.Sprintf("%s", item) // 去年换行标签<br>
-			}
-			tag++
-			file.Text = item
-			files = append(files, file)
 		}
 	}
 	return

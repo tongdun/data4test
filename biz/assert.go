@@ -427,6 +427,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		}
 
 		if varType != "[]interface {}" {
+			Logger.Debug("Response: %v", tmpInterface)
 			err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
 			Logger.Error("%s", err)
 			return keyName, values, err
@@ -457,6 +458,12 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		if len(sceneAssert.Source) == 0 {
 			if varType == "[]interface {}" {
 				return keyName, data.([]interface{}), err
+			}
+
+			if varType != "map[string]interface {}" {
+				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				Logger.Error("%s", err)
+				return
 			}
 
 			if value, ok := data.(map[string]interface{})[keyRawName]; ok {

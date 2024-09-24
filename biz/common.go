@@ -798,11 +798,11 @@ func GetSplitIndexType(src string) (indexType, splitTag string) {
 	mapIndex := strings.Index(src, splitTag)
 	listAllIndex := strings.Index(src, "[:]")
 
-	if listAllIndex > 0 {
+	if listAllIndex > 0 && listAllIndex < mapIndex {
 		indexType = "listAll"
 		return
 	}
-	
+
 	if listIndex < mapIndex && listIndex != -1 {
 		indexType = "list"
 	} else {

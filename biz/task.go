@@ -251,14 +251,15 @@ func GetTaskCron(id, mode string) (cronStr string, dbSchedule DbSchedule, err er
 }
 
 func (s DbSchedule) GetDataIds() (ids []string, err error) {
-	dataList := GetListFromHtml(s.DataList)
+	//dataList := GetListFromHtml(s.DataList)
+	dataList := strings.Split(s.DataList, ",")
 
 	for _, dataItem := range dataList {
 		var dbSceneData DbSceneData
 		if len(dataItem) == 0 {
 			continue
 		}
-		models.Orm.Table("scene_data").Where("name = ?", dataItem).Find(&dbSceneData)
+		models.Orm.Table("scene_data").Where("file_name = ?", dataItem).Find(&dbSceneData)
 
 		if len(dbSceneData.Name) == 0 {
 			err1 := errors.Errorf("未找到名称[%s]的数据，请核对", dataItem)
@@ -272,25 +273,15 @@ func (s DbSchedule) GetDataIds() (ids []string, err error) {
 }
 
 func (s DbSchedule) GetSceneIds() (ids []string, sceneTypes []int, err error) {
-	sceneList := GetListFromHtml(s.SceneList)
-
-	var dbPlaybooks []DbScene
-	models.Orm.Table("playbook").Where("name in (?)", sceneList).Order("priority").Find(&dbPlaybooks)
-
-	for _, sceneItem := range dbPlaybooks {
-		ids = append(ids, sceneItem.Id)
-		sceneTypes = append(sceneTypes, sceneItem.SceneType)
+	sceneList := strings.Split(s.SceneList, ",")
+	for _, pName := range sceneList {
+		var dbP DbScene
+		models.Orm.Table("playbook").Where("name = ?", pName).Find(&dbP)
+		if len(dbP.Name) > 0 {
+			ids = append(ids, dbP.Id)
+			sceneTypes = append(sceneTypes, dbP.SceneType)
+		}
 	}
-	//Logger.Debug("Run Order: %v", ids)
-	//for _, sceneItem := range sceneList {
-	//	if len(sceneItem) == 0 {
-	//		continue
-	//	}
-	//	var dbPlaybook DbScene
-	//	models.Orm.Table("playbook").Where("name = ?", sceneItem).Find(&dbPlaybook)
-	//	ids = append(ids,dbPlaybook.Id)
-	//	sceneTypes = append(sceneTypes, dbPlaybook.SceneType)
-	//}
 
 	return
 }
@@ -714,7 +705,8 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 		} else {
 			playbookValueStr = fmt.Sprintf("%s, ('%s','%s','%s',%d,%d,'%s','%s','%s')", playbookValueStr, item.Name, item.DataNumber, item.ApiList, item.SceneType, item.RunTime, item.Remark, userName, productName)
 		}
-		dataTmp := GetListFromHtml(item.ApiList)
+		//dataTmp := GetListFromHtml(item.ApiList)
+		dataTmp := strings.Split(item.ApiList, ",")
 		for _, dataItem := range dataTmp {
 			if _, ok := dataMap[dataItem]; !ok {
 				dataMap[dataItem] = true

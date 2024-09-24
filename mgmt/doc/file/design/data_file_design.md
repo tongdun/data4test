@@ -76,8 +76,6 @@
 <summary>标准数据文件示例</summary>
 
 ```---
----
----
 # 用例信息
 name: 示例-用户管理-新建用户 # 数据用例名称，e.g.: 类型-模块-用例， 类型：功能/性能/异常/内置/……， 模块：用户管理/规则管理/……
 api_id: post_/path        # 用例ID, method_path组合，后续做数据联动使用，数据统计使用
@@ -108,7 +106,7 @@ api:
 single:
   header:
     Content-Type: multipart/form-data   # 如果api为导入文件功能，需要把Content-Type定义为multipart/form-data进行公用环境值的覆盖，优化级：数据文件>应用配置>产品配置
-  resHeader:
+  respHeader:
     Content-Disposition: attachment; filename=XX模块-XX管理-XX配置-XX导出.csv  # 如果文件名为前端生成，对filename进行设置
     Content-Type: application/csv  # 根据接口请求查看，按实际填写，请求后，response会自动置为XXX.filetype,然后使用文件类型进行断言判断
   query: {}                             # GET请求时，请求参数定义，只定义一个值，共用的参数放在这里，无需反复定义

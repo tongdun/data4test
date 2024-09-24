@@ -25,7 +25,7 @@
     "header": {
       "Content-Type": "multipart/form-data"
     },
-    "resHeader": {
+    "respHeader": {
       "Content-Disposition": "attachment; filename=XX模块-XX管理-XX配置-XX导出.csv",
       "Content-Type": "application/csv"
     },

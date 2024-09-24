@@ -997,7 +997,8 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 		lastFileAfter = " " // 用空格字符串刷新数据
 	}
 
-	apiList := GetListFromHtml(ds.ApiList)
+	//apiList := GetListFromHtml(ds.ApiList)
+	apiList := strings.Split(ds.ApiList, ",")
 	lastFileTag := len(apiList)
 	for index, item := range apiList {
 		var apiAfter, dirName string
@@ -1184,7 +1185,8 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 func (ds DbScene) GetPlaybook() (playbook Playbook) {
 	var filePaths []string
 	var filePath string
-	fileNames := GetListFromHtml(ds.ApiList)
+	//fileNames := GetListFromHtml(ds.ApiList)
+	fileNames := strings.Split(ds.ApiList, ",")
 	for _, fileName := range fileNames {
 		if len(fileName) == 0 {
 			continue

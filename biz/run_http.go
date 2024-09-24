@@ -59,7 +59,6 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 			}
 			file, errFile2 := os.Open(filePath)
 			defer file.Close()
-			Logger.Debug("filePath: %s", filePath)
 			part2, errFile2 := writer.CreateFormFile(k, filepath.Base(filePath))
 			_, errFile2 = io.Copy(part2, file)
 			if errFile2 != nil {
@@ -98,19 +97,17 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 			}
 
 			req, err = http.NewRequest(methodUpper, uri.String(), nil)
-			Logger.Info("method: %s, url: %s, data: %v", methodUpper, uri.Scheme, data)
+			//Logger.Debug("method: %s, url: %s, data: %v", methodUpper, uri.Scheme, data)
 		} else {
 			req, err = http.NewRequest(methodUpper, url, nil)
-			Logger.Info("method: %s, url: %s, data: %v", methodUpper, url, data)
-
+			//Logger.Debug("method: %s, url: %s, data: %v", methodUpper, url, data)
 		}
-
 	} else {
 		req, err = http.NewRequest(methodUpper, url, payload)
-		Logger.Info("method: %s, url: %s, data: %v", methodUpper, url, data)
 	}
 
 	if err != nil {
+		Logger.Debug("method: %s, url: %s, data: %v", methodUpper, url, data)
 		Logger.Error("%s", err)
 		return
 	}
@@ -127,10 +124,14 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 
 	resp, err := client.Do(req)
 	if err != nil {
+		Logger.Debug("req: %s", req)
+		Logger.Debug("resp: %s", resp)
 		Logger.Error("%s", err)
 		return
 	}
+
 	defer resp.Body.Close()
+
 	resBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Logger.Debug("resBody: %s", string(resBody))
@@ -209,7 +210,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	if err != nil {
 		Logger.Error("%s", err)
 	}
-	respContentype := resp.Header.Get("Content-Type")
+
 	downloadRawInfo := resp.Header.Get("Content-Disposition")
 	downloadInfo, _ := netUrl.QueryUnescape(downloadRawInfo)
 
@@ -219,19 +220,19 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
 	}
 
-	var dowloadFileName, downloadFilePath string
-	if respContentype != "application/json" && len(downloadInfo) > 0 {
+	var downloadFileName, downloadFilePath string
+	if len(downloadInfo) > 0 {
 		tmps := strings.Split(downloadInfo, "=")
 		if len(tmps) > 1 {
-			dowloadFileName = tmps[1]
-			if strings.Contains(dowloadFileName, "\"") {
-				dowloadFileName = strings.Replace(dowloadFileName, "\"", "", -1)
+			downloadFileName = tmps[1]
+			if strings.Contains(downloadFileName, "\"") {
+				downloadFileName = strings.Replace(downloadFileName, "\"", "", -1)
 			}
-			if strings.Contains(dowloadFileName, "'") {
-				dowloadFileName = strings.Replace(dowloadFileName, "'", "", -1)
+			if strings.Contains(downloadFileName, "'") {
+				downloadFileName = strings.Replace(downloadFileName, "'", "", -1)
 			}
 
-			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
+			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 		}
 	} else {
 		for k, v := range responseHeader {
@@ -239,8 +240,8 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 			if k == "Content-Disposition" {
 				tmps := strings.Split(vStr, "=")
 				if len(tmps) > 1 {
-					dowloadFileName = tmps[1]
-					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, dowloadFileName)
+					downloadFileName = tmps[1]
+					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 				}
 				break
 			}
@@ -256,7 +257,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 			} else {
 				err = errTmp
 			}
-			return []byte(dowloadFileName), err
+			return []byte(downloadFileName), err
 		}
 		defer fh.Close()
 
@@ -270,7 +271,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 			}
 			return resBody, err
 		}
-		return []byte(dowloadFileName), err
+		return []byte(downloadFileName), err
 	}
 
 	return resBody, err

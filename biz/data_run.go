@@ -780,7 +780,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 	}
 
-	result, dst, df.Output, err = df.GetResult(source, filePath, header, resList, depOutVars, errs)
+	result, dst, df.Output, err = df.GetResult(source, filePath, resList, depOutVars, errs)
 
 	if result != "pass" {
 		for _, item := range errs {
@@ -1444,7 +1444,7 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 	return
 }
 
-func (df DataFile) GetResult(source, filePath string, header map[string]interface{}, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
+func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
 	outputDict = make(map[string][]interface{})
 	isPass := 0
 	dst, err = GetResultFilePath(filePath)
@@ -1737,7 +1737,6 @@ func (df DataFile) GetResult(source, filePath string, header map[string]interfac
 		}
 	}
 
-	//df.Single.Header = header  // 在上层已经赋值过，无需重复赋值
 	if strings.HasSuffix(filePath, ".json") {
 		dataWithHeaher, errTmp = json.MarshalIndent(df, "", "    ")
 	} else {

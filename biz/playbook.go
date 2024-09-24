@@ -529,7 +529,8 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	}
 
 	var filePath string
-	fileNames := GetListFromHtml(dbScene.ApiList)
+	//fileNames := GetListFromHtml(dbScene.ApiList)
+	fileNames := strings.Split(dbScene.ApiList, ",")
 
 	for _, item := range fileNames {
 
@@ -631,6 +632,10 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 		}
 
 		for index, request := range sceneFile.Request {
+			if len(request) == 0 {
+				continue
+			}
+
 			requestMap := make(map[string]interface{})
 			errTmp := json.Unmarshal([]byte(request), &requestMap)
 			if errTmp != nil {
@@ -867,10 +872,11 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 		sceneInfo.SceneType = "串行中断"
 	}
 
-	dataList := GetListFromHtml(dbScene.ApiList)
+	//dataList := GetListFromHtml(dbScene.ApiList)
+	dataList := strings.Split(dbScene.ApiList, ",")
 	for _, item := range dataList {
 		var dataModel DepDataModel
-		item = strings.Replace(item, "\n", "", -1)
+		//item = strings.Replace(item, "\n", "", -1)
 		dataModel.DataFile = item
 		sceneInfo.DataList = append(sceneInfo.DataList, dataModel)
 	}
