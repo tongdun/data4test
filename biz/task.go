@@ -507,11 +507,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
-	isExist, err := GetImportFilePackage(importFileName, importFilePath, fileNameImportMap)
-	if err != nil {
-		return
-	}
-
+	isExist, err := GetImportFilePackage(importFilePath, fileNameImportMap)
 	if isExist {
 		fileName = fmt.Sprintf("%s, %s", fileName, importFileName)
 	}
@@ -776,16 +772,20 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 
 		if strings.Contains(item.Content, "multipart/form-data") {
 			var df DataFile
-			if strings.HasSuffix(item.FileName, ".json") {
+			fileSuffix := GetStrSuffix(item.FileName)
+			switch fileSuffix {
+			case ".json":
 				err = json.Unmarshal([]byte(item.Content), &df)
-			} else {
+			case ".yaml", ".yml":
 				err = yaml.Unmarshal([]byte(item.Content), &df)
+			default:
+				continue // 如果是脚本类型，则直接跳过
 			}
 
 			if err != nil {
 				Logger.Debug("fileName: %s", item.FileName)
 				Logger.Error("%s", err)
-				return
+				continue
 			}
 
 			for _, value := range fileNameDef {
@@ -948,9 +948,9 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 	return
 }
 
-func GetImportFilePackage(fileName, filePath string, fileNameImportMap map[string]bool) (isExist bool, err error) {
+func GetImportFilePackage(filePath string, fileNameImportMap map[string]bool) (isExist bool, err error) {
 	count := 0
-
+	Logger.Debug("filePath: %v", filePath)
 	fw, err := os.Create(filePath)
 	if err != nil {
 		Logger.Error("%s", err)
@@ -960,40 +960,58 @@ func GetImportFilePackage(fileName, filePath string, fileNameImportMap map[strin
 	gw := gzip.NewWriter(fw)
 	defer gw.Close()
 	// tar write
+
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
 	for item, _ := range fileNameImportMap {
 		count++
 		srcFilePath := fmt.Sprintf("%s/%s", UploadBasePath, item)
+		Logger.Debug("srcFilePath: %v", srcFilePath)
 		fi, errTmp := os.Stat(srcFilePath)
 		if errTmp != nil {
-			Logger.Error("%s", errTmp)
-			err = errTmp
-			return
+			srcDFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, item)
+			_, errDTmp := os.Stat(srcDFilePath)
+			if errDTmp != nil {
+				Logger.Warning("未找到文件：%s", item)
+			}
+			continue // 不做强拦截
 		}
 
 		fr, errTmp := os.Open(srcFilePath)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
-			err = errTmp
-			return
+			continue // 不做强拦截
+		}
+
+		var subDirPath string
+		if strings.Contains(item, "/") {
+			splitTmp := strings.Split(item, "/")
+			subDirPath = item[:len(item)-len(splitTmp[len(splitTmp)-1])-1]
 		}
 
 		h := new(tar.Header)
-		h.Name = fi.Name()
+		if len(subDirPath) > 0 {
+			h.Name = fmt.Sprintf("%s/%s", subDirPath, fi.Name())
+		} else {
+			h.Name = fi.Name()
+		}
+
 		h.Size = fi.Size()
 		h.Mode = int64(fi.Mode())
 		h.ModTime = fi.ModTime()
+
 		// 写信息头
-		err = tw.WriteHeader(h)
-		if err != nil {
-			panic(err)
+		errTmp = tw.WriteHeader(h)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			continue
 		}
+
 		// 写文件
-		_, err = io.Copy(tw, fr)
-		if err != nil {
-			panic(err)
+		_, errTmp = io.Copy(tw, fr)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
 		}
 	}
 

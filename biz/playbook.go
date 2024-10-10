@@ -110,9 +110,6 @@ func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 				err = errTmp
 			}
 		}
-		//if err != nil {
-		//	Logger.Error("%s", err)
-		//}
 	}
 	return
 }
@@ -742,7 +739,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 	}
 
 	var tmpStr []string
-	models.Orm.Table("product").Where("product = ?", playbook.Product).Pluck("auth", &tmpStr)
+	models.Orm.Table("product").Where("product = ?", playbook.Product).Pluck("private_parameter", &tmpStr)
 	privateParameter := make(map[string]interface{})
 	if len(tmpStr) > 0 {
 		if len(tmpStr[0]) > 2 {
@@ -757,6 +754,10 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 	for k, v := range privateParameter {
 		vStr := Interface2Str(v)
 		var values []string
+		if _, ok := outputDict[k]; ok {
+			outputDict[k] = outputDict[k][:0] // 同名参数进行重置, 私有参数的优先级同名优先级最高
+		}
+
 		if strings.Contains(vStr, ",") {
 			values = strings.Split(vStr, ",")
 			for _, subV := range values {
@@ -872,11 +873,12 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 		sceneInfo.SceneType = "串行中断"
 	}
 
-	//dataList := GetListFromHtml(dbScene.ApiList)
 	dataList := strings.Split(dbScene.ApiList, ",")
 	for _, item := range dataList {
 		var dataModel DepDataModel
-		//item = strings.Replace(item, "\n", "", -1)
+		if len(item) == 0 {
+			continue
+		}
 		dataModel.DataFile = item
 		sceneInfo.DataList = append(sceneInfo.DataList, dataModel)
 	}
@@ -1011,11 +1013,9 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 			}
 
 			if index == 0 {
-				//apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
 				apiStr = value
 				numStr = fmt.Sprintf("%v", numList[index])
 			} else {
-				//apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value, value)
 				apiStr = fmt.Sprintf("%s,%s", apiStr, value)
 				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
 			}

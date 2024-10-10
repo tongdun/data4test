@@ -80,6 +80,26 @@ func GetProductApps(id string) (name string, err error) {
 	return
 }
 
+func CopyProduct(id, userName string) (err error) {
+	var dbProduct DbProduct
+	models.Orm.Table("product").Where("id = ?", id).Find(&dbProduct)
+	if len(dbProduct.Name) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var product Product
+	product = dbProduct.Product
+	product.Name = fmt.Sprintf("%s_复制", dbProduct.Name)
+
+	err = models.Orm.Table("product").Create(product).Error
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+	return
+}
+
 func (dbProduct DbProduct) GetPrivateParameter() (privateParameter map[string]interface{}) {
 	privateParameter = make(map[string]interface{})
 	if len(dbProduct.PrivateParameter) > 2 {
