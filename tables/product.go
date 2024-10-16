@@ -4,6 +4,7 @@ import (
 	"data4perf/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
+	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template/icon"
@@ -161,6 +162,47 @@ func GetProductTable(ctx *context.Context) table.Table {
 				status = "导入完成"
 			} else {
 				status = fmt.Sprintf("导入失败：%s: %s", id, err)
+			}
+			return true, status, ""
+		}))
+
+	info.AddButton("复制", icon.Android, action.Ajax("product_batch_copy",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if idStr == "," {
+				status = "请先选择数据再复制"
+				return false, status, ""
+			}
+
+			ids := strings.Split(idStr, ",")
+
+			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+				if err := biz.CopyProduct(id, userNameSub); err == nil {
+					status = "复制成功，请刷新列表查看"
+				} else {
+					status = fmt.Sprintf("复制失败：%s: %s", id, err)
+					return false, status, ""
+				}
+			}
+			return true, status, ""
+		}))
+
+	info.AddActionButton("复制", action.Ajax("product_copy",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id := ctx.FormValue("id")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if err := biz.CopyProduct(id, userNameSub); err == nil {
+				status = "复制成功，请刷新列表查看"
+			} else {
+				status = fmt.Sprintf("复制失败：%s: %s", id, err)
 			}
 			return true, status, ""
 		}))

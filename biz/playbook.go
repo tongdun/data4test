@@ -596,13 +596,46 @@ func GetProductInfo(product string) (productList []DbProduct, err error) {
 }
 
 func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interface{}, err error) {
+	outputDict = make(map[string][]interface{})
+
+	// 专用参数的优先级低于动态执行的同名参数
+	var tmpStr []string
+	models.Orm.Table("product").Where("product = ?", playbook.Product).Pluck("private_parameter", &tmpStr)
+	privateParameter := make(map[string]interface{})
+	if len(tmpStr) > 0 {
+		if len(tmpStr[0]) > 2 {
+			err = json.Unmarshal([]byte(tmpStr[0]), &privateParameter)
+			if err != nil {
+				Logger.Error("%s", err)
+				return
+			}
+		}
+	}
+
+	for k, v := range privateParameter {
+		vStr := Interface2Str(v)
+		var values []string
+		//if _, ok := outputDict[k]; ok {
+		//	outputDict[k] = outputDict[k][:0] // 同名参数进行重置, 私有参数的优先级同名优先级最高
+		//}
+
+		if strings.Contains(vStr, ",") {
+			values = strings.Split(vStr, ",")
+			for _, subV := range values {
+				strings.TrimSpace(subV)
+				outputDict[k] = append(outputDict[k], subV)
+			}
+		} else {
+			outputDict[k] = append(outputDict[k], v)
+		}
+	}
+
+	// 动态过程执行参数的取用
 	var preApis []string
 	for _, item := range playbook.HistoryApis {
 		//fullPathApi := fmt.Sprintf("%s/%s", HistoryBasePath, item)   // 历史执行过的接口使用全路径
 		preApis = append(preApis, item)
 	}
-
-	outputDict = make(map[string][]interface{})
 
 	for _, filePath := range preApis {
 		var sceneFile DataFile
@@ -620,6 +653,8 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			err1 = json.Unmarshal(content, &sceneFile)
 		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &sceneFile)
+		default:
+			continue // 如果非标准结构数据，直接进入下一个数据文件的参数取用
 		}
 
 		if err1 != nil {
@@ -675,6 +710,8 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			err1 = json.Unmarshal(content, &selfScene)
 		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &selfScene)
+		default:
+			return // 如果非标准结构数据，直接返回
 		}
 
 		if err1 != nil {
@@ -682,6 +719,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			Logger.Error("%s", err)
 			return
 		}
+
 		if len(selfScene.Api.ParamApis) > 0 {
 			otherApis = append(otherApis, selfScene.Api.ParamApis...)
 		}
@@ -704,6 +742,8 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				err1 = json.Unmarshal(content, &sceneFile)
 			case ".yml", ".yaml":
 				err1 = yaml.Unmarshal(content, &sceneFile)
+			default:
+				continue // 如果非标准结构数据，直接进入下一个数据文件的参数取用
 			}
 
 			if err1 != nil {
@@ -735,37 +775,6 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 					}
 				}
 			}
-		}
-	}
-
-	var tmpStr []string
-	models.Orm.Table("product").Where("product = ?", playbook.Product).Pluck("private_parameter", &tmpStr)
-	privateParameter := make(map[string]interface{})
-	if len(tmpStr) > 0 {
-		if len(tmpStr[0]) > 2 {
-			err = json.Unmarshal([]byte(tmpStr[0]), &privateParameter)
-			if err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	}
-
-	for k, v := range privateParameter {
-		vStr := Interface2Str(v)
-		var values []string
-		if _, ok := outputDict[k]; ok {
-			outputDict[k] = outputDict[k][:0] // 同名参数进行重置, 私有参数的优先级同名优先级最高
-		}
-
-		if strings.Contains(vStr, ",") {
-			values = strings.Split(vStr, ",")
-			for _, subV := range values {
-				strings.TrimSpace(subV)
-				outputDict[k] = append(outputDict[k], subV)
-			}
-		} else {
-			outputDict[k] = append(outputDict[k], v)
 		}
 	}
 
