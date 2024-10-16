@@ -818,6 +818,12 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			}
 		}
 
+		// 断言里有正则匹配的转义字符，需要再次转义
+		if strings.Contains(item.Content, `\`) {
+			item.Content = strings.Replace(item.Content, `\`, `\\`, -1)
+		}
+
+		// 导出的SQL用单引号，内容中的单引号需要单独转义
 		if strings.Contains(item.Content, "'") {
 			item.Content = strings.Replace(item.Content, "'", "\\'", -1)
 		}
