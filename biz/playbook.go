@@ -339,28 +339,22 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 
 	lastFileTag := len(rawApiList)
 	for index, item := range rawApiList {
-		switch suffix {
-		case ".log":
-			rawDir := GetHistoryDataDirName(path.Base(item))
-			if rawDir == dirName {
-				lastFileTag = index
-				break
-			}
-		default:
-			if path.Base(item) == lastFileName { // item的值是全路径
-				lastFileTag = index
-				break
-			}
+		rawDir := GetHistoryDataDirName(path.Base(item))
+		lastFileDir := GetHistoryDataDirName(lastFileName)
+		if rawDir == lastFileDir {
+			lastFileTag = index
+			break
 		}
 	}
 
-	for index, item := range rawApiList {
-		if index > lastFileTag {
+	if lastFileTag < len(rawApiList) {
+		for _, item := range rawApiList[lastFileTag+1:] {
 			if len(apiStr) > 0 {
 				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
 			} else {
 				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(item), path.Base(item))
 			}
+
 		}
 	}
 
@@ -526,8 +520,8 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	}
 
 	var filePath string
-	//fileNames := GetListFromHtml(dbScene.ApiList)
-	fileNames := strings.Split(dbScene.ApiList, ",")
+	fileNames := GetListFromHtml(dbScene.ApiList)
+	//fileNames := strings.Split(dbScene.ApiList, ",")
 
 	for _, item := range fileNames {
 

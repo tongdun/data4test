@@ -459,8 +459,25 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			if varType == "[]interface {}" {
 				return keyName, data.([]interface{}), err
 			}
+			if varType == "string" {
+				tmpStr := data.(string)
+				boundIndex := strings.Index(tmpStr, "{")
+				listIndex := strings.Index(tmpStr, "[")
+				if boundIndex == 0 { // 如果是字符串的JSON，进行再次序列化
+					var tmpMap map[string]interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					values = append(values, tmpMap[keyRawName])
+					return
+				}
 
-			if varType != "map[string]interface {}" {
+				if listIndex == 0 { // 如果是字符串的JSON，为数组，进行再次序列化
+					keyTmpName, index := GetSlicesIndex(keyRawName)
+					var tmpMap []interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					values = append(values, tmpMap[index].(map[string]interface{})[keyTmpName])
+					return
+				}
+			} else if varType != "map[string]interface {}" {
 				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
 				Logger.Error("%s", err)
 				return
@@ -509,9 +526,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					json.Unmarshal([]byte(tmpStr), &tmpMap)
 					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
 				}
-			}
-
-			if tmpType != "map[string]interface {}" {
+			} else if tmpType != "map[string]interface {}" {
 				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
 				Logger.Error("%s", err)
 				return
