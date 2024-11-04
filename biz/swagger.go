@@ -584,20 +584,36 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(headerChanged) > 0 {
-			allChanged = fmt.Sprintf("%s", allChanged, headerChanged)
-		}
-		if len(bodyChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s", allChanged, bodyChanged)
+			allChanged = fmt.Sprintf("%s", headerChanged)
 		}
 		if len(pathChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s", allChanged, pathChanged)
+			if len(allChanged) > 0 {
+				allChanged = fmt.Sprintf("%s\n%s", allChanged, pathChanged)
+			} else {
+				allChanged = fmt.Sprintf("%s", pathChanged)
+			}
 		}
 		if len(queryChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s", allChanged, queryChanged)
+			if len(allChanged) > 0 {
+				allChanged = fmt.Sprintf("%s\n%s", allChanged, queryChanged)
+			} else {
+				allChanged = fmt.Sprintf("%s", queryChanged)
+			}
 		}
-
+		if len(bodyChanged) > 0 {
+			if len(allChanged) > 0 {
+				allChanged = fmt.Sprintf("%s\n%s", allChanged, bodyChanged)
+			} else {
+				allChanged = fmt.Sprintf("%s", bodyChanged)
+			}
+		}
 		if len(respChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s", allChanged, respChanged)
+			if len(allChanged) > 0 {
+				allChanged = fmt.Sprintf("%s\n%s", allChanged, respChanged)
+			} else {
+				allChanged = fmt.Sprintf("%s", respChanged)
+			}
+
 		}
 		// 接口状态, 1:新增,2:被删除,3:被修改,4:保持原样
 		if len(allChanged) > 0 {
