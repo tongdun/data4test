@@ -71,7 +71,7 @@ func Interface2Str(value interface{}) (strValue string) {
 	switch varType {
 	case "float64":
 		tmpVar := value.(float64)
-		strValue = strconv.FormatFloat(tmpVar, 'f', 0, 64)
+		strValue = strconv.FormatFloat(tmpVar, 'f', -1, 64)
 	case "string":
 		strValue = value.(string)
 	case "bool":

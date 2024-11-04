@@ -67,7 +67,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		} else if model.Value == "3" {
 			return "被修改"
 		} else if model.Value == "4" {
-			return "保存原样"
+			return "保持原样"
 		}
 		return "新增"
 	})

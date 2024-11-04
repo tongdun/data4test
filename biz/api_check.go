@@ -11,32 +11,24 @@ import (
 
 func CompareParameterDef(new, old []VarDefModel) (isChanged bool, newList, deletedList, changedList, oldList []VarDefModel) {
 	for _, item := range old {
-		count := 0
-		for _, subItem := range new {
+		for index, subItem := range new {
 			if item.Name == subItem.Name {
 				if item.ValueType != subItem.ValueType {
-					changedList = append(changedList, subItem)
-					oldList = append(oldList, item)
+					changedList = append(changedList, subItem) //记录变更定义
+					oldList = append(oldList, item)            // 记录原有定义
 				}
-				continue
-			} else {
-				count++
-			}
-			if count == len(new) {
+				break
+			} else if index == len(new)-1 {
 				deletedList = append(deletedList, item)
 			}
 		}
 	}
 
 	for _, item := range new {
-		count := 0
-		for _, subItem := range old {
+		for index, subItem := range old {
 			if item.Name == subItem.Name {
-				continue
-			} else {
-				count++
-			}
-			if count == len(new) {
+				break
+			} else if index == len(old)-1 {
 				newList = append(newList, item)
 			}
 		}
@@ -242,11 +234,11 @@ func GetChangedContent(infoType string, newList, deletedList, changedList, oldLi
 		oldStr := string(oldByte)
 
 		if len(changedContent) > 0 {
-			changedContent = fmt.Sprintf("%s\n原有定义:\n%s", changedContent, oldStr)
-			changedContent = fmt.Sprintf("%s\n被修改:\n%s", changedContent, changedStr)
+			changedContent = fmt.Sprintf("%s\n修改前:\n%s", changedContent, oldStr)
+			changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedContent, changedStr)
 		} else {
-			changedContent = fmt.Sprintf("%s:\n原有定义:\n%s", infoType, oldStr)
-			changedContent = fmt.Sprintf("%s\n被修改:\n%s", changedStr)
+			changedContent = fmt.Sprintf("%s:\n修改前:\n%s", infoType, oldStr)
+			changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedStr)
 		}
 
 	}

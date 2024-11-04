@@ -8,14 +8,16 @@ import (
 	"github.com/Knetic/govaluate"
 	"github.com/extrame/xls"
 	"github.com/tealeg/xlsx"
-	//xlsx3 "github.com/tealeg/xlsx/v3"
+	"math"
+	"strconv"
+	"strings"
+
+	"github.com/grd/statistics"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strconv"
-	"strings"
 )
 
 func (assert SceneAssert) GetAssertValue(lang string) (out string) {
@@ -605,7 +607,7 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 
 	for _, subV := range flowValues {
 		expectValue := Interface2Str(subV)
-		errTmp := sceneAssert.AsserValueComparion(expectValue)
+		errTmp := sceneAssert.AssertValueCompare(expectValue)
 		if errTmp != nil {
 			if err == nil {
 				err = errTmp
@@ -706,12 +708,251 @@ func GetAssertTemplateAllValue(lang string) (allValue map[string][]interface{}) 
 	return
 }
 
-func (assert SceneAssert) AsserValueComparion(curStr string) (err error) {
+func GetMathResult(content string) (afterContent string) {
+	strReg := regexp.MustCompile(`Max\(([\d,]+)\)`)
+	strMatch := strReg.FindAllSubmatch([]byte(content), -1)
+	inContent := content
+	for _, item := range strMatch {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		if len(valueList) > 0 {
+			for _, item := range valueList {
+				itemF, _ := strconv.ParseFloat(item, 2)
+				resultF = math.Max(resultF, itemF)
+			}
+		}
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg1 := regexp.MustCompile(`Min\(([\d,]+)\)`)
+	strMatch1 := strReg1.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch1 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		if len(valueList) > 0 {
+			for index, item := range valueList {
+				itemF, _ := strconv.ParseFloat(item, 2)
+				if index == 0 {
+					resultF = itemF
+				} else {
+					resultF = math.Min(resultF, itemF)
+				}
+			}
+		}
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg2 := regexp.MustCompile(`Sum\(([\d,]+)\)`)
+	strMatch2 := strReg2.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch2 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		if len(valueList) > 0 {
+			for _, item := range valueList {
+				itemF, _ := strconv.ParseFloat(item, 2)
+				resultF = resultF + itemF
+			}
+		}
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg3 := regexp.MustCompile(`Avg\(([\d,]+)\)`)
+	strMatch3 := strReg3.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch3 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		if len(valueList) > 0 {
+			for _, item := range valueList {
+				itemF, _ := strconv.ParseFloat(item, 2)
+				resultF = resultF + itemF
+			}
+			resultF = resultF / float64(len(valueList))
+		}
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg4 := regexp.MustCompile(`Floor\(([-\d.]+)\)`)
+	strMatch4 := strReg4.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch4 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		itemF, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Floor(itemF)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg5 := regexp.MustCompile(`Pow\(([\d,]+)\)`)
+	strMatch5 := strReg5.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch5 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		if len(valueList) != 2 {
+			Logger.Error("%s公式有误，请核对", rawStrDef)
+			continue
+		}
+		xValue, _ := strconv.ParseFloat(valueList[0], 2)
+		yValue, _ := strconv.ParseFloat(valueList[1], 2)
+		resultF = math.Pow(xValue, yValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg6 := regexp.MustCompile(`Abs\(([-\d]+)\)`)
+	strMatch6 := strReg6.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch6 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Abs(xValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg7 := regexp.MustCompile(`Ceil\(([-\d.]+)\)`)
+	strMatch7 := strReg7.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch7 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Ceil(xValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg8 := regexp.MustCompile(`Round\(([-\d.]+)\)`)
+	strMatch8 := strReg8.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch8 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Round(xValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg9 := regexp.MustCompile(`Remainder\(([-\d,]+)\)`)
+	strMatch9 := strReg9.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch9 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		if len(valueList) != 2 {
+			Logger.Error("%s公式有误，请核对", rawStrDef)
+			continue
+		}
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueList[0], 2)
+		yValue, _ := strconv.ParseFloat(valueList[1], 2)
+		resultF = math.Remainder(xValue, yValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg10 := regexp.MustCompile(`Exp\(([\d]+)\)`)
+	strMatch10 := strReg10.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch10 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Exp(xValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg11 := regexp.MustCompile(`Log\(([\d]+)\)`)
+	strMatch11 := strReg11.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch11 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		var resultF float64
+		xValue, _ := strconv.ParseFloat(valueStrDef, 2)
+		resultF = math.Log(xValue)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg12 := regexp.MustCompile(`Mean\(([\d.,]+)\)`)
+	strMatch12 := strReg12.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch12 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		data := make(statistics.Float64, len(valueList))
+		for index, subItem := range valueList {
+			xValue, _ := strconv.ParseFloat(subItem, 2)
+			data[index] = xValue
+		}
+		resultF = statistics.Mean(&data)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg13 := regexp.MustCompile(`Variance\(([\d.,]+)\)`)
+	strMatch13 := strReg13.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch13 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		data := make(statistics.Float64, len(valueList))
+		for index, subItem := range valueList {
+			xValue, _ := strconv.ParseFloat(subItem, 2)
+			data[index] = xValue
+		}
+		resultF = statistics.Variance(&data)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	strReg14 := regexp.MustCompile(`Median\(([\d.,]+)\)`)
+	strMatch14 := strReg14.FindAllSubmatch([]byte(inContent), -1)
+	for _, item := range strMatch14 {
+		valueStrDef := string(item[1])
+		rawStrDef := string(item[0])
+		valueList := strings.Split(valueStrDef, ",")
+		var resultF float64
+		data := make(statistics.Float64, len(valueList))
+		for index, subItem := range valueList {
+			xValue, _ := strconv.ParseFloat(subItem, 2)
+			data[index] = xValue
+		}
+		resultF = statistics.MedianFromSortedData(&data)
+		resultStr := Interface2Str(resultF)
+		inContent = strings.Replace(inContent, rawStrDef, resultStr, -1)
+	}
+
+	afterContent = inContent
+	return
+}
+
+func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 	var b bool
 	var rawTargetStr string
 	targetStr := Interface2Str(assert.Value)
 	switch assert.Type {
 	case "=", "equal", "!=", "not_equal", ">", "larger_than", "greater_than", ">=", "larger_equal", "greater_equal", "<", "less_than", "<=", "less_equal":
+		targetStr = GetMathResult(targetStr) //如果有统计类运行符号，进行运算
 		expression, errTmp := govaluate.NewEvaluableExpression(targetStr)
 		if errTmp == nil {
 			parameters := make(map[string]interface{})

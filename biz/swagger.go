@@ -354,6 +354,7 @@ nextHere:
 		j++
 	}
 	var pathDef PathDef
+	var apiIds []string
 	for _, v := range pathKeys {
 		pathDef = swagger.Paths[v]
 		if !reflect.DeepEqual(pathDef.Put, ApiDetail{}) {
@@ -361,6 +362,8 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
+			apiId := fmt.Sprintf("put_%s", v)
+			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
 			}
@@ -370,6 +373,8 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
+			apiId := fmt.Sprintf("put_%s", v)
+			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
 			}
@@ -379,6 +384,8 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
+			apiId := fmt.Sprintf("put_%s", v)
+			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
 			}
@@ -388,11 +395,35 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
+			apiId := fmt.Sprintf("put_%s", v)
+			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
 			}
 		}
 
+	}
+
+	var dbApiIds []string
+	models.Orm.Table("api_definition").Where("app = ?", app).Pluck("api_id", &dbApiIds)
+	LenOfApiIds := len(apiIds)
+	for _, item := range dbApiIds {
+		for index, subItem := range apiIds {
+			if item == subItem {
+				break
+			}
+			if index == LenOfApiIds-1 {
+				var dbApiDef DbApiStringDefinition
+
+				_ = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, item).Find(&dbApiDef)
+				dbApiDef.ApiStatus = 2
+				errTmp := models.Orm.Table("api_definition").Where("id = ?", dbApiDef.Id).Update(&dbApiDef).Error
+				if errTmp != nil {
+					Logger.Error("%s", errTmp)
+				}
+				return
+			}
+		}
 	}
 
 	return
@@ -521,7 +552,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(bodyList) > 0 || len(oldBodyList) > 0 {
-			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
+			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(bodyList, oldBodyList)
 			if isChanged {
 				apiStrDef.Check = "fail"
 				bodyChanged = GetChangedContent("Body", newList, deletedList, changedList, oldList)
@@ -529,7 +560,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(pathList) > 0 || len(oldPathList) > 0 {
-			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
+			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(pathList, oldPathList)
 			if isChanged {
 				apiStrDef.Check = "fail"
 				pathChanged = GetChangedContent("Path", newList, deletedList, changedList, oldList)
@@ -537,7 +568,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(queryList) > 0 || len(oldQueryList) > 0 {
-			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
+			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(queryList, oldQueryList)
 			if isChanged {
 				apiStrDef.Check = "fail"
 				queryChanged = GetChangedContent("Query", newList, deletedList, changedList, oldList)
@@ -545,42 +576,44 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(respList) > 0 || len(oldRespList) > 0 {
-			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
+			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(respList, oldRespList)
 			if isChanged {
-				apiStrDef.Check = "fail"
+				//apiStrDef.Check = "fail"  变更的状态是否置为检查失败，再考虑
 				respChanged = GetChangedContent("Resp", newList, deletedList, changedList, oldList)
 			}
 		}
 
 		if len(headerChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s\n", allChanged, headerChanged)
+			allChanged = fmt.Sprintf("%s", allChanged, headerChanged)
 		}
 		if len(bodyChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s\n", allChanged, bodyChanged)
+			allChanged = fmt.Sprintf("%s\n%s", allChanged, bodyChanged)
 		}
 		if len(pathChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s\n", allChanged, pathChanged)
+			allChanged = fmt.Sprintf("%s\n%s", allChanged, pathChanged)
 		}
 		if len(queryChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s\n", allChanged, queryChanged)
+			allChanged = fmt.Sprintf("%s\n%s", allChanged, queryChanged)
 		}
 
 		if len(respChanged) > 0 {
-			allChanged = fmt.Sprintf("%s\n%s\n", allChanged, respChanged)
+			allChanged = fmt.Sprintf("%s\n%s", allChanged, respChanged)
 		}
-
+		// 接口状态, 1:新增,2:被删除,3:被修改,4:保持原样
 		if len(allChanged) > 0 {
-			apiStrDef.ApiStatus = 2
-			apiStrDef.ChangeContent = allChanged
-			//err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).UpdateColumn(&ApiStringDefinition{ApiStatus: 2, ChangeContent: allChanged}).Error
+			apiStrDef.ApiStatus = 3
+			curTime := time.Now().Format("2006/01/02 15:04:05")
+			if len(dbApiStrDef.ChangeContent) > 0 {
+				apiStrDef.ChangeContent = fmt.Sprintf("%s\n%s变更记录:\n%s", dbApiStrDef.ChangeContent, curTime, allChanged)
+			} else {
+				apiStrDef.ChangeContent = fmt.Sprintf("%s变更记录:\n%s", curTime, allChanged)
+			}
 		} else {
 			apiStrDef.ApiStatus = 4
-			//err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).UpdateColumn(&ApiStringDefinition{ApiStatus: 4}).Error
 		}
 
 		models.Orm.Table("scene_data").Where("api_id = ?", dbApiStrDef.ApiId).Count(&dataCount)
 		if dataCount > 0 {
-			//err = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", dbApiStrDef.App, dbApiStrDef.ApiId).UpdateColumn(&ApiStringDefinition{IsAuto: "1"}).Error
 			apiStrDef.IsAuto = "1"
 		}
 
@@ -592,28 +625,24 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if err != nil {
 			Logger.Error("%s", err)
 		}
-
-		if dbApiStrDef.ApiId == "post_/decisiontool/modifyContent" {
-			Logger.Debug("dbApiStrDef: %+v", dbApiStrDef)
-			Logger.Debug("apiStrDef: %+v", apiStrDef)
-		}
 	}
 
-	var apiRelation ApiRelation
-	apiRelation.ApiId = apiId
-	apiRelation.App = app
-	apiRelation.ApiModule = apiDefinition.ApiModule
-	apiRelation.ApiDesc = apiDefinition.ApiDesc
-	apiRelation.Auto = "yes"
-	curTime := time.Now()
-	apiRelation.CreatedAt = curTime.Format(baseFormat)
-	var dbApiRelation DbApiRelation
-	models.Orm.Table("api_relation").Where("app = ? and api_id = ?", app, apiId).Find(&dbApiRelation)
-	if len(dbApiRelation.ApiId) == 0 {
-		err = models.Orm.Table("api_relation").Create(&apiRelation).Error
-	} else {
-		err = models.Orm.Table("api_relation").Where("id = ?", dbApiRelation.Id).Update(&apiRelation).Error
-	}
+	//先进行屏蔽
+	//var apiRelation ApiRelation
+	//apiRelation.ApiId = apiId
+	//apiRelation.App = app
+	//apiRelation.ApiModule = apiDefinition.ApiModule
+	//apiRelation.ApiDesc = apiDefinition.ApiDesc
+	//apiRelation.Auto = "yes"
+	//curTime := time.Now()
+	//apiRelation.CreatedAt = curTime.Format(baseFormat)
+	//var dbApiRelation DbApiRelation
+	//models.Orm.Table("api_relation").Where("app = ? and api_id = ?", app, apiId).Find(&dbApiRelation)
+	//if len(dbApiRelation.ApiId) == 0 {
+	//	err = models.Orm.Table("api_relation").Create(&apiRelation).Error
+	//} else {
+	//	err = models.Orm.Table("api_relation").Where("id = ?", dbApiRelation.Id).Update(&apiRelation).Error
+	//}
 
 	return
 }

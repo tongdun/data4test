@@ -33,9 +33,9 @@ func GetAppApiChangelogTable(ctx *context.Context) table.Table {
 		FieldHide()
 	info.AddField("变更接口详情", "changedApiContent", db.Longtext).
 		FieldHide()
-	info.AddField("接口检查结果", "apiCheckResult", db.Varchar).
-		FieldHide()
 	info.AddField("规范检查失败接口详情", "apiCheckFailContent", db.Longtext).
+		FieldHide()
+	info.AddField("接口检查结果", "apiCheckResult", db.Varchar).
 		FieldHide()
 	info.AddField("版本分支", "branch", db.Varchar)
 	info.AddField("备注", "remark", db.Varchar)
@@ -61,8 +61,8 @@ func GetAppApiChangelogTable(ctx *context.Context) table.Table {
 	formList.AddField("新增接口详情", "newApiContent", db.Longtext, form.RichText)
 	formList.AddField("删除接口详情", "deletedApiContent", db.Longtext, form.RichText)
 	formList.AddField("变更接口详情", "changedApiContent", db.Longtext, form.RichText)
-	formList.AddField("接口检查结果", "apiCheckResult", db.Varchar, form.Text)
 	formList.AddField("规范检查失败接口详情", "apiCheckFailContent", db.Longtext, form.RichText)
+	formList.AddField("接口检查结果", "apiCheckResult", db.Varchar, form.Text)
 	formList.AddField("版本分支", "branch", db.Varchar, form.Text)
 	formList.AddField("备注", "remark", db.Varchar, form.Text)
 	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).

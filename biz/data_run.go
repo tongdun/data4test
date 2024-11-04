@@ -1516,7 +1516,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 			}
 
 			if assert.Source == "raw" || assert.Source == "ResponseBody" {
-				err1 := assert.AsserValueComparion(string(res[i]))
+				err1 := assert.AssertValueCompare(string(res[i]))
 				if err1 != nil {
 					Logger.Error("\n%v", err1)
 					if err != nil {
@@ -1566,7 +1566,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 				default:
 					for _, item := range targetList {
 						vStr := Interface2Str(item)
-						errTmp = assert.AsserValueComparion(vStr)
+						errTmp = assert.AssertValueCompare(vStr)
 						if errTmp != nil {
 							Logger.Error("\n%v", errTmp)
 							if err != nil {
