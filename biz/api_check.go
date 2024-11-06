@@ -210,21 +210,17 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 }
 
 func GetChangedContent(infoType string, newList, deletedList, changedList, oldList []VarDefModel) (changedContent string) {
+	changedContent = fmt.Sprintf("%s:", infoType)
 	if len(newList) > 0 {
 		newByte, _ := json.Marshal(newList)
 		newStr := string(newByte)
-		changedContent = fmt.Sprintf("%s:\n新增:\n%s", infoType, newStr)
+		changedContent = fmt.Sprintf("%s\n新增:\n%s", changedContent, newStr)
 	}
 
 	if len(deletedList) > 0 {
 		deletedByte, _ := json.Marshal(deletedList)
 		deletedStr := string(deletedByte)
-		if len(changedContent) > 0 {
-			changedContent = fmt.Sprintf("%s\n被删除:\n%s", changedContent, deletedStr)
-		} else {
-			changedContent = fmt.Sprintf("%s:\n被删除:\n%s", infoType, deletedStr)
-		}
-
+		changedContent = fmt.Sprintf("%s\n被删除:\n%s", changedContent, deletedStr)
 	}
 	if len(changedList) > 0 {
 		changedByte, _ := json.Marshal(changedList)
@@ -233,14 +229,8 @@ func GetChangedContent(infoType string, newList, deletedList, changedList, oldLi
 		oldByte, _ := json.Marshal(oldList)
 		oldStr := string(oldByte)
 
-		if len(changedContent) > 0 {
-			changedContent = fmt.Sprintf("%s\n修改前:\n%s", changedContent, oldStr)
-			changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedContent, changedStr)
-		} else {
-			changedContent = fmt.Sprintf("%s:\n修改前:\n%s", infoType, oldStr)
-			changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedStr)
-		}
-
+		changedContent = fmt.Sprintf("%s\n修改前:\n%s", changedContent, oldStr)
+		changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedContent, changedStr)
 	}
 
 	return
@@ -251,7 +241,7 @@ func UpdateApiChangeLog(appApiChange AppApiChange) {
 	models.Orm.Table("api_definition").Where("app = ? and api_status = 1", appApiChange.App).Count(&appApiChange.NewApiSum)
 	models.Orm.Table("api_definition").Where("app = ? and api_status = 2", appApiChange.App).Count(&appApiChange.DeletedApiSum)
 	models.Orm.Table("api_definition").Where("app = ? and api_status = 3", appApiChange.App).Count(&appApiChange.ChangedApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 4", appApiChange.App).Count(&appApiChange.ExistApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status in (3,4)", appApiChange.App).Count(&appApiChange.ExistApiSum)
 	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail'", appApiChange.App).Count(&appApiChange.CheckFailApiSum)
 
 	var newList, deletedList, changedList, apiCheckFailList []string
@@ -261,29 +251,45 @@ func UpdateApiChangeLog(appApiChange AppApiChange) {
 	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail'", appApiChange.App).Pluck("api_check_fail_reason", &apiCheckFailList)
 
 	if len(newList) > 0 {
-		for _, item := range newList {
-			appApiChange.NewApiContent = fmt.Sprintf("%s\n%s", appApiChange.NewApiContent, item)
+		for index, item := range newList {
+			if index == 0 {
+				appApiChange.NewApiContent = fmt.Sprintf("%s", item)
+			} else {
+				appApiChange.NewApiContent = fmt.Sprintf("%s\n%s", appApiChange.NewApiContent, item)
+			}
 		}
 		appApiChange.NewApiContent = fmt.Sprintf("<pre><code>%s</code></pre>", appApiChange.NewApiContent)
 	}
 
 	if len(deletedList) > 0 {
-		for _, item := range deletedList {
-			appApiChange.DeletedApiContent = fmt.Sprintf("%s\n%s", appApiChange.DeletedApiContent, item)
+		for index, item := range deletedList {
+			if index == 0 {
+				appApiChange.DeletedApiContent = fmt.Sprintf("%s", item)
+			} else {
+				appApiChange.DeletedApiContent = fmt.Sprintf("%s\n%s", appApiChange.DeletedApiContent, item)
+			}
 		}
 		appApiChange.DeletedApiContent = fmt.Sprintf("<pre><code>%s</code></pre>", appApiChange.DeletedApiContent)
 	}
 
 	if len(changedList) > 0 {
-		for _, item := range changedList {
-			appApiChange.ChangedApiContent = fmt.Sprintf("%s\n%s", appApiChange.ChangedApiContent, item)
+		for index, item := range changedList {
+			if index == 0 {
+				appApiChange.ChangedApiContent = fmt.Sprintf("%s", item)
+			} else {
+				appApiChange.ChangedApiContent = fmt.Sprintf("%s\n%s", appApiChange.ChangedApiContent, item)
+			}
 		}
 		appApiChange.ChangedApiContent = fmt.Sprintf("<pre><code>%s</code></pre>", appApiChange.ChangedApiContent)
 	}
 
 	if len(apiCheckFailList) > 0 {
-		for _, item := range apiCheckFailList {
-			appApiChange.ApiCheckFailContent = fmt.Sprintf("%s\n%s", appApiChange.ApiCheckFailContent, item)
+		for index, item := range apiCheckFailList {
+			if index == 0 {
+				appApiChange.ApiCheckFailContent = fmt.Sprintf("%s", item)
+			} else {
+				appApiChange.ApiCheckFailContent = fmt.Sprintf("%s\n%s", appApiChange.ApiCheckFailContent, item)
+			}
 		}
 		appApiChange.ApiCheckFailContent = fmt.Sprintf("<pre><code>%s</code></pre>", appApiChange.ApiCheckFailContent)
 	}

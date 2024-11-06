@@ -30,10 +30,23 @@ func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
 	var definiKeys []string
 	j := 0
 	if len(swagger.Definitions) > 0 {
+		definiKeys = make([]string, len(swagger.Definitions))
+		for k := range swagger.Definitions {
+			definiKeys[j] = k
+			j++
+		}
+	} else if len(swagger.Components.ComSchema) > 0 {
+		definiKeys = make([]string, len(swagger.Components.ComSchema))
+		for k := range swagger.Components.ComSchema {
+			definiKeys[j] = k
+			j++
+		}
+	}
+
+	if len(swagger.Definitions) > 0 {
 		for _, v := range definiKeys {
 			var paramList []VarDefModel
 			subProperty := swagger.Definitions[v].Properties
-
 			subProKeys := make([]string, len(subProperty))
 			j = 0
 			for k := range subProperty {
@@ -69,20 +82,6 @@ func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
 			defAllDict[v] = paramList
 		}
 	} else if len(swagger.Components.ComSchema) > 0 {
-		definiKeys = make([]string, len(swagger.Components.ComSchema))
-		for k := range swagger.Components.ComSchema {
-			definiKeys[j] = k
-			j++
-		}
-	}
-
-	if len(swagger.Definitions) > 0 {
-		definiKeys = make([]string, len(swagger.Definitions))
-		for k := range swagger.Definitions {
-			definiKeys[j] = k
-			j++
-		}
-	} else if len(swagger.Components.ComSchema) > 0 {
 		for _, v := range definiKeys {
 			var paramList []VarDefModel
 			subProperty := swagger.Components.ComSchema[v].Properties
@@ -102,8 +101,6 @@ func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
 				if len(varDef.ValueType) == 0 && len(subProperty[sv].Ref) > 0 {
 					resDef := GetLastOne(subProperty[sv].Ref)
 					respList, _ := defAllDict[resDef]
-					//Logger.Debug("resDef: %s", resDef)
-					//Logger.Debug("respList: %#v", respList)
 					varDef.ValueType = "object"
 					mapTemp := make(map[string]string)
 					for _, item := range respList {
@@ -134,42 +131,37 @@ func (apiDetail ApiDetail) GetRequestData(allDefini VarMapList) (headerList, bod
 		resDef := GetLastOne(apiDetail.Responses.R200.Schema.Ref)
 		respList, _ = allDefini[resDef]
 		parameters := apiDetail.Parameters
+		if len(apiDetail.Consumes) > 0 {
+			var varHeaderDefModel VarDefModel
+			varHeaderDefModel.Name = "Content-Type"
+			varHeaderDefModel.ValueType = "string"
+			varHeaderDefModel.EgValue = apiDetail.Consumes[0]
+			varHeaderDefModel.Desc = "请求类型"
+			headerList = append(headerList, varHeaderDefModel)
+		}
+
 		for _, pv := range parameters {
 			var varDefModel VarDefModel
-			var targetValue string
 			var tmpMap []VarDefModel
 			if len(pv.Schema.Ref) > 0 {
 				depDef := GetLastOne(pv.Schema.Ref)
 				tmpMap, _ = allDefini[depDef]
 			} else {
 				if pv.In == "body" {
-					targetValue = pv.Schema.Type
+					varDefModel.ValueType = pv.Schema.Type
 				} else {
-					targetValue = pv.Type
+					varDefModel.ValueType = pv.Type
+				}
+				varDefModel.Name = pv.Name
+				varDefModel.Desc = pv.Description
+				if pv.Required {
+					varDefModel.IsMust = "yes"
+				} else {
+					varDefModel.IsMust = "no"
 				}
 			}
 
-			varDefModel.Name = pv.Name
-			varDefModel.ValueType = pv.Type
-			varDefModel.Desc = pv.Description
-			if pv.Required {
-				varDefModel.IsMust = "yes"
-			} else {
-				varDefModel.IsMust = "no"
-			}
-
-			if len(targetValue) > 0 || len(varDefModel.Name) > 0 {
-				switch pv.In {
-				case "header":
-					headerList = append(headerList, varDefModel)
-				case "query":
-					queryList = append(queryList, varDefModel)
-				case "path":
-					pathList = append(pathList, varDefModel)
-				case "body", "formData":
-					bodyList = append(bodyList, varDefModel)
-				}
-			} else {
+			if len(tmpMap) > 0 {
 				switch pv.In {
 				case "header":
 					headerList = tmpMap
@@ -180,8 +172,18 @@ func (apiDetail ApiDetail) GetRequestData(allDefini VarMapList) (headerList, bod
 				case "body", "formData":
 					bodyList = tmpMap
 				}
+			} else {
+				switch pv.In {
+				case "header":
+					headerList = append(headerList, varDefModel)
+				case "query":
+					queryList = append(queryList, varDefModel)
+				case "path":
+					pathList = append(pathList, varDefModel)
+				case "body", "formData":
+					bodyList = append(bodyList, varDefModel)
+				}
 			}
-
 		}
 	} else if len(apiDetail.Responses.R200.Content.Star.Schema.Ref) > 0 {
 		resDef := GetLastOne(apiDetail.Responses.R200.Content.Star.Schema.Ref)
@@ -224,7 +226,7 @@ func (apiDetail ApiDetail) GetRequestData(allDefini VarMapList) (headerList, bod
 				varDefModel.IsMust = "no"
 			}
 
-			if len(targetValue) > 0 || len(varDefModel.Name) > 0 {
+			if len(apiDetail.Consumes) == 0 && (len(targetValue) > 0 || len(varDefModel.Name) > 0) {
 				switch pv.In {
 				case "header":
 					headerList = append(headerList, varDefModel)
@@ -546,7 +548,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(headerList) > 0 || len(oldHeaderList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(headerList, oldHeaderList)
 			if isChanged {
-				apiStrDef.Check = "fail"
+				//apiStrDef.Check = "fail"  //变更的状态是否置为检查失败，再考虑
 				headerChanged = GetChangedContent("Header", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -554,7 +556,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(bodyList) > 0 || len(oldBodyList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(bodyList, oldBodyList)
 			if isChanged {
-				apiStrDef.Check = "fail"
+				//apiStrDef.Check = "fail"   //变更的状态是否置为检查失败，再考虑
 				bodyChanged = GetChangedContent("Body", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -562,7 +564,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(pathList) > 0 || len(oldPathList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(pathList, oldPathList)
 			if isChanged {
-				apiStrDef.Check = "fail"
+				//apiStrDef.Check = "fail"   //变更的状态是否置为检查失败，再考虑
 				pathChanged = GetChangedContent("Path", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -570,7 +572,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(queryList) > 0 || len(oldQueryList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(queryList, oldQueryList)
 			if isChanged {
-				apiStrDef.Check = "fail"
+				//apiStrDef.Check = "fail"   //变更的状态是否置为检查失败，再考虑
 				queryChanged = GetChangedContent("Query", newList, deletedList, changedList, oldList)
 			}
 		}
@@ -578,7 +580,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		if len(respList) > 0 || len(oldRespList) > 0 {
 			isChanged, newList, deletedList, changedList, oldList := CompareParameterDef(respList, oldRespList)
 			if isChanged {
-				//apiStrDef.Check = "fail"  变更的状态是否置为检查失败，再考虑
+				//apiStrDef.Check = "fail"  //变更的状态是否置为检查失败，再考虑
 				respChanged = GetChangedContent("Resp", newList, deletedList, changedList, oldList)
 			}
 		}
