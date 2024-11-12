@@ -573,6 +573,11 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		}
 
 		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
+		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
+			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
+			errTmp = nil
+		}
+
 		if errTmp != nil {
 			Logger.Debug("rawContent:\n%s", string(content))
 			Logger.Debug("afterContent:\n%s", contentStr)

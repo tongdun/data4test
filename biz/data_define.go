@@ -20,25 +20,26 @@ type DbSceneData struct {
 }
 
 type DataFile struct {
-	Name           string                   `json:"name" yaml:"name"`
-	Version        float64                  `json:"version" yaml:"version"`
-	ApiId          string                   `json:"api_id" yaml:"api_id"`
-	IsRunPreApis   string                   `json:"is_run_pre_apis" yaml:"is_run_pre_apis"`
-	IsRunPostApis  string                   `json:"is_run_post_apis" yaml:"is_run_post_apis"`
-	IsParallel     string                   `json:"is_parallel" yaml:"is_parallel"`
-	IsUseEnvConfig string                   `json:"is_use_env_config" yaml:"is_use_env_config"`
-	Env            SceneEnv                 `json:"env" yaml:"env"`
-	Api            SceneApi                 `json:"api" yaml:"api"`
-	Single         SceneSingle              `json:"single" yaml:"single"`
-	Multi          SceneMulti               `json:"multi" yaml:"multi"`
-	Action         []SceneAction            `json:"action" yaml:"action"`
-	Assert         []SceneAssert            `json:"assert" yaml:"assert"`
-	Output         map[string][]interface{} `json:"output" yaml:"output"`
-	TestResult     []string                 `json:"test_result" yaml:"test_result"`
-	FailReason     []string                 `json:"failReason,omitempty" yaml:"failReason,omitempty"`
-	Urls           []string                 `json:"urls" yaml:"urls"`
-	Request        []string                 `json:"request" yaml:"request"`
-	Response       []string                 `json:"response" yaml:"response"`
+	Name             string                   `json:"name" yaml:"name"`
+	Version          float64                  `json:"version" yaml:"version"`
+	ApiId            string                   `json:"api_id" yaml:"api_id"`
+	IsRunPreApis     string                   `json:"is_run_pre_apis" yaml:"is_run_pre_apis"`
+	IsRunPostApis    string                   `json:"is_run_post_apis" yaml:"is_run_post_apis"`
+	IsParallel       string                   `json:"is_parallel" yaml:"is_parallel"`
+	IsUseEnvConfig   string                   `json:"is_use_env_config" yaml:"is_use_env_config"`
+	IsVarStrongCheck string                   `json:"is_var_strong_check,omitempty" yaml:"is_var_strong_check,omitempty"`
+	Env              SceneEnv                 `json:"env" yaml:"env"`
+	Api              SceneApi                 `json:"api" yaml:"api"`
+	Single           SceneSingle              `json:"single" yaml:"single"`
+	Multi            SceneMulti               `json:"multi" yaml:"multi"`
+	Action           []SceneAction            `json:"action" yaml:"action"`
+	Assert           []SceneAssert            `json:"assert" yaml:"assert"`
+	Output           map[string][]interface{} `json:"output" yaml:"output"`
+	TestResult       []string                 `json:"test_result" yaml:"test_result"`
+	FailReason       []string                 `json:"failReason,omitempty" yaml:"failReason,omitempty"`
+	Urls             []string                 `json:"urls" yaml:"urls"`
+	Request          []string                 `json:"request" yaml:"request"`
+	Response         []string                 `json:"response" yaml:"response"`
 }
 
 type SceneAssert struct {

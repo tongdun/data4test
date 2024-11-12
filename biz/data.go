@@ -1240,16 +1240,22 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 
 	}
 
-	in, _, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
+	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
 	//allFalseCount = allFalseCount + falseCount  // 如果是自身的变量，无法替换，不进入未定义拦截
 	//for k, v := range tmpDefVars {
 	//	notDefVars[k] = v
 	//}
+	if len(tmpDefVars) > 0 {
+		Logger.Warning("action part not def vars: %v", tmpDefVars)
+	}
 
-	in, _, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
-	allFalseCount = allFalseCount + falseCount                                 // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
-	for k, v := range tmpDefVars {
-		notDefVars[k] = v
+	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
+	//allFalseCount = allFalseCount + falseCount                                 // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
+	//for k, v := range tmpDefVars {
+	//	notDefVars[k] = v
+	//}
+	if len(tmpDefVars) > 0 {
+		Logger.Warning("assert part not def vars: %v", tmpDefVars)
 	}
 
 	out = in
@@ -1400,7 +1406,6 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 						value, errTmp := GetAssertTemplateValue(lang, key)
 						if errTmp != nil {
 							falseCount++
-							//Logger.Error("%s", errTmp)
 							if err != nil {
 								err = fmt.Errorf("%s;%s", err, errTmp)
 							} else {

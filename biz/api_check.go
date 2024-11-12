@@ -13,7 +13,7 @@ func CompareParameterDef(new, old []VarDefModel) (isChanged bool, newList, delet
 	for _, item := range old {
 		for index, subItem := range new {
 			if item.Name == subItem.Name {
-				if item.ValueType != subItem.ValueType {
+				if item.ValueType != subItem.ValueType || item.Desc != subItem.Desc || item.EgValue != subItem.EgValue {
 					changedList = append(changedList, subItem) //记录变更定义
 					oldList = append(oldList, item)            // 记录原有定义
 				}

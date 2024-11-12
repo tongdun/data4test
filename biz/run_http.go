@@ -247,7 +247,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 			}
 		}
 	}
-
+	
 	if len(downloadFilePath) > 0 {
 		fh, errTmp := os.Create(downloadFilePath)
 		if errTmp != nil {
