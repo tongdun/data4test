@@ -6,6 +6,7 @@
 - record_csv    记录当前的请求数据为CSV文件
 - record_xls / record_excel / record_xlsx   动作相同，记录当前的请求数据为EXCEL文件
 - modify_file   根据模板文件内容生成新的带请求数据的文件
+- change_output  通过查询接口获取到数据，针对获取到的数据值进行一定的变化再输出
 
 ##### 使用示例：
 ```action:
@@ -25,6 +26,8 @@
   value: record_template.json:record_template_{phoneno}.json   // 冒号前为模板文件，需要替换的字段用占位符，冒号后为替换数据后保存的文件，{certid}为取请求数据中certid变量的值，区分生成的数据和记录
 - type: modify_file
   value: record_template.yml:record_template_{certid}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+- type: change_output
+  value: parameter_name:old:new  // 输出参数名称:替换前的字符串:替换后的字符串  匹配到的值全部进行替换，old可以是正则表达式，需要替换的用()匹配出来
 ```
 
 #### modify_file动作模板文件示例

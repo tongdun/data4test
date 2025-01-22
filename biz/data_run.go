@@ -449,9 +449,368 @@ func RunNonStandard(app, rawFilePath, logFilePath, product, source string, fileT
 	return
 }
 
-func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+//func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+//	if depOutVars == nil {
+//		depOutVars = make(map[string][]interface{})
+//	}
+//
+//	if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
+//		for _, preApiFile := range df.Api.PreApi {
+//			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
+//			Logger.Debug("开始执行前置用例: %v", preFilePath)
+//			result, dst, err = RunStandard(df.Api.App, preFilePath, product, source, depOutVars)
+//			if err != nil {
+//				Logger.Error("%s", err)
+//				return
+//			}
+//			if result == "fail" {
+//				return
+//			}
+//		}
+//	}
+//
+//	var envConfig EnvConfig
+//	var targetApp string
+//
+//	if len(app) > 0 {
+//		targetApp = app
+//	} else if len(df.Api.App) > 0 {
+//		targetApp = df.Api.App
+//	}
+//
+//	envConfig, _ = GetEnvConfig(targetApp, "data")
+//
+//	depOutVarsTmp, err1 := df.GetDepParams()
+//	if err1 != nil {
+//		Logger.Error("%s", err1)
+//		if err != nil {
+//			err = fmt.Errorf("%s;%s", err, err1)
+//		} else {
+//			err = err1
+//		}
+//	}
+//
+//	for k, v := range depOutVarsTmp {
+//		if _, ok := depOutVars[k]; !ok {
+//			depOutVars[k] = v
+//		}
+//	}
+//
+//	if len(product) > 0 {
+//		sceneEnvConfig, errTmp := GetEnvConfig(product, "scene")
+//		if errTmp != nil {
+//			Logger.Warning("%s", errTmp)
+//		}
+//		envConfig.Ip = sceneEnvConfig.Ip
+//		envConfig.Auth = sceneEnvConfig.Auth
+//		envConfig.Product = product
+//		envConfig.Protocol = sceneEnvConfig.Protocol
+//
+//		dbProductList, err := GetProductInfo(product)
+//		dbProduct := dbProductList[0]
+//		if err != nil {
+//			Logger.Error("%v", err)
+//		}
+//		privateParameter := dbProduct.GetPrivateParameter()
+//		for k, v := range privateParameter {
+//			if _, ok := depOutVars[k]; !ok {
+//				depOutVars[k] = append(depOutVars[k], v)
+//			}
+//		}
+//	}
+//
+//	header, err := df.GetHeader(envConfig)
+//	df.Single.Header = header
+//	if err != nil {
+//		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//		return
+//	}
+//
+//	lang := GetRequestLangage(header)
+//
+//	var querys, bodys []map[string]interface{}
+//	var bodyList []interface{}
+//	var urls []string
+//	var rHeader map[string]interface{}
+//
+//	if mode == "again" {
+//		urls = df.Urls
+//		if df.Api.Method == "get" && len(df.Request) > 0 {
+//			for _, item := range df.Request {
+//				queryDict := make(map[string]interface{})
+//				errTmp := json.Unmarshal([]byte(item), &queryDict)
+//				if errTmp != nil {
+//					Logger.Error("%v", errTmp)
+//				} else {
+//					querys = append(querys, queryDict)
+//				}
+//			}
+//		} else {
+//			if df.Single.BodyList != nil {
+//				errTmp := json.Unmarshal([]byte(df.Request[0]), &bodyList)
+//				if errTmp != nil {
+//					Logger.Error("%v", errTmp)
+//				}
+//			} else {
+//				for _, item := range df.Request {
+//					bodyDict := make(map[string]interface{})
+//					errTmp := json.Unmarshal([]byte(item), &bodyDict)
+//					if errTmp != nil {
+//						Logger.Error("%v", errTmp)
+//					} else {
+//						bodys = append(bodys, bodyDict)
+//					}
+//				}
+//			}
+//		}
+//	} else {
+//		content, errTmp := yaml.Marshal(df)
+//		if errTmp != nil {
+//			Logger.Error("%v", errTmp)
+//			err = errTmp
+//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//			return
+//		}
+//		Logger.Debug("depOutVars: %v", depOutVars)
+//		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
+//		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
+//			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
+//			errTmp = nil
+//		}
+//		if errTmp != nil {
+//			Logger.Debug("rawContent:\n%s", string(content))
+//			Logger.Debug("afterContent:\n%s", contentStr)
+//			err = errTmp
+//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//			return
+//		}
+//
+//		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
+//		if errTmp != nil {
+//			Logger.Debug("\nrawContent: %s", string(content))
+//			Logger.Debug("\nafterContent: %s", contentStr)
+//			Logger.Error("%v", errTmp)
+//			err = errTmp
+//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//			return
+//		}
+//
+//		urls, errTmp = df.GetUrl(envConfig)
+//		if errTmp != nil {
+//			Logger.Debug("fileName: %s", path.Base(filePath))
+//			Logger.Error("%v", errTmp)
+//			err = errTmp
+//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//			return
+//		}
+//		df.Urls = urls
+//
+//		querys = df.GetQuery()
+//
+//		bodys, bodyList = df.GetBody()
+//		rHeader = df.Single.RespHeader
+//	}
+//
+//	// 后续可优化，有依赖和无依赖进行控制
+//	go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
+//	_ = df.RecordDataOrderByKey(bodys)                     // 有依赖，同步执行记录动作：record_xxx
+//	_ = df.ModifyFileWithData(bodys)                       // 有依赖，同步执行模板动作：modify_file
+//
+//	if err != nil {
+//		Logger.Error("%s", err)
+//		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//		return
+//	}
+//
+//	var resList [][]byte
+//	var errs []error
+//	tag := 0
+//	if df.GetIsParallel() { //控制台过来的并发有bug
+//		wg := sync.WaitGroup{}
+//		for _, url := range urls {
+//			if len(querys) > 0 {
+//				for _, data := range querys {
+//					dJson, _ := json.Marshal(data)
+//					if tag == 0 {
+//						df.Request = []string{string(dJson)}
+//					} else {
+//						df.Request = append(df.Request, string(dJson))
+//					}
+//					tag++
+//					wg.Add(1)
+//					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
+//						defer wg.Add(-1)
+//						res, err := RunHttp(method, url, data, header, rHeader)
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//					}(df.Api.Method, url, data, header)
+//				}
+//			} else if len(bodys) > 0 || len(bodyList) > 0 {
+//				if len(bodyList) > 0 {
+//					if len(bodyList) > 0 {
+//						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+//						readerNew, _ := jsonNew.Marshal(&bodyList)
+//						df.Request = []string{string(readerNew)}
+//						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
+//						if err != nil {
+//							Logger.Debug("%s", err)
+//						}
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//					}
+//				} else {
+//					wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
+//					for _, data := range bodys {
+//						dJson, _ := json.Marshal(data)
+//						if tag == 0 {
+//							df.Request = []string{string(dJson)}
+//						} else {
+//							df.Request = append(df.Request, string(dJson))
+//						}
+//						tag++
+//						//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
+//						go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
+//							defer wg.Add(-1)
+//							res, err := RunHttp(method, url, data, header, rHeader)
+//							resList = append(resList, res)
+//							df.Response = append(df.Response, string(res))
+//							errs = append(errs, err)
+//						}(df.Api.Method, url, data, header)
+//					}
+//				}
+//			} else {
+//				df.Request = []string{}
+//				wg.Add(1)
+//				go func(method, url string, header map[string]interface{}) {
+//					res, err := RunHttp(method, url, nil, header, rHeader)
+//					resList = append(resList, res)
+//					df.Response = append(df.Response, string(res))
+//					errs = append(errs, err)
+//				}(df.Api.Method, url, header)
+//			}
+//			wg.Wait()
+//		}
+//	} else {
+//		for _, url := range urls {
+//			if len(querys) > 0 {
+//				for _, data := range querys {
+//					var tUrl string
+//					dJson, _ := json.Marshal(data)
+//					if tag == 0 {
+//						df.Request = []string{string(dJson)}
+//					} else {
+//						df.Request = append(df.Request, string(dJson))
+//					}
+//					tag++
+//					if df.Api.Method == "delete" {
+//						subTag := 0
+//						for k, v := range data {
+//							strV := Interface2Str(v)
+//							if subTag == 0 {
+//								tUrl = fmt.Sprintf("%s?%s=%s", url, k, strV)
+//							} else {
+//								tUrl = fmt.Sprintf("%s&%s=%s", tUrl, k, strV)
+//							}
+//							subTag++
+//						}
+//						res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//					} else {
+//						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//					}
+//					_ = df.SetSleepAction()
+//				}
+//			} else if len(bodys) > 0 || len(bodyList) > 0 {
+//				if len(bodyList) > 0 {
+//					if len(bodyList) > 0 {
+//						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+//						readerNew, _ := jsonNew.Marshal(&bodyList)
+//						df.Request = []string{string(readerNew)}
+//						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
+//						if err != nil {
+//							Logger.Debug("%s", err)
+//						}
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//					}
+//				} else {
+//					for _, data := range bodys {
+//						var dJson []byte
+//						dJson, errTmp := json.Marshal(data)
+//						if errTmp != nil {
+//							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+//							dJsonTmp, err2 := jsonNew.Marshal(&data)
+//							if err2 != nil {
+//								Logger.Error("%s", err2)
+//								err = err2
+//								return
+//							}
+//							dJson = dJsonTmp
+//						}
+//						if tag == 0 {
+//							df.Request = []string{string(dJson)}
+//						} else {
+//							df.Request = append(df.Request, string(dJson))
+//						}
+//						tag++
+//						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+//						resList = append(resList, res)
+//						df.Response = append(df.Response, string(res))
+//						errs = append(errs, err)
+//						_ = df.SetSleepAction()
+//					}
+//				}
+//			} else {
+//				df.Request = []string{}
+//				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
+//				if err != nil {
+//					Logger.Debug("%s", err)
+//				}
+//				resList = append(resList, res)
+//				df.Response = append(df.Response, string(res))
+//				errs = append(errs, err)
+//				_ = df.SetSleepAction()
+//			}
+//		}
+//	}
+//
+//	result, dst, df.Output, err = df.GetResult(source, filePath, resList, depOutVars, errs)
+//
+//	if result != "pass" {
+//		for _, item := range errs {
+//			if item != nil {
+//				if err != nil {
+//					err = fmt.Errorf("%s; %s", err, item)
+//				} else {
+//					err = fmt.Errorf("%s", item)
+//				}
+//			}
+//		}
+//	}
+//
+//	urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
+//
+//	return
+//}
+
+func RunDataFileStruct(app, product, filePath, mode, source string, contentByte []byte, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
 	if depOutVars == nil {
 		depOutVars = make(map[string][]interface{})
+	}
+
+	var df DataFile
+	if strings.HasSuffix(filePath, ".json") {
+		err = json.Unmarshal(contentByte, &df)
+	} else {
+		err = yaml.Unmarshal(contentByte, &df)
 	}
 
 	if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
@@ -564,7 +923,7 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			}
 		}
 	} else {
-		content, errTmp := yaml.Marshal(df)
+		_, errTmp := yaml.Marshal(df)
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
 			err = errTmp
@@ -572,30 +931,31 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 			return
 		}
 
-		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
+		//var contentStr string
+
+		contentStr, errTmp := GetAfterContent(lang, string(contentByte), depOutVars)
 		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
 			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
 			errTmp = nil
 		}
-
 		if errTmp != nil {
-			Logger.Debug("rawContent:\n%s", string(content))
+			Logger.Debug("rawContent:\n%s", string(contentStr))
 			Logger.Debug("afterContent:\n%s", contentStr)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
-
 		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
-
 		if errTmp != nil {
-			Logger.Debug("\nrawContent: %s", string(content))
+			Logger.Debug("\nrawContent: %s", string(contentByte))
 			Logger.Debug("\nafterContent: %s", contentStr)
 			Logger.Error("%v", errTmp)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
+
+		df.Single.Header = header
 
 		urls, errTmp = df.GetUrl(envConfig)
 		if errTmp != nil {
@@ -610,7 +970,6 @@ func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string
 		querys = df.GetQuery()
 
 		bodys, bodyList = df.GetBody()
-
 		rHeader = df.Single.RespHeader
 	}
 
@@ -812,11 +1171,12 @@ func RunStandard(app, filePath, product, source string, depOutVars map[string][]
 		return
 	}
 
-	var df DataFile
+	var initDf DataFile
+
 	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal(content, &df)
+		err = json.Unmarshal(content, &initDf)
 	} else {
-		err = yaml.Unmarshal(content, &df)
+		err = yaml.Unmarshal(content, &initDf)
 	}
 
 	if err != nil {
@@ -831,7 +1191,8 @@ func RunStandard(app, filePath, product, source string, depOutVars map[string][]
 		mode = "again"
 	}
 
-	_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, mode, source, depOutVars)
+	//_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, mode, source, content, depOutVars)
+	_, _, _, _, _, result, dst, err = RunDataFileStruct(app, product, filePath, mode, source, content, depOutVars)
 
 	return
 }
@@ -1707,11 +2068,21 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 
 		if inIsPass > 0 {
 			df.TestResult[i] = "fail"
+			if len(df.TestResult) < i+1 {
+				df.FailReason = append(df.FailReason, "测试失败")
+			}
 		} else {
 			if len(df.TestResult) < i+1 {
 				df.TestResult = append(df.TestResult, "pass")
+				df.FailReason = append(df.FailReason, "")
 			} else {
 				df.TestResult[i] = "pass"
+				if len(df.FailReason) < i+1 {
+					df.FailReason = append(df.FailReason, "")
+				} else {
+					df.FailReason[i] = ""
+				}
+
 			}
 		}
 	}
@@ -1725,7 +2096,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 
 	df.Output = outputDict
 
-	var dataInfo, dataWithHeaher []byte
+	var dataInfo, dataWithHeader []byte
 	var errTmp error
 	if strings.HasSuffix(filePath, ".json") {
 		dataInfo, errTmp = json.MarshalIndent(df, "", "    ")
@@ -1743,12 +2114,12 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 	}
 
 	if strings.HasSuffix(filePath, ".json") {
-		dataWithHeaher, errTmp = json.MarshalIndent(df, "", "    ")
+		dataWithHeader, errTmp = json.MarshalIndent(df, "", "    ")
 	} else {
-		dataWithHeaher, errTmp = yaml.Marshal(df)
+		dataWithHeader, errTmp = yaml.Marshal(df)
 	}
 
-	errTmp = ioutil.WriteFile(dst, dataWithHeaher, 0644)
+	errTmp = ioutil.WriteFile(dst, dataWithHeader, 0644)
 
 	if errTmp != nil {
 		Logger.Error("%s", errTmp)

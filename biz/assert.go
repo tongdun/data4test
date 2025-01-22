@@ -479,6 +479,11 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					values = append(values, tmpMap[index].(map[string]interface{})[keyTmpName])
 					return
 				}
+
+				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName) // 如果都不行，即定义与实际返回不一致
+				Logger.Error("%s", err)
+				return
+
 			} else if varType != "map[string]interface {}" {
 				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
 				Logger.Error("%s", err)

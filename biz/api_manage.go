@@ -610,8 +610,9 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, request
 	}
 
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
-
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", nil)
+	content, _ := yaml.Marshal(df)
+	//urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", content, nil)
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", content, nil)
 
 	return
 }
@@ -1536,7 +1537,8 @@ func RunHistoryContent(apiModel HistorySaveModel) (urlStr, headerStr, requestStr
 
 	dataFile.UpdateDataFileFromHistoryModel(apiModel)
 
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = dataFile.RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", nil) // again表示历史数据再来一次
+	//urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = dataFile.RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", content, nil) // again表示历史数据再来一次
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", content, nil) // again表示历史数据再来一次
 
 	return
 }

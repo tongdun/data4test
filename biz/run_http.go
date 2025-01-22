@@ -247,7 +247,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 			}
 		}
 	}
-	
+
 	if len(downloadFilePath) > 0 {
 		fh, errTmp := os.Create(downloadFilePath)
 		if errTmp != nil {
@@ -423,7 +423,6 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 
 func RunHttp(method, url string, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (res []byte, err error) {
 	contentTypeRaw := Interface2Str(acceptHeader["Content-Type"])
-
 	var contentType string
 
 	if strings.Contains(contentTypeRaw, "application/x-www-form-urlencoded") {

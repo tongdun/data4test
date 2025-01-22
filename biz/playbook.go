@@ -79,6 +79,9 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 				} else {
 					err = err1
 				}
+				if runNum > 1 {
+					Logger.Warning("退出循环多次测试执行")
+				}
 				break // 循环进行多次测试，如果遇错即退出
 			}
 		}
@@ -671,9 +674,15 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			}
 
 			for k, v := range requestMap {
+				vType := fmt.Sprintf("%T", v)
 				if index == 0 {
 					outputDict[k] = outputDict[k][:0] // 如果是不同数据文件的请求参数，同名参数进行重置
-					outputDict[k] = append(outputDict[k], v)
+
+				}
+
+				if vType == "[]interface {}" { // 如果请求数据本来就是list的，需要解耦一层
+					vList := v.([]interface{})
+					outputDict[k] = vList
 				} else {
 					outputDict[k] = append(outputDict[k], v)
 				}

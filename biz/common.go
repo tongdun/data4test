@@ -299,7 +299,7 @@ func GetTimeFormatData(rawStr string) (newStr string) {
 
 func GetHistoryDataDirName(fileName string) (dirName string) {
 	if len(fileName) == 0 || !strings.Contains(fileName, ".") {
-		Logger.Warning("fileName: %v", fileName)
+		//Logger.Warning("fileName: %v", fileName)
 		return
 	}
 

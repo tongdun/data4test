@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/mritd/chinaid"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -83,6 +84,7 @@ func main() {
 		err := recover()
 		if err != nil {
 			biz.Logger.Error("panic: %v", err)
+			biz.Logger.Error("stack: %v", string(debug.Stack()))
 			startServer()
 		}
 	}()

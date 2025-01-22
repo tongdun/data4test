@@ -1207,25 +1207,10 @@ func (ds DbScene) GetPlaybook() (playbook Playbook) {
 func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out string, err error) {
 	var allFalseCount int
 	var notDefVars, tmpDefVars map[string]string
-	in, notDefVars, falseCount, err := GetIndexStr(lang, in, "env:\n", "api:\n", depOutVars)
+	in, notDefVars, falseCount, err := GetIndexStr(lang, in, "env:", "api:", depOutVars)
 	allFalseCount = allFalseCount + falseCount
 
-	in, tmpDefVars, falseCount, errTmp := GetIndexStr(lang, in, "single:\n", "multi:\n", depOutVars)
-	allFalseCount = allFalseCount + falseCount
-	for k, v := range tmpDefVars {
-		notDefVars[k] = v
-	}
-
-	if errTmp != nil {
-		if err != nil {
-			err = fmt.Errorf("%s; %s", err, errTmp)
-		} else {
-			err = errTmp
-		}
-
-	}
-
-	in, tmpDefVars, falseCount, errTmp = GetIndexStr(lang, in, "multi:\n", "action:", depOutVars)
+	in, tmpDefVars, falseCount, errTmp := GetIndexStr(lang, in, "single:", "multi:", depOutVars)
 	allFalseCount = allFalseCount + falseCount
 	for k, v := range tmpDefVars {
 		notDefVars[k] = v
@@ -1240,7 +1225,22 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 
 	}
 
-	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "action:\n", "assert:", depOutVars)
+	in, tmpDefVars, falseCount, errTmp = GetIndexStr(lang, in, "multi:", "action:", depOutVars)
+	allFalseCount = allFalseCount + falseCount
+	for k, v := range tmpDefVars {
+		notDefVars[k] = v
+	}
+
+	if errTmp != nil {
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
+
+	}
+
+	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "action:", "assert:", depOutVars)
 	//allFalseCount = allFalseCount + falseCount  // 如果是自身的变量，无法替换，不进入未定义拦截
 	//for k, v := range tmpDefVars {
 	//	notDefVars[k] = v
@@ -1249,11 +1249,12 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 		Logger.Warning("action part not def vars: %v", tmpDefVars)
 	}
 
-	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "assert:\n", "output: {}", depOutVars) // 因为output为自动生成的数据，初始化时，为空
+	in, tmpDefVars, _, _ = GetIndexStr(lang, in, "assert:", "output:", depOutVars) // 因为output为自动生成的数据，初始化时，为空
 	//allFalseCount = allFalseCount + falseCount                                 // 如果是断言值模板的定义，先不进入未定义拦截，后续优化
 	//for k, v := range tmpDefVars {
 	//	notDefVars[k] = v
 	//}
+
 	if len(tmpDefVars) > 0 {
 		Logger.Warning("assert part not def vars: %v", tmpDefVars)
 	}
@@ -1283,7 +1284,7 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 		indexStr = rawStr
 	} else {
 		startIndex = strings.Index(rawStr, startStr)
-		endIndex = strings.Index(rawStr, endStr)
+		endIndex = strings.LastIndex(rawStr, endStr)
 		if startIndex == -1 { // 开始未找到，相当于无相关定义，可直接跳过
 			targetStr = rawStr
 			return
@@ -1297,6 +1298,7 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 			indexStr = rawStr[startIndex:endIndex]
 		}
 	}
+
 	return
 }
 
@@ -1304,10 +1306,9 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]interface{}) (targetStr string, notDefVars map[string]string, falseCount int, err error) {
 	var indexStr string
 	var startIndex, endIndex int
-
 	indexStr, targetStr, startIndex, endIndex = GetStrByIndex(rawStr, startStr, endStr)
 	if startIndex == -1 { //开始为-1说明没找到开始的信息，应该原样返回
-		return
+		Logger.Warning("未找到开始值: %s, 结束值: %s", startStr, endStr)
 	}
 
 	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
@@ -1321,7 +1322,6 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 
 	for _, item := range strMatch {
 		key := string(item[1])
-
 		if key == "self" {
 			continue
 		}
@@ -1402,7 +1402,7 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 				if len(value) > 0 {
 					indexStr = strings.Replace(indexStr, rawStrDef, value, 1)
 				} else {
-					if strings.Contains(startStr, "assert") {
+					if strings.Contains(startStr, "assert:") || len(startStr) == 0 {
 						value, errTmp := GetAssertTemplateValue(lang, key)
 						if errTmp != nil {
 							falseCount++
@@ -1412,7 +1412,6 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 								err = errTmp
 							}
 						}
-
 						indexStr = strings.Replace(indexStr, rawStrDef, value, -1)
 					}
 				}

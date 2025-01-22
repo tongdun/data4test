@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -383,6 +384,12 @@ func RunTask(ids, mode string) (err error) {
 		if cronStr == "once" {
 			Logger.Info("添加单次任务:[%s]", retSchedule.TaskName)
 			go func(id string) {
+				defer func() { // 如果遇到panic， 不影响主程序的运行
+					if e := recover(); e != nil {
+						Logger.Error("panic: %v", e)
+						Logger.Error("stack: %v", string(debug.Stack()))
+					}
+				}()
 				RunOnceTask(id)
 			}(id)
 		} else {
