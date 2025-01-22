@@ -616,6 +616,13 @@ func startServer() {
 	r.POST("/sceneRun", func(c *gin.Context) {
 		var sceneSave biz.SceneSaveModel
 		sceneSave.Product = c.PostForm("product")[1 : len(c.PostForm("product"))-1]
+		data := make(map[string]interface{})
+		if len(sceneSave.Product) == 0 {
+			data["code"] = 400
+			data["msg"] = "未配置环境信息，请先设置"
+			c.JSON(http.StatusOK, data)
+			return
+		}
 		sceneSave.Name = c.PostForm("name")[1 : len(c.PostForm("name"))-1]
 		typeTag := c.PostForm("type")[1 : len(c.PostForm("type"))-1]
 		var runNumTag string
@@ -650,7 +657,7 @@ func startServer() {
 		json.Unmarshal([]byte(c.PostForm("dataList")), &sceneSave.DataList)
 
 		reqDataResps, err := biz.RunPlaybookFromConsole(sceneSave)
-		data := make(map[string]interface{})
+
 		if err != nil {
 			data["code"] = 400
 			data["msg"] = "操作失败"
@@ -658,6 +665,7 @@ func startServer() {
 			data["code"] = 200
 			data["msg"] = "操作成功"
 		}
+
 		data["data"] = reqDataResps
 		c.JSON(http.StatusOK, data)
 	})

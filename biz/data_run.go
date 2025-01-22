@@ -931,8 +931,6 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 			return
 		}
 
-		//var contentStr string
-
 		contentStr, errTmp := GetAfterContent(lang, string(contentByte), depOutVars)
 		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
 			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)

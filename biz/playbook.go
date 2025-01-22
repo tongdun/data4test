@@ -95,6 +95,7 @@ func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
 	playbook := playbookInfo.GetPlaybook()
 	if err != nil {
+		Logger.Error("%v", err)
 		return
 	}
 
@@ -574,7 +575,6 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, er
 
 	if len(dbScene.ApiList) == 0 {
 		err = fmt.Errorf("未找到对应场景，请核对: %s", id)
-		Logger.Error("%s", err)
 		return
 	}
 
@@ -917,10 +917,10 @@ func SaveScene(sceneSave SceneSaveModel, userName string) (err error) {
 	scene.UserName = userName
 	for index, value := range sceneSave.DataList {
 		if index == 0 {
-			apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value.DataFile, value.DataFile)
+			apiStr = value.DataFile
 			numStr = fmt.Sprintf("%v", index+1)
 		} else {
-			apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, value.DataFile, value.DataFile)
+			apiStr = fmt.Sprintf("%s,%s", apiStr, value.DataFile)
 			numStr = fmt.Sprintf("%s,%v", numStr, index+1)
 		}
 	}

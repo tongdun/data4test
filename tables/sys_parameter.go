@@ -21,9 +21,15 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 
 	info.AddField("自增主键", "id", db.Int).
 		FieldHide()
-	info.AddField("参数名称", "name", db.Varchar)
-	info.AddField("值定义", "value_list", db.Longtext)
-	info.AddField("备注", "remark", db.Longtext)
+	info.AddField("参数名称", "name", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace()
+	info.AddField("值定义", "value_list", db.Longtext).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace()
+	info.AddField("备注", "remark", db.Longtext).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace()
 	info.AddField("创建时间", "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})

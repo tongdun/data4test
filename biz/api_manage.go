@@ -611,7 +611,6 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, request
 
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
 	content, _ := yaml.Marshal(df)
-	//urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", content, nil)
 	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", content, nil)
 
 	return
