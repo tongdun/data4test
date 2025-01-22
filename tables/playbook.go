@@ -77,7 +77,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldSortable().FieldWidth(80).
 		FieldEditAble(editType.Text)
 	info.AddField("执行次数", "run_time", db.Int).
-		FieldFilterable(types.FilterType{FormType: form.Number}).FieldSortable().
+		FieldFilterable(types.FilterType{FormType: form.Number}).
+		FieldSortable().
 		FieldEditAble(editType.Text)
 
 	info.AddField("测试结果", "result", db.Varchar).
@@ -88,9 +89,16 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(160).FieldHide()
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace().FieldWidth(80).FieldHide()
+		FieldTrimSpace().
+		FieldWidth(80).
+		FieldHide()
 	info.AddField("所属产品", "product", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products).FieldWidth(120)
+		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(products).
+		FieldEditAble(editType.Select).
+		FieldEditOptions(products).
+		FieldWidth(220)
+
 	info.AddField("创建人", "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
@@ -328,6 +336,10 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	formList.SetTable("playbook").SetTitle("场景列表").SetDescription("场景列表")
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
+		if _, ok := values["edit_type"]; !ok {
+			return
+		}
+
 		pEditType := values["edit_type"][0]
 		inputInfo := values["input_list"][0]
 		var apiList []string

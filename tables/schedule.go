@@ -100,7 +100,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	info.AddField("关联场景", "scene_list", db.Longtext).
 		FieldHide()
 	info.AddField("关联产品", "product_list", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products).FieldWidth(120)
+		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(products).
+		FieldEditAble(editType.Select).
+		FieldEditOptions(products).
+		FieldWidth(220)
 
 	info.AddField("任务状态", "task_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -415,6 +419,9 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	formList.SetTable("schedule").SetTitle("定时任务").SetDescription("定时任务")
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
+		if _, ok := values["edit_type"]; !ok {
+			return
+		}
 		id := values["id"][0]
 		edit_Type := values["edit_type"][0]
 		var dataList, dataNumList []string
