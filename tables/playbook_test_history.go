@@ -11,6 +11,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
+	template2 "html/template"
 	"strings"
 )
 
@@ -28,11 +29,36 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable().
 		FieldTrimSpace().FieldWidth(60)
 	info.AddField("场景描述", "name", db.Varchar).FieldWidth(160).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("数据文件列表", "api_list", db.Longtext).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("最近数据文件", "last_file", db.Longtext).FieldWidth(160).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetHistoryDataLinkByDataStr(model.Value)
+		})
+	info.AddField("最近数据文件", "last_file", db.Longtext).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(value types.FieldModel) interface{} {
+			b, num := biz.IsStrEndWithTimeFormat(value.Value)
+			suffix := biz.GetStrSuffix(value.Value)
+			if b {
+				dirName := value.Value[:len(value.Value)-num-len(suffix)]
+				return template.Default().
+					Link().
+					SetURL("/admin/fm/history/preview?path=/" + dirName + "/" + value.Value).
+					SetContent(template2.HTML(value.Value)).
+					OpenInNewTab().
+					SetTabTitle(template.HTML("数据执行历史文件")).
+					GetContent()
+			} else {
+				return template.Default().
+					Link().
+					SetURL("/admin/fm/data/preview?path=/" + value.Value).
+					SetContent(template2.HTML(value.Value)).
+					OpenInNewTab().
+					SetTabTitle(template.HTML("数据文件")).
+					GetContent()
+			}
+		}).FieldWidth(160)
 	info.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {

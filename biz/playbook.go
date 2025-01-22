@@ -323,22 +323,29 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 		if len(item) == 0 {
 			continue
 		}
-		b, _ := IsStrEndWithTimeFormat(item)
+
 		if index == 0 {
-			if b {
-				dirName = GetHistoryDataDirName(path.Base(item))
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(item), path.Base(item))
-			} else {
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, path.Base(item))
-			}
+			apiStr = path.Base(item)
 		} else {
-			if b {
-				dirName = GetHistoryDataDirName(path.Base(item))
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", apiStr, dirName, path.Base(item), path.Base(item))
-			} else {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
-			}
+			apiStr = fmt.Sprintf("%s,%s", apiStr, path.Base(item))
 		}
+
+		//b, _ := IsStrEndWithTimeFormat(item)
+		//if index == 0 {
+		//	if b {
+		//		dirName = GetHistoryDataDirName(path.Base(item))
+		//		apiStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(item), path.Base(item))
+		//	} else {
+		//		apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, path.Base(item))
+		//	}
+		//} else {
+		//	if b {
+		//		dirName = GetHistoryDataDirName(path.Base(item))
+		//		apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", apiStr, dirName, path.Base(item), path.Base(item))
+		//	} else {
+		//		apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
+		//	}
+		//}
 	}
 
 	lastFileTag := len(rawApiList)
@@ -354,9 +361,11 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 	if lastFileTag < len(rawApiList) {
 		for _, item := range rawApiList[lastFileTag+1:] {
 			if len(apiStr) > 0 {
-				apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
+				apiStr = fmt.Sprintf("%s,%s", apiStr, path.Base(item))
+				//apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
 			} else {
-				apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(item), path.Base(item))
+				apiStr = path.Base(item)
+				//apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(item), path.Base(item))
 			}
 
 		}
@@ -408,13 +417,14 @@ func (playbook Playbook) WritePlaybookResult(id, result, source string, envType 
 
 	sceneRecode.Name = playbook.Name
 	if len(lastFile) > 0 {
-		b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
-		if b {
-			dirName := GetHistoryDataDirName(path.Base(lastFile))
-			sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(lastFile), path.Base(lastFile))
-		} else {
-			sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(lastFile), path.Base(lastFile))
-		}
+		sceneRecode.LastFile = path.Base(lastFile)
+		//b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
+		//if b {
+		//	dirName := GetHistoryDataDirName(path.Base(lastFile))
+		//	sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(lastFile), path.Base(lastFile))
+		//} else {
+		//	sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(lastFile), path.Base(lastFile))
+		//}
 	}
 
 	sceneRecode.SceneType = playbook.SceneType
@@ -446,21 +456,22 @@ func (playbook Playbook) WritePlaybookHistoryResult(id, result, mode string, env
 	}
 
 	baseLastFile := path.Base(playbook.LastFile)
-	b, _ := IsStrEndWithTimeFormat(baseLastFile)
-	var dirName string
+	//b, _ := IsStrEndWithTimeFormat(baseLastFile)
+	//var dirName string
 
-	if b {
-		dirName = GetHistoryDataDirName(baseLastFile)
-	}
+	//if b {
+	//	dirName = GetHistoryDataDirName(baseLastFile)
+	//}
 
 	if len(baseLastFile) == 0 {
 		dbScene.LastFile = " " // 用空格字符串刷新数据
 	} else {
-		if b {
-			dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, baseLastFile, baseLastFile)
-		} else {
-			dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", baseLastFile, baseLastFile)
-		}
+		dbScene.LastFile = baseLastFile
+		//if b {
+		//	dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, baseLastFile, baseLastFile)
+		//} else {
+		//	dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", baseLastFile, baseLastFile)
+		//}
 	}
 
 	if errIn != nil {
@@ -524,8 +535,8 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	}
 
 	var filePath string
-	fileNames := GetListFromHtml(dbScene.ApiList)
-	//fileNames := strings.Split(dbScene.ApiList, ",")
+	//fileNames := GetListFromHtml(dbScene.ApiList)
+	fileNames := strings.Split(dbScene.ApiList, ",")
 
 	for _, item := range fileNames {
 
@@ -547,7 +558,8 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	playbook.Apis = filePaths
 	playbook.Name = dbScene.Name
 	if len(dbScene.LastFile) > 0 {
-		playbook.LastFile = GetStrFromHtml(dbScene.LastFile)
+		//playbook.LastFile = GetStrFromHtml(dbScene.LastFile)
+		playbook.LastFile = dbScene.LastFile
 	}
 
 	playbook.Product = dbScene.Product
@@ -1389,5 +1401,31 @@ func GetPlaybookUsedInTaskList(playbookName, pkId string) (linkStr string) {
 	}
 	linkStr = fmt.Sprintf("<a href=\"/admin/info/schedule?%s\">%s</a>", queryStr, playbookName) // 直接跑数据列表进行过滤
 
+	return
+}
+
+func GetHistoryDataLinkByDataStr(pStr string) (linkStr string) {
+	pList := strings.Split(pStr, ",")
+	for _, item := range pList {
+		if len(item) == 0 {
+			continue
+		}
+
+		var dirName, itemLinkStr string
+		b, num := IsStrEndWithTimeFormat(item)
+		suffix := GetStrSuffix(item)
+		if b {
+			dirName = item[:len(item)-num-len(suffix)]
+			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, item, item)
+		} else {
+			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item)
+		}
+
+		if len(linkStr) == 0 {
+			linkStr = itemLinkStr //跳详情，可自动点击编辑进行改写
+		} else {
+			linkStr = fmt.Sprintf("%s<br>%s", linkStr, itemLinkStr)
+		}
+	}
 	return
 }
