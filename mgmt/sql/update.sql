@@ -17,3 +17,6 @@ alter table api_definition modify api_status enum('1', '2', '3', '4') default '1
 alter table api_definition modify is_auto enum('1', '0') default '0' null comment '是否已自动化';
 alter table api_definition modify is_auto enum('1', '-1') default '-1' null comment '是否已自动化,1:已自动化，-1:未自动化';
 alter table api_definition modify is_need_auto enum('1', '-1') default '-1' null comment '是否需自动化,1:需自动化，-1:无需自动化';
+
+# 2025年2月6日
+alter table api_definition modify api_status enum('1', '2', '3', '4', '30', '31', '32', '33', '34') default '1' null comment '接口状态, 1:新增,2:被删除,3:被修改,4:保持原样,30:Header被修改，31:Path被修改，32:Query被修改，33:Body被修改，34:Resp被修改';

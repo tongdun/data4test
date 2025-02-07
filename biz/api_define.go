@@ -27,7 +27,7 @@ type ApiStringDefinition struct {
 	QueryParameterString
 	Version            int    `gorm:"column:version" json:"version"`
 	Check              string `gorm:"column:check" json:"check"`
-	ApiStatus          int    `gorm:"column:api_status" json:"api_status"`
+	ApiStatus          string `gorm:"column:api_status" json:"api_status"`
 	IsAuto             string `gorm:"column:is_auto" json:"is_auto"`
 	IsNeedAuto         string `gorm:"column:is_need_auto" json:"is_need_auto"`
 	ChangeContent      string `gorm:"column:change_content" json:"change_content"`

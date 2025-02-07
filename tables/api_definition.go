@@ -59,6 +59,11 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		{Value: "2", Text: "被删除"},
 		{Value: "3", Text: "被修改"},
 		{Value: "4", Text: "保持原样"},
+		{Text: "Header被修改", Value: "30"},
+		{Text: "Path被修改", Value: "31"},
+		{Text: "Query被修改", Value: "32"},
+		{Text: "Body被修改", Value: "33"},
+		{Text: "Resp被修改", Value: "34"},
 	}).FieldDisplay(func(model types.FieldModel) interface{} {
 		if model.Value == "1" {
 			return "新增"
@@ -68,6 +73,16 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			return "被修改"
 		} else if model.Value == "4" {
 			return "保持原样"
+		} else if model.Value == "30" {
+			return "Header被修改"
+		} else if model.Value == "31" {
+			return "Path被修改"
+		} else if model.Value == "32" {
+			return "Query被修改"
+		} else if model.Value == "33" {
+			return "Body被修改"
+		} else if model.Value == "34" {
+			return "Resp被修改"
 		}
 		return "新增"
 	})
@@ -266,6 +281,11 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			{Text: "被删除", Value: "2"},
 			{Text: "被修改", Value: "3"},
 			{Text: "保持原样", Value: "4"},
+			{Text: "Header被修改", Value: "30"},
+			{Text: "Path被修改", Value: "31"},
+			{Text: "Query被修改", Value: "32"},
+			{Text: "Body被修改", Value: "33"},
+			{Text: "Resp被修改", Value: "34"},
 		}).FieldDefault("1")
 	formList.AddField("变更内容", "change_content", db.Longtext, form.TextArea)
 	formList.AddField("规范检查", "check", db.Varchar, form.Text)
@@ -295,6 +315,83 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		err = biz.UpdateApiDefVer(id)
 		return
 	})
+
+	detail := apiDefinition.GetDetail()
+	detail.AddField("自增主键", "id", db.Int)
+	detail.AddField("接口ID", "api_id", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiAutoDataList(model.Value, model.ID)
+		})
+	detail.AddField("所属模块", "api_module", db.Varchar)
+	detail.AddField("接口描述", "api_desc", db.Varchar)
+	detail.AddField("请求方法", "http_method", db.Enum)
+	detail.AddField("请求路径", "path", db.Varchar)
+	detail.AddField("Header参数", "header", db.JSON)
+	detail.AddField("Path参数", "path_variable", db.JSON)
+	detail.AddField("Query参数", "query_parameter", db.JSON)
+	detail.AddField("Body参数", "body", db.JSON)
+	detail.AddField("Resp参数", "response", db.JSON)
+	detail.AddField("接口版本", "version", db.Int)
+	detail.AddField("接口状态", "api_status", db.Enum).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "1" {
+				return "新增"
+			} else if model.Value == "2" {
+				return "被删除"
+			} else if model.Value == "3" {
+				return "被修改"
+			} else if model.Value == "4" {
+				return "保持原样"
+			} else if model.Value == "30" {
+				return "Header被修改"
+			} else if model.Value == "31" {
+				return "Path被修改"
+			} else if model.Value == "32" {
+				return "Query被修改"
+			} else if model.Value == "33" {
+				return "Body被修改"
+			} else if model.Value == "34" {
+				return "Resp被修改"
+			}
+			return "新增"
+		})
+	detail.AddField("变更内容", "change_content", db.Longtext)
+	detail.AddField("规范检查", "check", db.Varchar)
+	detail.AddField("规范检查失败原因", "api_check_fail_reason", db.JSON)
+	detail.AddField("是否需自动化", "is_need_auto", db.Enum).
+		FieldEditAble(editType.Select).FieldEditOptions(types.FieldOptions{
+		{Value: "-1", Text: "否"},
+		{Value: "1", Text: "是"},
+	}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
+		{Value: "-1", Text: "否"},
+		{Value: "1", Text: "是"},
+	}).FieldDisplay(func(model types.FieldModel) interface{} {
+		if model.Value == "1" {
+			return "是"
+		} else if model.Value == "-1" {
+			return "否"
+		}
+		return "是"
+	})
+	detail.AddField("是否已自动化", "is_auto", db.Enum).
+		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
+		{Value: "-1", Text: "否"},
+		{Value: "1", Text: "是"},
+	}).FieldDisplay(func(model types.FieldModel) interface{} {
+		if model.Value == "1" {
+			return "是"
+		} else if model.Value == "-1" {
+			return "否"
+		}
+		return "否"
+	})
+
+	detail.AddField("所属应用", "app", db.Varchar)
+	detail.AddField("备注", "remark", db.JSON)
+	detail.AddField("创建时间", "created_at", db.Timestamp)
+	detail.AddField("更新时间", "updated_at", db.Timestamp)
+	detail.AddField("删除时间", "deleted_at", db.Timestamp).
+		FieldHide()
 
 	return apiDefinition
 }

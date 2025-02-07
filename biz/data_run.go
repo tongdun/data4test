@@ -1414,7 +1414,7 @@ func GetCommonHeader(envConfig EnvConfig) (header map[string]interface{}, err er
 		strTmp := GetStrFromHtml(envConfig.Auth)
 		err = json.Unmarshal([]byte(strTmp), &header)
 		if err != nil {
-			Logger.Error("%s", err)
+			Logger.Error("解析header异常: %s", err)
 			return
 		}
 	}

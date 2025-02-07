@@ -615,7 +615,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 		if len(tmpStr[0]) > 2 {
 			err = json.Unmarshal([]byte(tmpStr[0]), &privateParameter)
 			if err != nil {
-				Logger.Error("%s", err)
+				Logger.Error("解析专用参数异常: %s", err)
 				return
 			}
 		}
@@ -1294,16 +1294,19 @@ func GetDataFileLinkByDataStr(pStr string) (linkStr string) {
 	return
 }
 
-func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
-	dList := strings.Split(dStr, ",")
-	for _, item := range dList {
+func GetApiDetailLinkByApiStr(appNameRaw interface{}, apiStr string) (linkStr string) {
+	appName := Interface2Str(appNameRaw)
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(apiStr))
+	handle := doc.Text()
+	apiIdList := strings.Split(handle, "\n")
+	for _, item := range apiIdList {
 		if len(item) == 0 {
 			continue
 		}
 		var ids []int
-		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
-		if len(dList) == 0 {
-			Logger.Warning("未数据找到数据文件[%s], 请核对", item)
+		models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, item).Pluck("id", &ids)
+		if len(ids) == 0 {
+			Logger.Warning("未找到接口[%s], 请核对", item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写
 			} else {
@@ -1311,9 +1314,44 @@ func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
 			}
 		} else {
 			if len(linkStr) == 0 {
-				linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳详情，可自动点击编辑进行改写
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/api_definition/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳详情，可自动点击编辑进行改写
 			} else {
-				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/api_definition/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+			}
+		}
+	}
+	return
+}
+
+func GetApiDetailLinkByApiRaw(appNameRaw interface{}, apiStr string) (linkStr string) {
+	appName := Interface2Str(appNameRaw)
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(apiStr))
+	handle := doc.Text()
+	apiIdList := strings.Split(handle, "\n")
+	for _, item := range apiIdList {
+		if len(item) == 0 {
+			continue
+		}
+		var ids []int
+		var apiId, otherInfo string
+		if strings.Contains(item, " ") {
+			apiId = strings.Split(item, " ")[0]
+			otherInfo = strings.Split(item, " ")[1]
+		}
+
+		models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, apiId).Pluck("id", &ids)
+		if len(ids) == 0 {
+			Logger.Warning("未找到接口[%s], 请核对", apiId)
+			if len(linkStr) == 0 {
+				linkStr = item //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, apiId, otherInfo) // 如果被删了，显示普通信息，无链接
+			}
+		} else {
+			if len(linkStr) == 0 {
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/api_definition/detail?__goadmin_detail_pk=%d\">%s</a> %s", ids[0], apiId, otherInfo) //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/api_definition/detail?__goadmin_detail_pk=%d\">%s</a> %s", linkStr, ids[0], apiId, otherInfo)
 			}
 		}
 	}
@@ -1425,6 +1463,32 @@ func GetHistoryDataLinkByDataStr(pStr string) (linkStr string) {
 			linkStr = itemLinkStr //跳详情，可自动点击编辑进行改写
 		} else {
 			linkStr = fmt.Sprintf("%s<br>%s", linkStr, itemLinkStr)
+		}
+	}
+	return
+}
+
+func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
+	dList := strings.Split(dStr, ",")
+	for _, item := range dList {
+		if len(item) == 0 {
+			continue
+		}
+		var ids []int
+		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
+		if len(dList) == 0 {
+			Logger.Warning("未找到数据文件[%s], 请核对", item)
+			if len(linkStr) == 0 {
+				linkStr = item //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item) // 如果被删了，显示普通信息，无链接
+			}
+		} else {
+			if len(linkStr) == 0 {
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+			}
 		}
 	}
 	return

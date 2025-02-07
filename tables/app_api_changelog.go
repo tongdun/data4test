@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"data4perf/biz"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
@@ -73,6 +74,39 @@ func GetAppApiChangelogTable(ctx *context.Context) table.Table {
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
 	formList.SetTable("app_api_changelog").SetTitle("接口记录表").SetDescription("接口记录表")
+
+	detail := appApiChangelog.GetDetail()
+	detail.AddField("自增主键", "id", db.Int)
+	detail.AddField("所属应用", "app", db.Varchar)
+	detail.AddField("当前接口总数", "curApiSum", db.Int)
+	detail.AddField("已存在接口数", "existApiSum", db.Int)
+	detail.AddField("新增接口数", "newApiSum", db.Int)
+	detail.AddField("删除接口数", "deletedApiSum", db.Int)
+	detail.AddField("变更接口数", "changedApiSum", db.Int)
+	detail.AddField("规范检查失败接口数", "checkFailApiSum", db.Int)
+	detail.AddField("新增接口详情", "newApiContent", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiDetailLinkByApiStr(model.Row["app"], model.Value)
+		})
+	detail.AddField("删除接口详情", "deletedApiContent", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiDetailLinkByApiStr(model.Row["app"], model.Value)
+		})
+	detail.AddField("变更接口详情", "changedApiContent", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiDetailLinkByApiStr(model.Row["app"], model.Value)
+		})
+	detail.AddField("规范检查失败接口详情", "apiCheckFailContent", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetApiDetailLinkByApiRaw(model.Row["app"], model.Value)
+		})
+	detail.AddField("接口检查结果", "apiCheckResult", db.Varchar)
+	detail.AddField("版本分支", "branch", db.Varchar)
+	detail.AddField("备注", "remark", db.Varchar)
+	detail.AddField("创建时间", "created_at", db.Timestamp)
+	detail.AddField("更新时间", "updated_at", db.Timestamp)
+	detail.AddField("删除时间", "deleted_at", db.Timestamp).
+		FieldHide()
 
 	return appApiChangelog
 }

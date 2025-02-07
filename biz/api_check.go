@@ -169,7 +169,7 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 	}
 
 	if failCount, err := GetSwagger(envConfig.Id); err == nil {
-		err = models.Orm.Table("api_definition").Where("app = ? and api_status not in (1,3,4)", envConfig.App).UpdateColumn(&ApiStringDefinition{ApiStatus: 2}).Error
+		err = models.Orm.Table("api_definition").Where("app = ? and api_status not in (1,3,4)", envConfig.App).UpdateColumn(&ApiStringDefinition{ApiStatus: "2"}).Error
 		if err != nil {
 			Logger.Error("%v", err)
 			go CallBack4Cicd(baseUrl, nodeId, status)
@@ -237,18 +237,18 @@ func GetChangedContent(infoType string, newList, deletedList, changedList, oldLi
 }
 
 func UpdateApiChangeLog(appApiChange AppApiChange) {
-	models.Orm.Table("api_definition").Where("app = ? and api_status in (1,3,4)", appApiChange.App).Count(&appApiChange.CurApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 1", appApiChange.App).Count(&appApiChange.NewApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 2", appApiChange.App).Count(&appApiChange.DeletedApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 3", appApiChange.App).Count(&appApiChange.ChangedApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and api_status in (3,4)", appApiChange.App).Count(&appApiChange.ExistApiSum)
-	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail'", appApiChange.App).Count(&appApiChange.CheckFailApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status in ('1','3','4','30','31','32','33','34')", appApiChange.App).Count(&appApiChange.CurApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status = '1'", appApiChange.App).Count(&appApiChange.NewApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status = '2'", appApiChange.App).Count(&appApiChange.DeletedApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status in ('3','30','31','32','33','34')", appApiChange.App).Count(&appApiChange.ChangedApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and api_status in ('3','4','30','31','32','33','34')", appApiChange.App).Count(&appApiChange.ExistApiSum)
+	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail'and api_status != '2'", appApiChange.App).Count(&appApiChange.CheckFailApiSum)
 
 	var newList, deletedList, changedList, apiCheckFailList []string
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 1", appApiChange.App).Pluck("api_id", &newList)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 2", appApiChange.App).Pluck("api_id", &deletedList)
-	models.Orm.Table("api_definition").Where("app = ? and api_status = 3", appApiChange.App).Pluck("api_id", &changedList)
-	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail'", appApiChange.App).Pluck("api_check_fail_reason", &apiCheckFailList)
+	models.Orm.Table("api_definition").Where("app = ? and api_status = '1'", appApiChange.App).Pluck("api_id", &newList)
+	models.Orm.Table("api_definition").Where("app = ? and api_status = '2'", appApiChange.App).Pluck("api_id", &deletedList)
+	models.Orm.Table("api_definition").Where("app = ? and api_status in ('3','30','31','32','33','34')", appApiChange.App).Pluck("api_id", &changedList)
+	models.Orm.Table("api_definition").Where("app = ? and `check` = 'fail' and api_status != '2'", appApiChange.App).Pluck("api_check_fail_reason", &apiCheckFailList)
 
 	if len(newList) > 0 {
 		for index, item := range newList {

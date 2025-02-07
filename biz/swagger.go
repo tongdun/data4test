@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func GetLastOne(item string) (value string) {
 }
 
 func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
-	defAllDict = make(VarMapList)
+
 	var definiKeys []string
 	j := 0
 	if len(swagger.Definitions) > 0 {
@@ -42,45 +43,57 @@ func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
 			j++
 		}
 	}
+	sort.Strings(definiKeys)
+	defAllDict = make(VarMapList) // 动态分配空间
+	//defAllDict = make(VarMapList, len(definiKeys))  // 指定长度分配空间
 
 	if len(swagger.Definitions) > 0 {
-		for _, v := range definiKeys {
-			var paramList []VarDefModel
-			subProperty := swagger.Definitions[v].Properties
-			subProKeys := make([]string, len(subProperty))
-			j = 0
-			for k := range subProperty {
-				subProKeys[j] = k
-				j++
-			}
-
-			for _, sv := range subProKeys {
-				var varDef VarDefModel
-				varDef.ValueType = subProperty[sv].Type
-				varDef.Desc = subProperty[sv].Description
-				varDef.Name = sv
-				if len(varDef.ValueType) == 0 && len(subProperty[sv].Ref) > 0 {
-					resDef := GetLastOne(subProperty[sv].Ref)
-					respList, _ := defAllDict[resDef]
-					varDef.ValueType = "object"
-					mapTemp := make(map[string]string)
-					for _, item := range respList {
-						mapTemp[item.Name] = item.ValueType
-					}
-					if len(mapTemp) != 0 {
-						mapByte, errTmp := json.Marshal(mapTemp)
-						if errTmp != nil {
-							Logger.Error("%s", errTmp)
-						}
-						varDef.EgValue = string(mapByte)
-					}
+		for i := 0; i < 3; i++ { // Map排序不稳定，依赖的数据未加载，导致先循环到的未定义，因此增加多次轮询
+			for _, v := range definiKeys {
+				var paramList []VarDefModel
+				subProperty := swagger.Definitions[v].Properties
+				subProKeys := make([]string, len(subProperty))
+				j = 0
+				for k := range subProperty {
+					subProKeys[j] = k
+					j++
 				}
 
-				paramList = append(paramList, varDef)
+				for _, sv := range subProKeys {
+					var varDef VarDefModel
+					varDef.ValueType = subProperty[sv].Type
+					varDef.Desc = subProperty[sv].Description
+					varDef.Name = sv
+					if len(varDef.ValueType) == 0 && len(subProperty[sv].Ref) > 0 {
+						resDef := GetLastOne(subProperty[sv].Ref)
+						respList, isExist := defAllDict[resDef]
+						if isExist {
+							varDef.ValueType = "object"
+							mapTemp := make(map[string]string)
+							for _, item := range respList {
+								mapTemp[item.Name] = item.ValueType
+							}
+							if len(mapTemp) != 0 {
+								mapByte, errTmp := json.Marshal(mapTemp)
+								if errTmp != nil {
+									Logger.Error("%s", errTmp)
+								}
+								varDef.EgValue = string(mapByte)
+							}
+						} else {
+							if i == 2 {
+								Logger.Warning("不存在: %s", resDef)
+							}
+						}
+					}
+
+					paramList = append(paramList, varDef)
+				}
+				defAllDict[v] = paramList
 			}
 
-			defAllDict[v] = paramList
 		}
+
 	} else if len(swagger.Components.ComSchema) > 0 {
 		for _, v := range definiKeys {
 			var paramList []VarDefModel
@@ -313,31 +326,28 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 		fileNameOld, err = ExecCommand(cmdStr)
 		if err != nil {
 			goto nextHere
-		} else if len(fileNameOld) == 0 {
-			curTime := time.Now().Format(timeFormatWithNoSpecial)
-			fileNameNew := fmt.Sprintf("%s/%s_%s.json", ApiFilePath, app, curTime)
-			errTmp := ioutil.WriteFile(fileNameNew, content, 0644)
-			if errTmp != nil {
-				Logger.Error("%s", errTmp)
-				goto nextHere
-			}
-		} else {
-			curTime := time.Now().Format(timeFormatWithNoSpecial)
-			fileNameNew := fmt.Sprintf("%s/%s_%s.json", ApiFilePath, app, curTime)
-			errTmp := WriteJson(content, fileNameNew)
+		}
 
-			if errTmp != nil {
-				goto nextHere
-			}
+		curTime := time.Now().Format(timeFormatWithNoSpecial)
+		fileNameNew := fmt.Sprintf("%s/%s_%s.json", ApiFilePath, app, curTime)
+		errTmp := WriteJson(content, fileNameNew)
+
+		if errTmp != nil {
+			Logger.Error("记录最新接口文档信息异常")
+			goto nextHere
+		}
+
+		if len(fileNameOld) > 0 {
 			cmdStr = fmt.Sprintf("diff %s %s", fileNameOld, fileNameNew)
 			diffContent, errTmp := ExecCommand(cmdStr)
 			if errTmp != nil {
+				Logger.Error("查看差异内容异常")
 				goto nextHere
 			}
 			if len(diffContent) > 0 {
-				Logger.Warning("%s", diffContent)
-			} else {
-				// 新旧文件无差异，把新文件实时进行删除
+				Logger.Info("差异查看命令: %s", cmdStr)
+				Logger.Warning("接口差异内容: %s", diffContent)
+			} else { // 新旧文件无差异，对新文件进行实时删除
 				cmdStr := fmt.Sprintf("rm -f %s", fileNameNew)
 				_, _ = ExecCommand(cmdStr)
 			}
@@ -403,7 +413,6 @@ nextHere:
 				err = fmt.Errorf("%s,%s", err, errTmp)
 			}
 		}
-
 	}
 
 	var dbApiIds []string
@@ -418,7 +427,7 @@ nextHere:
 				var dbApiDef DbApiStringDefinition
 
 				_ = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, item).Find(&dbApiDef)
-				dbApiDef.ApiStatus = 2
+				dbApiDef.ApiStatus = "2"
 				errTmp := models.Orm.Table("api_definition").Where("id = ?", dbApiDef.Id).Update(&dbApiDef).Error
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
@@ -515,7 +524,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 
 	models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, apiId).Find(&dbApiStrDef)
 	if len(dbApiStrDef.ApiId) == 0 {
-		apiStrDef.ApiStatus = 1
+		apiStrDef.ApiStatus = "1"
 		apiStrDef.Version = 1
 		apiStrDef.IsNeedAuto = "1"
 		models.Orm.Table("scene_data").Where("app = ? and api_id = ?", app, apiId).Count(&dataCount)
@@ -586,40 +595,50 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		if len(headerChanged) > 0 {
+			apiStrDef.ApiStatus = "30"
 			allChanged = fmt.Sprintf("%s", headerChanged)
 		}
 		if len(pathChanged) > 0 {
 			if len(allChanged) > 0 {
+				apiStrDef.ApiStatus = "3"
 				allChanged = fmt.Sprintf("%s\n%s", allChanged, pathChanged)
 			} else {
+				apiStrDef.ApiStatus = "31"
 				allChanged = fmt.Sprintf("%s", pathChanged)
 			}
 		}
 		if len(queryChanged) > 0 {
 			if len(allChanged) > 0 {
+				apiStrDef.ApiStatus = "3"
 				allChanged = fmt.Sprintf("%s\n%s", allChanged, queryChanged)
 			} else {
+				apiStrDef.ApiStatus = "32"
 				allChanged = fmt.Sprintf("%s", queryChanged)
 			}
 		}
 		if len(bodyChanged) > 0 {
 			if len(allChanged) > 0 {
+				apiStrDef.ApiStatus = "3"
 				allChanged = fmt.Sprintf("%s\n%s", allChanged, bodyChanged)
 			} else {
+				apiStrDef.ApiStatus = "33"
 				allChanged = fmt.Sprintf("%s", bodyChanged)
 			}
 		}
 		if len(respChanged) > 0 {
 			if len(allChanged) > 0 {
+				apiStrDef.ApiStatus = "3"
 				allChanged = fmt.Sprintf("%s\n%s", allChanged, respChanged)
 			} else {
+				apiStrDef.ApiStatus = "34"
 				allChanged = fmt.Sprintf("%s", respChanged)
 			}
 
 		}
-		// 接口状态, 1:新增,2:被删除,3:被修改,4:保持原样
+		// 接口状态, 1:新增,2:被删除,3:被修改,4:保持原样, 30: Header被修改，31:Path被修改，32:Query被修改，33:Body被修改，34:Resp被修改
 		if len(allChanged) > 0 {
-			apiStrDef.ApiStatus = 3
+			//apiStrDef.ApiStatus = 3
+			apiStrDef.Version = dbApiStrDef.Version + 1 // 被修改时，接口版本自动+1
 			curTime := time.Now().Format("2006/01/02 15:04:05")
 			if len(dbApiStrDef.ChangeContent) > 0 {
 				apiStrDef.ChangeContent = fmt.Sprintf("%s\n%s变更记录:\n%s", dbApiStrDef.ChangeContent, curTime, allChanged)
@@ -627,7 +646,7 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 				apiStrDef.ChangeContent = fmt.Sprintf("%s变更记录:\n%s", curTime, allChanged)
 			}
 		} else {
-			apiStrDef.ApiStatus = 4
+			apiStrDef.ApiStatus = "4"
 		}
 
 		models.Orm.Table("scene_data").Where("api_id = ?", dbApiStrDef.ApiId).Count(&dataCount)
@@ -636,11 +655,11 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 		}
 
 		apiStrDef.IsNeedAuto = dbApiStrDef.IsNeedAuto
-		apiStrDef.Version = dbApiStrDef.Version
 		apiStrDef.Remark = dbApiStrDef.Remark
 
 		err = models.Orm.Table("api_definition").Where("id = ?", dbApiStrDef.Id).Update(&apiStrDef).Error
 		if err != nil {
+			Logger.Debug("apiStrDef.ApiStatus: %v", apiStrDef.ApiStatus)
 			Logger.Error("%s", err)
 		}
 	}
