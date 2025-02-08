@@ -385,7 +385,7 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
-			apiId := fmt.Sprintf("put_%s", v)
+			apiId := fmt.Sprintf("post_%s", v)
 			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
@@ -396,7 +396,7 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
-			apiId := fmt.Sprintf("put_%s", v)
+			apiId := fmt.Sprintf("delete_%s", v)
 			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
@@ -407,7 +407,7 @@ nextHere:
 			if !chekTag {
 				checkFailCount++
 			}
-			apiId := fmt.Sprintf("put_%s", v)
+			apiId := fmt.Sprintf("get_%s", v)
 			apiIds = append(apiIds, apiId)
 			if errTmp != nil {
 				err = fmt.Errorf("%s,%s", err, errTmp)
@@ -417,22 +417,19 @@ nextHere:
 
 	var dbApiIds []string
 	models.Orm.Table("api_definition").Where("app = ?", app).Pluck("api_id", &dbApiIds)
-	LenOfApiIds := len(apiIds)
 	for _, item := range dbApiIds {
 		for index, subItem := range apiIds {
 			if item == subItem {
 				break
 			}
-			if index == LenOfApiIds-1 {
+			if index == len(apiIds)-1 {
 				var dbApiDef DbApiStringDefinition
-
 				_ = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", app, item).Find(&dbApiDef)
 				dbApiDef.ApiStatus = "2"
 				errTmp := models.Orm.Table("api_definition").Where("id = ?", dbApiDef.Id).Update(&dbApiDef).Error
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 				}
-				return
 			}
 		}
 	}
