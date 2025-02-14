@@ -96,6 +96,49 @@ func (df DataFile) SetSleepAction() (err error) {
 	return
 }
 
+func (df DataFile) ChangeOutputValue(outputRaw map[string][]interface{}) (outputMap map[string][]interface{}, err error) {
+	if len(df.Action) > 0 {
+		for _, item := range df.Action {
+			if item.Type == "change_output" {
+				valueType := fmt.Sprintf("%T", item.Value)
+				if valueType == "string" {
+					vlaueStr := item.Value.(string)
+					tmpList := strings.Split(vlaueStr, ":")
+					if len(tmpList) < 3 {
+						err = fmt.Errorf("change_output值定义有误，请确认~")
+						Logger.Error("%v", err)
+						return
+					}
+					var valueKey, old, new, newValue string
+					var changeNum int
+					valueKey = tmpList[0]
+					old = tmpList[1]
+					new = tmpList[2]
+					if len(tmpList) >= 4 {
+						changeNumStr := tmpList[3]
+						changeNum, err = strconv.Atoi(changeNumStr)
+					}
+					if _, ok := outputRaw[valueKey]; ok {
+						var newList []interface{}
+						for _, subValue := range outputRaw[valueKey] {
+							tmpStr := Interface2Str(subValue)
+							if changeNum > 0 {
+								newValue = strings.Replace(tmpStr, old, new, changeNum)
+							} else {
+								newValue = strings.Replace(tmpStr, old, new, -1)
+							}
+							newList = append(newList, newValue)
+						}
+						outputRaw[valueKey] = newList
+					}
+				}
+			}
+		}
+	}
+
+	return outputRaw, err
+}
+
 func (df DataFile) RecordDataOrderByKey(bodys []map[string]interface{}) (err error) {
 	if len(bodys) == 0 {
 		return

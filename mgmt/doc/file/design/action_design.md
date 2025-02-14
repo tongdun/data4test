@@ -27,7 +27,7 @@
 - type: modify_file
   value: record_template.yml:record_template_{certid}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
 - type: change_output
-  value: parameter_name:old:new  // 输出参数名称:替换前的字符串:替换后的字符串  匹配到的值全部进行替换，old可以是正则表达式，需要替换的用()匹配出来
+  value: parameter_name:old:new:num  // 输出参数名称:替换前的字符串:替换后的字符串:替换范围  ，替换范围无或为-1表示全局替换，为正整数，表示替换前N个匹配到的字符串。 todo: old可以是正则表达式，需要替换的用()匹配出来
 ```
 
 #### modify_file动作模板文件示例

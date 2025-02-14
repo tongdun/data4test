@@ -2091,11 +2091,21 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 		result = "pass"
 		df.FailReason = []string{}
 	}
+	var dataInfo, dataWithHeader []byte
+	var errTmp error
+
+	outputDict, errTmp = df.ChangeOutputValue(outputDict)
+	if errTmp != nil {
+		Logger.Error("%s", errTmp)
+		if err != nil {
+			err = fmt.Errorf("%v,%v", err, errTmp)
+		} else {
+			err = errTmp
+		}
+	}
 
 	df.Output = outputDict
 
-	var dataInfo, dataWithHeader []byte
-	var errTmp error
 	if strings.HasSuffix(filePath, ".json") {
 		dataInfo, errTmp = json.MarshalIndent(df, "", "    ")
 	} else {
