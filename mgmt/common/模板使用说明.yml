@@ -73,16 +73,16 @@ assert:
     source: code    # 返回的json信息，取key为code的值
     value: 200
   - type: ">="    # 验证source字段大于等于1
-    source: data-total     # 返回的json信息，data字典-取出productDesc的值
+    source: data.total     # 返回的json信息，data字典.取出productDesc的值
     value: 1
   - type:  contain
-    source: data-contents*productDesc  # 返回的json信息，data字典-content字典-字典列表，取出productDesc的值, 并校验是否包含 value中的值
+    source: data.contents[:].productDesc  # 返回的json信息，data字典.content数组.字典字段，取出productDesc的值, 并校验是否包含 value中的值
     value: 待删除的产品描述
   - type: "!in"   # 验证取到的productName的值包含删除
-    source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值, 不包含 value 中的值
+    source: data.contents[1].productName  # 返回的json信息，data字典.content数组.字典字段，取出第二个值下的productName字段的值, 不包含value中的值
     value: 删除
   - type: not_contain   # 验证取到的productName的值不包含删除
-    source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值
+    source: data.contents[-1].productName  # 返回的json信息，data字典.content数组.字典字段，取出数组最后一个值下productName字段的值
     value: 产品
   - type: re
     source: message
@@ -91,10 +91,10 @@ assert:
     source: message
     value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
   - type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
-    source: data-contents*uuid
+    source: data.contents[:].uuid
     value: uuid
   - type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
-    source: data-contents*uuid
+    source: data.contents[:].uuid
     value: ProductUuid
   - type: output_re  # 从整体返回中进行正则匹配提取，并重命名为taskId，()中匹配到的值取出来，如果匹配到多个值，均会进行提取
     source: '\\"taskId\\":\\"(.+)\\"'
@@ -115,11 +115,14 @@ assert:
     source:  File:EXCEL:1:1
     value: taskId
   - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
-    source: File:JSON:data-total    #
+    source: File:JSON:data.total    #
     value: XXXCount
   - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
-    source: File:YML:data-total
+    source: File:YML:data.total
     value: XXXCount
+  - type: output    # todo
+    source: data.Contents[@status=XXX].uuid
+    value: dataUuid
 
 # 数据执行后的动作
 action:
@@ -143,6 +146,8 @@ action:
     value: name.yaml:{phoneno}.yaml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
   - type: modify_file
     value: name.yml:{phoneno}.yml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  - type: modify_output            // todo
+    value: data[1]:str1:str2:-1    // output参数名称[索引]:原值:新值:替换个数，索引中-N，表示从后往前，替换个数-1替换全部，
 
 # 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
 output:

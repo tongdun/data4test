@@ -348,6 +348,10 @@ func RunOnceTask(id string) (err error) {
 				} else {
 					err = err1
 				}
+				if strings.Contains(err.Error(), "请求失败，返回码: 401, 返回信息:") {
+					Logger.Error("鉴权失败，执行至场景编号:%s, 后续场景不再执行", sceneId)
+					break
+				}
 				//break // 场景执行完后，后续场景不再执行，后续可以做错误精细化管理
 			}
 		}
@@ -773,8 +777,6 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 		if strings.Contains(item.Content, "<pre><code>") {
 			item.Content = strings.Replace(item.Content, "<pre><code>", "", -1)
 			item.Content = strings.Replace(item.Content, "</code></pre>", "", -1)
-		} else {
-			item.Content = item.Content
 		}
 
 		if strings.Contains(item.Content, "multipart/form-data") {
@@ -843,7 +845,8 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			dataValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s',%d,'%s','%s')", dataValueStr, item.Name, item.ApiId, item.App, item.FileName, item.FileType, item.Content, item.RunTime, item.Remark, userName)
 		}
 
-		indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:\n", "output: {}")
+		//indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:\n", "output: {}")
+		indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:", "output: {}")
 		if len(indexStr) > 0 {
 			assertVars, _ := GetInStrDef(indexStr)
 			for item, _ := range assertVars {
@@ -853,7 +856,8 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			}
 		}
 
-		indexStr, _, _, _ = GetStrByIndex(item.Content, "env:\n", "action:")
+		//indexStr, _, _, _ = GetStrByIndex(item.Content, "env:\n", "action:")
+		indexStr, _, _, _ = GetStrByIndex(item.Content, "env:", "action:")
 		if len(indexStr) > 0 {
 			systemParameterVars, _ := GetInStrDef(indexStr)
 			for item, _ := range systemParameterVars {
@@ -963,9 +967,9 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 
 func GetImportFilePackage(filePath string, fileNameImportMap map[string]bool) (isExist bool, err error) {
 	count := 0
-	Logger.Debug("filePath: %v", filePath)
 	fw, err := os.Create(filePath)
 	if err != nil {
+		Logger.Debug("filePath: %v", filePath)
 		Logger.Error("%s", err)
 	}
 	defer fw.Close()
