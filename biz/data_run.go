@@ -1132,7 +1132,7 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 				df.Request = []string{}
 				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 				if err != nil {
-					Logger.Debug("%s", err)
+					Logger.Error("%s", err)
 				}
 				resList = append(resList, res)
 				df.Response = append(df.Response, string(res))
