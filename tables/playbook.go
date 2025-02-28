@@ -51,6 +51,14 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 			GetContent()
 	}).FieldWidth(160)
 
+	pTypes := types.FieldOptions{
+		{Value: "1", Text: "串行中断"},
+		{Value: "2", Text: "串行比较"},
+		{Value: "3", Text: "串行继续"},
+		{Value: "4", Text: "普通并发"},
+		{Value: "5", Text: "并发比较"},
+	}
+
 	info.AddField("类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
@@ -65,13 +73,11 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 				return "并发比较"
 			}
 			return "串行中断"
-		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "串行中断"},
-		{Value: "2", Text: "串行比较"},
-		{Value: "3", Text: "串行继续"},
-		{Value: "4", Text: "普通并发"},
-		{Value: "5", Text: "并发比较"},
-	})
+		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(pTypes).
+		FieldEditAble(editType.Select).
+		FieldEditOptions(pTypes).
+		FieldWidth(80)
+
 	info.AddField("优先级", "priority", db.Int).
 		FieldFilterable(types.FilterType{FormType: form.Number}).
 		FieldSortable().FieldWidth(80).

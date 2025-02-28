@@ -35,8 +35,8 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("所属应用", "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件", "content", db.Varchar).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+	info.AddField("数据文件", "content", db.Longtext).
+		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).  // 样式不友好，暂时屏蔽
 		FieldDisplay(func(value types.FieldModel) interface{} {
 			return template.Default().
 				Link().
@@ -47,11 +47,13 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 				GetContent()
 		})
 	info.AddField("测试结果", "result", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "pass", Text: "pass"},
-		{Value: "fail", Text: "fail"},
-	})
-	info.AddField("失败原因", "fail_reason", db.Longtext)
+		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(types.FieldOptions{
+			{Value: "pass", Text: "pass"},
+			{Value: "fail", Text: "fail"},
+		})
+	info.AddField("失败原因", "fail_reason", db.Longtext).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("环境类型", "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {

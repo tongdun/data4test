@@ -984,7 +984,6 @@ func GetImportFilePackage(filePath string, fileNameImportMap map[string]bool) (i
 	for item, _ := range fileNameImportMap {
 		count++
 		srcFilePath := fmt.Sprintf("%s/%s", UploadBasePath, item)
-		Logger.Debug("srcFilePath: %v", srcFilePath)
 		fi, errTmp := os.Stat(srcFilePath)
 		if errTmp != nil {
 			srcDFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, item)

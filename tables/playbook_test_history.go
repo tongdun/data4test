@@ -89,7 +89,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}).FieldWidth(70)
-	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(200).
+	info.AddField("失败原因", "fail_reason", db.Longtext).
+		FieldWidth(200).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("环境类型", "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
