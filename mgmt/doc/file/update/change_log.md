@@ -1,3 +1,9 @@
+#### 2025年3月6日
+1、[Optimize] 断言值模板列表名称支持模糊检索
+2、[Feature] 返回断言数据支持通过属性值判断再获取对应字段的值，e.g.: 
+   - data.contents[@name=XXX&&@status=1].uuid  
+   - data.contents[@name=XXX||@status=1].uuid  
+
 #### 2025年2月28日
 1、[Feature] 任务执行时，若遇到401，即时退出，不再执行后续场景或数据
 2、[Feature] 场景列表，场景类型可支持在列表进行变更

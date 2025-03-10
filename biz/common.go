@@ -775,6 +775,33 @@ func GetSlicesIndex(src string) (keyName string, index int) {
 	return
 }
 
+func GetSliceProperties(src string) (keyName, compareType string, properties []string) {
+	strByte := []byte(src)
+	indexReg := regexp.MustCompile(`(\w+)\[(@.+)\]`)
+	indexMatch := indexReg.FindAllSubmatch(strByte, -1)
+	if len(indexMatch) > 0 {
+		keyName = string(indexMatch[0][1])
+		propertiesRaw := string(indexMatch[0][2])
+		if strings.Contains(propertiesRaw, "&&") {
+			tmps := strings.Split(propertiesRaw, "&&")
+			for _, item := range tmps {
+				properties = append(properties, item[1:])
+			}
+			compareType = "&&"
+		} else if strings.Contains(propertiesRaw, "||") {
+			tmps := strings.Split(propertiesRaw, "||")
+			for _, item := range tmps {
+				properties = append(properties, item[1:])
+			}
+			compareType = "||"
+		} else {
+			compareType = "&&"
+			properties = append(properties, propertiesRaw[1:])
+		}
+	}
+	return
+}
+
 func Is2Split(src string) (indexType string, b bool) {
 	starIndex := strings.Index(src, "*")
 	barIndex := strings.Index(src, "-")

@@ -76,6 +76,7 @@
 <summary>标准数据文件示例</summary>
 
 ```---
+---
 # 用例信息
 name: 示例-用户管理-新建用户 # 数据用例名称，e.g.: 类型-模块-用例， 类型：功能/性能/异常/内置/……， 模块：用户管理/规则管理/……
 api_id: post_/path        # 用例ID, method_path组合，后续做数据联动使用，数据统计使用
@@ -84,7 +85,7 @@ is_run_pre_apis: "no"     # 是否跑前置用例，选项：yes / no,  默认 n
 is_run_post_apis: "no"    # 是否跑后置用例，选项：yes / no,  默认 no， 功能未开发
 is_parallel: "no"         # 是否并行跑数据，选项：yes / no,  默认 no，
 is_use_env_config: "yes"  # 是否使用公共环境，选项：yes / no,  默认 yes
-
+is_var_strong_check: "yes"   # 是否开始变量强校验，选项：yes / no,  默认 yes
 # 环境信息
 env:
   protocol: http        # http 或 https，请求协议
@@ -116,8 +117,8 @@ single:
     vaLue: '{FlowType}'   # 在'系统参数'菜单下，进行参数定义定义，支持多语种定
     name: '*{Name}*'      # 引用上文Name变量，当做一个整体，JSON格式
     name2: '**{Name}**'   # 引用上文Name变量，当做一个整体，字符串格式
-    XXName: '{self}'      # 引用上文XXName变量的值，[{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
-  bodyList:              # 当请求body直接是List时，相关请求参数放到bodyList下
+    XXName: '{self}'      # 引用上文XXName变量的值，{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
+  bodyList:               # 当请求body直接是List时，相关请求参数放到bodyList下
     - name: '{Name}'
       sex: '{Sex}'
     - name: '{Rune(4)}'
@@ -128,75 +129,78 @@ multi:
   path: {}                    # PATH 变更参数定义，定义的值为列表
   body:
     description:              # 定义多值时，取各项定义的个数最少的数据，一一对应
-    - '{Rune(128)}'    # 获取设置长度的汉字
-    - '{Str(64)}'      # 获取设置长度的字符串
-    - '{Int(10,100)}'  # 获取设置范围内的整数
+      - '{Rune(128)}'    # 获取设置长度的汉字
+      - '{Str(64)}'      # 获取设置长度的字符串
+      - '{Int(10,100)}'  # 获取设置范围内的整数
     displayName:
-    - '{Date(-2)}'      # 获取两天前的日期
-    - '{Date(2)}'       # 获取两天后的日期
-    - '{Timestamp(-2)}' # 获取两天前的时间戳
+      - '{Date(-2)}'      # 获取两天前的日期
+      - '{Date(2)}'       # 获取两天后的日期
+      - '{Timestamp(-2)}' # 获取两天前的时间戳
     name:
-    - '{IDNo}'          # 获取身份证字符串
-    - '{Name}'          # 获取名字字符串
-    - '{Address}'       # 获取地址字符串
-    - '{BankNo}'        # 获取银行卡号字符串
+      - '{IDNo}'          # 获取身份证字符串
+      - '{Name}'          # 获取名字字符串
+      - '{Address}'       # 获取地址字符串
+      - '{BankNo}'        # 获取银行卡号字符串
 
 # 断言，数据校验，根据需要写不同类型的断言，不写断言，只要返回为200，即算 PASS
 assert:
-- type: equal   # 验证code的值等于200
-  source: code    # 返回的json信息，取key为code的值
-  value: 200 
-- type: "!=" # 验证code的值不等于200
-  source: code    # 返回的json信息，取key为code的值
-  value: 200 
-- type: ">="    # 验证source字段大于等于1
-  source: data-total     # 返回的json信息，data字典-取出productDesc的值
-  value: 1
-- type:  contain
-  source: data-contents*productDesc  # 返回的json信息，data字典-content字典-字典列表，取出productDesc的值, 并校验是否包含 value中的值
-  value: 待删除的产品描述
-- type: "!in"   # 验证取到的productName的值包含删除
-  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值, 不包含 value 中的值
-  value: 删除
-- type: not_contain   # 验证取到的productName的值不包含删除
-  source: data-contents*productName  # 返回的json信息，data字典-content字典-字典列表，取出productName的值
-  value: 产品
-- type: re
-  source: message
-  value: 成功|重复|已存在
-- type: re
-  source: message
-  value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
-- type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
-  source: data-contents*uuid
-  value: uuid
-- type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
-  source: data-contents*uuid
-  value: ProductUuid
-- type: output_re  # 从整体返回中进行正则匹配提取，并重命名为taskId，()中匹配到的值取出来，如果匹配到多个值，均会进行提取
-  source: '\\"taskId\\":\\"(.+)\\"'
-  value: taskId
-- type: output_re  # 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
-  source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"'
-  value: taskId
-- type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
-  source: File:TXT:1:1:,
-  value: taskId
-- type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
-  source:  File:CSV:1:1:|
-  value: taskId
-- type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
-  source:  File:CSV:1:1:|
-  value: taskId
-- type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
-  source:  File:EXCEL:1:1
-  value: taskId
-- type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
-  source: File:JSON:data-total    #
-  value: XXXCount
-- type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
-  source: File:YML:data-total
-  value: XXXCount
+  - type: equal   # 验证code的值等于200
+    source: code    # 返回的json信息，取key为code的值
+    value: 200
+  - type: "!=" # 验证code的值不等于200
+    source: code    # 返回的json信息，取key为code的值
+    value: 200
+  - type: ">="    # 验证source字段大于等于1
+    source: data.total     # 返回的json信息，data字典.取出productDesc的值
+    value: 1
+  - type:  contain
+    source: data.contents[:].productDesc  # 返回的json信息，data字典.content数组.字典字段，取出productDesc的值, 并校验是否包含 value中的值
+    value: 待删除的产品描述
+  - type: "!in"   # 验证取到的productName的值包含删除
+    source: data.contents[1].productName  # 返回的json信息，data字典.content数组.字典字段，取出第二个值下的productName字段的值, 不包含value中的值
+    value: 删除
+  - type: not_contain   # 验证取到的productName的值不包含删除
+    source: data.contents[-1].productName  # 返回的json信息，data字典.content数组.字典字段，取出数组最后一个值下productName字段的值
+    value: 产品
+  - type: re
+    source: message
+    value: 成功|重复|已存在
+  - type: re
+    source: message
+    value: '{successTemplate}'  # 在'断言值模板'菜单下，进行断言值模板定义，支持多语种
+  - type: output  # 从返回的json 信息取取出 uuid 的值，并命名为uuid
+    source: data.contents[:].uuid
+    value: uuid
+  - type: output  # 从返回的json信息取出uuid的值，并重命名为ProductUuid
+    source: data.contents[:].uuid
+    value: ProductUuid
+  - type: output_re  # 从整体返回中进行正则匹配提取，并重命名为taskId，()中匹配到的值取出来，如果匹配到多个值，均会进行提取
+    source: '\\"taskId\\":\\"(.+)\\"'
+    value: taskId
+  - type: output_re  # 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
+    source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"'
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source: File:TXT:1:1:,
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:CSV:1:1:|
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:CSV:1:1:|
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
+    source:  File:EXCEL:1:1
+    value: taskId
+  - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
+    source: File:JSON:data.total    #
+    value: XXXCount
+  - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
+    source: File:YML:data.total
+    value: XXXCount
+  - type: output    # todo
+    source: data.Contents[@status=XXX].uuid
+    value: dataUuid
 
 # 数据执行后的动作
 action:
@@ -220,23 +224,25 @@ action:
     value: name.yaml:{phoneno}.yaml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
   - type: modify_file
     value: name.yml:{phoneno}.yml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
+  - type: modify_output            // todo
+    value: data[1]:str1:str2:-1    // output参数名称[索引]:原值:新值:替换个数，索引中-N，表示从后往前，替换个数-1替换全部，
 
 # 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
 output:
   uuid:
-  - XXX
-  - XXX
+    - XXX
+    - XXX
 
 # 测试结果：pass, fail, untest, 自动生成，断言全部符合要求设为pass, 请求若返回非200，直接置为 fail, 如果执行次数测试为0，测置为 untest
 # 保留最新测试结果
 test_result:
-- pass
-- fail
-- untest
+  - pass
+  - fail
+  - untest
 
 # 请求 URL，自动生成， 保留最新测试结果
 urls:
-- http://X.X.X.X:8089/prefix/path
+  - http://X.X.X.X:8089/prefix/path
 
 # 请求数据，body, query, 自动生成, 保留最新测试结果
 requests:
@@ -244,8 +250,8 @@ requests:
 
 # 返回信息, 自动生成， 保留最新测试结果
 response:
-- "response1"
-- "response2"
+  - "response1"
+  - "response2"
 ```
 </details>
 

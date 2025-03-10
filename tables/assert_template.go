@@ -21,7 +21,7 @@ func GetAssertTemplateTable(ctx *context.Context) table.Table {
 	info.AddField("自增主键", "id", db.Int).
 		FieldSortable()
 	info.AddField("模板名称", "name", db.Varchar).
-		FieldFilterable()
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("定义信息", "value", db.Longtext)
 	info.AddField("备注", "remark", db.Varchar)
 	info.AddField("创建人", "user_name", db.Varchar).

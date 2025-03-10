@@ -350,53 +350,111 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 	}
 
 	if splitIndexType == "list" {
-		keyTmpName, index := GetSlicesIndex(keyRawName)
-		tmpInterface = data.(map[string]interface{})[keyTmpName]
-		var listInterface []interface{}
-		if tmpInterface != nil {
-			listInterface = tmpInterface.([]interface{})
-		} else {
-			err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
-			Logger.Error("%s", err)
-			return keyName, values, err
-		}
-
-		var targetInterface interface{}
-		varType := fmt.Sprintf("%T", tmpInterface)
-		if varType == "string" {
-			tmpStr := targetInterface.(string)
-			listIndex := strings.Index(tmpStr, "[")
-			if listIndex == 0 {
-				var tmpMap []interface{}
-				json.Unmarshal([]byte(tmpStr), &tmpMap)
-				return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
-			}
-		}
-
-		if varType != "[]interface {}" {
-			err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-			Logger.Error("%s", err)
-			return keyName, values, err
-		}
-
-		if len(listInterface) > index {
-			if index < 0 {
-				targetInterface = listInterface[len(listInterface)+index]
+		if strings.Contains(keyRawName, "@") { // 通过属性值从数组中获取指定的值
+			keyTmpName, compareType, properties := GetSliceProperties(keyRawName)
+			tmpInterface = data.(map[string]interface{})[keyTmpName]
+			var listInterface []interface{}
+			if tmpInterface != nil {
+				listInterface = tmpInterface.([]interface{})
 			} else {
-				targetInterface = listInterface[index]
+				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				Logger.Error("%s", err)
+				return keyName, values, err
 			}
-		} else {
-			if len(listInterface) > 0 {
-				Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
-				targetInterface = listInterface[0]
-			} else {
-				err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+			varType := fmt.Sprintf("%T", tmpInterface)
+			if varType != "[]interface {}" {
+				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
 
+			for index, subItem := range listInterface {
+				subMap := subItem.(map[string]interface{})
+				if compareType == "&&" {
+					for subIndex, property := range properties {
+						propertyName := strings.Split(property, "=")[0]
+						propertyValue := strings.Split(property, "=")[1]
+						if value, ok := subMap[propertyName]; ok {
+							if propertyValue != value {
+								if index == len(listInterface)-1 {
+									err = fmt.Errorf("未找到%s=%s的值，请核对", propertyName, propertyValue)
+									Logger.Error("%s", err)
+									return keyName, values, err
+								}
+							} else {
+								if subIndex == len(properties)-1 {
+									return sceneAssert.GetOutput(subItem)
+								}
+							}
+						}
+					}
+				} else {
+					for subIndex, property := range properties {
+						propertyName := strings.Split(property, "=")[0]
+						propertyValue := strings.Split(property, "=")[1]
+						if value, ok := subMap[propertyName]; ok {
+							if propertyValue != value {
+								if index == len(listInterface)-1 && subIndex == len(properties)-1 {
+									err = fmt.Errorf("未找到%s=%s的值，请核对", propertyName, propertyValue)
+									Logger.Error("%s", err)
+									return keyName, values, err
+								}
+								continue
+							} else {
+								return sceneAssert.GetOutput(subItem)
+							}
+						}
+					}
+				}
+			}
+		} else { // 通过数组下标索引获取指定的值
+			keyTmpName, index := GetSlicesIndex(keyRawName)
+			tmpInterface = data.(map[string]interface{})[keyTmpName]
+			var listInterface []interface{}
+			if tmpInterface != nil {
+				listInterface = tmpInterface.([]interface{})
+			} else {
+				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				Logger.Error("%s", err)
+				return keyName, values, err
+			}
+
+			var targetInterface interface{}
+			varType := fmt.Sprintf("%T", tmpInterface)
+			if varType == "string" {
+				tmpStr := targetInterface.(string)
+				listIndex := strings.Index(tmpStr, "[")
+				if listIndex == 0 {
+					var tmpMap []interface{}
+					json.Unmarshal([]byte(tmpStr), &tmpMap)
+					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
+				}
+			}
+
+			if varType != "[]interface {}" {
+				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+				Logger.Error("%s", err)
+				return keyName, values, err
+			}
+
+			if len(listInterface) > index {
+				if index < 0 {
+					targetInterface = listInterface[len(listInterface)+index]
+				} else {
+					targetInterface = listInterface[index]
+				}
+			} else {
+				if len(listInterface) > 0 {
+					Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
+					targetInterface = listInterface[0]
+				} else {
+					err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+					Logger.Error("%s", err)
+					return keyName, values, err
+				}
+			}
+			return sceneAssert.GetOutput(targetInterface)
 		}
-		return sceneAssert.GetOutput(targetInterface)
 	} else if splitIndexType == "listAll" {
 		items := strings.SplitN(keyRawName, "[", 2)
 		keyTmpName := items[0]
