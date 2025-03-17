@@ -76,27 +76,37 @@
 - output: {type: output, source: data.contents[0].uuid, value: uuid}, 定义输出变量，提供给其他接口依赖使用
 
 ### 其他特性说明
-##### Output类型说明
-- output类型时，可以针对数组下标取值，e.g,:
+##### source提取目标字段说明
+- 可针对数组下索引取值，从前往后或从后往前，e.g,:
   - {type: output, source: data.contents[-1].uuid, value: codeUuid}, 取contents数组最后一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[0].uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid  
   - {type: output, source: data.contents[1].uuid, value: codeUuid}, 取contents数组第二个值的uuid赋值给codeUuid
   - {type: output, source: contents[:].uuid, value: codeUuid, 取contents全部数组的uuid赋值给codeUuid。不支持多层嵌套的取，如contents[:].uuidList[:].uuid
   - {type: output, source: data.contents.uuid, value: codeUuid}, 取contents数组第一个值的uuid赋值给codeUuid，若contents为数组，但未定义索引，会默认取第一个值
+  - {type: output, source: data.contents.uuid, value: codeUuid}, 若uuid是一个数组，会当做一个整体数据赋值给codeUuid
+  - {type: =, source: contents[0].uuid, value: "{codeUuid}", 取contents数组第一个uuid的值与变量codeUuid比较
+  - {type: re, source: data.contents[-1].name, value: XXX}, 取contents数组第一个值的name,与XXX正常行正则匹配
 
-- output类型时，可以针对数组下字典属性取值值，e.g,:
+- 可针对数组下字典属性取值，e.g,:
   - {type: output, source: data.contents[@name=XXX&&@status=1].uuid, value: codeUuid}, 取contents数组下，name属性值为XXX且status属性值为1，取对应的uuid，赋值给codeUuid, 取到第一个值后即不再判断后续的对象
   - {type: output, source: data.contents[@name=XXX||@status=1].uuid, value: codeUuid}, 取contents数组下，name属性值为XXX或status属性值为1，取对应的uuid，赋值给codeUuid,第一个条件满足后即不再判断后续的条件
-  
-- output类型时，可以针对数组一次全部提取（返回的信息中uuid是一个数组）,e.g.:
-  - {type: output, source: data.contents.uuid, value: codeUuid}, 如果uuid是一个数组，会当做一个整体数据赋值给codeUuid    
-  - {type: output, source: data.contents.uuid[:], value: codeUuid}, 把数组uuid会当做一个整体数据赋值给codeUuid
+  - {type: =, source: data.contents[@name=XXX&&@status=1].uuid, value: "{codeUuid}"}, 取contents数组下，name属性值为XXX且status属性值为1，取对应的uuid，跟codeUuid变量值进行比较, 取到第一个值后即不再判断后续的对象
+  - {type: re, source: data.contents[@name=XXX||@status=1].remark, value: "XXX}, 取contents数组下，name属性值为XXX或status属性值为1，取对应的remark，与XXX进行正则匹配,第一个条件满足后即不再判断后续的条件
+
+##### value比较字段说明
+- 支持断言模板，支持多语种比较
+  - {type: re, source: data.message, value: {successTemplate},  successTemplate定义为多语种，运行时会根据语种进行比较
+- 支持四则运算+、-、*、/
+  - {type: =, source: data.total, value: {lastTotal} + 1, 获取当前接口的total值, 与lastTotal变量值+1进行相等比较
+- 支持常用数据统计函数: Max、Min, Sum, Avg, Floor, Pow, Abs, Ceil, Round, Remainder, Exp, Log, Mean, Variance, Median
+  - {type: =, source: data.value, value: Max({Value[0]}, {Value[1]}, {Value[3]}), 获取当前接口的value值，与计算出来的最大值进行相等比较
+  - {type: >, source: data.value, value: Min({Value[0]}, {Value[1]}, {Value[3]}), 获取当前接口的value值，比计算出来的最小值进行小于比较
 
 ##### 断言值模板，支持多语种定义  
 - JSON格式：e.g.:
   - {"default": "v1,v2,v3,v4,……", "ch": "v1,v2,v3,v4,……", "en": "v1,v2,v3,v4,……"}
   
-- 普通格式定义：e.g.:
+- 普通格式定义：e.g.:ß
   - v1,v2,v3,v4,……
   
 - 当断言值为模板时，用占位符，执行时会自动获取，如果有设置多语种，会根据语言获取对应的值，e.g.:
