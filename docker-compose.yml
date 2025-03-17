@@ -1,7 +1,7 @@
 version: "3.3"
 services:
   db:
-    image: josingcjx/db-data4test:3.0
+    image: josingcjx/db-data4test:4.0
     container_name: db-data4test
     command: --default-authentication-plugin=mysql_native_password
     ports:
@@ -15,7 +15,7 @@ services:
       - MYSQL_USER:admin
       - MYSQL_PASSWORD:data4test
   data4test:
-    image: josingcjx/data4test:3.0
+    image: josingcjx/data4test:4.0
     container_name: data4test
     restart: always
     depends_on:
