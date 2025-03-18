@@ -1035,7 +1035,7 @@ UNLOCK TABLES;
 
 LOCK TABLES `playbook` WRITE;
 /*!40000 ALTER TABLE `playbook` DISABLE KEYS */;
-INSERT INTO `playbook` VALUES (1,'示例场景','1','<a href=\"/admin/fm/data/preview?path=/示例-用户管理-新建用户.yml\">示例-用户管理-新建用户.yml</a>','','1',1,1,'','',NULL,'admin','示例产品','2023-12-13 02:23:25',NULL,NULL);
+INSERT INTO `playbook` VALUES (1,'示例场景','1','示例-用户管理-新建用户.yml','','1',1,1,'','',NULL,'admin','示例产品','2023-12-13 02:23:25',NULL,NULL);
 /*!40000 ALTER TABLE `playbook` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
