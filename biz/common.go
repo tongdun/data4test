@@ -822,7 +822,7 @@ func GetSplitIndexType(src string) (indexType, splitTag string) {
 	indexType = "map"
 	if strings.Contains(src, ".") {
 		splitTag = "."
-	} else if strings.Contains(src, "-") {
+	} else if strings.Contains(src, "-") && !strings.Contains(src, "[-") { // name[-1]逆顺选取的情况要排除
 		splitTag = "-"
 	}
 
