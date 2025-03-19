@@ -837,6 +837,8 @@ func GetSplitIndexType(src string) (indexType, splitTag string) {
 
 	if listIndex < mapIndex && listIndex != -1 {
 		indexType = "list"
+	} else if mapIndex == 0 && listIndex > 0 && listAllIndex == -1 {
+		indexType = "list"
 	} else {
 		indexType = "map"
 	}

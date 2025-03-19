@@ -355,15 +355,22 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			tmpInterface = data.(map[string]interface{})[keyTmpName]
 			var listInterface []interface{}
 			if tmpInterface != nil {
-				listInterface = tmpInterface.([]interface{})
+				varType := fmt.Sprintf("%T", tmpInterface)
+				if varType == "string" { // 如果是字符串的JSON，进行再次序列化
+					tmpStr := tmpInterface.(string)
+					listIndex := strings.Index(tmpStr, "[")
+					if listIndex == 0 {
+						json.Unmarshal([]byte(tmpStr), &listInterface)
+					} else {
+						err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+						Logger.Error("%s", err)
+						return keyName, values, err
+					}
+				} else {
+					listInterface = tmpInterface.([]interface{})
+				}
 			} else {
 				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
-				Logger.Error("%s", err)
-				return keyName, values, err
-			}
-			varType := fmt.Sprintf("%T", tmpInterface)
-			if varType != "[]interface {}" {
-				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
@@ -399,7 +406,6 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 									Logger.Error("%s", err)
 									return keyName, values, err
 								}
-								continue
 							} else {
 								return sceneAssert.GetOutput(subItem)
 							}
@@ -442,6 +448,11 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					targetInterface = listInterface[len(listInterface)+index]
 				} else {
 					targetInterface = listInterface[index]
+				}
+				if len(sceneAssert.Source) == 0 {
+					strValue := Interface2Str(targetInterface)
+					values = append(values, strValue)
+					return keyName, values, err
 				}
 			} else {
 				if len(listInterface) > 0 {
