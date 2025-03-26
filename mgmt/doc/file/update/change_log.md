@@ -1,3 +1,7 @@
+#### 2025年3月25日
+1、[Feature] 根据用户角色，支持自定义不同的跳转入口，config.json中redirect_path绑定角色名称  
+   e.g.: {"roleName": "redirectPath", "Administrator": "/admin/dashboard"}
+
 #### 2025年3月19日
 1、[Bug] 断言取值，当最后叶子节点是数组单值时，提取完后，会对空值再进行提取，导致显示结构不匹配
 

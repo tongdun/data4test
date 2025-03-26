@@ -111,6 +111,6 @@ echo '''
 	"log_level": "debug",
 	"cicd_host": "X.X.X.X:8088",
 	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
-	"redirect_path": "/admin/info/schedule"
+	"redirect_path": "{\"Administrator\":\"/admin/info/schedule\", \"Operator\":\"/admin/info/schedule\", \"ApiManage\":\"/admin/likePostman\"}"
 }
 ''' > deploy/config.json

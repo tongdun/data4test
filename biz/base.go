@@ -14,7 +14,7 @@ var (
 	CICD_HOST     string
 	SWAGGER_PATH  string
 	HOST_IP       string
-	REDIRECT_PATH string
+	REDIRECT_PATH map[string]string
 )
 
 var (
@@ -63,7 +63,11 @@ func init() {
 	CICD_HOST = config.CicdHost
 	SWAGGER_PATH = config.SwaggerPath
 	HOST_IP = config.HostIp
-	REDIRECT_PATH = config.RedirectPath
+	REDIRECT_PATH = make(map[string]string)
+	err = json.Unmarshal([]byte(config.RedirectPath), &REDIRECT_PATH)
+	if err != nil {
+		Logger.Warning("重定向路径定义异常: %s", err)
+	}
 
 	DataBasePath = fmt.Sprintf("%s/data", BASEPATH)
 	UploadBasePath = fmt.Sprintf("%s/upload", BASEPATH)

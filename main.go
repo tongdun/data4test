@@ -131,12 +131,35 @@ func startServer() {
 	}, true)
 
 	r.GET("/", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH)
+		user, _ := engine.User(ctx)
+		var roleName string
+		if len(user.Roles) > 0 {
+			roleName = user.Roles[0].Name
+		}
+		if _, ok := biz.REDIRECT_PATH[roleName]; ok {
+			ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH[roleName])
+		} else {
+			ctx.Redirect(http.StatusMovedPermanently, "/admin/dashboard")
+		}
+		
 		return
 	})
 
 	r.GET("/admin", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH)
+		user, _ := engine.User(ctx)
+		var roleName string
+		if len(user.Roles) > 0 {
+			roleName = user.Roles[0].Name
+		}
+
+		if _, ok := biz.REDIRECT_PATH[roleName]; ok {
+			ctx.Redirect(http.StatusMovedPermanently, biz.REDIRECT_PATH[roleName])
+		} else {
+			ctx.Redirect(http.StatusMovedPermanently, "/admin/dashboard")
+		}
+
+		return
+
 	})
 
 	r.GET("/admin/dashboard", ada.Content(pages.GetDashBoardContent))

@@ -1,13 +1,12 @@
-
 {
 	"custom_foot_html": "./html/tongdun.html",
 	"footer_info": "./html/tongdun.html",
 	"open_admin_api": true,
 	"database": {
-		"default":{
-			"host": "127.0.0.1",
+		"default": {
+			"host": "db",
 			"port": "3306",
-			"user": "username",
+			"user": "root",
 			"pwd": "password",
 			"name": "data4test",
 			"max_idle_con": 5,
@@ -24,9 +23,9 @@
 		"path": "./mgmt/upload",
 		"prefix": "uploads"
 	},
-	"title": "Data4Test",
-	"logo": "Data4Test",
-	"mini_logo": "DT",
+	"title": "盾测-自动化",
+	"logo": "盾测-自动化",
+	"mini_logo": "盾测",
 	"index": "/",
 	"login_url": "/login",
 	"debug": true,
@@ -39,8 +38,8 @@
 	"file_upload_engine": {
 		"name": "local"
 	},
-	"login_title": "Data4Test",
-	"login_logo": "Data4Test",
+	"login_title": "盾测-自动化",
+	"login_logo": "盾测-自动化",
 	"auth_user_table": "goadmin_users",
 	"bootstrap_file_path": "./bootstrap.go",
 	"go_mod_file_path": "./go.mod",
@@ -49,5 +48,6 @@
 	"server_port": 9088,
 	"log_level": "debug",
 	"cicd_host": "X.X.X.X:8088",
-	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1"
+	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
+	"redirect_path": "{\"Administrator\":\"/admin/info/schedule\", \"Operator\":\"/admin/info/schedule\", \"ApiManage\":\"/admin/likePostman\"}"
 }
