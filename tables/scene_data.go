@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -23,6 +23,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	sceneData := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	apps := biz.GetApps()
 	info := sceneData.GetInfo().HideFilterArea()
+	products := biz.GetProducts()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
@@ -84,7 +85,8 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	})
-	info.AddField("失败原因", "fail_reason", db.Longtext).FieldWidth(120)
+	info.AddField("失败原因", "fail_reason", db.Longtext).
+		FieldWidth(120)
 	info.AddField("备注", "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldHide()
@@ -171,30 +173,48 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddButton("测试", icon.Android, action.Ajax("scenedata_batch_run",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			var status string
-			if idStr == "," {
-				status = "请先选择数据再测试"
-				return false, status, ""
-			}
-			ids := strings.Split(idStr, ",")
-			for _, id := range ids {
-				if len(id) == 0 {
-					status = "测试完成，请刷新列表查看测试结果"
-					continue
-				}
+	info.AddButton("测试", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/data_batch_run",
+		Title:  "数据测试",
+		Width:  "900px",
+		Height: "300px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
+		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
+			FieldOptions(products).
+			FieldDefault(products[0].Value).
+			FieldHelpMsg("选择执行环境")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
-				if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
-					status = "测试完成，请刷新列表查看测试结果"
-				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
-					return false, status, ""
-				}
-			}
-			return true, status, ""
-		}))
+		return panel
+	}, "/data_batch_run"))
+
+	// 没有选择环境信息
+	//info.AddButton("测试", icon.Android, action.Ajax("scenedata_batch_run",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		idStr := ctx.FormValue("ids")
+	//		var status string
+	//		if idStr == "," {
+	//			status = "请先选择数据再测试"
+	//			return false, status, ""
+	//		}
+	//		ids := strings.Split(idStr, ",")
+	//		for _, id := range ids {
+	//			if len(id) == 0 {
+	//				status = "测试完成，请刷新列表查看测试结果"
+	//				continue
+	//			}
+	//
+	//			if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
+	//				status = "测试完成，请刷新列表查看测试结果"
+	//			} else {
+	//				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+	//				return false, status, ""
+	//			}
+	//		}
+	//		return true, status, ""
+	//	}))
 
 	info.AddActionButton("测试", action.Ajax("scenedata_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {

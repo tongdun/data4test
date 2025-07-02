@@ -15,7 +15,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/chartjs"
 
-	"data4perf/login"
+	"data4test/login"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -40,10 +40,10 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/gin-gonic/gin"
 
-	"data4perf/biz"
-	"data4perf/models"
-	"data4perf/pages"
-	"data4perf/tables"
+	"data4test/biz"
+	"data4test/models"
+	"data4test/pages"
+	"data4test/tables"
 
 	"github.com/GoAdminGroup/filemanager"
 	plugModels "github.com/GoAdminGroup/go-admin/plugins/admin/models"
@@ -141,7 +141,7 @@ func startServer() {
 		} else {
 			ctx.Redirect(http.StatusMovedPermanently, "/admin/dashboard")
 		}
-		
+
 		return
 	})
 
@@ -524,23 +524,38 @@ func startServer() {
 		if len(bodyStr) > 0 {
 			apiDataSave.BodyVars, err = biz.Str2VarModel(bodyStr)
 			if err != nil {
+				biz.Logger.Debug("err: %v", err)
 				data["code"] = 400
 				data["msg"] = err
+				biz.Logger.Debug("data: %v", data)
+				c.JSON(http.StatusOK, data)
+			} else {
+				err := biz.SaveApiData(apiDataSave, userName)
+
+				if err != nil {
+					data["code"] = 400
+					data["msg"] = err
+				} else {
+					data["code"] = 200
+					data["msg"] = "操作成功"
+				}
+
 				c.JSON(http.StatusOK, data)
 			}
-		}
-
-		err := biz.SaveApiData(apiDataSave, userName)
-
-		if err != nil {
-			data["code"] = 400
-			data["msg"] = err
 		} else {
-			data["code"] = 200
-			data["msg"] = "操作成功"
+			err := biz.SaveApiData(apiDataSave, userName)
+
+			if err != nil {
+				data["code"] = 400
+				data["msg"] = err
+			} else {
+				data["code"] = 200
+				data["msg"] = "操作成功"
+			}
+
+			c.JSON(http.StatusOK, data)
 		}
 
-		c.JSON(http.StatusOK, data)
 	})
 
 	r.POST("/sceneSave", func(c *gin.Context) {
@@ -903,6 +918,645 @@ func startServer() {
 			"yesOrNo":  yesOrNo,
 			"bankCard": chinaid.BankNo(),
 		})
+	})
+
+	// AI用例
+	r.POST("/ai_case_create_by_create_desc", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var inputCase biz.InputCase
+		inputCase.CreateUser = user.Name
+		inputCase.AiTemplate = c.PostForm("ai_template")
+		inputCase.IntroVersion = c.PostForm("intro_version")
+		inputCase.Product = c.PostForm("product")
+		inputCase.CreatePlatform = c.PostForm("create_platform")
+		createDesc := c.PostForm("create_desc")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+			biz.Logger.Debug("uploadFilePath: %s", uploadFilePath)
+		}
+		status := "生成任务已在后台运行,请稍后刷新列表查看生成用例"
+		if len(createDesc) == 0 {
+			status = "请先输入生成需求"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := inputCase.AICreateCaseByCreateDesc(createDesc, uploadFilePath)
+		//err := biz.AICreateCaseByCreateDesc(createDesc, uploadFilePath, inputCase)
+		if err != nil {
+			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_case_optimize", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		createUser := user.Name
+		ids := c.PostForm("ids")
+		createPlatform := c.PostForm("optimize_platform")
+		optimizeDesc := c.PostForm("optimize_desc")
+		status := "优化任务已在后台运行,请稍后刷新列表查看优化用例"
+
+		if len(optimizeDesc) == 0 || ids == "," {
+			status = "请先选择优化用例和输入优化指令"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		ids = strings.Trim(ids, ",")
+		err := biz.AIOptimizeCase(ids, optimizeDesc, createPlatform, createUser)
+		if err != nil {
+			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_create_case_by_api_define", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var inputCase biz.InputCase
+		inputCase.CreateUser = user.Name
+		ids := c.PostForm("ids")
+		inputCase.AiTemplate = c.PostForm("ai_template")
+		inputCase.IntroVersion = c.PostForm("intro_version")
+		inputCase.Product = c.PostForm("product")
+		inputCase.CreatePlatform = c.PostForm("create_platform")
+		status := "生成任务已在后台运行,请稍后前往[助手-智能用例]列表查看生成用例"
+		if ids == "," {
+			status = "请先选择接口定义"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+		ids = strings.Trim(ids, ",")
+		err = inputCase.AICreateCaseByApiDefine(ids)
+		if err != nil {
+			status = fmt.Sprintf("生成失败：%s: %s", ids, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+
+	})
+
+	r.POST("/ai_case_import", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var input biz.ImportCommon
+		input.CreateUser = user.Name
+		input.IntroVersion = c.PostForm("intro_version")
+		input.Product = c.PostForm("product")
+		input.CreatePlatform = c.PostForm("create_platform")
+		input.ConversationId = c.PostForm("conversation_id")
+		input.RawReply = c.PostForm("raw_reply")
+		status := "导入完成,请刷新列表查看生成用例"
+		if len(input.ConversationId) == 0 && len(input.RawReply) == 0 {
+			status = "请先输入会话ID或原生回复"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := input.AICreateCaseByImport()
+		if err != nil {
+			status = fmt.Sprintf("导入失败：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	// AI数据
+	r.POST("/ai_data_create_by_create_desc", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var input biz.InputData
+		input.CreateUser = user.Name
+		input.AiTemplate = c.PostForm("ai_template")
+		input.IntroVersion = c.PostForm("intro_version")
+		input.Product = c.PostForm("product")
+		input.CreatePlatform = c.PostForm("create_platform")
+		createDesc := c.PostForm("create_desc")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		status := "生成任务已在后台运行,请稍后刷新列表查看生成数据"
+		if len(createDesc) == 0 {
+			status = "请先输入生成需求"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+		err := input.AICreateDataAndPlaybookByCreateDesc(createDesc, uploadFilePath)
+		if err != nil {
+			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_data_optimize", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		createUser := user.Name
+		ids := c.PostForm("ids")
+		createPlatform := c.PostForm("optimize_platform")
+		optimizeDesc := c.PostForm("optimize_desc")
+		status := "优化任务已在后台运行,请稍后刷新列表查看优化数据"
+
+		if len(optimizeDesc) == 0 || ids == "," {
+			status = "请先选择优化数据和输入优化指令"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		ids = strings.Trim(ids, ",")
+		err := biz.AIOptimizeData(ids, optimizeDesc, createPlatform, createUser)
+		if err != nil {
+			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_create_data_by_api_define", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var input biz.InputData
+		input.CreateUser = user.Name
+		ids := c.PostForm("ids")
+		input.AiTemplate = c.PostForm("ai_template")
+		input.IntroVersion = c.PostForm("intro_version")
+		input.CreatePlatform = c.PostForm("create_platform")
+		input.Product = c.PostForm("product")
+		status := "生成任务已在后台运行,请稍后前往[助手-智能数据]列表查看生成数据"
+		if ids == "," {
+			status = "请先选择接口定义"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+		ids = strings.Trim(ids, ",")
+		err = input.AICreateDataAndPlaybookByApiDefine(ids)
+		if err != nil {
+			status = fmt.Sprintf("生成失败：%s: %s", ids, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+
+	})
+
+	r.POST("/ai_data_import", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var importCommon biz.ImportCommon
+		importCommon.CreateUser = user.Name
+		importCommon.CreatePlatform = c.PostForm("create_platform")
+		importCommon.IntroVersion = c.PostForm("intro_version")
+		importCommon.ConversationId = c.PostForm("conversation_id")
+		importCommon.RawReply = c.PostForm("raw_reply")
+		importCommon.Product = c.PostForm("product")
+		status := "导入完成,请刷新列表查看生成数据"
+		if len(importCommon.ConversationId) == 0 && len(importCommon.RawReply) == 0 {
+			status = "请先输入会话ID或原生回复"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := importCommon.AICreateDataAndPlaybookByImport()
+		if err != nil {
+			status = fmt.Sprintf("导入失败：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_data_test_and_analysis", func(c *gin.Context) {
+		var analysisInput biz.AnalysisDataInput
+		user, _ := engine.User(c)
+		analysisInput.CreateUser = user.Name
+		ids := c.PostForm("ids")
+		analysisInput.CreatePlatform = c.PostForm("analysis_platform")
+		analysisInput.AiTemplate = c.PostForm("ai_template")
+		analysisInput.Product = c.PostForm("product")
+		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
+		err = biz.AiDataTest(ids, analysisInput)
+		if err != nil {
+			status = fmt.Sprintf("分析遇错：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_data_test", func(c *gin.Context) {
+		//user, _ := engine.User(c)
+		//userName := user.Name
+		idStr := c.PostForm("ids")
+		product := c.PostForm("product")
+
+		var status string
+		if idStr == "," {
+			status = "请先选择数据再测试"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			ids := strings.Split(idStr, ",")
+			var errTag int
+			var status string
+			source := "ai_data"
+			status = "测试完成，请刷新列表查看测试结果"
+			for _, id := range ids {
+				if len(id) == 0 {
+					//status = "测试完成，请刷新列表查看测试结果"
+					continue
+				}
+
+				err := biz.RepeatRunDataFile(id, product, source)
+				if err != nil {
+					if errTag == 0 {
+						status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					} else {
+						status = fmt.Sprintf("%s; %s: %s", status, id, err)
+					}
+					errTag = 1
+				}
+			}
+
+			if errTag == 0 {
+				c.JSON(http.StatusOK, map[string]interface{}{
+					"code": 200,
+					"msg":  status,
+					"data": map[string]interface{}{},
+				})
+			} else {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]interface{}{},
+				})
+			}
+		}
+
+		return
+	})
+
+	r.POST("/data_batch_run", func(c *gin.Context) {
+		//user, _ := engine.User(c)
+		//userName := user.Name
+		idStr := c.PostForm("ids")
+		product := c.PostForm("product")
+
+		var status string
+		if idStr == "," {
+			status = "请先选择数据再测试"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			ids := strings.Split(idStr, ",")
+			var errTag int
+			var status string
+			source := "data"
+			status = "测试完成，请刷新列表查看测试结果"
+			for _, id := range ids {
+				if len(id) == 0 {
+					//status = "测试完成，请刷新列表查看测试结果"
+					continue
+				}
+				err := biz.RepeatRunDataFile(id, product, source)
+				if err != nil {
+					if errTag == 0 {
+						status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					} else {
+						status = fmt.Sprintf("%s; %s: %s", status, id, err)
+					}
+					errTag = 1
+				}
+			}
+
+			if errTag == 0 {
+				c.JSON(http.StatusOK, map[string]interface{}{
+					"code": 200,
+					"msg":  status,
+					"data": map[string]interface{}{},
+				})
+			} else {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]interface{}{},
+				})
+			}
+		}
+
+		return
+	})
+
+	// AI分析
+	r.POST("/ai_issue_import", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var importCommon biz.ImportCommon
+		importCommon.CreateUser = user.Name
+		importCommon.CreatePlatform = c.PostForm("create_platform")
+		importCommon.ConversationId = c.PostForm("conversation_id")
+		importCommon.RawReply = c.PostForm("raw_reply")
+		importCommon.Product = c.PostForm("product")
+		status := "导入完成,请刷新列表查看分析数据"
+		if len(importCommon.ConversationId) == 0 && len(importCommon.RawReply) == 0 {
+			status = "请先输入会话ID或原生回复"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := importCommon.AIAnalysisDataByImport()
+		if err != nil {
+			status = fmt.Sprintf("导入失败：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	// AI场景
+	r.POST("/ai_playbook_create_by_create_desc", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var input biz.InputPlaybook
+		input.CreateUser = user.Name
+		input.AiTemplate = c.PostForm("ai_template")
+		input.IntroVersion = c.PostForm("intro_version")
+		input.Product = c.PostForm("product")
+		input.CreatePlatform = c.PostForm("create_platform")
+		createDesc := c.PostForm("create_desc")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		status := "生成任务已在后台运行,请稍后刷新列表查看生成场景"
+		if len(createDesc) == 0 {
+			status = "请先输入生成需求"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+		err := input.AICreateDataAndPlaybookByCreateDesc(createDesc, uploadFilePath)
+		if err != nil {
+			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_playbook_optimize", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		createUser := user.Name
+		ids := c.PostForm("ids")
+		createPlatform := c.PostForm("optimize_platform")
+		optimizeDesc := c.PostForm("optimize_desc")
+		status := "优化任务已在后台运行,请稍后刷新列表查看优化场景"
+
+		if len(optimizeDesc) == 0 || ids == "," {
+			status = "请先选择优化场景和输入优化指令"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		ids = strings.Trim(ids, ",")
+		err := biz.AIOptimizeCase(ids, optimizeDesc, createPlatform, createUser)
+		if err != nil {
+			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_playbook_import", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		var input biz.ImportCommon
+		input.CreateUser = user.Name
+		input.CreatePlatform = c.PostForm("create_platform")
+		input.ConversationId = c.PostForm("conversation_id")
+		input.RawReply = c.PostForm("raw_reply")
+		input.Product = c.PostForm("product")
+		input.IntroVersion = c.PostForm("intro_version")
+		status := "导入完成,请刷新列表查看生成场景"
+		if len(input.ConversationId) == 0 && len(input.RawReply) == 0 {
+			status = "请先输入会话ID或原生回复"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := input.AICreateDataAndPlaybookByImport()
+		if err != nil {
+			status = fmt.Sprintf("导入失败：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	r.POST("/ai_playbook_test_and_analysis", func(c *gin.Context) {
+		var analysisInput biz.AnalysisDataInput
+		user, _ := engine.User(c)
+		analysisInput.CreateUser = user.Name
+		ids := c.PostForm("ids")
+		analysisInput.CreatePlatform = c.PostForm("analysis_platform")
+		analysisInput.AiTemplate = c.PostForm("ai_template")
+		analysisInput.Product = c.PostForm("product")
+		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
+		err = biz.AiPlaybookTest(ids, "ai_playbook", analysisInput)
+		if err != nil {
+			status = fmt.Sprintf("分析遇错：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
 	})
 
 	models.Init(eng.MysqlConnection())

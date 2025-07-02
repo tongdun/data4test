@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -524,7 +524,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	detail.AddField("创建人", "user_name", db.Text)
 	detail.AddField("创建时间", "created_at", db.Timestamp)
 	detail.AddField("更新时间", "updated_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp)
+	detail.AddField("删除时间", "deleted_at", db.Timestamp).FieldHide()
 	detail.SetTable("schedule").SetTitle("定时任务").SetDescription("定时详情")
 
 	return schedule

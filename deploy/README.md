@@ -13,8 +13,7 @@
 ##### 全新环境部署
 - 创建数据库：create database data4test;
 - 导入SQL文件：
-  - 初始化SQL: mysql -h x.x.x.x -u user -p data4test < ./mgmt/sql/init.sql
-  - 更新SQL: mysql -h x.x.x.x -u user -p data4test < ./mgmt/sql/update.sql
+  - 初始化SQL: mysql -h x.x.x.x -u user -p data4test < ./mgmt/sql/init_all_XXX.sql
 - 更改配置文件：config.json, 所有占位符按实际情况填写
 - vim config.json  # 变更数据库信息，路径信息按实际填写
 - vi config.json   # 部署系统未安装vim,使用vi
@@ -36,6 +35,9 @@
 - 访问：http://10.0.X.X:9088
 - 默认用户：admin/ admin
 
+#### 参数变更
+- 如需使用智能化测试，请前往[环境-系统参数]，对"aiRunEngine"参数，根据大模型的实际情况进行配置
+- 如需执行非标准化的数据， 请前往[环境-系统参数]，对"scriptRunEngine"参数，根据执行引擎的实际情况进行配置
 
 #### deploy包注解
 ```
@@ -190,9 +192,9 @@
 	"asset_root_path": "./public/",
 	"file_base_path": "./mgmt",
 	"server_port": 9088,     // 系统端口，如有冲突，可自行变更
-	"log_level": "debug",
+	"log_level": "release",
 	"cicd_host": "X.X.X.X:8088",   // CICD自动触发，无定制化，无需关注
 	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
-	"redirect_path": "/admin/info/schedule"    // 初次进入页面定义，可根据高频使用，自行定义，默认为任务列表
+	"redirect_path": "{\"Administrator\":\"/admin/info/schedule\", \"Operator\":\"/admin/info/schedule\", \"ApiManage\":\"/admin/likePostman\",\"Download\":\"/admin/fm/common/list\"}"    // 初次进入页面定义，可根据高频使用，自行定义，默认为任务列表
 }
 ```

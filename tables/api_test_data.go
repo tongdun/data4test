@@ -1,16 +1,16 @@
 package tables
 
 import (
+	"data4test/biz"
+	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/icon"
+	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
-	"github.com/GoAdminGroup/go-admin/template/types"
-	"github.com/GoAdminGroup/go-admin/template/icon"
-	"data4perf/biz"
 	"strings"
-	"fmt"
 )
 
 func GetApiTestDataTable(ctx *context.Context) table.Table {
@@ -108,7 +108,6 @@ func GetApiTestDataTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
-
 
 	info.AddButton("测试", icon.Android, action.Ajax("testdata_batch_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {

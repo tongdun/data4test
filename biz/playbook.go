@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -262,7 +262,12 @@ func (playbook Playbook) RunPlaybookContent(envType int, source string) (result,
 		Logger.Error("%s", err)
 	}
 
-	result, dst, errTmp := RunDataFile("", filePath, playbook.Product, source, depOutVars)
+	dbData, err := GetDataByFileName(filePath, source)
+	if err != nil {
+		return
+	}
+
+	result, dst, errTmp := dbData.RunDataFile(filePath, playbook.Product, source, depOutVars)
 
 	if errTmp != nil {
 		result = "fail"
@@ -329,23 +334,6 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 		} else {
 			apiStr = fmt.Sprintf("%s,%s", apiStr, path.Base(item))
 		}
-
-		//b, _ := IsStrEndWithTimeFormat(item)
-		//if index == 0 {
-		//	if b {
-		//		dirName = GetHistoryDataDirName(path.Base(item))
-		//		apiStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(item), path.Base(item))
-		//	} else {
-		//		apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, path.Base(item))
-		//	}
-		//} else {
-		//	if b {
-		//		dirName = GetHistoryDataDirName(path.Base(item))
-		//		apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", apiStr, dirName, path.Base(item), path.Base(item))
-		//	} else {
-		//		apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
-		//	}
-		//}
 	}
 
 	lastFileTag := len(rawApiList)
@@ -362,10 +350,8 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 		for _, item := range rawApiList[lastFileTag+1:] {
 			if len(apiStr) > 0 {
 				apiStr = fmt.Sprintf("%s,%s", apiStr, path.Base(item))
-				//apiStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", apiStr, path.Base(item), path.Base(item))
 			} else {
 				apiStr = path.Base(item)
-				//apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(item), path.Base(item))
 			}
 
 		}
@@ -380,51 +366,11 @@ func (playbook Playbook) WritePlaybookResult(id, result, source string, envType 
 	lastFile := playbook.LastFile
 
 	sceneRecode.ApiList = apiStr
-
-	if source == "playbook" {
-		var dbScene DbScene
-		s, _ := strconv.Atoi(id)
-		models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
-		if len(dbScene.Name) == 0 {
-			return
-		}
-
-		curTime := time.Now()
-		dbScene.UpdatedAt = curTime.Format(baseFormat)
-		if len(result) == 0 {
-			dbScene.Result = " "
-		} else {
-			dbScene.Result = result
-		}
-		if len(lastFile) == 0 {
-			dbScene.LastFile = " " // 用空格字符串刷新数据
-		} else {
-			prefix := GetHistoryDataDirName(path.Base(lastFile))
-			suffix := GetStrSuffix(path.Base(lastFile))
-			dbScene.LastFile = fmt.Sprintf("%s%s", prefix, suffix)
-		}
-		if errIn != nil {
-			dbScene.FailReason = fmt.Sprintf("%s", errIn)
-		} else {
-			dbScene.FailReason = " "
-		}
-
-		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
-		if err != nil {
-			Logger.Error("%v", err)
-		}
-	}
+	err = UpdateDBPlaybook(id, source, result, lastFile, errIn)
 
 	sceneRecode.Name = playbook.Name
 	if len(lastFile) > 0 {
 		sceneRecode.LastFile = path.Base(lastFile)
-		//b, _ := IsStrEndWithTimeFormat(path.Base(lastFile))
-		//if b {
-		//	dirName := GetHistoryDataDirName(path.Base(lastFile))
-		//	sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(lastFile), path.Base(lastFile))
-		//} else {
-		//	sceneRecode.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(lastFile), path.Base(lastFile))
-		//}
 	}
 
 	sceneRecode.SceneType = playbook.SceneType
@@ -436,7 +382,61 @@ func (playbook Playbook) WritePlaybookResult(id, result, source string, envType 
 	sceneRecode.Product = playbook.Product
 	sceneRecode.EnvType = envType
 
-	err = WritePlaybookRecord(sceneRecode)
+	errTmp := WritePlaybookRecord(sceneRecode)
+	if errTmp != nil {
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, errTmp)
+		} else {
+			err = errTmp
+		}
+	}
+	return
+}
+
+func UpdateDBPlaybook(dbId, source, result, lastFile string, errIn error) (err error) {
+	var dbScene DbScene
+	s, _ := strconv.Atoi(dbId)
+
+	if source == "playbook" {
+		models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
+
+	} else if source == "ai_playbook" {
+		models.Orm.Table("ai_playbook").Where("id = ?", s).Find(&dbScene)
+	}
+
+	if len(dbScene.Name) == 0 {
+		return
+	}
+
+	curTime := time.Now()
+	dbScene.UpdatedAt = curTime.Format(baseFormat)
+	if len(result) == 0 {
+		dbScene.Result = " "
+	} else {
+		dbScene.Result = result
+	}
+	if len(lastFile) == 0 {
+		dbScene.LastFile = " " // 用空格字符串刷新数据
+	} else {
+		prefix := GetHistoryDataDirName(path.Base(lastFile))
+		suffix := GetStrSuffix(path.Base(lastFile))
+		dbScene.LastFile = fmt.Sprintf("%s%s", prefix, suffix)
+	}
+	if errIn != nil {
+		dbScene.FailReason = fmt.Sprintf("%s", errIn)
+	} else {
+		dbScene.FailReason = " "
+	}
+
+	if source == "playbook" {
+		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
+	} else if source == "ai_playbook" {
+		err = models.Orm.Table("ai_playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
+	}
+
+	if err != nil {
+		Logger.Error("%v", err)
+	}
 
 	return
 }
@@ -581,6 +581,8 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, er
 	s, _ := strconv.Atoi(id)
 	if source == "history" {
 		models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
+	} else if source == "ai_playbook" {
+		models.Orm.Table("ai_playbook").Where("id = ?", s).Find(&dbScene)
 	} else {
 		models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
 	}
@@ -643,10 +645,16 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 	var preApis []string
 	for _, item := range playbook.HistoryApis {
 		//fullPathApi := fmt.Sprintf("%s/%s", HistoryBasePath, item)   // 历史执行过的接口使用全路径
+		if len(item) == 0 {
+			continue
+		}
 		preApis = append(preApis, item)
 	}
 
 	for _, filePath := range preApis {
+		if len(filePath) == 0 {
+			continue
+		}
 		var sceneFile DataFile
 		content, err1 := ioutil.ReadFile(filePath)
 		if err1 != nil {
@@ -837,7 +845,7 @@ func CopyPlaybook(id, userName string) (err error) {
 	return
 }
 
-func ImportPlaybook(id string) (newCount, oldCount int, err error) {
+func ImportPlaybookFromExcel(id string) (newCount, oldCount int, err error) {
 	product, _ := GetProductName(id)
 	fileName := fmt.Sprintf("%s/%s.xlsx", CommonFilePath, product)
 	sceneList, err := ReadSceneFromExcel(fileName)
@@ -1395,7 +1403,7 @@ func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
 	}
 
 	var playbookIdList []int
-	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Group("name").Pluck("id", &playbookIdList)
+	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Group("id").Pluck("id", &playbookIdList)
 	encodeId := url.QueryEscape("id[]")
 	var queryStr string
 	for index, id := range playbookIdList {

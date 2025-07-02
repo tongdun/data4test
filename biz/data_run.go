@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
@@ -212,12 +212,16 @@ func (apiModel HistorySaveModel) WriteDataFileHistoryResult(result, dst string, 
 	return
 }
 
-func WriteSceneDataResult(id string, result, dst, product string, envType int, errIn error) (err error) {
+func WriteSceneDataResult(id string, result, dst, product, source string, envType int, errIn error) (err error) {
 	var dbSceneData DbSceneData
 	s, _ := strconv.Atoi(id)
-	models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
-	if len(dbSceneData.ApiId) == 0 {
-		return
+	if source == "ai_data" {
+		models.Orm.Table("ai_data").Where("id = ?", s).Find(&dbSceneData)
+	} else {
+		models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
+		if len(dbSceneData.ApiId) == 0 {
+			return
+		}
 	}
 
 	if len(result) == 0 {
@@ -231,49 +235,24 @@ func WriteSceneDataResult(id string, result, dst, product string, envType int, e
 	} else {
 		dbSceneData.FailReason = " " // 用空字符串刷新数据结果
 	}
-	err = models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update(&dbSceneData).Error
+
+	if source == "ai_data" {
+		err = models.Orm.Table("ai_data").Where("id = ?", dbSceneData.Id).Update(&dbSceneData).Error
+	} else {
+		err = models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update(&dbSceneData).Error
+	}
+
 	if err != nil {
 		Logger.Error("%s", err)
 		return
 	}
-	var sceneDataRecord SceneDataRecord
 
-	if len(dst) > 0 {
-		b, _ := IsStrEndWithTimeFormat(path.Base(dst))
-		if b {
-			dirName := GetHistoryDataDirName(path.Base(dst))
-			sceneDataRecord.Content = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, path.Base(dst), path.Base(dst))
-		} else {
-			sceneDataRecord.Content = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", path.Base(dst), path.Base(dst))
-		}
-	}
-
-	sceneDataRecord.Name = dbSceneData.Name
-	sceneDataRecord.ApiId = dbSceneData.ApiId
-	sceneDataRecord.App = dbSceneData.App
-	sceneDataRecord.Result = dbSceneData.Result
-	sceneDataRecord.FailReason = dbSceneData.FailReason
-	sceneDataRecord.EnvType = envType
-	sceneDataRecord.Product = product
-
-	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
-
-	if err != nil {
-		Logger.Error("%s", err)
-	}
+	err = RecordDataHistory(dst, product, source, envType, dbSceneData)
 
 	return
 }
 
-func RunNonStandard(app, rawFilePath, logFilePath, product, source string, fileType int, depOutVars map[string][]interface{}) (result, dst string, err error) {
-	content, err := ioutil.ReadFile(rawFilePath)
-
-	if err != nil {
-		Logger.Debug("rawFilePath: %s", rawFilePath)
-		Logger.Error("%s", err)
-		return "fail", rawFilePath, err
-	}
-
+func RunNonStandard(app, rawFilePath, content, logFilePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
 	header := make(map[string]interface{})
 
 	if len(product) > 0 {
@@ -449,395 +428,29 @@ func RunNonStandard(app, rawFilePath, logFilePath, product, source string, fileT
 	return
 }
 
-//func (df DataFile) RunDataFileStruct(app, product, filePath, mode, source string, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
-//	if depOutVars == nil {
-//		depOutVars = make(map[string][]interface{})
-//	}
-//
-//	if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
-//		for _, preApiFile := range df.Api.PreApi {
-//			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
-//			Logger.Debug("开始执行前置用例: %v", preFilePath)
-//			result, dst, err = RunStandard(df.Api.App, preFilePath, product, source, depOutVars)
-//			if err != nil {
-//				Logger.Error("%s", err)
-//				return
-//			}
-//			if result == "fail" {
-//				return
-//			}
-//		}
-//	}
-//
-//	var envConfig EnvConfig
-//	var targetApp string
-//
-//	if len(app) > 0 {
-//		targetApp = app
-//	} else if len(df.Api.App) > 0 {
-//		targetApp = df.Api.App
-//	}
-//
-//	envConfig, _ = GetEnvConfig(targetApp, "data")
-//
-//	depOutVarsTmp, err1 := df.GetDepParams()
-//	if err1 != nil {
-//		Logger.Error("%s", err1)
-//		if err != nil {
-//			err = fmt.Errorf("%s;%s", err, err1)
-//		} else {
-//			err = err1
-//		}
-//	}
-//
-//	for k, v := range depOutVarsTmp {
-//		if _, ok := depOutVars[k]; !ok {
-//			depOutVars[k] = v
-//		}
-//	}
-//
-//	if len(product) > 0 {
-//		sceneEnvConfig, errTmp := GetEnvConfig(product, "scene")
-//		if errTmp != nil {
-//			Logger.Warning("%s", errTmp)
-//		}
-//		envConfig.Ip = sceneEnvConfig.Ip
-//		envConfig.Auth = sceneEnvConfig.Auth
-//		envConfig.Product = product
-//		envConfig.Protocol = sceneEnvConfig.Protocol
-//
-//		dbProductList, err := GetProductInfo(product)
-//		dbProduct := dbProductList[0]
-//		if err != nil {
-//			Logger.Error("%v", err)
-//		}
-//		privateParameter := dbProduct.GetPrivateParameter()
-//		for k, v := range privateParameter {
-//			if _, ok := depOutVars[k]; !ok {
-//				depOutVars[k] = append(depOutVars[k], v)
-//			}
-//		}
-//	}
-//
-//	header, err := df.GetHeader(envConfig)
-//	df.Single.Header = header
-//	if err != nil {
-//		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//		return
-//	}
-//
-//	lang := GetRequestLangage(header)
-//
-//	var querys, bodys []map[string]interface{}
-//	var bodyList []interface{}
-//	var urls []string
-//	var rHeader map[string]interface{}
-//
-//	if mode == "again" {
-//		urls = df.Urls
-//		if df.Api.Method == "get" && len(df.Request) > 0 {
-//			for _, item := range df.Request {
-//				queryDict := make(map[string]interface{})
-//				errTmp := json.Unmarshal([]byte(item), &queryDict)
-//				if errTmp != nil {
-//					Logger.Error("%v", errTmp)
-//				} else {
-//					querys = append(querys, queryDict)
-//				}
-//			}
-//		} else {
-//			if df.Single.BodyList != nil {
-//				errTmp := json.Unmarshal([]byte(df.Request[0]), &bodyList)
-//				if errTmp != nil {
-//					Logger.Error("%v", errTmp)
-//				}
-//			} else {
-//				for _, item := range df.Request {
-//					bodyDict := make(map[string]interface{})
-//					errTmp := json.Unmarshal([]byte(item), &bodyDict)
-//					if errTmp != nil {
-//						Logger.Error("%v", errTmp)
-//					} else {
-//						bodys = append(bodys, bodyDict)
-//					}
-//				}
-//			}
-//		}
-//	} else {
-//		content, errTmp := yaml.Marshal(df)
-//		if errTmp != nil {
-//			Logger.Error("%v", errTmp)
-//			err = errTmp
-//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//			return
-//		}
-//		Logger.Debug("depOutVars: %v", depOutVars)
-//		contentStr, errTmp := GetAfterContent(lang, string(content), depOutVars)
-//		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
-//			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
-//			errTmp = nil
-//		}
-//		if errTmp != nil {
-//			Logger.Debug("rawContent:\n%s", string(content))
-//			Logger.Debug("afterContent:\n%s", contentStr)
-//			err = errTmp
-//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//			return
-//		}
-//
-//		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
-//		if errTmp != nil {
-//			Logger.Debug("\nrawContent: %s", string(content))
-//			Logger.Debug("\nafterContent: %s", contentStr)
-//			Logger.Error("%v", errTmp)
-//			err = errTmp
-//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//			return
-//		}
-//
-//		urls, errTmp = df.GetUrl(envConfig)
-//		if errTmp != nil {
-//			Logger.Debug("fileName: %s", path.Base(filePath))
-//			Logger.Error("%v", errTmp)
-//			err = errTmp
-//			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//			return
-//		}
-//		df.Urls = urls
-//
-//		querys = df.GetQuery()
-//
-//		bodys, bodyList = df.GetBody()
-//		rHeader = df.Single.RespHeader
-//	}
-//
-//	// 后续可优化，有依赖和无依赖进行控制
-//	go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
-//	_ = df.RecordDataOrderByKey(bodys)                     // 有依赖，同步执行记录动作：record_xxx
-//	_ = df.ModifyFileWithData(bodys)                       // 有依赖，同步执行模板动作：modify_file
-//
-//	if err != nil {
-//		Logger.Error("%s", err)
-//		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//		return
-//	}
-//
-//	var resList [][]byte
-//	var errs []error
-//	tag := 0
-//	if df.GetIsParallel() { //控制台过来的并发有bug
-//		wg := sync.WaitGroup{}
-//		for _, url := range urls {
-//			if len(querys) > 0 {
-//				for _, data := range querys {
-//					dJson, _ := json.Marshal(data)
-//					if tag == 0 {
-//						df.Request = []string{string(dJson)}
-//					} else {
-//						df.Request = append(df.Request, string(dJson))
-//					}
-//					tag++
-//					wg.Add(1)
-//					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-//						defer wg.Add(-1)
-//						res, err := RunHttp(method, url, data, header, rHeader)
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//					}(df.Api.Method, url, data, header)
-//				}
-//			} else if len(bodys) > 0 || len(bodyList) > 0 {
-//				if len(bodyList) > 0 {
-//					if len(bodyList) > 0 {
-//						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-//						readerNew, _ := jsonNew.Marshal(&bodyList)
-//						df.Request = []string{string(readerNew)}
-//						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
-//						if err != nil {
-//							Logger.Debug("%s", err)
-//						}
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//					}
-//				} else {
-//					wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
-//					for _, data := range bodys {
-//						dJson, _ := json.Marshal(data)
-//						if tag == 0 {
-//							df.Request = []string{string(dJson)}
-//						} else {
-//							df.Request = append(df.Request, string(dJson))
-//						}
-//						tag++
-//						//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
-//						go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-//							defer wg.Add(-1)
-//							res, err := RunHttp(method, url, data, header, rHeader)
-//							resList = append(resList, res)
-//							df.Response = append(df.Response, string(res))
-//							errs = append(errs, err)
-//						}(df.Api.Method, url, data, header)
-//					}
-//				}
-//			} else {
-//				df.Request = []string{}
-//				wg.Add(1)
-//				go func(method, url string, header map[string]interface{}) {
-//					res, err := RunHttp(method, url, nil, header, rHeader)
-//					resList = append(resList, res)
-//					df.Response = append(df.Response, string(res))
-//					errs = append(errs, err)
-//				}(df.Api.Method, url, header)
-//			}
-//			wg.Wait()
-//		}
-//	} else {
-//		for _, url := range urls {
-//			if len(querys) > 0 {
-//				for _, data := range querys {
-//					var tUrl string
-//					dJson, _ := json.Marshal(data)
-//					if tag == 0 {
-//						df.Request = []string{string(dJson)}
-//					} else {
-//						df.Request = append(df.Request, string(dJson))
-//					}
-//					tag++
-//					if df.Api.Method == "delete" {
-//						subTag := 0
-//						for k, v := range data {
-//							strV := Interface2Str(v)
-//							if subTag == 0 {
-//								tUrl = fmt.Sprintf("%s?%s=%s", url, k, strV)
-//							} else {
-//								tUrl = fmt.Sprintf("%s&%s=%s", tUrl, k, strV)
-//							}
-//							subTag++
-//						}
-//						res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//					} else {
-//						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//					}
-//					_ = df.SetSleepAction()
-//				}
-//			} else if len(bodys) > 0 || len(bodyList) > 0 {
-//				if len(bodyList) > 0 {
-//					if len(bodyList) > 0 {
-//						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-//						readerNew, _ := jsonNew.Marshal(&bodyList)
-//						df.Request = []string{string(readerNew)}
-//						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
-//						if err != nil {
-//							Logger.Debug("%s", err)
-//						}
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//					}
-//				} else {
-//					for _, data := range bodys {
-//						var dJson []byte
-//						dJson, errTmp := json.Marshal(data)
-//						if errTmp != nil {
-//							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-//							dJsonTmp, err2 := jsonNew.Marshal(&data)
-//							if err2 != nil {
-//								Logger.Error("%s", err2)
-//								err = err2
-//								return
-//							}
-//							dJson = dJsonTmp
-//						}
-//						if tag == 0 {
-//							df.Request = []string{string(dJson)}
-//						} else {
-//							df.Request = append(df.Request, string(dJson))
-//						}
-//						tag++
-//						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
-//						resList = append(resList, res)
-//						df.Response = append(df.Response, string(res))
-//						errs = append(errs, err)
-//						_ = df.SetSleepAction()
-//					}
-//				}
-//			} else {
-//				df.Request = []string{}
-//				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
-//				if err != nil {
-//					Logger.Debug("%s", err)
-//				}
-//				resList = append(resList, res)
-//				df.Response = append(df.Response, string(res))
-//				errs = append(errs, err)
-//				_ = df.SetSleepAction()
-//			}
-//		}
-//	}
-//
-//	result, dst, df.Output, err = df.GetResult(source, filePath, resList, depOutVars, errs)
-//
-//	if result != "pass" {
-//		for _, item := range errs {
-//			if item != nil {
-//				if err != nil {
-//					err = fmt.Errorf("%s; %s", err, item)
-//				} else {
-//					err = fmt.Errorf("%s", item)
-//				}
-//			}
-//		}
-//	}
-//
-//	urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
-//
-//	return
-//}
-
-func RunDataFileStruct(app, product, filePath, mode, source string, contentByte []byte, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
+func (df DataFile) RunStandard(product, filePath, mode, source, dataContent string, depOutVars map[string][]interface{}) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
 	if depOutVars == nil {
 		depOutVars = make(map[string][]interface{})
 	}
 
-	var df DataFile
-	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal(contentByte, &df)
-	} else {
-		err = yaml.Unmarshal(contentByte, &df)
-	}
-
-	if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
-		for _, preApiFile := range df.Api.PreApi {
-			preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
-			Logger.Debug("开始执行前置用例: %v", preFilePath)
-			result, dst, err = RunStandard(df.Api.App, preFilePath, product, source, depOutVars)
-			if err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-			if result == "fail" {
-				return
-			}
-		}
-	}
+	//if len(df.Api.PreApi) > 0 && df.IsRunPreApis == "yes" {
+	//	for _, preApiFile := range df.Api.PreApi {
+	//		preFilePath := fmt.Sprintf("%s/%s", DataBasePath, preApiFile)
+	//		Logger.Debug("开始执行前置用例: %v", preFilePath)
+	//		result, dst, err = RunStandard(df.Api.App, preFilePath, product, source, depOutVars)
+	//		if err != nil {
+	//			Logger.Error("%s", err)
+	//			return
+	//		}
+	//		if result == "fail" {
+	//			return
+	//		}
+	//	}
+	//}   // 功能待完善
 
 	var envConfig EnvConfig
-	var targetApp string
 
-	if len(app) > 0 {
-		targetApp = app
-	} else if len(df.Api.App) > 0 {
-		targetApp = df.Api.App
-	}
-
-	envConfig, _ = GetEnvConfig(targetApp, "data")
+	envConfig, _ = GetEnvConfig(df.Api.App, "data")
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -931,13 +544,13 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 			return
 		}
 
-		contentStr, errTmp := GetAfterContent(lang, string(contentByte), depOutVars)
+		contentStr, errTmp := GetAfterContent(lang, dataContent, depOutVars)
 		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
 			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
 			errTmp = nil
 		}
 		if errTmp != nil {
-			Logger.Debug("rawContent:\n%s", string(contentStr))
+			//Logger.Debug("rawContent:\n%s", string(contentStr))
 			Logger.Debug("afterContent:\n%s", contentStr)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -945,7 +558,7 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 		}
 		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
 		if errTmp != nil {
-			Logger.Debug("\nrawContent: %s", string(contentByte))
+			Logger.Debug("\nrawContent: %s", dataContent)
 			Logger.Debug("\nafterContent: %s", contentStr)
 			Logger.Error("%v", errTmp)
 			err = errTmp
@@ -1041,7 +654,7 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 					}
 				}
 			} else {
-				df.Request = []string{}
+				df.Request = []string{} // 没有请求参数，默认置空
 				wg.Add(1)
 				go func(method, url string, header map[string]interface{}) {
 					res, err := RunHttp(method, url, nil, header, rHeader)
@@ -1129,7 +742,7 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 					}
 				}
 			} else {
-				df.Request = []string{}
+				df.Request = []string{} // 当只有路由时，请求数据默认设置为空
 				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 				if err != nil {
 					Logger.Error("%s", err)
@@ -1161,66 +774,49 @@ func RunDataFileStruct(app, product, filePath, mode, source string, contentByte 
 	return
 }
 
-func RunStandard(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
-	content, err := ioutil.ReadFile(filePath)
-
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	var initDf DataFile
-
-	if strings.HasSuffix(filePath, ".json") {
-		err = json.Unmarshal(content, &initDf)
-	} else {
-		err = yaml.Unmarshal(content, &initDf)
-	}
-
-	if err != nil {
-		Logger.Debug("filePath: %s", filePath)
-		Logger.Debug("content:\n%s", content)
-		Logger.Error("%s", err)
-		return
-	}
+func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
 
 	var mode string
 	if source == "historyAgain" {
 		mode = "again"
 	}
 
-	//_, _, _, _, _, result, dst, err = df.RunDataFileStruct(app, product, filePath, mode, source, content, depOutVars)
-	_, _, _, _, _, result, dst, err = RunDataFileStruct(app, product, filePath, mode, source, content, depOutVars)
-
-	return
-}
-
-func RunDataFile(app, filePath, product, source string, depOutVars map[string][]interface{}) (result, dst string, err error) {
-	rawFilePath, fileType, err := InitDataFileByName(filePath)
-	if err != nil {
-		Logger.Debug("filePath: %s", filePath)
-		Logger.Error("%s", err)
-		return
-	}
-
-	switch fileType {
-	case 1:
-		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
+	switch dbData.FileType {
 	case 2, 3, 4, 5, 99:
 		var logFilePath string
 		if strings.HasSuffix(filePath, ".log") {
 			logFilePath = filePath
 		}
-		result, dst, err = RunNonStandard(app, rawFilePath, logFilePath, product, source, fileType, depOutVars)
+		rawFilePath := GetNoStandardFilePath(filePath)
+		result, dst, err = RunNonStandard(dbData.App, rawFilePath, dbData.Content, logFilePath, product, source, depOutVars)
 	default:
-		result, dst, err = RunStandard(app, filePath, product, source, depOutVars)
+		var df DataFile
+		if strings.HasSuffix(filePath, ".json") {
+			err = json.Unmarshal([]byte(dbData.Content), &df)
+		} else {
+			err = yaml.Unmarshal([]byte(dbData.Content), &df)
+		}
+
+		if err != nil {
+			Logger.Debug("filePath: %s", filePath)
+			Logger.Debug("content:\n%s", dbData.Content)
+			Logger.Error("%s", err)
+			return
+		}
+
+		if len(dbData.App) > 0 {
+			df.Api.App = dbData.App
+		}
+
+		_, _, _, _, _, result, dst, err = df.RunStandard(product, filePath, mode, source, dbData.Content, depOutVars)
+
 	}
 
 	return
 }
 
 func RepeatRunDataFile(id, product, source string) (err error) {
-	dataInfo, appInfo, err := GetRunTimeData(id)
+	dataInfo, appInfo, filePath, err := GetRunTimeData(id, source)
 	var envType, maxThreadNum int
 	var isThread string
 	if len(product) > 0 {
@@ -1252,12 +848,6 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 		return
 	}
 
-	app, filePath, err := GetFilePath(id)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
 	if isThread == "yes" && dataInfo.RunTime > 1 && maxThreadNum > 1 {
 		if dataInfo.RunTime > maxThreadNum {
 			loopNum := dataInfo.RunTime/maxThreadNum + 1
@@ -1271,16 +861,17 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 						break
 					}
 					wg.Add(1)
-					go func() {
-						result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
+
+					go func(dbData DbSceneData) {
+						result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 						if err1 != nil {
 							err = err1
-							err = WriteSceneDataResult(id, result, dst, product, envType, err1)
+							err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 							return
 						}
-						err = WriteSceneDataResult(id, result, dst, product, envType, err1)
+						err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 						wg.Done()
-					}()
+					}(dataInfo)
 					count++
 				}
 				wg.Wait()
@@ -1290,15 +881,15 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 			Logger.Info("共执行次数：%v", dataInfo.RunTime)
 			for i := 0; i < dataInfo.RunTime; i++ {
 				wg.Add(1)
-				go func() {
-					result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
+				go func(dbData DbSceneData) {
+					result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 					if err1 != nil {
-						err = WriteSceneDataResult(id, result, dst, product, envType, err1)
+						err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 						return
 					}
-					err = WriteSceneDataResult(id, result, dst, product, envType, err1)
+					err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 					wg.Done()
-				}()
+				}(dataInfo)
 			}
 			wg.Wait()
 		}
@@ -1308,14 +899,13 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 				Logger.Info("串行模式-执行次数:%d", i+1)
 			}
 
-			result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
-
+			result, dst, err1 := dataInfo.RunDataFile(filePath, product, source, nil)
 			if err1 != nil {
 				Logger.Error("\n%s", err1)
 				err = err1
 			}
 
-			err2 := WriteSceneDataResult(id, result, dst, product, envType, err1)
+			err2 := WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 			if err2 != nil {
 				Logger.Error("%s", err2)
 				if err != nil {
@@ -1333,11 +923,12 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 		}
 
 	}
+
 	return
 }
 
 func RunSceneDataOnce(id, product, source string) (err error) {
-	dataInfo, _, err := GetRunTimeData(id)
+	dataInfo, _, filePath, err := GetRunTimeData(id, source)
 	var envType int
 	if len(product) > 0 {
 		productList, _ := GetProductInfo(product)
@@ -1356,18 +947,19 @@ func RunSceneDataOnce(id, product, source string) (err error) {
 		Logger.Warning("%s", err)
 		return
 	}
-	app, filePath, err := GetFilePath(id)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
+	//app, filePath, err := GetFilePath(id, source)
+	//if err != nil {
+	//	Logger.Error("%s", err)
+	//	return
+	//}
 
-	result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
+	//result, dst, err1 := RunDataFile(app, filePath, product, source, nil)
+	result, dst, err1 := dataInfo.RunDataFile(filePath, product, source, nil)
 	if err1 != nil {
 		Logger.Error("\n%s", err1)
 		err = err1
 	}
-	err = WriteSceneDataResult(id, result, dst, product, envType, err1)
+	err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
 	if err != nil {
 		Logger.Error("%s", err)
 		return
@@ -2138,7 +1730,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 		}
 	}
 
-	if source == "data" || source == "playbook" {
+	if source == "data" || source == "playbook" || source == "ai_data" {
 		errTmp = ioutil.WriteFile(filePath, dataInfo, 0644)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
@@ -2148,6 +1740,23 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 				err = errTmp
 			}
 		}
+	}
+
+	return
+}
+
+func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
+	baseName := path.Base(fileName)
+	if strings.HasPrefix(source, "ai") {
+		models.Orm.Table("ai_data").Where("file_name = ?", baseName).Find(&dbData)
+	} else {
+		models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&dbData)
+	}
+
+	if len(dbData.FileName) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", baseName)
+		Logger.Error("%s", err)
+		return
 	}
 
 	return

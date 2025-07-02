@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -272,11 +272,13 @@ func SaveApiData(apiModel ApiDataSaveModel, userName string) (err error) {
 	}
 
 	sceneData.Name = fullName
-	if apiModel.BodyMode == "json" {
-		sceneData.FileName = fmt.Sprintf("%s.json", sceneData.Name)
-	} else {
-		sceneData.FileName = fmt.Sprintf("%s.yml", sceneData.Name)
-	}
+	//if apiModel.BodyMode == "json" {  // 功能先屏蔽
+	//	sceneData.FileName = fmt.Sprintf("%s.json", sceneData.Name)
+	//} else {
+	//	sceneData.FileName = fmt.Sprintf("%s.yml", sceneData.Name)
+	//}
+
+	sceneData.FileName = fmt.Sprintf("%s.yml", sceneData.Name)
 
 	sceneData.RunTime = 1
 
@@ -406,11 +408,12 @@ func SaveApiData(apiModel ApiDataSaveModel, userName string) (err error) {
 	}
 
 	var dataInfo []byte
-	if apiModel.BodyMode == "json" {
-		dataInfo, err = json.MarshalIndent(dataFile, "", "    ")
-	} else {
-		dataInfo, err = yaml.Marshal(dataFile)
-	}
+	//if apiModel.BodyMode == "json" { // 功能先屏蔽
+	//	dataInfo, err = json.MarshalIndent(dataFile, "", "    ")
+	//} else {
+	//	dataInfo, err = yaml.Marshal(dataFile)
+	//}
+	dataInfo, err = yaml.Marshal(dataFile)
 
 	if err != nil {
 		Logger.Error("%s", err)
@@ -611,7 +614,7 @@ func RunSceneDebugContent(apiModel ApiDataSaveModel) (urlStr, headerStr, request
 
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
 	content, _ := yaml.Marshal(df)
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = RunDataFileStruct(apiModel.App, apiModel.Product, filePath, "common", "consoleData", content, nil)
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunStandard(apiModel.Product, filePath, "common", "consoleData", string(content), nil)
 
 	return
 }
@@ -1394,12 +1397,12 @@ func GetSceneHistory(name string) (sceneModel SceneHistorySaveModel, err error) 
 }
 
 func Str2VarModel(bodyStr string) (bodyVar []VarDataModel, err error) {
+	bodyStr = strings.Replace(bodyStr, "\\n", "", -1)
 	bodyStr = strings.Replace(bodyStr, "\\", "", -1)
 	var tempMap map[string]interface{}
-
 	err = json.Unmarshal([]byte(bodyStr), &tempMap)
-
 	if err != nil {
+		Logger.Debug("bodyStr: %v", bodyStr)
 		Logger.Error("%s", err)
 	}
 	for k, v := range tempMap {
@@ -1518,7 +1521,7 @@ func (dataFile DataFile) UpdateDataFileFromHistoryModel(apiModel HistorySaveMode
 }
 
 func RunHistoryContent(apiModel HistorySaveModel) (urlStr, headerStr, requestStr, responseStr, outputStr, result, dst string, err error) {
-	var dataFile DataFile
+	var df DataFile
 	dirName := GetHistoryDataDirName(apiModel.FileName)
 	historyFilePath := fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, apiModel.FileName) //
 
@@ -1529,15 +1532,14 @@ func RunHistoryContent(apiModel HistorySaveModel) (urlStr, headerStr, requestStr
 	}
 
 	if strings.HasSuffix(apiModel.FileName, ".json") {
-		err = json.Unmarshal([]byte(content), &dataFile)
+		err = json.Unmarshal([]byte(content), &df)
 	} else {
-		err = yaml.Unmarshal([]byte(content), &dataFile)
+		err = yaml.Unmarshal([]byte(content), &df)
 	}
 
-	dataFile.UpdateDataFileFromHistoryModel(apiModel)
+	df.UpdateDataFileFromHistoryModel(apiModel)
 
-	//urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = dataFile.RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", content, nil) // again表示历史数据再来一次
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = RunDataFileStruct(apiModel.App, apiModel.Product, historyFilePath, "again", "console", content, nil) // again表示历史数据再来一次
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err = df.RunStandard(apiModel.Product, historyFilePath, "again", "console", string(content), nil) // again表示历史数据再来一次
 
 	return
 }

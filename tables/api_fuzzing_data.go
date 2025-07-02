@@ -1,16 +1,16 @@
 package tables
 
 import (
+	"data4test/biz"
+	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/icon"
+	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
-	"github.com/GoAdminGroup/go-admin/template/types"
-	"github.com/GoAdminGroup/go-admin/template/icon"
-	"data4perf/biz"
 	"strings"
-	"fmt"
 )
 
 func GetApiFuzzingDataTable(ctx *context.Context) table.Table {
@@ -144,7 +144,6 @@ func GetApiFuzzingDataTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
-
 
 	apps := biz.GetApps()
 	info.AddSelectBox("关联应用", apps, action.FieldFilter("app"))

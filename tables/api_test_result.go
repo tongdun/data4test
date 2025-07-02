@@ -1,13 +1,13 @@
 package tables
 
 import (
+	"data4test/biz"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
-	"github.com/GoAdminGroup/go-admin/template/types"
-	"data4perf/biz"
 )
 
 func GetApiTestResultTable(ctx *context.Context) table.Table {

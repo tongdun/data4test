@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"

@@ -8,13 +8,13 @@
 - 控制台前端：在goman的前端框架上进行二次开发
 
 #### 架构图
-<img src="./image/arch.jpg">
+<img src="../image/arch.jpg">
 
 #### 全局使用流程使用
-<img src="./image/全局使用流程图.jpg">
+<img src="../image/全局使用流程图.jpg">
 
 #### 数据流程图
-<img src="./image/数据流程图.png">
+<img src="../image/数据流程图.png">
 
 #### 系统数据关系图
-<img src="./image/系统数据关系图.jpg">
+<img src="../image/系统数据关系图.jpg">

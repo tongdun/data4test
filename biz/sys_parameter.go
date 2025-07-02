@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"strings"

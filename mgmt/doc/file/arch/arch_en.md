@@ -8,13 +8,13 @@
 - Console Frontend: Secondary development based on the frontend framework of goman
 
 #### Architecture Diagram
-<img src="./image/arch.jpg">
+<img src="../image/arch.jpg">
 
 #### Global Usage Flow
-<img src="./image/数据流程图.png">
+<img src="../image/数据流程图.png">
 
 #### Data Flow Diagram
-<img src="./image/数据流程图.png">
+<img src="../image/数据流程图.png">
 
 #### System Data Relationship Diagram
-<img src="./image/系统数据关系图.jpg">
+<img src="../image/系统数据关系图.jpg">

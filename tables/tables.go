@@ -60,6 +60,14 @@ var Generators = map[string]table.Generator{
 	"api_custom":              GetApiCustomDefinitionTable,
 	"app_api_changelog":       GetAppApiChangelogTable,
 	"assert_template":         GetAssertTemplateTable,
-
+	"ai_case":                 GetAiCaseTable,
+	"ai_data":                 GetAiDataTable,
+	"ai_issue":                GetAiIssueTable,
+	"ai_playbook":             GetAiPlaybookTable,
+	"ai_report":               GetAiReportTable,
+	"ai_task":                 GetAiTaskTable,
+	"ai_template":             GetAiTemplateTable,
+	"ai_create":               GetAiCreateTable,
+	"ai_optimize":             GetAiOptimizeTable,
 	// generators end
 }

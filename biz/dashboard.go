@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -37,6 +37,15 @@ func GetProducts() (products []types.FieldOption) {
 			products = append(products, product)
 		}
 	}
+
+	if len(products) == 0 {
+		products = GetNoSelectOption("请先前往[环境-产品配置]定义产品信息")
+		//var product types.FieldOption
+		//product.Value = "请先前往[环境-产品配置]定义产品信息"
+		//product.Text = "请先前往[环境-产品配置]定义产品信息"
+		//products = append(products, product)
+	}
+
 	return
 }
 
@@ -53,6 +62,15 @@ func GetTestcaseType() (caseTypes []types.FieldOption) {
 			caseTypes = append(caseTypes, caseType)
 		}
 	}
+
+	if len(caseTypes) == 0 {
+		caseTypes = GetNoSelectOption("请先前往[环境-系统参数]定义参数[TestCaseType")
+		//var caseType types.FieldOption
+		//caseType.Value = "请先前往[环境-系统参数]定义参数[TestCaseType]"
+		//caseType.Text = "请先前往[环境-系统参数]定义参数[TestCaseType]"
+		//caseTypes = append(caseTypes, caseType)
+	}
+
 	return
 }
 

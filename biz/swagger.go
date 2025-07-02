@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"data4perf/models"
+	"data4test/models"
 )
 
 const (

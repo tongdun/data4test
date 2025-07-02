@@ -1,7 +1,7 @@
 package pages
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	tmpl "github.com/GoAdminGroup/go-admin/template"
 	"html/template"
 

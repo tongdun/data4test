@@ -15,7 +15,7 @@ import (
 
 	// "github.com/ernestosuarez/itertools"
 
-	"data4perf/models"
+	"data4test/models"
 )
 
 func (apiDefinition ApiDefinition) GetTestDataOutVars(customDepVars map[string]string) (retOutVars map[string]string, err error) {
@@ -591,5 +591,11 @@ func (api ApiDefinition) GetBody(depOutVars map[string]string) (bodys []map[stri
 		}
 
 	}
+	return
+}
+
+func GetApiDefineById(id string) (apiDefs []ApiStringDefinition) {
+	ids := strings.Split(id, ",")
+	models.Orm.Table("api_definition").Where("id in (?)", ids).Find(&apiDefs)
 	return
 }

@@ -3,7 +3,7 @@ package biz
 import (
 	"bufio"
 	"bytes"
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
@@ -234,18 +234,6 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 	newStr = GetLengthData(newStr)
 	newStr = GetRangeData(newStr)
 	newStr = GetTimeFormatData(newStr)
-
-	//allDef, _ := GetInStrDef(newStr)
-	//Logger.Debug("allDef: %v", allDef)
-	//Logger.Debug("len(allDef): %v", len(allDef))
-	//for k, v := range allDef {
-	//	value := GetValueFromSysParameter(lang, k)
-	//	if len(value) > 0 {
-	//		newStr = strings.ReplaceAll(newStr, v, value)
-	//	} else {
-	//		falseCount++
-	//	}
-	//}
 
 	return
 }

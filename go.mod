@@ -1,4 +1,4 @@
-module data4perf
+module data4test
 
 go 1.17
 
@@ -26,6 +26,11 @@ require (
 	github.com/tealeg/xlsx v1.0.5
 	gopkg.in/yaml.v2 v2.2.8
 	syreclabs.com/go/faker v1.2.3
+)
+
+require (
+	github.com/kisielk/godepgraph v0.0.0-20240411160502-0f324ca7e282 // indirect
+	github.com/titanous/json5 v1.0.0 // indirect
 )
 
 require (
@@ -107,7 +112,7 @@ require (
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/term v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/tools v0.1.12
 	google.golang.org/protobuf v1.23.0 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect

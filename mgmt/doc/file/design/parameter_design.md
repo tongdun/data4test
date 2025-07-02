@@ -20,8 +20,8 @@
 - 在产品配置里，进行一些专用参数定义， JSON格式，e.g.: {"name1": "value1", "name2": "value2"}
 
 #### 支持多语种的系统内置参数, 目前支持中文，英文
-- {Name}
-- {Email}
+- {Name}  
+- {Email} 
 - {Phone}
 - {Mobile}
 - {Contact}

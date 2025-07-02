@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v2"
@@ -14,12 +14,24 @@ import (
 	"sync"
 )
 
-func GetRunTimeData(id string) (dataInfo DbSceneData, appInfo EnvConfig, err error) {
-	models.Orm.Table("scene_data").Where("id = ?", id).Find(&dataInfo)
-	if len(dataInfo.ApiId) == 0 {
-		err = fmt.Errorf("未找到对应的场景数据，请核对:%s", id)
-		Logger.Error("%s", err)
-		return
+func GetRunTimeData(id, source string) (dataInfo DbSceneData, appInfo EnvConfig, filePath string, err error) {
+	if source == "ai_data" {
+		models.Orm.Table("ai_data").Where("id = ?", id).Find(&dataInfo)
+		if len(dataInfo.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应的智能数据，请核对:%s", id)
+			Logger.Error("%s", err)
+			return
+		}
+		dataInfo.RunTime = 1 // 智能数据执行默认设置为1
+		filePath = fmt.Sprintf("%s/%s", AiDataBasePath, dataInfo.FileName)
+	} else {
+		models.Orm.Table("scene_data").Where("id = ?", id).Find(&dataInfo)
+		if len(dataInfo.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应的测试数据，请核对:%s", id)
+			Logger.Error("%s", err)
+			return
+		}
+		filePath = fmt.Sprintf("%s/%s", DataBasePath, dataInfo.FileName)
 	}
 
 	models.Orm.Table("env_config").Where("app = ?", dataInfo.App).Find(&appInfo)
@@ -27,16 +39,50 @@ func GetRunTimeData(id string) (dataInfo DbSceneData, appInfo EnvConfig, err err
 	return
 }
 
-func GetFilePath(id string) (app, filePath string, err error) {
+func GetFilePath(id, source string) (filePath string, err error) {
 	var dbSceneData DbSceneData
 	s, _ := strconv.Atoi(id)
-	models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
-	if len(dbSceneData.ApiId) == 0 {
-		err = fmt.Errorf("未找到对应[%v]的场景数据，请核对", s)
-		Logger.Error("%s", err)
-		return
+	if source == "ai_data" {
+		models.Orm.Table("ai_data").Where("id = ?", s).Find(&dbSceneData)
+		if len(dbSceneData.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应[%v]的智能数据，请核对", s)
+			Logger.Error("%s", err)
+			return
+		}
+		filePath = fmt.Sprintf("%s/%s", AiDataBasePath, dbSceneData.FileName)
+	} else {
+		models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
+		if len(dbSceneData.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应[%v]的测试数据，请核对", s)
+			Logger.Error("%s", err)
+			return
+		}
+		filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
 	}
-	filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
+	return
+}
+
+func GetFilePathOld(id, source string) (app, filePath string, err error) {
+	var dbSceneData DbSceneData
+	s, _ := strconv.Atoi(id)
+	if source == "ai_data" {
+		models.Orm.Table("ai_data").Where("id = ?", s).Find(&dbSceneData)
+		if len(dbSceneData.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应[%v]的智能数据，请核对", s)
+			Logger.Error("%s", err)
+			return
+		}
+		filePath = fmt.Sprintf("%s/%s", AiDataBasePath, dbSceneData.FileName)
+		//app = dbSceneData.App
+	} else {
+		models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
+		if len(dbSceneData.ApiId) == 0 {
+			err = fmt.Errorf("未找到对应[%v]的测试数据，请核对", s)
+			Logger.Error("%s", err)
+			return
+		}
+		filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
+	}
 	app = dbSceneData.App
 	return
 }
@@ -44,7 +90,6 @@ func GetFilePath(id string) (app, filePath string, err error) {
 func CreateSceneDataFromRaw(id, mode string) (err error) {
 	var apiDefinition ApiDefinition
 	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDefinition)
-	Logger.Debug("apiDefinition: %#v", apiDefinition)
 	if len(apiDefinition.ApiId) == 0 {
 		err = fmt.Errorf("未找到API的定义信息，请核对~")
 		Logger.Error("%s", err)
@@ -385,7 +430,6 @@ func CreateMultiSceneDataFromData(apiId string, ids []int, source, mode string) 
 	if source == "data" {
 		var apiTestDatas []ApiTestData
 		models.Orm.Table("api_test_data").Where("id in (?)", ids).Find(&apiTestDatas)
-		Logger.Debug("apiTestDatas: %v", apiTestDatas)
 
 		for index, apiTestData := range apiTestDatas {
 			if index == 0 {
@@ -884,8 +928,26 @@ func UpdateApiDefVer(id string) (err error) {
 	return
 }
 
+func GetNoStandardFilePath(filePath string) (rawFilePath string) {
+	if strings.HasSuffix(filePath, ".log") {
+		contentLog, err2 := ioutil.ReadFile(filePath)
+		if err2 != nil {
+			Logger.Error("%s", err2)
+			return ""
+		}
+		tmpList := strings.Split(string(contentLog), "\n")
+		if len(tmpList) > 0 {
+			if strings.HasPrefix(tmpList[0], "cmd:") {
+				splitFilePath := strings.Split(tmpList[0], " ")
+				rawFilePath = splitFilePath[len(splitFilePath)-1]
+			}
+		}
+	}
+	return
+}
+
 // 执行场景，如果数据文件不存在，则进行创建
-func InitDataFileByName(filePath string) (rawFilePath string, fileType int, err error) {
+func InitDataFileByName(filePath, source string) (rawFilePath string, fileType int, err error) {
 	// 如果数据文件为历史数据，则不进行数据文件的创建
 	fileName := path.Base(filePath)
 
@@ -924,20 +986,36 @@ func InitDataFileByName(filePath string) (rawFilePath string, fileType int, err 
 	var sceneData SceneData
 	var content string
 	var byteContent []byte
-	if len(prefixName) > 0 {
-		models.Orm.Table("scene_data").Where("file_name like ?", prefixName+"%").Find(&sceneData)
-	} else if len(newFileName) > 0 {
-		models.Orm.Table("scene_data").Where("file_name = ?", newFileName).Find(&sceneData)
+	if source == "ai_data" {
+		if len(prefixName) > 0 {
+			models.Orm.Table("ai_data").Where("file_name like ?", prefixName+"%").Find(&sceneData)
+		} else if len(newFileName) > 0 {
+			models.Orm.Table("ai_data").Where("file_name = ?", newFileName).Find(&sceneData)
+		} else {
+			models.Orm.Table("ai_data").Where("file_name = ?", fileName).Find(&sceneData)
+		}
+		if len(sceneData.FileName) == 0 {
+			err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
+			Logger.Error("%s", err)
+			return
+		} else {
+			rawFilePath = fmt.Sprintf("%s/%s", AiDataBasePath, sceneData.FileName)
+		}
 	} else {
-		models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
-	}
-
-	if len(sceneData.FileName) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
-		Logger.Error("%s", err)
-		return
-	} else {
-		rawFilePath = fmt.Sprintf("%s/%s", DataBasePath, sceneData.FileName)
+		if len(prefixName) > 0 {
+			models.Orm.Table("scene_data").Where("file_name like ?", prefixName+"%").Find(&sceneData)
+		} else if len(newFileName) > 0 {
+			models.Orm.Table("scene_data").Where("file_name = ?", newFileName).Find(&sceneData)
+		} else {
+			models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
+		}
+		if len(sceneData.FileName) == 0 {
+			err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
+			Logger.Error("%s", err)
+			return
+		} else {
+			rawFilePath = fmt.Sprintf("%s/%s", DataBasePath, sceneData.FileName)
+		}
 	}
 
 	fileType = sceneData.FileType

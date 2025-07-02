@@ -7,7 +7,7 @@ is_run_pre_apis: "no"     # 是否跑前置用例，选项：yes / no,  默认 n
 is_run_post_apis: "no"    # 是否跑后置用例，选项：yes / no,  默认 no， 功能未开发
 is_parallel: "no"         # 是否并行跑数据，选项：yes / no,  默认 no，
 is_use_env_config: "yes"  # 是否使用公共环境，选项：yes / no,  默认 yes
-is_var_strong_check: "yes"   # 是否开始变量强校验，选项：yes / no,  默认 yes
+is_var_strong_check: "yes"   # 是否开启变量强校验，选项：yes / no,  默认 yes
 # 环境信息
 env:
   protocol: http        # http 或 https，请求协议

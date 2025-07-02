@@ -3,7 +3,7 @@ package biz
 import (
 	"archive/tar"
 	"compress/gzip"
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -339,7 +339,7 @@ func RunOnceTask(id string) (err error) {
 		}
 	case "scene":
 		sceneIds, _, _ := task.GetSceneIds()
-		for _, sceneId := range sceneIds {
+		for index, sceneId := range sceneIds {
 			var err1 error
 			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task")
 			if err1 != nil {
@@ -348,7 +348,7 @@ func RunOnceTask(id string) (err error) {
 				} else {
 					err = err1
 				}
-				if strings.Contains(err.Error(), "请求失败，返回码: 401, 返回信息:") {
+				if index == 0 && strings.Contains(err.Error(), "请求失败，返回码: 401, 返回信息:") {
 					Logger.Error("鉴权失败，执行至场景编号:%s, 后续场景不再执行", sceneId)
 					break
 				}

@@ -29,6 +29,7 @@ var (
 	CommonFilePath   string
 	ApiFilePath      string
 	CaseFilePath     string
+	AiDataBasePath   string
 )
 
 type Config struct {
@@ -80,7 +81,7 @@ func init() {
 	CommonFilePath = fmt.Sprintf("%s/common", BASEPATH)
 	ApiFilePath = fmt.Sprintf("%s/api", BASEPATH)
 	CaseFilePath = fmt.Sprintf("%s/case", BASEPATH)
-
+	AiDataBasePath = fmt.Sprintf("%s/ai_data", BASEPATH)
 	_, err = os.Stat(BASEPATH)
 	if err != nil {
 		panic(err)

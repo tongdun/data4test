@@ -1,8 +1,8 @@
 package biz
 
 import (
-	"data4perf/models"
-	"data4perf/sorting"
+	"data4test/models"
+	"data4test/sorting"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/template/chartjs"
 	"github.com/GoAdminGroup/go-admin/template/types"

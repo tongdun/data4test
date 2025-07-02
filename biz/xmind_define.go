@@ -11,16 +11,16 @@ type TestCase struct {
 	ExpectResult string `gorm:"column:expect_result" json:"expect_result"`
 	Auto         string `gorm:"column:auto" json:"auto"`
 	Scene        string `gorm:"column:scene" json:"scene"`
-	// FunDeveloper string `gorm:"column:fun_developer" json:"fun_developer"`
-	// CaseDesigner string `gorm:"column:case_designer" json:"case_designer"`
+	FunDeveloper string `gorm:"column:fun_developer" json:"fun_developer"`
+	CaseDesigner string `gorm:"column:case_designer" json:"case_designer"`
 	CaseExecutor string `gorm:"column:case_executor" json:"case_executor"`
 	// TestTime     string `gorm:"column:test_time" json:"test_time"`
-	TestResult string `gorm:"column:test_result" json:"test_result"`
-	Module     string `gorm:"column:module" json:"module"`
-	UpdatedAt  string `gorm:"column:updated_at" json:"updated_at"`
-	// CaseId       string `gorm:"column:case_id" json:"case_id"`
+	TestResult   string `gorm:"column:test_result" json:"test_result"`
+	Module       string `gorm:"column:module" json:"module"`
+	IntroVersion string `gorm:"column:intro_version" json:"intro_version"`
+	//UpdatedAt    string `gorm:"column:updated_at;autoUpdateTime:nano;<-:update"`
 	Product string `gorm:"column:product" json:"product"`
-	// Remark       string `gorm:"column:remark" json:"remark"`
+	Remark  string `gorm:"column:remark" json:"remark"`
 }
 
 type XmindTestCase struct {

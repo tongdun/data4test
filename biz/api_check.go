@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -116,7 +116,6 @@ func ApiDetailCheck(method, path string, bodyList, pathList, queryList, respList
 func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 	var envConfig EnvConfig
 	status = "WARNING"
-	Logger.Debug("request data: %+v", apiCheck)
 	baseUrl := fmt.Sprintf("http://%s/aries/cicd/updateNodeStatus", CICD_HOST)
 	nodeId := apiCheck.NodeId
 	if len(apiCheck.DevEnvHost) == 0 {
@@ -184,7 +183,6 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 
 		if failCount > 0 {
 			err = fmt.Errorf("导入完成，%d个接口不符合规范，请前往[接口定义]列表查看", failCount)
-			Logger.Warning("%v", err)
 			go CallBack4Cicd(baseUrl, nodeId, status)
 			return status, err
 		} else {

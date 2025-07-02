@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -27,7 +27,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	userName := user.Name
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("唯一标识", "id", db.Int).FieldWidth(150).
+	info.AddField("唯一标识", "id", db.Int).
+		FieldWidth(150).
 		FieldFilterable()
 	info.AddField("场景描述", "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
@@ -36,20 +37,22 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookUsedInTaskList(model.Value, model.ID)
 		})
-	info.AddField("数据文件列表", "api_list", db.Longtext).FieldWidth(600).
+	info.AddField("数据文件列表", "api_list", db.Longtext).
+		FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetDataFileLinkByDataStr(model.Value)
 		})
 
-	info.AddField("最近数据文件", "last_file", db.Varchar).FieldDisplay(func(value types.FieldModel) interface{} {
-		return template.Default().
-			Link().
-			SetURL("/admin/fm/data/preview?path=/" + value.Value).
-			SetContent(template2.HTML(value.Value)).
-			OpenInNewTab().
-			SetTabTitle(template.HTML("数据文件")).
-			GetContent()
-	}).FieldWidth(160)
+	info.AddField("最近数据文件", "last_file", db.Varchar).
+		FieldDisplay(func(value types.FieldModel) interface{} {
+			return template.Default().
+				Link().
+				SetURL("/admin/fm/data/preview?path=/" + value.Value).
+				SetContent(template2.HTML(value.Value)).
+				OpenInNewTab().
+				SetTabTitle(template.HTML("数据文件")).
+				GetContent()
+		}).FieldWidth(160)
 
 	pTypes := types.FieldOptions{
 		{Value: "1", Text: "串行中断"},
@@ -59,7 +62,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		{Value: "5", Text: "并发比较"},
 	}
 
-	info.AddField("类型", "scene_type", db.Enum).
+	info.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
 				return "串行中断"
@@ -73,7 +76,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 				return "并发比较"
 			}
 			return "串行中断"
-		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(pTypes).
+		}).FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(pTypes).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(pTypes).
 		FieldWidth(80)
@@ -332,10 +336,10 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldOptions(products)
 	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
-		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
 	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
+	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
 	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
@@ -394,9 +398,9 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField("备注", "remark", db.Longtext)
 	detail.AddField("所属产品", "product", db.Varchar)
 	detail.AddField("创建人", "user_name", db.Varchar)
-	detail.AddField("更新时间", "updated_at", db.Timestamp)
 	detail.AddField("创建时间", "created_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp)
+	detail.AddField("更新时间", "updated_at", db.Timestamp)
+	detail.AddField("删除时间", "deleted_at", db.Timestamp).FieldHide()
 
 	detail.SetTable("playbook").SetTitle("场景详情").SetDescription("场景详情")
 

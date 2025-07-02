@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -13,7 +13,6 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
-	"strings"
 )
 
 func GetApiDefinitionTable(ctx *context.Context) table.Table {
@@ -21,6 +20,11 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 	apiDefinition := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	user := auth.Auth(ctx)
 	userName := user.Name
+
+	aiCaseTemplates := biz.GetAiTemplateOptions("1")
+	aiDataTemplates := biz.GetAiTemplateOptions("2")
+	products := biz.GetProducts()
+	aiPlatforms := biz.GetAiCreatePlatform()
 
 	info := apiDefinition.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
@@ -195,29 +199,29 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddButton("模糊数据测试", icon.Android, action.Ajax("fuzzing_data_batch_test",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			var status string
-			if idStr == "," {
-				status = "请先选择数据再测试"
-				return false, status, ""
-			}
-			ids := strings.Split(idStr, ",")
-			for _, id := range ids {
-				if len(id) == 0 {
-					status = "测试完成，请前往[结果详情]列表查看"
-					continue
-				}
-				if err := biz.RunTestData(id); err == nil {
-					status = "测试完成，请前往[结果详情]列表查看"
-				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
-					return false, status, ""
-				}
-			}
-			return true, status, ""
-		}))
+	//info.AddButton("模糊数据测试", icon.Android, action.Ajax("fuzzing_data_batch_test",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		idStr := ctx.FormValue("ids")
+	//		var status string
+	//		if idStr == "," {
+	//			status = "请先选择数据再测试"
+	//			return false, status, ""
+	//		}
+	//		ids := strings.Split(idStr, ",")
+	//		for _, id := range ids {
+	//			if len(id) == 0 {
+	//				status = "测试完成，请前往[结果详情]列表查看"
+	//				continue
+	//			}
+	//			if err := biz.RunTestData(id); err == nil {
+	//				status = "测试完成，请前往[结果详情]列表查看"
+	//			} else {
+	//				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+	//				return false, status, ""
+	//			}
+	//		}
+	//		return true, status, ""
+	//	}))
 
 	info.AddActionButton("模糊数据测试", action.Ajax("fuzzing_data_test",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
@@ -242,6 +246,53 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
+
+	info.AddButton("AI生成用例", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/ai_create_case_by_api_define",
+		Title:  "AI生成用例",
+		Width:  "900px",
+		Height: "540px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
+			FieldDefault(ids).
+			FieldHide()
+		panel.AddField("智能模板", "ai_template", db.Varchar, form.SelectSingle).
+			FieldOptions(aiCaseTemplates).FieldDefault(aiCaseTemplates[0].Value)
+		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text)
+		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+			FieldOptions(products).FieldDefault(products[0].Value)
+		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
+			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
+		panel.EnableAjax("生成任务已在后台运行,请稍后前往[助手-智能用例]列表查看生成用例")
+		return panel
+	}, "/ai_create_case_by_api_define"))
+
+	info.AddButton("AI生成数据", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/ai_create_data_by_api_define",
+		Title:  "AI生成数据",
+		Width:  "900px",
+		Height: "540px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
+			FieldDefault(ids).
+			FieldHide()
+		panel.AddField("智能模板", "ai_template", db.Varchar, form.SelectSingle).
+			FieldOptions(aiDataTemplates).
+			FieldDefault(aiDataTemplates[0].Value)
+		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
+			FieldOptions(aiPlatforms).
+			FieldDefault(aiPlatforms[0].Value)
+		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
+			FieldHelpMsg("若提供，则相关描述带版本后缀信息")
+		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
+			FieldOptions(products).
+			FieldDefault(aiPlatforms[0].Value).
+			FieldHelpMsg("用于生成智能场景")
+		panel.EnableAjax("生成任务已在后台运行,请稍后前往[助手-智能数据/智能场景]列表查看生成数据/场景")
+		return panel
+	}, "/ai_create_data_by_api_define"))
 
 	apps := biz.GetApps()
 	info.AddSelectBox("关联应用", apps, action.FieldFilter("app"))
@@ -274,7 +325,10 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 	formList.AddField("Query参数", "query_parameter", db.Longtext, form.TextArea)
 	formList.AddField("Body参数", "body", db.Longtext, form.TextArea)
 	formList.AddField("Resp参数", "response", db.Longtext, form.TextArea)
-	formList.AddField("接口版本", "version", db.Int, form.Number).FieldDefault("1").FieldNotAllowEdit()
+	formList.AddField("接口版本", "version", db.Int, form.Number).
+		FieldDefault("1").
+		FieldDisplayButCanNotEditWhenUpdate().
+		FieldDisplayButCanNotEditWhenCreate()
 	formList.AddField("接口状态", "api_status", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
 			{Text: "新增", Value: "1"},

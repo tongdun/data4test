@@ -33,25 +33,33 @@ cd -
 cd deploy/mgmt/download
 sudo rm -rf `ls`
 cd -
+cd deploy/mgmt/ai_data
+sudo rm -rf `ls`
+cd -
 
-mv deploy/mgmt/doc/file/arch/image deploy/mgmt/common
+mv deploy/mgmt/doc/file/image deploy/mgmt/common
 
 #linux版本
 #sed -i 's/..\/..\/..\/upload/\/admin\/fm\/upload\/preview?path="/g' deploy/mgmt/doc/file/design/action_design.md
 #sed -i 's/..\/..\/..\/upload/\/admin\/fm\/upload\/preview?path="/g' deploy/mgmt/doc/file/design/mock_design.md
-#sed -i 's/<img src=".\/image\/arch.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/arch.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
-#sed -i 's/<img src=".\/image\/全局使用流程图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/全局使用流程图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
-#sed -i 's/<img src=".\/image\/数据流程图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/数据流程图.png)/g' deploy/mgmt/doc/file/arch/arch.md
-#sed -i 's/<img src=".\/image\/系统数据关系图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/系统数据关系图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+#sed -i 's/<img src="..\/image\/arch.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/arch.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+#sed -i 's/<img src="..\/image\/全局使用流程图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/全局使用流程图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+#sed -i 's/<img src="..\/image\/数据流程图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/数据流程图.png)/g' deploy/mgmt/doc/file/arch/arch.md
+#sed -i 's/<img src="..\/image\/系统数据关系图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/系统数据关系图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
 
 
 #Mac版本
 sed -i '' 's/..\/..\/..\/upload/\/admin\/fm\/upload\/preview?path=/g' deploy/mgmt/doc/file/design/action_design.md
 sed -i '' 's/..\/..\/..\/upload/\/admin\/fm\/upload\/preview?path=/g' deploy/mgmt/doc/file/design/mock_design.md
-sed -i '' 's/<img src=".\/image\/arch.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/arch.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
-sed -i '' 's/<img src=".\/image\/全局使用流程图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/全局使用流程图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
-sed -i '' 's/<img src=".\/image\/数据流程图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/数据流程图.png)/g' deploy/mgmt/doc/file/arch/arch.md
-sed -i '' 's/<img src=".\/image\/系统数据关系图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/系统数据关系图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+sed -i '' 's/<img src="..\/image\/arch.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/arch.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+sed -i '' 's/<img src="..\/image\/全局使用流程图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/全局使用流程图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+sed -i '' 's/<img src="..\/image\/数据流程图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/数据流程图.png)/g' deploy/mgmt/doc/file/arch/arch.md
+sed -i '' 's/<img src="..\/image\/系统数据关系图.jpg">/[链接](\/admin\/fm\/common\/preview?path=\/image\/系统数据关系图.jpg)/g' deploy/mgmt/doc/file/arch/arch.md
+sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_analysis_design.md
+sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_data_design.md
+sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_playbook_design.md
+sed -i '' 's/<img src="..\/image\/用例数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/用例数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_testcase_design.md
+
 
 sed -i '' 's/parameter_design.md/parameter_design/g' deploy/mgmt/doc/file/design/data_file_design.md
 sed -i '' 's/action_design.md/action_design/g' deploy/mgmt/doc/file/design/data_file_design.md
@@ -108,7 +116,7 @@ echo '''
 	"asset_root_path": "./public/",
 	"file_base_path": "./mgmt",
 	"server_port": 9088,
-	"log_level": "debug",
+	"log_level": "release",
 	"cicd_host": "X.X.X.X:8088",
 	"swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
 	"redirect_path": "{\"Administrator\":\"/admin/info/schedule\", \"Operator\":\"/admin/info/schedule\", \"ApiManage\":\"/admin/likePostman\"}"

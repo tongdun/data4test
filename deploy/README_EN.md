@@ -132,6 +132,6 @@
     "log_level": "debug",
     "cicd_host": "X.X.X.X:8088",   // CICD auto-trigger, no customization required
     "swagger_path": "http://{host:port}/api/metadata/rest/docs?group=group1",
-    "redirect_path": "/admin/info/schedule"    // Initial page definition, can be customized based on frequent usage
+    "redirect_path": "{\"Administrator\":\"/admin/info/schedule\", \"Operator\":\"/admin/info/schedule\", \"ApiManage\":\"/admin/likePostman\",\"Download\":\"/admin/fm/common/list\"}"    // Initial page definition, can be customized based on frequent usage
 }
 ```

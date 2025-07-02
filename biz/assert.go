@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -417,25 +417,20 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			keyTmpName, index := GetSlicesIndex(keyRawName)
 			tmpInterface = data.(map[string]interface{})[keyTmpName]
 			var listInterface []interface{}
-			if tmpInterface != nil {
-				listInterface = tmpInterface.([]interface{})
-			} else {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
-				Logger.Error("%s", err)
-				return keyName, values, err
-			}
-
-			var targetInterface interface{}
 			varType := fmt.Sprintf("%T", tmpInterface)
-			if varType == "string" {
-				tmpStr := targetInterface.(string)
+			if varType == "[]interface {}" {
+				listInterface = tmpInterface.([]interface{})
+			} else if varType == "string" && tmpInterface != nil {
+				tmpStr := tmpInterface.(string)
 				listIndex := strings.Index(tmpStr, "[")
 				if listIndex == 0 {
 					var tmpMap []interface{}
 					json.Unmarshal([]byte(tmpStr), &tmpMap)
-					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
+					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{}))
 				}
 			}
+
+			var targetInterface interface{}
 
 			if varType != "[]interface {}" {
 				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")

@@ -1,17 +1,11 @@
 package biz
 
 type SceneData struct {
-	Name       string `gorm:"column:name" json:"name"`
-	ApiId      string `gorm:"column:api_id" json:"api_id"`
-	App        string `gorm:"column:app" json:"app"`
-	FileName   string `gorm:"column:file_name" json:"file_name" yaml:"file_name"`
-	FileType   int    `gorm:"column:file_type" json:"file_type" yaml:"file_type"`
-	Content    string `gorm:"column:content" json:"content" yaml:"content"`
-	RunTime    int    `gorm:"column:run_time" json:"run_time" yaml:"run_time"`
-	Result     string `gorm:"column:result" json:"result" yaml:"result"`
-	Remark     string `gorm:"column:remark" json:"remark" yaml:"remark"`
-	UserName   string `gorm:"column:user_name" json:"remark" yaml:"user_name"`
-	FailReason string `gorm:"column:fail_reason" json:"fail_reason" yaml:"fail_reason"`
+	FileName string `gorm:"column:file_name" json:"file_name" yaml:"file_name"`
+	RunTime  int    `gorm:"column:run_time" json:"run_time" yaml:"run_time"`
+	Remark   string `gorm:"column:remark" json:"remark" yaml:"remark"`
+	UserName string `gorm:"column:user_name" json:"remark" yaml:"user_name"`
+	CommonDataBase
 }
 
 type DbSceneData struct {

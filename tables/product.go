@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"data4perf/biz"
+	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -150,7 +150,7 @@ func GetProductTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if newCount, oldCount, err := biz.ImportPlaybook(id); err == nil {
+				if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
 					status = fmt.Sprintf("导入完成, 新增: %d条，已存在: %d条", newCount, oldCount)
 				} else {
 					status = fmt.Sprintf("同步失败: %s, 新增: %d条，已存在: %d条", err, newCount, oldCount)
@@ -165,7 +165,7 @@ func GetProductTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 
-			if newCount, oldCount, err := biz.ImportPlaybook(id); err == nil {
+			if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
 				status = fmt.Sprintf("导入完成, 新增: %d条，已存在: %d条", newCount, oldCount)
 			} else {
 				status = fmt.Sprintf("同步失败: %s, 新增: %d条，已存在: %d条", err, newCount, oldCount)

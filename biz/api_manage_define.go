@@ -171,10 +171,17 @@ type SceneHistorySaveModel struct {
 
 type HistoryDataDetail struct {
 	Id      string `gorm:"column:id" json:"id"`
-	Name    string `gorm:"column:name" json:"name"`
-	ApiId   string `gorm:"column:api_id" json:"api_id"`
-	App     string `gorm:"column:app" json:"app"`
-	Content string `gorm:"column:content" json:"content"`
-	EnvType int    `gorm:"column:env_type" json:"env_type"`
 	Product string `gorm:"column:product" json:"product"`
+	EnvType int    `gorm:"column:env_type" json:"env_type"`
+	CommonDataBase
+}
+
+type CommonDataBase struct {
+	Name       string `gorm:"column:name" json:"name"`
+	ApiId      string `gorm:"column:api_id" json:"api_id"`
+	App        string `gorm:"column:app" json:"app"`
+	Content    string `gorm:"column:content" json:"content"`
+	FailReason string `gorm:"column:fail_reason" json:"fail_reason" yaml:"fail_reason"`
+	Result     string `gorm:"column:result" json:"result" yaml:"result"`
+	FileType   int    `gorm:"column:file_type" json:"file_type" yaml:"file_type"`
 }

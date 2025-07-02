@@ -8,6 +8,12 @@
     - 任务管理: design/task_design.md
     - Mock使用: design/mock_design.md
     - 常见问题: question/FAQ.md
+- 智能助手:
+   - 智能用例: ai/ai_testcase_design.md
+   - 智能数据: ai/ai_data_design.md
+   - 智能场景: ai/ai_playbook_design.md
+   - 智能分析: ai/ai_analysis_design.md
+   - 智能模板: ai/ai_template_design.md
 - 数据文件:
     - 参数说明: design/parameter_design.md
     - 动作说明: design/action_design.md

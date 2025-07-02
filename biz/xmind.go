@@ -1,14 +1,13 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func GetFileName(dirName, product string) (fileName string, err error) {
@@ -39,7 +38,7 @@ func GetFileName(dirName, product string) (fileName string, err error) {
 func GetJSON(id string) (err error) {
 	StatusDef := map[int]string{1: "草稿", 2: "待评审", 3: "评审中", 4: "重做", 5: "废弃", 6: "特性", 7: "终稿"}
 	PriorityDef := map[int]string{1: "P1", 2: "P2", 3: "P3"}
-	AutoDef := map[int]string{1: "是", 2: "否"}
+	//AutoDef := map[int]string{1: "是", 2: "否"}
 	TestTypeDef := map[int]string{1: "冒烟", 2: "场景", 3: "异常"}
 	var product Product
 	models.Orm.Table("product").Where("id = ?", id).Find(&product)
@@ -84,7 +83,12 @@ func GetJSON(id string) (err error) {
 		var testcase, testCaseDb, testCaseDb2 TestCase
 		modules := strings.Split(item.Suite, "-")
 		testcase.CaseName = item.Name
-		testcase.Auto = AutoDef[item.ExecutionType]
+		if item.ExecutionType == 2 {
+			testcase.Auto = "0"
+		} else {
+			testcase.Auto = "1"
+		}
+		//testcase.Auto = AutoDef[item.ExecutionType]
 		testcase.TestResult = StatusDef[item.Status]
 
 		if strings.Contains(testcase.CaseName, ":") {
@@ -144,8 +148,6 @@ func GetJSON(id string) (err error) {
 
 		testcase.CaseNumber = caseNumberPrefix + "_" + sufixNum
 
-		curTime := time.Now()
-		testcase.UpdatedAt = curTime.Format(baseFormat)
 		models.Orm.Table("test_case").Where("product = ? and case_number = ?", productName, testcase.CaseNumber).Find(&testCaseDb2)
 		if len(testCaseDb2.CaseNumber) == 0 {
 			err = models.Orm.Table("test_case").Create(testcase).Error
@@ -153,6 +155,8 @@ func GetJSON(id string) (err error) {
 				Logger.Error("%s", err)
 			}
 		} else {
+			//curTime := time.Now()
+			//testcase.UpdatedAt = curTime.Format(baseFormat)
 			err = models.Orm.Table("test_case").Where("product = ? and case_number = ?", productName, testcase.CaseNumber).Update(testcase).Error
 			if err != nil {
 				Logger.Error("%s", err)

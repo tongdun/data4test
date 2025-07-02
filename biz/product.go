@@ -1,7 +1,7 @@
 package biz
 
 import (
-	"data4perf/models"
+	"data4test/models"
 	"encoding/json"
 	"fmt"
 )
@@ -26,7 +26,7 @@ func GetEnvTypeByName(product string) (envType int) {
 	models.Orm.Table("product").Where("product = ?", product).Pluck("env_type", &envTypes)
 
 	if len(envTypes) == 0 {
-		Logger.Warning("未找到[%v]产品信息，请核对", product)
+		Logger.Warning("未找到[%s]产品信息，请核对", product)
 		return
 	}
 
