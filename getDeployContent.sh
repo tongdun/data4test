@@ -58,7 +58,7 @@ sed -i '' 's/<img src="..\/image\/系统数据关系图.jpg">/[链接](\/admin\/
 sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_analysis_design.md
 sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_data_design.md
 sed -i '' 's/<img src="..\/image\/智能数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_playbook_design.md
-sed -i '' 's/<img src="..\/image\/用例数据流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/用例数据流转图.png)/g' deploy/mgmt/doc/file/ai/ai_testcase_design.md
+sed -i '' 's/<img src="..\/image\/智能用例流转图.png">/[链接](\/admin\/fm\/common\/preview?path=\/image\/智能用例流转图.png)/g' deploy/mgmt/doc/file/ai/ai_testcase_design.md
 
 
 sed -i '' 's/parameter_design.md/parameter_design/g' deploy/mgmt/doc/file/design/data_file_design.md
