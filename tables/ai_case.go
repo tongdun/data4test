@@ -118,6 +118,42 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
 
+	info.AddButton("导出MD", icon.File, action.Ajax("ai_test_case_export_markdown",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = "请先选择数据再导出"
+				return false, status, ""
+			}
+
+			fileName, err := biz.ExportTestCase2Markdown(idStr, "ai_case")
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				return false, status, ""
+			}
+
+			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			return true, status, ""
+		}))
+	info.AddButton("导出Xmind", icon.File, action.Ajax("ai_test_case_export_xmind",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = "请先选择数据再导出"
+				return false, status, ""
+			}
+
+			fileName, err := biz.ExportTestCase2Xmind(idStr, "ai_case")
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				return false, status, ""
+			}
+
+			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			return true, status, ""
+		}))
 	info.AddButton("AI导入", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/ai_case_import",
 		Title:  "AI导入用例",

@@ -31,7 +31,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddField("场景描述", "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件列表", "api_list", db.Longtext).
+	info.AddField("数据文件列表", "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetHistoryDataLinkByDataStr(model.Value)
 		})
@@ -217,7 +217,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	formList.AddField("自增主键", "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
 	formList.AddField("场景描述", "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("数据文件列表", "api_list", db.Longtext, form.RichText).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField("数据文件列表", "data_file_list", db.Longtext, form.RichText).FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField("最近数据文件", "last_file", db.Varchar, form.Text)
 	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
@@ -251,7 +251,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	detail := playbookTestHistory.GetDetail()
 	detail.AddField("唯一标识", "id", db.Int)
 	detail.AddField("场景描述", "name", db.Varchar)
-	detail.AddField("数据文件列表", "api_list", db.Longtext).
+	detail.AddField("数据文件列表", "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return strings.Replace(model.Value, ",", ",<br>", -1)
 		})

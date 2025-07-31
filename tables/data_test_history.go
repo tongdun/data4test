@@ -18,9 +18,9 @@ import (
 
 func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 
-	senceDataTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
+	dataTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	info := senceDataTestHistory.GetInfo().HideFilterArea()
+	info := dataTestHistory.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
@@ -136,7 +136,7 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 
 	info.SetTable("scene_data_test_history").SetTitle("数据测试历史").SetDescription("场景数据测试历史")
 
-	formList := senceDataTestHistory.GetForm()
+	formList := dataTestHistory.GetForm()
 	formList.AddField("唯一标识", "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
 	formList.AddField("数据描述", "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
@@ -171,5 +171,5 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		return
 	})
 
-	return senceDataTestHistory
+	return dataTestHistory
 }

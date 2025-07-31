@@ -210,6 +210,9 @@ func startServer() {
 				data["code"] = 400
 				data["msg"] = "未关联到数据"
 			} else {
+				if dataInfo.BodyMode == "json" {
+					//dataStr
+				}
 				data["data"] = dataInfo
 				data["code"] = 200
 				data["msg"] = "操作成功"
@@ -920,6 +923,136 @@ func startServer() {
 		})
 	})
 
+	// 导入接口
+	r.POST("/api_define_import", func(c *gin.Context) {
+		ids := c.PostForm("ids")
+		swagger_path := c.PostForm("swagger_path")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		var status string
+		var idList []string
+		if len(ids) == 0 || ids == "," {
+			status = "请先选择一个归属应用"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		} else {
+			idList = strings.Split(ids, ",")
+		}
+
+		failCount, err := biz.GetSwaggerNew(idList[0], swagger_path, uploadFilePath)
+		if failCount > 0 {
+			status = fmt.Sprintf("导入完成，%d个接口不符合规范，请前往[接口定义]列表查看", failCount)
+		} else {
+			status = "导入完成，请前往[接口-接口定义]列表查看"
+		}
+
+		_ = biz.UpdateApiChangeByAppId(idList[0])
+		if err != nil {
+			status = fmt.Sprintf("%s; %s", status, err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			status = "导入完成，请前往[接口-接口定义]列表查看"
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	// Xmind2Excel
+	r.POST("/testcase_xmind2excel", func(c *gin.Context) {
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		var status string
+
+		if len(uploadFilePath) == 0 {
+			status = "请先上传Xmind用例文档"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		fileName, err := biz.Xmind2Excel(uploadFilePath)
+		if err != nil {
+			status = fmt.Sprintf("转换失败: %s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			status = fmt.Sprintf("转换完成，请前往[文件-用例文件]下载, 文件名: %s", fileName)
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
+	// Xmind2Import
+	r.POST("/testcase_xmind2import", func(c *gin.Context) {
+		introVersion := c.PostForm("intro_version")
+		product := c.PostForm("product")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		var status string
+
+		if len(uploadFilePath) == 0 {
+			status = "请先上传Xmind用例文档"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+			return
+		}
+
+		err := biz.Xmind2Import(product, introVersion, uploadFilePath)
+		if err != nil {
+			status = fmt.Sprintf("转换失败: %s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			status = fmt.Sprintf("导入完成, 请刷新列表查看~ ")
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
+		return
+	})
+
 	// AI用例
 	r.POST("/ai_case_create_by_create_desc", func(c *gin.Context) {
 		user, _ := engine.User(c)
@@ -949,7 +1082,6 @@ func startServer() {
 		}
 
 		err := inputCase.AICreateCaseByCreateDesc(createDesc, uploadFilePath)
-		//err := biz.AICreateCaseByCreateDesc(createDesc, uploadFilePath, inputCase)
 		if err != nil {
 			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -1511,7 +1643,6 @@ func startServer() {
 				"msg":  status,
 				"data": map[string]interface{}{},
 			})
-			return
 		}
 
 		err := input.AICreateDataAndPlaybookByImport()
@@ -1529,7 +1660,6 @@ func startServer() {
 				"data": map[string]interface{}{},
 			})
 		}
-		return
 	})
 
 	r.POST("/ai_playbook_test_and_analysis", func(c *gin.Context) {
@@ -1556,7 +1686,31 @@ func startServer() {
 				"data": map[string]interface{}{},
 			})
 		}
-		return
+	})
+
+	// 同步知识库
+	r.POST("/sync_knowledge", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		syncUser := user.Name
+		kType := c.PostForm("k_type")
+
+		status := "同步任务已在后台运行,请稍后查看同步结果，前往[知识库]查看结果"
+
+		err = biz.UpdateAssetKnowledge(kType, syncUser)
+		if err != nil {
+			status = fmt.Sprintf("同步遇错：%s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]interface{}{},
+			})
+		}
 	})
 
 	models.Init(eng.MysqlConnection())

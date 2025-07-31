@@ -105,17 +105,17 @@ type OtherModel struct {
 }
 
 type ApiDataSaveModel struct {
+	DataDesc   string         `json:"dataDesc"`
+	Host       string         `json:"host"`
+	Prototype  string         `json:"prototype"`
+	Product    string         `json:"product"`
 	App        string         `json:"app"`
 	Module     string         `json:"module"`
 	ApiDesc    string         `json:"apiDesc"`
-	DataDesc   string         `json:"dataDesc"`
 	Method     string         `json:"method"`
-	Path       string         `json:"path"`
-	Host       string         `json:"host"`
-	Prototype  string         `json:"prototype"`
 	BodyMode   string         `json:"bodyMode"`
+	Path       string         `json:"path"`
 	Prefix     string         `json:"prefix"`
-	Product    string         `json:"product"`
 	PathVars   []VarDataModel `json:"pathVars"`
 	QueryVars  []VarDataModel `json:"queryVars"`
 	BodyVars   []VarDataModel `json:"bodyVars"`
@@ -126,6 +126,7 @@ type ApiDataSaveModel struct {
 	PreApis    []DepDataModel `json:"preApis"`
 	PostApis   []DepDataModel `json:"postApis"`
 	Other      []OtherModel   `json:"otherConfig"`
+	BodyStr    string         `json:"bodyStr"`
 }
 
 type HistorySaveModel struct {
@@ -152,15 +153,9 @@ type HistorySaveModel struct {
 	PostApis   []DepDataModel `json:"postApis"`
 	Other      []OtherModel   `json:"otherConfig"`
 	RunRespModel
-	//Response string `json:"response"`
-	//Url string `json:"url"`
-	//Header string `json:"header"`
-	//Request string `json:"request"`
-	//FailReason string `json:"failReason"`
 }
 
 type SceneHistorySaveModel struct {
-	//Id        string         `gorm:"column:id" json:"id"`
 	Name      string         `json:"name"`
 	Product   string         `json:"product"`
 	SceneType string         `json:"type"`

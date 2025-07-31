@@ -4,6 +4,7 @@ import (
 	"data4test/models"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -254,12 +255,18 @@ func AiPlaybookTest(idStr, source string, analysisInput AnalysisDataInput) (err 
 			continue
 		}
 		var aiPlaybook AiPlaybook
-		models.Orm.Table("ai_playbook").Where("id = (?)", id).Find(&aiPlaybook)
+		models.Orm.Table(source).Where("id = (?)", id).Find(&aiPlaybook)
 		var playbook Playbook
 		playbook.Name = aiPlaybook.PlaybookDesc
 		playbook.LastFile = aiPlaybook.LastFile
 		playbook.Product = aiPlaybook.Product
-		playbook.Apis = strings.Split(aiPlaybook.DataFileList, ",")
+		fileNameList := strings.Split(aiPlaybook.DataFileList, ",")
+		for _, item := range fileNameList {
+			if len(strings.TrimSpace(item)) == 0 {
+				continue
+			}
+			playbook.Apis = append(playbook.Apis, fmt.Sprintf("%s/%s", AiDataBasePath, item))
+		}
 		playbook.SceneType, _ = strconv.Atoi(aiPlaybook.PlaybookType)
 		_, _, errTmp := playbook.RunAiPlaybook(id, source, analysisInput)
 
@@ -270,9 +277,6 @@ func AiPlaybookTest(idStr, source string, analysisInput AnalysisDataInput) (err 
 				err = fmt.Errorf("%s, %s", err, errTmp)
 			}
 		}
-		//aiPlaybook.Result = result
-		//aiPlaybook.LastFile = lastFile
-		//aiPlaybook.FailReason = fmt.Sprintf("%s", errTmp)
 
 	}
 
@@ -434,7 +438,14 @@ func (playbook Playbook) RunAiPlaybookContent(source string, analysisInput Analy
 		}
 	}
 
-	dst, err := GetResultFilePath(filePath)
+	dst, err2 := GetResultFilePath(filePath)
+	if err2 != nil {
+		if err != nil {
+			err = fmt.Errorf("%s; %s", err, err1)
+		} else {
+			err = err1
+		}
+	}
 	switch source {
 	case "historyAgain", "historyContinue", "history":
 		historyApi = dst
@@ -451,7 +462,133 @@ func (playbook Playbook) RunAiPlaybookContent(source string, analysisInput Analy
 			dst = filePath
 		}
 	}
+
+	errStr := fmt.Sprintf("%s", err)
+
+	// 如果接口请求直接失败，则不进行LLM分析
+	if err != nil && strings.Contains(errStr, "请求失败，返回码") {
+		return
+	}
+
 	result, err = df.AnalysisWithLLM(dst, analysisInput)
+
+	return
+}
+
+func GetAiDataDetailLinkByDataStr(dStr string) (linkStr string) {
+	dList := strings.Split(dStr, ",")
+	for _, item := range dList {
+		if len(item) == 0 {
+			continue
+		}
+		var ids []int
+		var source string
+		models.Orm.Table("ai_data").Where("file_name = ?", item).Pluck("id", &ids)
+		if len(ids) == 0 {
+			models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
+
+			if len(ids) == 0 {
+				Logger.Warning("未找到数据文件[%s], 请核对", item)
+				if len(linkStr) == 0 {
+					linkStr = item //跳详情，可自动点击编辑进行改写
+				} else {
+					linkStr = fmt.Sprintf("%s<br>%s", linkStr, item) // 如果被删了，显示普通信息，无链接
+				}
+			} else {
+				source = "scene_data"
+			}
+		} else {
+			source = "ai_data"
+		}
+
+		if len(source) > 0 {
+			if len(linkStr) == 0 {
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/%s/detail?__goadmin_detail_pk=%d\">%s</a>", source, ids[0], item) //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/%s/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, source, ids[0], item)
+			}
+		} else {
+			Logger.Warning("未找到数据文件[%s], 请核对", item)
+			if len(linkStr) == 0 {
+				linkStr = item //跳详情，可自动点击编辑进行改写
+			} else {
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item) // 如果被删了，显示普通信息，无链接
+			}
+		}
+	}
+	return
+}
+
+func GetAiDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
+	var dataDef DbSceneData
+	models.Orm.Table("ai_data").Where("id = ?", pkId).Find(&dataDef)
+	if len(dataDef.Name) == 0 {
+		Logger.Warning("未找到%s:%s数据定义, 请核对", pkId, dataName)
+		return dataName
+	}
+
+	var playbookCount int
+	matchStr := "%" + dataName + "%"
+	models.Orm.Table("ai_playbook").Where("data_file_list like ?", matchStr).Limit(1).Count(&playbookCount)
+	if playbookCount == 0 {
+		return dataName
+	}
+
+	var playbookIdList []int
+	models.Orm.Table("ai_playbook").Where("data_file_list like ?", matchStr).Group("id").Pluck("id", &playbookIdList)
+	encodeId := url.QueryEscape("id[]")
+	var queryStr string
+	for index, id := range playbookIdList {
+		if index == 0 {
+			queryStr = fmt.Sprintf("%s=%d", encodeId, id)
+		} else {
+			queryStr = fmt.Sprintf("%s&%s=%d", queryStr, encodeId, id)
+		}
+	}
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/ai_playbook?%s\">%s</a>", queryStr, dataName) // 直接跑数据列表进行过滤
+	return
+}
+
+func UseAiPlaybook(ids, userName string) (err error) {
+	idList := strings.Split(ids, ",")
+	var aiPlaybookList []AiPlaybook
+	models.Orm.Table("ai_playbook").Where("id in (?)", idList).Find(&aiPlaybookList)
+	if len(aiPlaybookList) == 0 {
+		err = fmt.Errorf("场景存在异常: [%s], 请核对~", ids)
+		Logger.Error("%s", err)
+		return
+	}
+
+	for _, item := range aiPlaybookList {
+		var tmpPlaybook SceneWithNoUpdateTime
+		models.Orm.Table("playbook").Where("name = ?", item.PlaybookDesc).Find(&tmpPlaybook)
+		tmpPlaybook.SceneType, _ = strconv.Atoi(item.PlaybookType)
+		tmpPlaybook.RunTime = 1
+		tmpPlaybook.DataFileList = item.DataFileList
+		tmpPlaybook.Product = item.Product
+		tmpPlaybook.UserName = userName // 设置为当前操作用户
+		tmpPlaybook.Priority = 999
+		if len(tmpPlaybook.Name) == 0 {
+			tmpPlaybook.Name = item.PlaybookDesc
+			err = models.Orm.Table("playbook").Create(tmpPlaybook).Error
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+		} else {
+			tmpPlaybook.Name = item.PlaybookDesc
+			err = models.Orm.Table("playbook").Where("name = ?", item.PlaybookDesc).Update(tmpPlaybook).Error
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+		}
+	}
+
+	// 数据落库成功后再设置取用状态
+	err = models.Orm.Table("ai_playbook").Where("id in (?)", idList).UpdateColumn(&StatusMgmt{UseStatus: 2}).Error
+	if err != nil {
+		Logger.Error("%v", err)
+		return
+	}
 
 	return
 }

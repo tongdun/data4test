@@ -256,7 +256,7 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 	header := make(map[string]interface{})
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, source)
+		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
 		if errTmp != nil {
 			Logger.Warning("%s", errTmp)
 		}
@@ -293,7 +293,7 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 			}
 		}
 	} else if len(app) > 0 {
-		envConfig, err := GetEnvConfig(app, source)
+		envConfig, err := GetEnvConfig(app, "app")
 		if err != nil {
 			Logger.Warning("%s", err)
 		}
@@ -450,7 +450,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 
 	var envConfig EnvConfig
 
-	envConfig, _ = GetEnvConfig(df.Api.App, "data")
+	envConfig, _ = GetEnvConfig(df.Api.App, "app")
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -469,7 +469,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 	}
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, "scene")
+		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
 		if errTmp != nil {
 			Logger.Warning("%s", errTmp)
 		}
@@ -550,7 +550,6 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 			errTmp = nil
 		}
 		if errTmp != nil {
-			//Logger.Debug("rawContent:\n%s", string(contentStr))
 			Logger.Debug("afterContent:\n%s", contentStr)
 			err = errTmp
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -1730,7 +1729,8 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 		}
 	}
 
-	if source == "data" || source == "playbook" || source == "ai_data" {
+	switch source {
+	case "data", "playbook", "ai_data", "ai_playbook":
 		errTmp = ioutil.WriteFile(filePath, dataInfo, 0644)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
@@ -1740,6 +1740,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 				err = errTmp
 			}
 		}
+
 	}
 
 	return

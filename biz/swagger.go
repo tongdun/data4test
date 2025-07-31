@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"reflect"
 	"sort"
 	"strings"
@@ -284,6 +285,7 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 
 		fileName, errTmp := ExecCommand(cmdStr)
 		if errTmp != nil {
+			Logger.Debug("cmdStr: %s", cmdStr)
 			Logger.Error("%s", errTmp)
 			err = errTmp
 			return
@@ -679,4 +681,114 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 	//}
 
 	return
+}
+
+func GetSwaggerNew(id, swaggerPath, swaggerFilePath string) (checkFailCount int, err error) {
+	appName, err := GetAppName(id)
+	if err != nil {
+		return
+	}
+
+	var content []byte
+	if len(swaggerFilePath) > 0 {
+		Logger.Info("从上传文件[%s]获取接口文档信息", path.Base(swaggerFilePath))
+		content, err = ioutil.ReadFile(swaggerFilePath)
+		if err != nil {
+			Logger.Error("%s", err)
+			return
+		}
+	} else if len(swaggerPath) > 0 {
+		Logger.Info("从接口路径[%s]获取接口文档信息", swaggerPath)
+		resp, errTemp := http.Get(swaggerPath)
+		// 一次性读取
+		content, errTemp = ioutil.ReadAll(resp.Body)
+		if errTemp != nil {
+			Logger.Error("%s", errTemp)
+			return 0, errTemp
+		}
+		resp.Body.Close()
+	}
+
+	var swagger Swagger
+	err = json.Unmarshal(content, &swagger)
+	allDefine := swagger.GetAllDefinition()
+
+	pathKeys := make([]string, len(swagger.Paths))
+	j := 0
+	for k := range swagger.Paths {
+		pathKeys[j] = k
+		j++
+	}
+
+	var pathDef PathDef
+	var apiIds []string
+	for _, v := range pathKeys {
+		pathDef = swagger.Paths[v]
+		if !reflect.DeepEqual(pathDef.Put, ApiDetail{}) {
+			chekTag, errTmp := pathDef.GetApiDetail("put", v, pathDef.Put.Summary, appName, allDefine)
+			if !chekTag {
+				checkFailCount++
+			}
+			apiId := fmt.Sprintf("put_%s", v)
+			apiIds = append(apiIds, apiId)
+			if errTmp != nil {
+				err = fmt.Errorf("%s,%s", err, errTmp)
+			}
+		}
+		if !reflect.DeepEqual(pathDef.Post, ApiDetail{}) {
+			chekTag, errTmp := pathDef.GetApiDetail("post", v, pathDef.Post.Summary, appName, allDefine)
+			if !chekTag {
+				checkFailCount++
+			}
+			apiId := fmt.Sprintf("post_%s", v)
+			apiIds = append(apiIds, apiId)
+			if errTmp != nil {
+				err = fmt.Errorf("%s,%s", err, errTmp)
+			}
+		}
+		if !reflect.DeepEqual(pathDef.Delete, ApiDetail{}) {
+			chekTag, errTmp := pathDef.GetApiDetail("delete", v, pathDef.Delete.Summary, appName, allDefine)
+			if !chekTag {
+				checkFailCount++
+			}
+			apiId := fmt.Sprintf("delete_%s", v)
+			apiIds = append(apiIds, apiId)
+			if errTmp != nil {
+				err = fmt.Errorf("%s,%s", err, errTmp)
+			}
+		}
+		if !reflect.DeepEqual(pathDef.Get, ApiDetail{}) {
+			chekTag, errTmp := pathDef.GetApiDetail("get", v, pathDef.Get.Summary, appName, allDefine)
+			if !chekTag {
+				checkFailCount++
+			}
+			apiId := fmt.Sprintf("get_%s", v)
+			apiIds = append(apiIds, apiId)
+			if errTmp != nil {
+				err = fmt.Errorf("%s,%s", err, errTmp)
+			}
+		}
+	}
+
+	var dbApiIds []string
+	models.Orm.Table("api_definition").Where("app = ?", appName).Pluck("api_id", &dbApiIds)
+	for _, item := range dbApiIds {
+		for index, subItem := range apiIds {
+			if item == subItem {
+				break
+			}
+			if index == len(apiIds)-1 {
+				var dbApiDef DbApiStringDefinition
+				_ = models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, item).Find(&dbApiDef)
+				dbApiDef.ApiStatus = "2"
+				errTmp := models.Orm.Table("api_definition").Where("id = ?", dbApiDef.Id).Update(&dbApiDef).Error
+				if errTmp != nil {
+					Logger.Error("%s", errTmp)
+				}
+			}
+		}
+	}
+
+	return
+
 }

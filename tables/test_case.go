@@ -140,7 +140,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		{Value: "deprecated", Text: "已废弃"},
 	}, action.FieldFilter("test_result"))
 
-	info.AddButton("导出Markdown", icon.File, action.Ajax("test_case_export_markdown",
+	info.AddButton("导出MD", icon.File, action.Ajax("test_case_export_markdown",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
@@ -149,7 +149,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 				return false, status, ""
 			}
 
-			fileName, err := biz.ExportTestCase2Markdown(idStr)
+			fileName, err := biz.ExportTestCase2Markdown(idStr, "test_case")
 			if err != nil {
 				status = fmt.Sprintf("导出失败: %s", err)
 				return false, status, ""
@@ -158,6 +158,56 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
 			return true, status, ""
 		}))
+
+	info.AddButton("导出Xmind", icon.File, action.Ajax("test_case_export_xmind",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = "请先选择数据再导出"
+				return false, status, ""
+			}
+
+			fileName, err := biz.ExportTestCase2Xmind(idStr, "test_case")
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				return false, status, ""
+			}
+
+			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			return true, status, ""
+		}))
+
+	info.AddButton("Xmind2Excel", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/testcase_xmind2excel",
+		Title:  "Xmind用例导出为EXCEL",
+		Width:  "900px",
+		Height: "680px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+			"maxFileCount": 1,
+		}).FieldHelpMsg("请上传标准的Xmind文档")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/testcase_xmind2excel"))
+
+	info.AddButton("导入Xmind用例", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/testcase_xmind2excel",
+		Title:  "Xmind用例导出为EXCEL",
+		Width:  "900px",
+		Height: "680px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		info.AddField("关联产品", "product", db.Varchar).
+			FieldFilterable(types.FilterType{FormType: form.Select}).
+			FieldFilterOptions(products)
+		info.AddField("引入版本", "intro_version", db.Varchar).
+			FieldFilterable()
+		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+			"maxFileCount": 1,
+		}).FieldHelpMsg("请上传标准的Xmind文档")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/testcase_xmind2import"))
 
 	info.SetTable("test_case").SetTitle("测试用例").SetDescription("测试用例")
 

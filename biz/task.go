@@ -183,7 +183,7 @@ func OneTask(id string) (err error) {
 	} else if dbSchedule.TaskType == "scene" {
 		for _, sceneId := range sceneList {
 			playbookInfo, productList, err := GetPlRunInfo("task", sceneId)
-			playbook := playbookInfo.GetPlaybook()
+			playbook := playbookInfo.GetPlaybook("task")
 			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
 				_, _, err1 = playbook.RunPlaybook(playbookInfo.Id, "start", "task", productSceneInfo)
@@ -708,12 +708,12 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
 		}
 		if index == 0 {
-			playbookValueStr = fmt.Sprintf("('%s','%s','%s',%d,%d,'%s','%s','%s')", item.Name, item.DataNumber, item.ApiList, item.SceneType, item.RunTime, item.Remark, userName, productName)
+			playbookValueStr = fmt.Sprintf("('%s','%s','%s',%d,%d,'%s','%s','%s')", item.Name, item.DataNumber, item.DataFileList, item.SceneType, item.RunTime, item.Remark, userName, productName)
 		} else {
-			playbookValueStr = fmt.Sprintf("%s, ('%s','%s','%s',%d,%d,'%s','%s','%s')", playbookValueStr, item.Name, item.DataNumber, item.ApiList, item.SceneType, item.RunTime, item.Remark, userName, productName)
+			playbookValueStr = fmt.Sprintf("%s, ('%s','%s','%s',%d,%d,'%s','%s','%s')", playbookValueStr, item.Name, item.DataNumber, item.DataFileList, item.SceneType, item.RunTime, item.Remark, userName, productName)
 		}
-		//dataTmp := GetListFromHtml(item.ApiList)
-		dataTmp := strings.Split(item.ApiList, ",")
+
+		dataTmp := strings.Split(item.DataFileList, ",")
 		for _, dataItem := range dataTmp {
 			if _, ok := dataMap[dataItem]; !ok {
 				dataMap[dataItem] = true
@@ -723,7 +723,7 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 
 	playbookNoDesc := fmt.Sprintf("# 导出的场景数量为: %d", len(playbookList))
 
-	playbookSQL := fmt.Sprintf("REPLACE INTO `playbook`(name, data_number, api_list, scene_type, run_time, remark, user_name, product) VALUES %s;", playbookValueStr)
+	playbookSQL := fmt.Sprintf("REPLACE INTO `playbook`(name, data_number, data_file_list, scene_type, run_time, remark, user_name, product) VALUES %s;", playbookValueStr)
 	_ = WriteDataInCommonFile(filePath, playbookSQLDesc)
 	_ = WriteDataInCommonFile(filePath, playbookNoDesc)
 	_ = WriteDataInCommonFile(filePath, playbookSQL)

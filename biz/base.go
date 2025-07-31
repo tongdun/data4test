@@ -18,18 +18,19 @@ var (
 )
 
 var (
-	DataBasePath     string
-	UploadBasePath   string
-	DownloadBasePath string
-	HistoryBasePath  string
-	InfoLogPath      string
-	ErrorLogPath     string
-	DocFilePath      string
-	OldFilePath      string
-	CommonFilePath   string
-	ApiFilePath      string
-	CaseFilePath     string
-	AiDataBasePath   string
+	DataBasePath      string
+	UploadBasePath    string
+	DownloadBasePath  string
+	HistoryBasePath   string
+	InfoLogPath       string
+	ErrorLogPath      string
+	DocFilePath       string
+	OldFilePath       string
+	CommonFilePath    string
+	ApiFilePath       string
+	CaseFilePath      string
+	AiDataBasePath    string
+	KnowledgeBasePath string
 )
 
 type Config struct {
@@ -82,6 +83,7 @@ func init() {
 	ApiFilePath = fmt.Sprintf("%s/api", BASEPATH)
 	CaseFilePath = fmt.Sprintf("%s/case", BASEPATH)
 	AiDataBasePath = fmt.Sprintf("%s/ai_data", BASEPATH)
+	KnowledgeBasePath = fmt.Sprintf("%s/knowledge", BASEPATH)
 	_, err = os.Stat(BASEPATH)
 	if err != nil {
 		panic(err)

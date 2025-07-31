@@ -34,15 +34,15 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		{Value: "4", Text: "普通并发"},
 		{Value: "5", Text: "并发比较"},
 	}
-	//aiDataTemplates := biz.GetAiTemplateOptions("3")
+
 	aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
 	aiPlatforms := biz.GetAiCreatePlatform()
 
 	info.AddField("自增主键", "id", db.Int).
 		FieldFilterable().
 		FieldWidth(80)
-	info.AddField("场景描述", "playbook_desc", db.Varchar).
-		FieldFilterable().
+	info.AddField("场景描述", "name", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldWidth(220)
 	info.AddField("数据文件列表", "data_file_list", db.Text).
 		FieldWidth(600).
@@ -59,7 +59,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 				SetTabTitle(template.HTML("数据文件")).
 				GetContent()
 		}).FieldWidth(160)
-	info.AddField("场景类型", "playbook_type", db.Enum).
+	info.AddField("场景类型", "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
 				return "串行中断"
@@ -258,7 +258,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 				return false, status, ""
 			}
 			ids := strings.Trim(idStr, ",")
-			if err := biz.UseAiData(ids, userNameSub); err == nil {
+			if err := biz.UseAiPlaybook(ids, userNameSub); err == nil {
 				status = "取用成功，请前往[场景-场景列表]查看"
 			} else {
 				status = fmt.Sprintf("取用失败：%s: %s", ids, err)
@@ -289,10 +289,10 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	formList := aiPlaybook.GetForm()
 	formList.AddField("自增主键", "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("场景描述", "playbook_desc", db.Varchar, form.Text)
+	formList.AddField("场景描述", "name", db.Varchar, form.Text)
 	formList.AddField("数据文件列表", "data_file_list", db.Text, form.TextArea).
 		FieldHelpMsg(dataHelp)
-	formList.AddField("场景类型", "playbook_type", db.Enum, form.Radio).
+	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
 			{Value: "1", Text: "串行中断"},
 			{Value: "2", Text: "串行比较"},
@@ -341,9 +341,9 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	detail := aiPlaybook.GetDetail()
 	detail.AddField("唯一标识", "id", db.Int)
 	detail.AddField("场景描述", "name", db.Varchar)
-	detail.AddField("数据文件列表", "api_list", db.Longtext).
+	detail.AddField("数据文件列表", "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetDataDetailLinkByDataStr(model.Value)
+			return biz.GetAiDataDetailLinkByDataStr(model.Value)
 		})
 	detail.AddField("最近数据文件", "last_file", db.Varchar)
 	detail.AddField("场景类型", "scene_type", db.Enum).
@@ -371,12 +371,12 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField("失败原因", "fail_reason", db.Text)
 	detail.AddField("备注", "remark", db.Longtext)
 	detail.AddField("所属产品", "product", db.Varchar)
-	detail.AddField("创建人", "user_name", db.Varchar)
+	detail.AddField("创建人", "create_user", db.Varchar)
 	detail.AddField("创建时间", "created_at", db.Timestamp)
 	detail.AddField("更新时间", "updated_at", db.Timestamp)
 	detail.AddField("删除时间", "deleted_at", db.Timestamp).FieldHide()
 
-	detail.SetTable("playbook").SetTitle("场景详情").SetDescription("场景详情")
+	detail.SetTable("ai_playbook").SetTitle("智能场景详情").SetDescription("智能场景详情")
 
 	return aiPlaybook
 }

@@ -81,246 +81,6 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 	return
 }
 
-//func (sceneAssert SceneAssert) GetOutput(data map[string]interface{}) (keyName string, values []interface{}, err error) {
-//	// 如果返回的数据为空，则直接返回
-//	if len(data) == 0 {
-//		err = fmt.Errorf("无返回信息，无法解析输出参数")
-//		Logger.Error("%s", err)
-//		return
-//	}
-//	var tmpInterface interface{}
-//
-//	targetValueFlowStr := Interface2Str(sceneAssert.Value)
-//	if sceneAssert.Type == "output" {
-//		keyName = targetValueFlowStr
-//	} else {
-//		keyName = fmt.Sprintf("flowVar_%s", targetValueFlowStr)
-//	}
-//
-//	// 解析定义的校验参数
-//	is4Split := Is2Split(sceneAssert.Source)
-//	if strings.Contains(sceneAssert.Source, "-") && is4Split { // 字典 key 分隔
-//		items := strings.SplitN(sceneAssert.Source, "-", 2)
-//		sceneAssert.Source = items[1]
-//		if data[items[0]] == nil {
-//			err = fmt.Errorf("未解析到[%v]的值，请核对", items[0])
-//			Logger.Error("%s", err)
-//			return
-//		} else {
-//			varType := fmt.Sprintf("%T", data[items[0]])
-//			if varType == "string" {
-//				tmpStr := data[items[0]].(string)
-//				if strings.Contains(tmpStr, "{") {
-//					var tmpMap map[string]interface{}
-//					json.Unmarshal([]byte(tmpStr), &tmpMap)
-//					tmpInterface = tmpMap
-//				}
-//			} else if varType == "[]interface {}" {
-//				getInterface := data[items[0]].([]interface{})
-//				if len(getInterface) > 0 {
-//					tmpInterface = data[items[0]].([]interface{})[0]
-//				} else {
-//					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//					Logger.Error("%s", err)
-//					return
-//				}
-//			} else if varType != "map[string]interface {}" {
-//				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//				Logger.Error("%s", err)
-//				return
-//			}
-//			tmpInterface = data[items[0]].(interface{})
-//		}
-//
-//		varType := fmt.Sprintf("%T", tmpInterface)
-//		if varType == "string" {
-//			tmpStr := tmpInterface.(string)
-//			if strings.Contains(tmpStr, "{") {
-//				var tmpMap map[string]interface{}
-//				json.Unmarshal([]byte(tmpStr), &tmpMap)
-//				return sceneAssert.GetOutput(tmpMap)
-//			}
-//		} else if varType == "map[string]interface {}" {
-//			// 进入下一层数据解析，递归调用
-//			return sceneAssert.GetOutput(tmpInterface.(map[string]interface{}))
-//		} else if varType == "[]interface {}" {
-//			// 进入下一层数据解析，递归调用
-//			getInterface := tmpInterface.([]interface{})
-//			if len(getInterface) > 0 {
-//				newData := tmpInterface.([]interface{})[0]
-//				return sceneAssert.GetOutput(newData.(map[string]interface{}))
-//			} else {
-//				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//				Logger.Error("%s", err)
-//				return
-//			}
-//
-//		} else {
-//			err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//			Logger.Debug("varType: %v", varType)
-//			Logger.Error("%s", err)
-//			return
-//		}
-//
-//	} else if strings.Contains(sceneAssert.Source, "**") {
-//		items := strings.SplitN(sceneAssert.Source, "**", 2)
-//		sceneAssert.Source = items[1]
-//		if data[items[0]] != nil {
-//			varType := fmt.Sprintf("%T", data[items[0]])
-//			if varType != "[]interface {}" {
-//				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//				Logger.Error("%s", err)
-//				return
-//			}
-//			tmpInterface = data[items[0]].([]interface{})[0]
-//			varSubType := fmt.Sprintf("%T", tmpInterface)
-//			if varSubType != "[]interface {}" {
-//				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//				Logger.Error("%s", err)
-//				return
-//			}
-//			newInterface := tmpInterface.([]interface{})[0]
-//			return sceneAssert.GetOutput(newInterface.(map[string]interface{}))
-//		}
-//	} else if strings.Contains(sceneAssert.Source, "*") { // 对数组内的字典进行 key 分隔
-//		items := strings.SplitN(sceneAssert.Source, "*", 2)
-//		sceneAssert.Source = items[1]
-//		if data[items[0]] != nil {
-//			if strings.Contains(items[1], "*") {
-//				isHit, index, keyName := GetSlicesIndex(items[0])
-//				Logger.Debug("items[1]: %v", items[1])
-//				Logger.Debug("items[0]: %v", items[0])
-//				Logger.Debug("isHit: %v", isHit)
-//				Logger.Debug("index: %v", index)
-//				Logger.Debug("keyName: %v", keyName)
-//				if !isHit {
-//					keyName = items[0]
-//				}
-//				Logger.Debug("keyName: %v", keyName)
-//				varType := fmt.Sprintf("%T", data[keyName])
-//				if varType != "[]interface {}" {
-//					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//					Logger.Error("%s", err)
-//					return keyName, values, err
-//				}
-//
-//				if len(data[keyName].([]interface{})) > index {
-//					if index < 0 {
-//						tmpInterface = data[keyName].([]interface{})[len(data[keyName].([]interface{}))+index]
-//					} else {
-//						tmpInterface = data[keyName].([]interface{})[index]
-//					}
-//				} else {
-//					Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
-//					tmpInterface = data[keyName].([]interface{})[0]
-//				}
-//				Logger.Debug("tmpInterface: %v", tmpInterface)
-//				Logger.Debug("tmpInterface: %T", tmpInterface)
-//				return sceneAssert.GetOutput(tmpInterface.(map[string]interface{}))
-//			}
-//
-//			isHit, index, keyName := GetSlicesIndex(items[1])
-//			if !isHit {
-//				if strings.Contains(keyName, "-") {
-//					return sceneAssert.GetOutput(data[items[0]].(map[string]interface{}))
-//				} else {
-//					keyName = items[1]
-//				}
-//			}
-//
-//			if isHit {
-//				dataLen := len(data[items[0]].([]interface{}))
-//				if dataLen == 0 {
-//					Logger.Warning("返回的数据列表为空，请核对")
-//				} else {
-//					var tmpDict map[string]interface{}
-//					if dataLen > index {
-//						if index < 0 {
-//							newIndex := dataLen + index
-//							if newIndex < 0 {
-//								err = fmt.Errorf("提供的索引超过数据范围了，数据长度: %v, 索引: %v", dataLen, index)
-//								Logger.Error("%s", err)
-//								return keyName, values, err
-//							}
-//							tmpDict = data[items[0]].([]interface{})[dataLen+index].(map[string]interface{})
-//						} else {
-//							tmpDict = data[items[0]].([]interface{})[index].(map[string]interface{})
-//						}
-//
-//						if strings.Contains(items[1], "-") {
-//							subItems := strings.Split(items[1], "-")
-//							sceneAssert.Source = subItems[1]
-//							varType := fmt.Sprintf("%T", tmpDict[keyName])
-//							if varType != "map[string]interface {}" {
-//								err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//								return keyName, values, err
-//							}
-//							subDict := tmpDict[keyName].(map[string]interface{})
-//							return sceneAssert.GetOutput(subDict)
-//						}
-//						values = append(values, tmpDict[keyName])
-//					} else {
-//						Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
-//						tmpDict = data[items[0]].([]interface{})[0].(map[string]interface{})
-//						values = append(values, tmpDict[keyName])
-//					}
-//				}
-//			} else {
-//				var tmpDict map[string]interface{}
-//				varType := fmt.Sprintf("%T", data[items[0]])
-//				if varType != "[]interface {}" {
-//					err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//					return keyName, values, err
-//				}
-//
-//				// 先判断数组是否为空，若为空，不再往后走
-//				valueList := data[items[0]].([]interface{})
-//				if len(valueList) == 0 {
-//					err = fmt.Errorf("未获取到[%v]即[%v]的值，请核对~", sceneAssert.Source, sceneAssert.Value)
-//					Logger.Error("%s", err)
-//					return keyName, values, err
-//				}
-//
-//				for _, tmpInfo := range valueList {
-//					varType := fmt.Sprintf("%T", tmpInfo)
-//
-//					if varType != "map[string]interface {}" {
-//						err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
-//						Logger.Error("%s", err)
-//						return keyName, values, err
-//					}
-//					if strings.Contains(keyName, "-") {
-//						sceneAssert.Source = keyName
-//						return sceneAssert.GetOutput(tmpInfo.(map[string]interface{}))
-//					}
-//
-//					tmpDict = tmpInfo.(map[string]interface{})
-//					values = append(values, tmpDict[items[1]])
-//				}
-//			}
-//		}
-//	} else { // 获取最终的值
-//		if value, ok := data[sceneAssert.Source]; ok {
-//			subType := fmt.Sprintf("%T", data[sceneAssert.Source])
-//			if subType == "[]interface {}" {
-//				values = data[sceneAssert.Source].([]interface{})
-//			} else {
-//				strValue := Interface2Str(value)
-//				values = append(values, strValue)
-//			}
-//		} else {
-//			Logger.Debug("sceneAssert.Source: %v", sceneAssert.Source)
-//			Logger.Debug("data: %+v", data)
-//			err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", sceneAssert.Source, sceneAssert.Value)
-//			err = err1
-//			Logger.Error("%s", err)
-//			return
-//		}
-//	}
-//
-//	return
-//}
-
 func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, values []interface{}, err error) {
 	// 如果返回的数据为空，则直接返回
 	if data == nil {
@@ -348,7 +108,6 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		keyRawName = sceneAssert.Source
 		sceneAssert.Source = ""
 	}
-
 	if splitIndexType == "list" {
 		if strings.Contains(keyRawName, "@") { // 通过属性值从数组中获取指定的值
 			keyTmpName, compareType, properties := GetSliceProperties(keyRawName)
@@ -390,6 +149,10 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 								}
 							} else {
 								if subIndex == len(properties)-1 {
+									if len(sceneAssert.Source) == 0 {
+										values = append(values, subItem)
+										return keyName, values, err
+									}
 									return sceneAssert.GetOutput(subItem)
 								}
 							}
@@ -415,6 +178,13 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			}
 		} else { // 通过数组下标索引获取指定的值
 			keyTmpName, index := GetSlicesIndex(keyRawName)
+			varMapType := fmt.Sprintf("%T", data)
+			if varMapType != "map[string]interface {}" {
+				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varMapType)
+				Logger.Error("%s", err)
+				return keyName, values, err
+			}
+
 			tmpInterface = data.(map[string]interface{})[keyTmpName]
 			var listInterface []interface{}
 			varType := fmt.Sprintf("%T", tmpInterface)
@@ -433,7 +203,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			var targetInterface interface{}
 
 			if varType != "[]interface {}" {
-				err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", sceneAssert.Source, varType)
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
@@ -476,7 +246,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					for _, data := range tmpMap {
 						subVarType := fmt.Sprintf("%T", data)
 						if subVarType != "map[string]interface {}" {
-							err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", sceneAssert.Source)
+							err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, subVarType)
 							Logger.Error("%s", err)
 							return
 						}
@@ -493,8 +263,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		}
 
 		if varType != "[]interface {}" {
-			Logger.Debug("Response: %v", tmpInterface)
-			err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+			err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varType)
 			Logger.Error("%s", err)
 			return keyName, values, err
 		}
@@ -504,7 +273,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			for _, data := range dataList {
 				subVarType := fmt.Sprintf("%T", data)
 				if subVarType != "map[string]interface {}" {
-					err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", sceneAssert.Source)
+					err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, subVarType)
 					Logger.Error("%s", err)
 					return
 				}
@@ -544,7 +313,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					return
 				}
 
-				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName) // 如果都不行，即定义与实际返回不一致
+				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varType) // 如果都不行，即定义与实际返回不一致
 				Logger.Error("%s", err)
 				return
 

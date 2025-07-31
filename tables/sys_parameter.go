@@ -1,10 +1,13 @@
 package tables
 
 import (
+	"data4test/biz"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
+	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	"html/template"
 )
@@ -16,7 +19,7 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 	info := sysParameter.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
-
+	kTypes := biz.GetKnowledgeType()
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
 	info.AddField("自增主键", "id", db.Int).
@@ -38,6 +41,18 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
+
+	info.AddButton("同步知识库", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/sync_knowledge",
+		Title:  "同步知识库",
+		Width:  "900px",
+		Height: "340px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		panel.AddField("同步类型", "k_type", db.Varchar, form.SelectSingle).
+			FieldOptions(kTypes)
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/sync_knowledge"))
 
 	info.SetTable("sys_parameter").SetTitle("系统参数").SetDescription("系统参数")
 

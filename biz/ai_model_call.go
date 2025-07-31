@@ -223,42 +223,6 @@ func (aiConnect AIConnect) CallModel2GetMessage(userCode, conversationID string)
 	return
 }
 
-func (aiConnect AIConnect) CallModel2GetMessageOld(userCode, conversationID string) (replyList []string, err error) {
-	client := &http.Client{}
-	url := fmt.Sprintf("%s/messages", aiConnect.BaseUrl)
-	req, _ := http.NewRequest("GET", url, nil)
-
-	// 设置查询参数
-	q := req.URL.Query()
-	q.Add("user", userCode)
-	q.Add("conversation_id", conversationID)
-	//q.Add("limit", "20") // 单次最大消息数
-	req.URL.RawQuery = q.Encode()
-	req.Header.Set("Authorization", "Bearer "+aiConnect.ApiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	var cResp ConversationsResponse
-
-	if errTmp := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
-		Logger.Error("%s", errTmp)
-		err = errTmp
-		return
-	}
-
-	if len(cResp.Data) > 0 {
-		for _, item := range cResp.Data {
-			replyList = append(replyList, item.Answer)
-		}
-	}
-
-	return
-}
-
 func (aiConnect AIConnect) CallModel2Get(method, url string, data, header map[string]interface{}) (replyList []string, err error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)

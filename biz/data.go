@@ -62,31 +62,6 @@ func GetFilePath(id, source string) (filePath string, err error) {
 	return
 }
 
-func GetFilePathOld(id, source string) (app, filePath string, err error) {
-	var dbSceneData DbSceneData
-	s, _ := strconv.Atoi(id)
-	if source == "ai_data" {
-		models.Orm.Table("ai_data").Where("id = ?", s).Find(&dbSceneData)
-		if len(dbSceneData.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的智能数据，请核对", s)
-			Logger.Error("%s", err)
-			return
-		}
-		filePath = fmt.Sprintf("%s/%s", AiDataBasePath, dbSceneData.FileName)
-		//app = dbSceneData.App
-	} else {
-		models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
-		if len(dbSceneData.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的测试数据，请核对", s)
-			Logger.Error("%s", err)
-			return
-		}
-		filePath = fmt.Sprintf("%s/%s", DataBasePath, dbSceneData.FileName)
-	}
-	app = dbSceneData.App
-	return
-}
-
 func CreateSceneDataFromRaw(id, mode string) (err error) {
 	var apiDefinition ApiDefinition
 	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDefinition)
@@ -942,6 +917,8 @@ func GetNoStandardFilePath(filePath string) (rawFilePath string) {
 				rawFilePath = splitFilePath[len(splitFilePath)-1]
 			}
 		}
+	} else {
+		rawFilePath = filePath
 	}
 	return
 }
@@ -1076,7 +1053,7 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 	}
 
 	//apiList := GetListFromHtml(ds.ApiList)
-	apiList := strings.Split(ds.ApiList, ",")
+	apiList := strings.Split(ds.DataFileList, ",")
 	lastFileTag := len(apiList)
 	for index, item := range apiList {
 		var apiAfter, dirName string
@@ -1134,7 +1111,6 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 	envType := GetEnvTypeByName(playbook.Product)
 	isFail := 0
 	result = "fail"
-
 	switch playbook.SceneType {
 	case 1, 2:
 		for k := range runApis {
@@ -1260,17 +1236,22 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 	return
 }
 
-func (ds DbScene) GetPlaybook() (playbook Playbook) {
+func (ds DbScene) GetPlaybook(source string) (playbook Playbook) {
 	var filePaths []string
 	var filePath string
-	//fileNames := GetListFromHtml(ds.ApiList)
-	fileNames := strings.Split(ds.ApiList, ",")
+
+	fileNames := strings.Split(ds.DataFileList, ",")
 	for _, fileName := range fileNames {
 		if len(fileName) == 0 {
 			continue
 		}
 		fileName = strings.Replace(fileName, "\n", "", -1)
-		filePath = fmt.Sprintf("%s/%s", DataBasePath, fileName)
+		if strings.HasPrefix(source, "ai") {
+			filePath = fmt.Sprintf("%s/%s", AiDataBasePath, fileName)
+		} else {
+			filePath = fmt.Sprintf("%s/%s", DataBasePath, fileName)
+		}
+
 		filePaths = append(filePaths, filePath)
 	}
 

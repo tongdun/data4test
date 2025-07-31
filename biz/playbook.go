@@ -69,7 +69,6 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 			if runNum > 1 {
 				Logger.Info("串行模式-执行次数:%d", i+1)
 			}
-
 			subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
 			result = subResult
 			lastFile = subLastFile
@@ -93,11 +92,12 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	var productList []DbProduct
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
-	playbook := playbookInfo.GetPlaybook()
+
 	if err != nil {
 		Logger.Error("%v", err)
 		return
 	}
+	playbook := playbookInfo.GetPlaybook(source)
 
 	if len(product) > 0 {
 		productList, _ = GetProductInfo(product)
@@ -456,22 +456,11 @@ func (playbook Playbook) WritePlaybookHistoryResult(id, result, mode string, env
 	}
 
 	baseLastFile := path.Base(playbook.LastFile)
-	//b, _ := IsStrEndWithTimeFormat(baseLastFile)
-	//var dirName string
-
-	//if b {
-	//	dirName = GetHistoryDataDirName(baseLastFile)
-	//}
 
 	if len(baseLastFile) == 0 {
 		dbScene.LastFile = " " // 用空格字符串刷新数据
 	} else {
 		dbScene.LastFile = baseLastFile
-		//if b {
-		//	dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, baseLastFile, baseLastFile)
-		//} else {
-		//	dbScene.LastFile = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", baseLastFile, baseLastFile)
-		//}
 	}
 
 	if errIn != nil {
@@ -528,15 +517,14 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	var filePaths []string
 	s, _ := strconv.Atoi(id)
 	models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
-	if len(dbScene.ApiList) == 0 {
+	if len(dbScene.DataFileList) == 0 {
 		err = fmt.Errorf("未找到[%v]场景，请核对", s)
 		Logger.Error("%s", err)
 		return
 	}
 
 	var filePath string
-	//fileNames := GetListFromHtml(dbScene.ApiList)
-	fileNames := strings.Split(dbScene.ApiList, ",")
+	fileNames := strings.Split(dbScene.DataFileList, ",")
 
 	for _, item := range fileNames {
 
@@ -581,13 +569,15 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, er
 	s, _ := strconv.Atoi(id)
 	if source == "history" {
 		models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
+		dbScene.RunTime = 1 // 执行次数默认设置为1
 	} else if source == "ai_playbook" {
 		models.Orm.Table("ai_playbook").Where("id = ?", s).Find(&dbScene)
+		dbScene.RunTime = 1 // 执行次数默认设置为1
 	} else {
 		models.Orm.Table("playbook").Where("id = ?", s).Find(&dbScene)
 	}
 
-	if len(dbScene.ApiList) == 0 {
+	if len(dbScene.DataFileList) == 0 {
 		err = fmt.Errorf("未找到对应场景，请核对: %s", id)
 		return
 	}
@@ -819,7 +809,7 @@ func GetPriority(ids string) (idList []string, err error) {
 func CopyPlaybook(id, userName string) (err error) {
 	var dbScene DbScene
 	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
-	if len(dbScene.ApiList) == 0 {
+	if len(dbScene.DataFileList) == 0 {
 		err = fmt.Errorf("未找到[%v]数据，请核对", id)
 		Logger.Error("%s", err)
 		return
@@ -828,7 +818,7 @@ func CopyPlaybook(id, userName string) (err error) {
 	var scene SceneWithNoUpdateTime
 	scene.Product = dbScene.Product
 	scene.Name = fmt.Sprintf("%s_复制", dbScene.Name)
-	scene.ApiList = dbScene.ApiList
+	scene.DataFileList = dbScene.DataFileList
 	scene.RunTime = dbScene.RunTime
 	scene.SceneType = dbScene.SceneType
 	scene.Remark = dbScene.Remark
@@ -905,7 +895,7 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 		sceneInfo.SceneType = "串行中断"
 	}
 
-	dataList := strings.Split(dbScene.ApiList, ",")
+	dataList := strings.Split(dbScene.DataFileList, ",")
 	for _, item := range dataList {
 		var dataModel DepDataModel
 		if len(item) == 0 {
@@ -945,7 +935,7 @@ func SaveScene(sceneSave SceneSaveModel, userName string) (err error) {
 		}
 	}
 
-	scene.ApiList = apiStr
+	scene.DataFileList = apiStr
 	scene.DataNumber = numStr
 	scene.RunTime = sceneSave.RunNum
 	scene.SceneType = sceneSave.SceneType
@@ -960,7 +950,7 @@ func SaveScene(sceneSave SceneSaveModel, userName string) (err error) {
 			Logger.Error("%s", err)
 		}
 	} else {
-		dbScene.ApiList = apiStr
+		dbScene.DataFileList = apiStr
 		dbScene.DataNumber = numStr
 		dbScene.SceneType = sceneSave.SceneType
 		dbScene.RunTime = sceneSave.RunNum
@@ -994,7 +984,7 @@ func ReadSceneFromExcel(fileName string) (sceneList []SceneWithNoUpdateTime, err
 				values = append(values, cell.String())
 			}
 			scene.Name = values[0]
-			scene.ApiList = values[1]
+			scene.DataFileList = values[1]
 			if values[3] == "串行中断" {
 				scene.SceneType = 1
 			} else if values[3] == "串行比较" {
@@ -1052,7 +1042,7 @@ func UpdatePlaybookApiList(id string, apiList, numList []string) (err error) {
 				numStr = fmt.Sprintf("%s,%v", numStr, numList[index])
 			}
 		}
-		dbScene.ApiList = apiStr
+		dbScene.DataFileList = apiStr
 		dbScene.DataNumber = numStr
 		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
 		if err != nil {
@@ -1075,7 +1065,7 @@ func GetPlaybookApiStr(id string) (apiStr string) {
 	//afterTxt2 := strings.Replace(afterTxt1, ".json", ".json\n", -1)
 	//apiStr = strings.Replace(afterTxt2, ".yaml", ".yaml\n", -1)
 
-	return strings.Replace(dbScene.ApiList, ",", "\r\n", -1)
+	return strings.Replace(dbScene.DataFileList, ",", "\r\n", -1)
 }
 
 func GetPlaybookApiList(id string) (apiList []string) {
@@ -1092,7 +1082,7 @@ func GetPlaybookApiList(id string) (apiList []string) {
 	//afterTxt := strings.Replace(afterTxt2, ".yaml", ".yaml,", -1)
 	//apiList = strings.Split(afterTxt, ",")
 
-	return strings.Split(dbScene.ApiList, ",")
+	return strings.Split(dbScene.DataFileList, ",")
 }
 
 // ModifyPlaybookContent 场景数据升级函数,增加序号/标签
@@ -1102,7 +1092,7 @@ func ModifyPlaybookContent() (err error) {
 	for _, id := range ids {
 		var dbScene DbScene
 		models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
-		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.DataFileList))
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
 			err = errTmp
@@ -1146,7 +1136,7 @@ func ModifyPlaybookContent() (err error) {
 				}
 			}
 
-			dbScene.ApiList = apiStr
+			dbScene.DataFileList = apiStr
 			dbScene.DataNumber = numStr
 			err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
 			if err != nil {
@@ -1171,14 +1161,14 @@ func ModifyPlaybookApiList() (err error) {
 			return
 		}
 
-		if !strings.Contains(dbScene.ApiList, "</a>") {
+		if !strings.Contains(dbScene.DataFileList, "</a>") {
 			Logger.Info("%d:%s场景无需更新", id, dbScene.Name)
 			continue
 		}
 
-		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.ApiList))
+		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.DataFileList))
 		if errTmp != nil {
-			Logger.Debug("dbScene.ApiList:%s", dbScene.ApiList)
+			Logger.Debug("dbScene.ApiList:%s", dbScene.DataFileList)
 			Logger.Error("%d:%s场景信息获取异常，%s", id, dbScene.Name, errTmp)
 			err = errTmp
 			continue
@@ -1189,7 +1179,7 @@ func ModifyPlaybookApiList() (err error) {
 		afterTxt2 := strings.Replace(afterTxt1, ".json", ".json,", -1)
 		afterTxt3 := strings.Replace(afterTxt2, ".sh", ".sh,", -1)
 		apiStr := strings.Replace(afterTxt3, ".yaml", ".yaml,", -1)
-		dbScene.ApiList = apiStr
+		dbScene.DataFileList = apiStr
 		err = models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Update(dbScene).Error
 		if err != nil {
 			Logger.Error("%s", err)
@@ -1233,7 +1223,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 		}
 	}
 
-	scene.ApiList = apiStr
+	scene.DataFileList = apiStr
 	scene.DataNumber = numStr
 	scene.RunTime = 1
 	scene.SceneType = 1
@@ -1248,7 +1238,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 			Logger.Error("%s", err)
 		}
 	} else {
-		dbScene.ApiList = apiStr
+		dbScene.DataFileList = apiStr
 		dbScene.DataNumber = numStr
 		dbScene.SceneType = scene.SceneType
 		dbScene.RunTime = scene.RunTime
@@ -1397,13 +1387,13 @@ func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
 
 	var playbookCount int
 	matchStr := "%" + dataName + "%"
-	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Limit(1).Count(&playbookCount)
+	models.Orm.Table("playbook").Where("data_file_list like ?", matchStr).Limit(1).Count(&playbookCount)
 	if playbookCount == 0 {
 		return dataName
 	}
 
 	var playbookIdList []int
-	models.Orm.Table("playbook").Where("api_list like ?", matchStr).Group("id").Pluck("id", &playbookIdList)
+	models.Orm.Table("playbook").Where("data_file_list like ?", matchStr).Group("id").Pluck("id", &playbookIdList)
 	encodeId := url.QueryEscape("id[]")
 	var queryStr string
 	for index, id := range playbookIdList {

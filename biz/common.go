@@ -231,6 +231,7 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 
 	newStr = GetCommonData(newStr)
 	newStr = GetTimeData(newStr)
+	newStr = GetEnumData(newStr)
 	newStr = GetLengthData(newStr)
 	newStr = GetRangeData(newStr)
 	newStr = GetTimeFormatData(newStr)
@@ -752,6 +753,25 @@ func GetRangeData(rawStr string) (newStr string) {
 	return
 }
 
+func GetEnumData(rawStr string) (newStr string) {
+	strByte := []byte(rawStr)
+	newStr = rawStr
+	// 匹配字符串
+	comReg := regexp.MustCompile(`\{Enum\(([-a-zA-Z0-9_,]+)\)\}`)
+	comMatch := comReg.FindAllSubmatch(strByte, -1)
+	if len(comMatch) > 0 {
+		for _, item := range comMatch {
+			EnumValue := string(item[1])
+			rawStrDef := string(item[0])
+			value := GetOneValueFromStringList(EnumValue)
+			newStr = strings.Replace(newStr, rawStrDef, value, 1)
+		}
+
+	}
+
+	return
+}
+
 func GetSlicesIndex(src string) (keyName string, index int) {
 	strByte := []byte(src)
 	indexReg := regexp.MustCompile(`(\w+)\[(\W*\d+)\]`)
@@ -938,12 +958,23 @@ func ExecCommand(strCommand string) (result string, err error) {
 	cmd := exec.Command("/bin/bash", "-c", strCommand)
 	out_bytes, err := cmd.CombinedOutput()
 	if err != nil {
-		Logger.Info("cmd: %s", strCommand)
-		Logger.Warning("%s", err)
+		//Logger.Warning("%s", err)
 		return
 	}
 
 	result = strings.Replace(string(out_bytes), "\n", "", -1)
+
+	return
+}
+
+func ExecCommandRaw(strCommand string) (result string, err error) {
+	cmd := exec.Command("/bin/bash", "-c", strCommand)
+	out_bytes, err := cmd.CombinedOutput()
+	if err != nil {
+		return
+	}
+
+	result = strings.Replace(string(out_bytes), "\n", ",", -1)
 
 	return
 }

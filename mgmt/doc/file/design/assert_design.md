@@ -92,6 +92,7 @@
   - {type: output, source: data.contents[@name=XXX||@status=1].uuid, value: codeUuid}, 取contents数组下，name属性值为XXX或status属性值为1，取对应的uuid，赋值给codeUuid,第一个条件满足后即不再判断后续的条件
   - {type: =, source: data.contents[@name=XXX&&@status=1].uuid, value: "{codeUuid}"}, 取contents数组下，name属性值为XXX且status属性值为1，取对应的uuid，跟codeUuid变量值进行比较, 取到第一个值后即不再判断后续的对象
   - {type: re, source: data.contents[@name=XXX||@status=1].remark, value: "XXX}, 取contents数组下，name属性值为XXX或status属性值为1，取对应的remark，与XXX进行正则匹配,第一个条件满足后即不再判断后续的条件
+  - {type: output, source: data.contents[@name=XXX], value: "XXX}, 取contents数组下，name属性值为XXX，取满足条件的整体对象属性，赋值给XXX,第一个条件满足后即不再判断后续的条件
 
 ##### value比较字段说明
 - 支持断言模板，支持多语种比较

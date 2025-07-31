@@ -74,7 +74,26 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 
 	info.AddActionButton("查看报告", action.Jump("/admin/app_dashboard?id={{.Id}}"))
 
-	info.AddButton("导入接口", icon.Android, action.Ajax("autogeneration_batch",
+	info.AddButton("新导入接口", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/api_define_import",
+		Title:  "导入接口定义",
+		Width:  "900px",
+		Height: "680px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		swaggerPath := biz.GetSwaggerPath(ids)
+		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
+		panel.AddField("swagger路径", "swagger_path", db.Varchar, form.Text).
+			FieldDefault(swaggerPath).
+			FieldHelpMsg("swagger路径和上传文档二选一, 路径为JSON格式的路径")
+		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+			"maxFileCount": 1,
+		}).FieldHelpMsg("请上传标准的swagger文档，JSON格式，若有上传文档，优先级更高")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/api_define_import"))
+
+	info.AddButton("旧导入接口", icon.Android, action.Ajax("autogeneration_batch",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
@@ -102,7 +121,7 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddActionButton("导入接口", action.Ajax("autogeneration",
+	info.AddActionButton("旧导入接口", action.Ajax("autogeneration",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string

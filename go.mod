@@ -24,13 +24,14 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/sleagon/chinaid v0.4.2
 	github.com/tealeg/xlsx v1.0.5
+	github.com/titanous/json5 v1.0.0
 	gopkg.in/yaml.v2 v2.2.8
 	syreclabs.com/go/faker v1.2.3
 )
 
 require (
 	github.com/kisielk/godepgraph v0.0.0-20240411160502-0f324ca7e282 // indirect
-	github.com/titanous/json5 v1.0.0 // indirect
+	github.com/vivian0517/goxmind v1.0.0 // indirect
 )
 
 require (
@@ -60,7 +61,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/grd/statistics v0.0.0-20130405091615-5af75da930c9 // indirect
+	github.com/grd/statistics v0.0.0-20130405091615-5af75da930c9
 	github.com/h2non/filetype v1.1.1 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect

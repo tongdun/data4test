@@ -37,7 +37,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookUsedInTaskList(model.Value, model.ID)
 		})
-	info.AddField("数据文件列表", "api_list", db.Longtext).
+	info.AddField("数据文件列表", "data_file_list", db.Longtext).
 		FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetDataFileLinkByDataStr(model.Value)
@@ -367,7 +367,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail := playbook.GetDetail()
 	detail.AddField("唯一标识", "id", db.Int)
 	detail.AddField("场景描述", "name", db.Varchar)
-	detail.AddField("数据文件列表", "api_list", db.Longtext).
+	detail.AddField("数据文件列表", "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetDataDetailLinkByDataStr(model.Value)
 		})

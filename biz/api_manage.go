@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	jsoniter "github.com/json-iterator/go"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	//"regexp"
@@ -718,7 +719,7 @@ func SavePlaybook(name string, apiList, product []string) (err error) {
 			apisStr = fmt.Sprintf("%s %s", apisStr, item)
 		}
 	}
-	scene.ApiList = apisStr
+	scene.DataFileList = apisStr
 	scene.RunTime = 1
 	scene.SceneType = 1
 	scene.Priority = 999
@@ -727,7 +728,7 @@ func SavePlaybook(name string, apiList, product []string) (err error) {
 	for _, item := range product {
 		scene.Product = item
 		models.Orm.Table("playbook").Where("name = ? and product = ?", name, item).Find(&dbScene)
-		if len(dbScene.ApiList) == 0 {
+		if len(dbScene.DataFileList) == 0 {
 			err = models.Orm.Table("playbook").Create(scene).Error
 			if err != nil {
 				Logger.Error("%s", err)
@@ -980,6 +981,27 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 		apiModel.Prefix = dataFile.Env.Prepath
 	}
 
+	for key, value := range dataFile.Single.Header {
+		var varData VarDataModel
+		for _, item := range headerVarList {
+			if item.Name == key {
+				varData.Desc = item.Desc
+				varData.EgValue = item.EgValue
+				varData.IsMust = item.IsMust
+				varData.ValueType = item.ValueType
+			}
+		}
+		varData.Name = key
+		varData.TestValue = append(varData.TestValue, value)
+		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
+
+		if key == "Content-Type" {
+			valueStr := Interface2Str(value)
+			apiModel.BodyMode = valueStr
+		}
+
+	}
+
 	for _, item := range dataFile.Api.PreApi {
 		var depDataModel DepDataModel
 		depDataModel.DataFile = item
@@ -1069,10 +1091,16 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 				varData.ValueType = item.ValueType
 			}
 		}
+		varType := fmt.Sprintf("%T", value)
+		if varType == "[]interface {}" || varType == "map[interface {}]interface {}" {
+			apiModel.BodyMode = "json"
+		}
+
 		varData.Name = key
 		varData.TestValue = append(varData.TestValue, value)
 		apiModel.BodyVars = append(apiModel.BodyVars, varData)
 	}
+
 	for key, value := range dataFile.Multi.Body {
 		var varData VarDataModel
 		for _, item := range bodyVarList {
@@ -1088,33 +1116,17 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 		apiModel.BodyVars = append(apiModel.BodyVars, varData)
 	}
 
-	for key, value := range dataFile.Single.Header {
-		var varData VarDataModel
-		for _, item := range headerVarList {
-			if item.Name == key {
-				varData.Desc = item.Desc
-				varData.EgValue = item.EgValue
-				varData.IsMust = item.IsMust
-				varData.ValueType = item.ValueType
-			}
-		}
-		varData.Name = key
-		varData.TestValue = append(varData.TestValue, value)
-		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
-
-		if key == "Content-Type" {
-			valueStr := Interface2Str(value)
-			apiModel.BodyMode = valueStr
-		}
-
-	}
-
 	var other OtherModel
 	other.IsParallel = dataFile.IsParallel
 	other.Version = dataFile.Version
 	other.IsUseEnvConfig = dataFile.IsUseEnvConfig
 	other.ApiId = dataFile.ApiId
 	apiModel.Other = append(apiModel.Other, other)
+
+	if apiModel.BodyMode == "json" {
+		apiModel.BodyStr, _ = jsoniter.MarshalToString(dataFile.Single.Body)
+		apiModel.BodyVars = nil
+	}
 
 	return
 }
@@ -1194,10 +1206,8 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 	apiModel.DataDesc = dataFile.Name
 	apiModel.Method = dataFile.Api.Method
 	apiModel.Path = dataFile.Api.Path
-	apiModel.Prefix = dataFile.Env.Prepath
 	apiModel.Prototype = dataFile.Env.Protocol
 	apiModel.Host = dataFile.Env.Host
-	apiModel.ApiDesc = dataFile.Api.Description
 	if len(dataFile.Output) > 0 {
 		for k, v := range dataFile.Output {
 			var valueTmp string
@@ -1233,6 +1243,17 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 			apiModel.Url = fmt.Sprintf("%s\n%s", apiModel.Url, item)
 		}
 
+	}
+
+	for key, value := range dataFile.Single.Header {
+		var varData VarDataModel
+		varData.Name = key
+		varData.TestValue = append(varData.TestValue, value)
+		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
+		if key == "Content-Type" {
+			valueStr := Interface2Str(value)
+			apiModel.BodyMode = valueStr
+		}
 	}
 
 	for _, item := range dataFile.Request {
@@ -1326,6 +1347,11 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 	for key, value := range dataFile.Single.Body {
 		var varData VarDataModel
 		varData.Name = key
+		varType := fmt.Sprintf("%T", value)
+
+		if varType == "[]interface {}" || varType == "map[interface {}]interface {}" {
+			apiModel.BodyMode = "json"
+		}
 		varData.TestValue = append(varData.TestValue, value)
 		apiModel.BodyVars = append(apiModel.BodyVars, varData)
 	}
@@ -1334,17 +1360,6 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 		varData.Name = key
 		varData.TestValue = append(varData.TestValue, value...)
 		apiModel.BodyVars = append(apiModel.BodyVars, varData)
-	}
-
-	for key, value := range dataFile.Single.Header {
-		var varData VarDataModel
-		varData.Name = key
-		varData.TestValue = append(varData.TestValue, value)
-		apiModel.HeaderVars = append(apiModel.HeaderVars, varData)
-		if key == "Content-Type" {
-			valueStr := Interface2Str(value)
-			apiModel.BodyMode = valueStr
-		}
 	}
 
 	var other OtherModel

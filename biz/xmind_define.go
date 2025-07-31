@@ -45,3 +45,45 @@ type TestSteps struct {
 	ExecutionType   int    `json:"execution_type"`
 	Result          int    `json:"result"`
 }
+
+// XMindContent represents the structure of content.json
+type XMindContent []struct {
+	ID        string `json:"id"`
+	Class     string `json:"class"`
+	Title     string `json:"title"`
+	RootTopic struct {
+		ID             string `json:"id"`
+		Class          string `json:"class"`
+		Title          string `json:"title"`
+		Href           string `json:"href"`
+		StructureClass string `json:"structureClass"`
+		Children       struct {
+			Attached []Topic `json:"attached"`
+		} `json:"children"`
+	} `json:"rootTopic"`
+}
+
+type Topic struct {
+	Title    string `json:"title"`
+	ID       string `json:"id"`
+	Href     string `json:"href"`
+	Position struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
+	} `json:"position"`
+	Children struct {
+		Attached []*Topic `json:"attached"`
+	} `json:"children"`
+	Branch    string     `json:"branch"`
+	Markers   []*Marker  `json:"markers"`
+	Summaries []*Summary `json:"summaries"`
+}
+
+type Marker struct {
+	MarkerID string `json:"markerId"`
+}
+
+type Summary struct {
+	Range   string `json:"range"`
+	TopicID string `json:"topicId"`
+}

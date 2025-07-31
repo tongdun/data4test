@@ -248,3 +248,9 @@ alter table ai_issue modify resolution_status enum('1', '2', '3', '4', '5') defa
 # 2025年6月17日
 alter table scene_data_test_history
     add file_type enum('1', '2', '3', '4', '5', '99') null comment '环境类型' after env_type;
+
+# 2025年7月25日
+alter table playbook change api_list data_file_list text null comment '数据文件列表';
+alter table scene_test_history change api_list data_file_list text null comment '数据文件列表';
+alter table ai_playbook change playbook_desc name varchar(255) not null comment '场景描述';
+alter table ai_playbook change playbook_type scene_type enum('1', '2', '3', '4', '5') default '1' null comment '场景类型，1:串行中断，2:串行比较，3:串行继续，4:普通并发, 5:并发比较';

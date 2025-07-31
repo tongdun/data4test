@@ -27,14 +27,16 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 
 	apps := biz.GetApps()
 	aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
-	//aiDataTemplates := biz.GetAiTemplateOptions("2")
 	aiPlatforms := biz.GetAiCreatePlatform()
 	products := biz.GetProducts()
 
 	info.AddField("自增主键", "id", db.Int).
 		FieldFilterable()
 	info.AddField("数据描述", "name", db.Varchar).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetAiDataUsedInPlaybookList(model.Value, model.ID)
+		})
 	info.AddField("接口ID", "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField("所属应用", "app", db.Varchar).

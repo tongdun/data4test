@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-func GetEnvConfig(name, source string) (envConfig EnvConfig, err error) {
-	switch source {
-	case "scene", "playbook", "consolePlaybook", "taskPlaybook":
+func GetEnvConfig(name, nameType string) (envConfig EnvConfig, err error) {
+	switch nameType {
+	case "product":
 		var dbProduct DbProduct
 		models.Orm.Table("product").Where("product = ?", name).Find(&dbProduct)
 		if len(dbProduct.Name) > 0 {
@@ -19,7 +19,7 @@ func GetEnvConfig(name, source string) (envConfig EnvConfig, err error) {
 		} else {
 			Logger.Warning("未找到[%s]产品配置信息", name)
 		}
-	case "data", "consoleData", "taskData":
+	case "app":
 		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
 		if len(envConfig.App) == 0 {
 			Logger.Warning("未找到[%s]应用配置信息", name)
@@ -39,6 +39,20 @@ func GetAppName(id string) (name string, err error) {
 		return
 	}
 	name = appNames[0]
+	return
+}
+
+func GetSwaggerPath(id string) (swaggerPath string) {
+	var pathList []string
+	models.Orm.Table("env_config").Where("id = ?", id).Select("swagger_path").Pluck("swagger_path", &pathList)
+
+	if len(pathList) == 0 {
+		err := fmt.Errorf("未找到[%v]应用信息，请核对", id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	swaggerPath = pathList[0]
 	return
 }
 

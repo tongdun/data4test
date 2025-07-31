@@ -389,13 +389,12 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			Logger.Debug("match: %s", dataMatch[0])
 		}
 	}
-	//Logger.Debug("reply: %s", reply)
-	//Logger.Debug("targetStr: %s", targetStr)
+
 	respMatch := make(map[string]interface{})
 
 	err = json5.Unmarshal([]byte(targetStr), &respMatch)
 	if err != nil {
-		Logger.Debug("matchData: %v", targetStr)
+		Logger.Debug("targetStr: %v", targetStr)
 		Logger.Error("%s", err)
 	}
 
@@ -405,6 +404,8 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			dataMap := subV.(map[string]interface{})
 			dataList = append(dataList, dataMap)
 		}
+	} else {
+		Logger.Info("未匹配到测试数据信息")
 	}
 
 	if v, ok := respMatch["测试场景"]; ok {
@@ -413,8 +414,11 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			dataMap := subV.(map[string]interface{})
 			playbookList = append(playbookList, dataMap)
 		}
+	} else {
+		Logger.Info("未匹配到测试场景信息")
 	}
-
+	Logger.Debug("respMatch: %v", respMatch)
+	Logger.Debug("respMatch: %v", respMatch["测试场景"])
 	return
 }
 
@@ -423,6 +427,12 @@ func (input ImportCommon) AICreateDataAndPlaybookByImport() (err error) {
 		err = input.SaveAIDataByRawRepy()
 		if err != nil {
 			Logger.Error("%s", err)
+			return err
+		}
+		err = input.SaveAIPlaybookByRawRepy()
+		if err != nil {
+			Logger.Error("%s", err)
+			return err
 		}
 	} else {
 		replyList, errTmp := input.ConnectModel2GetMessage()
@@ -438,6 +448,9 @@ func (input ImportCommon) AICreateDataAndPlaybookByImport() (err error) {
 		}
 
 		dataList, playbookList, err := GetDataAndPlaybookFromReplyList(replyList)
+		if err != nil {
+			return err
+		}
 		errTmp = input.SaveAIDataByDataListMap(dataList)
 
 		if errTmp != nil {
@@ -743,6 +756,12 @@ func AiDataTest(ids string, analysisInput AnalysisDataInput) (err error) {
 			dst = filePath
 		}
 
+		errStr := fmt.Sprintf("%s", err)
+		// 如果接口请求直接失败，则不进行LLM分析
+		if err != nil && strings.Contains(errStr, "请求失败，返回码") {
+			return
+		}
+
 		df.AnalysisWithLLM(dst, analysisInput)
 
 	}
@@ -770,7 +789,7 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 		targetApp = df.Api.App
 	}
 
-	envConfig, _ = GetEnvConfig(targetApp, "data")
+	envConfig, _ = GetEnvConfig(targetApp, "app")
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -792,7 +811,7 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 	}
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, "scene")
+		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
 		if errTmp != nil {
 			Logger.Warning("%s", errTmp)
 		}

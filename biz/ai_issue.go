@@ -20,7 +20,6 @@ func GetAnalysisFromReplyList(replyList []string) (issueList, testResultList, as
 		if len(afterTxt) == 0 {
 			Logger.Warning("未找到有效信息，请核对~")
 		}
-		Logger.Debug("afterTxt: %v", afterTxt)
 
 		issueSubList, testResultSubList, asserSubList, _ := GetAnalysisFromReply(reply)
 		issueList = append(issueList, issueSubList...)

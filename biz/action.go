@@ -450,44 +450,44 @@ func CreateTargetFile(lang, dataFileName, createType string, target interface{},
 	if dataCount > 0 {
 		filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
 		var keyList []string
-		tmpBody := make(map[string]interface{})
 		splitTag := ","
-
 		_, errFile := os.Stat(filePath)
+		if errFile == nil {
+			os.Remove(filePath)
+		}
 
 		content, errTmp := GetDataFileRawContent(dataFileName)
 		if errTmp != nil {
 			err = errTmp
 			return
 		}
-
 		for i := 0; i < dataCount; i++ {
 			bodys, errTmp := GetBodyFromRawContent(lang, dataFileName, content, depOutVars)
 			if errTmp != nil {
 				err = errTmp
 				return
 			}
-
-			if i == 0 {
-				tmpBody = bodys[0]
-				for k, v := range tmpBody {
-					keyList = append(keyList, k)
-					vStr := Interface2Str(v)
-					if strings.Contains(vStr, ",") {
-						splitTag = "|"
+			for index, item := range bodys {
+				if i == 0 && index == 0 {
+					for k, v := range item {
+						keyList = append(keyList, k)
+						vStr := Interface2Str(v)
+						if strings.Contains(vStr, ",") {
+							splitTag = "|"
+						}
 					}
-				}
-				sort.Strings(keyList)
-				if os.IsNotExist(errFile) {
+					sort.Strings(keyList)
 					_ = WriteDataInFile(filePath, createType, splitTag, keyList)
-				}
-			}
 
-			for _, item := range bodys {
+				}
 				var valueList []string
 				for _, k := range keyList {
 					valueStr := Interface2Str(item[k])
-					valueList = append(valueList, valueStr)
+					if len(valueStr) == 0 {
+						valueList = append(valueList, " ")
+					} else {
+						valueList = append(valueList, valueStr)
+					}
 				}
 				WriteDataInFile(filePath, createType, splitTag, valueList)
 			}

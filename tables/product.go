@@ -175,36 +175,36 @@ func GetProductTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddButton("XMind导入测试用例", icon.Android, action.Ajax("testcase_xmind_batch_import",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			var status string
-			ids := strings.Split(idStr, ",")
-			for _, id := range ids {
-				if len(id) == 0 {
-					continue
-				}
-				if err := biz.GetJSON(id); err == nil {
-					status = "导入完成"
-				} else {
-					status = fmt.Sprintf("导入失败：%s: %s", id, err)
-					return false, status, ""
-				}
-			}
-			return true, status, ""
-		}))
-
-	info.AddActionButton("XMind导入测试用例", action.Ajax("testcase_xmind_import",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			id := ctx.FormValue("id")
-			var status string
-			if err := biz.GetJSON(id); err == nil {
-				status = "导入完成"
-			} else {
-				status = fmt.Sprintf("导入失败：%s: %s", id, err)
-			}
-			return true, status, ""
-		}))
+	//info.AddButton("XMind导入测试用例", icon.Android, action.Ajax("testcase_xmind_batch_import",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		idStr := ctx.FormValue("ids")
+	//		var status string
+	//		ids := strings.Split(idStr, ",")
+	//		for _, id := range ids {
+	//			if len(id) == 0 {
+	//				continue
+	//			}
+	//			if err := biz.GetJSON(id); err == nil {
+	//				status = "导入完成"
+	//			} else {
+	//				status = fmt.Sprintf("导入失败：%s: %s", id, err)
+	//				return false, status, ""
+	//			}
+	//		}
+	//		return true, status, ""
+	//	}))
+	//
+	//info.AddActionButton("XMind导入测试用例", action.Ajax("testcase_xmind_import",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		id := ctx.FormValue("id")
+	//		var status string
+	//		if err := biz.GetJSON(id); err == nil {
+	//			status = "导入完成"
+	//		} else {
+	//			status = fmt.Sprintf("导入失败：%s: %s", id, err)
+	//		}
+	//		return true, status, ""
+	//	}))
 
 	info.SetTable("product").SetTitle("产品配置").SetDescription("产品配置")
 	helpMsg := template.HTML("JSON格式，e.g.: {\"name1\": \"value1\", \"name2\": \"value2\"}")
