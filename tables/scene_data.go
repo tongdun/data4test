@@ -190,32 +190,6 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		return panel
 	}, "/data_batch_run"))
 
-	// 没有选择环境信息
-	//info.AddButton("测试", icon.Android, action.Ajax("scenedata_batch_run",
-	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
-	//		idStr := ctx.FormValue("ids")
-	//		var status string
-	//		if idStr == "," {
-	//			status = "请先选择数据再测试"
-	//			return false, status, ""
-	//		}
-	//		ids := strings.Split(idStr, ",")
-	//		for _, id := range ids {
-	//			if len(id) == 0 {
-	//				status = "测试完成，请刷新列表查看测试结果"
-	//				continue
-	//			}
-	//
-	//			if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
-	//				status = "测试完成，请刷新列表查看测试结果"
-	//			} else {
-	//				status = fmt.Sprintf("测试失败：%s: %s", id, err)
-	//				return false, status, ""
-	//			}
-	//		}
-	//		return true, status, ""
-	//	}))
-
 	info.AddActionButton("测试", action.Ajax("scenedata_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")

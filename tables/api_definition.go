@@ -21,10 +21,11 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 	user := auth.Auth(ctx)
 	userName := user.Name
 
-	aiCaseTemplates := biz.GetAiTemplateOptions("1")
-	aiDataTemplates := biz.GetAiTemplateOptions("2")
-	products := biz.GetProducts()
-	aiPlatforms := biz.GetAiCreatePlatform()
+	// 全局域的在有数据更新时，子弹框的不会实时更新
+	//aiCaseTemplates := biz.GetAiTemplateOptions("1")
+	//aiDataTemplates := biz.GetAiTemplateOptions("2")
+	//products := biz.GetProducts()
+	//aiPlatforms := biz.GetAiCreatePlatform()
 
 	info := apiDefinition.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
@@ -254,6 +255,9 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		Height: "540px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
+		aiCaseTemplates := biz.GetAiTemplateOptions("1")
+		aiPlatforms := biz.GetAiCreatePlatform()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()
@@ -275,6 +279,9 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		Height: "540px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
+		aiDataTemplates := biz.GetAiTemplateOptions("2")
+		aiPlatforms := biz.GetAiCreatePlatform()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()

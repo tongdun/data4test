@@ -164,105 +164,10 @@ func (df DataFile) RecordDataOrderByKey(bodys []map[string]interface{}) (err err
 
 	if isRecordCSV {
 		df.RecordTargetFile("csv", csvValue)
-
-		//fileName := ""
-		//tmpValue := Interface2Str(csvValue)
-		//if len(tmpValue) == 0 {
-		//	err = fmt.Errorf("record_csv的值未定义，请先定义")
-		//	return
-		//} else {
-		//	if !strings.Contains(tmpValue, ".csv") {
-		//		fileName = fmt.Sprintf("%s.csv", tmpValue)
-		//	} else {
-		//		fileName = tmpValue
-		//	}
-		//}
-		//
-		//filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-		//var keyList []string
-		//tmpBody := make(map[string]interface{})
-		//splitTag := ","
-		//
-		//tmpBody = bodys[0]
-		//for k, v := range tmpBody {
-		//	keyList = append(keyList, k)
-		//	vStr := Interface2Str(v)
-		//	if strings.Contains(vStr, ",") {
-		//		splitTag = "|"
-		//	}
-		//}
-		//sort.Strings(keyList)
-		//
-		//_, err := os.Stat(filePath)
-		//if os.IsNotExist(err) {
-		//	keyStr := ""
-		//	for index, k := range keyList {
-		//		if index == 0 {
-		//			keyStr = k
-		//		} else {
-		//			keyStr = fmt.Sprintf("%s%s%s", keyStr, splitTag, k)
-		//		}
-		//
-		//	}
-		//	tStr := fmt.Sprintf("%s\n", keyStr)
-		//	_ = WriteDataInCommonFile(filePath, tStr)
-		//
-		//}
-		//
-		//for _, item := range bodys {
-		//	valueStr := ""
-		//	for _, key := range keyList {
-		//		if len(valueStr) == 0 {
-		//			valueStr = fmt.Sprintf("%v", item[key])
-		//		} else {
-		//			valueStr = fmt.Sprintf("%s%s%s", valueStr, splitTag, item[key])
-		//		}
-		//	}
-		//	tStr := fmt.Sprintf("%s\n", valueStr)
-		//	_ = WriteDataInCommonFile(filePath, tStr)
-		//}
 	}
 
 	if isRecordXLS {
 		df.RecordTargetFile("xls", xlsValue)
-		//fileName := ""
-		//tmpValue := Interface2Str(xlsValue)
-		//if len(tmpValue) == 0 {
-		//	err = fmt.Errorf("record_excel的值未定义，请先定义")
-		//	return
-		//}
-		//if !(strings.Contains(tmpValue, ".xlsx") || strings.Contains(tmpValue, ".xls")) {
-		//	fileName = fmt.Sprintf("%s.xlsx", tmpValue)
-		//} else {
-		//	fileName = tmpValue
-		//}
-		//filePath := fmt.Sprintf("%s/%s", UploadBasePath, fileName)
-		//var keyList []string
-		//tmpBody := make(map[string]interface{})
-		//
-		//tmpBody = bodys[0]
-		//for k, _ := range tmpBody {
-		//	keyList = append(keyList, k)
-		//}
-		//sort.Strings(keyList)
-		//
-		//_, err := os.Stat(filePath)
-		//if os.IsNotExist(err) {
-		//	for _, k := range keyList {
-		//		keyList = append(keyList, k)
-		//	}
-		//	_ = WriteDataInXls(filePath, keyList)
-		//}
-		//
-		//for _, item := range bodys {
-		//	var valueList []string
-		//	for _, key := range keyList {
-		//		vStr := Interface2Str(item[key])
-		//		valueList = append(valueList, vStr)
-		//	}
-		//	_ = WriteDataInXls(filePath, valueList)
-		//}
-
 	}
 
 	if isRecordTxt {
@@ -483,6 +388,7 @@ func CreateTargetFile(lang, dataFileName, createType string, target interface{},
 				var valueList []string
 				for _, k := range keyList {
 					valueStr := Interface2Str(item[k])
+
 					if len(valueStr) == 0 {
 						valueList = append(valueList, " ")
 					} else {
@@ -574,6 +480,7 @@ func (df DataFile) RecordTargetFile(createType string, target interface{}) (err 
 	if os.IsNotExist(errFile) {
 		WriteDataInFile(filePath, createType, splitTag, keyList)
 	}
+
 	for _, item := range bodys {
 		var valueList []string
 		for _, k := range keyList {

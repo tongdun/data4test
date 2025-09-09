@@ -148,9 +148,10 @@ func (input CommonExtend) AssembleAIPlaybook(aiRawPlaybook map[string]interface{
 
 func (aiPlaybook AiPlaybook) AddAiPlaybook() (err error) {
 	var tmpPlaybook AiPlaybook
-	models.Orm.Table("ai_playbook").Where("playbook_desc = ? and  product = ? and source = ?", aiPlaybook.PlaybookDesc, aiPlaybook.Product, aiPlaybook.CreatePlatform).Find(&tmpPlaybook)
+	//models.Orm.Table("ai_playbook").Where("playbook_desc = ? and  product = ? and source = ?", aiPlaybook.PlaybookDesc, aiPlaybook.Product, aiPlaybook.CreatePlatform).Find(&tmpPlaybook)
+	models.Orm.Table("ai_playbook").Where("name = ? and  product = ? and source = ?", aiPlaybook.PlaybookDesc, aiPlaybook.Product, aiPlaybook.CreatePlatform).Find(&tmpPlaybook)
 	if len(tmpPlaybook.PlaybookDesc) > 0 {
-		err = models.Orm.Table("ai_playbook").Where("playbook_desc = ? and  product = ? and source = ?", aiPlaybook.PlaybookDesc, aiPlaybook.Product, aiPlaybook.CreatePlatform).Update(aiPlaybook).Error
+		err = models.Orm.Table("ai_playbook").Where("name = ? and  product = ? and source = ?", aiPlaybook.PlaybookDesc, aiPlaybook.Product, aiPlaybook.CreatePlatform).Update(aiPlaybook).Error
 		if err != nil {
 			Logger.Error("%s", err)
 		}
@@ -400,7 +401,6 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 	}
 
 	if playbook.SceneType == 2 || playbook.SceneType == 5 {
-		//Logger.Debug("开始比较")
 		result, err = CompareResult(playbook.HistoryApis, "yaml")
 	}
 	playbook.LastFile = lastFile

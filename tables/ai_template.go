@@ -2,13 +2,16 @@ package tables
 
 import (
 	"data4test/biz"
+	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	form2 "github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template"
+	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
+	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
 	"strings"
@@ -93,6 +96,47 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
+
+	info.AddButton("复制", icon.Android, action.Ajax("ai_template_batch_copy",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if idStr == "," {
+				status = "请先选择数据再复制"
+				return false, status, ""
+			}
+
+			ids := strings.Split(idStr, ",")
+
+			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+				if err := biz.CopyAiTemplate(id, userNameSub); err == nil {
+					status = "复制成功，请刷新列表查看"
+				} else {
+					status = fmt.Sprintf("复制失败：%s: %s", id, err)
+					return false, status, ""
+				}
+			}
+			return true, status, ""
+		}))
+
+	info.AddActionButton("复制", action.Ajax("ai_template_copy",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id := ctx.FormValue("id")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if err := biz.CopyAiTemplate(id, userNameSub); err == nil {
+				status = "复制成功，请刷新列表查看"
+			} else {
+				status = fmt.Sprintf("复制失败：%s: %s", id, err)
+			}
+			return true, status, ""
+		}))
 
 	info.SetTable("ai_template").SetTitle("智能模板").SetDescription("AiTemplate")
 	appendConversionHelp := template.HTML("选填，按需追加对话轮次")

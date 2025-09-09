@@ -12,6 +12,7 @@ import (
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
 	//"strings"
 	"github.com/GoAdminGroup/go-admin/context"
+	"html/template"
 )
 
 func GetTestCaseTable(ctx *context.Context) table.Table {
@@ -44,16 +45,18 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldSortable()
 	info.AddField("预置条件", "pre_condition", db.Longtext).
 		FieldWidth(120).
-		FieldHide()
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return template.HTMLEscapeString(model.Value)
+		})
 	info.AddField("测试范围", "test_range", db.Longtext).
-		FieldWidth(120).
-		FieldHide()
+		FieldWidth(120)
 	info.AddField("测试步骤", "test_steps", db.Longtext).
-		FieldWidth(200).
-		FieldHide()
+		FieldWidth(250).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return template.HTMLEscapeString(model.Value)
+		})
 	info.AddField("预期结果", "expect_result", db.Longtext).
-		FieldWidth(200).
-		FieldHide()
+		FieldWidth(250)
 	info.AddField("自动化", "auto", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "0" {

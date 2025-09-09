@@ -284,17 +284,33 @@ func (input CommonExtend) AssembleAIData(aiRawData map[string]interface{}) (aiDa
 
 	dataFile.Single.Path = make(map[string]interface{})
 	dataFile.Multi.Path = make(map[string][]interface{})
-	path := aiRawData["Path参数"].(map[string]interface{})
-	for k, v := range path {
-		varType := fmt.Sprintf("%T", v)
-		var vList []interface{}
-		if varType == "[]interface {}" {
-			vList = v.([]interface{})
-		}
-		if len(vList) == 1 {
-			dataFile.Single.Path[k] = vList[0]
-		} else if len(vList) > 1 {
-			dataFile.Multi.Path[k] = vList
+	if _, ok := aiRawData["Path参数"]; ok {
+		pathVarType := fmt.Sprintf("%T", aiRawData["Path参数"])
+		if pathVarType == "map[string][]interface {}" {
+			path := aiRawData["Path参数"].(map[string][]interface{})
+			for k, v := range path {
+				var vList []interface{}
+				if len(v) == 1 {
+					dataFile.Single.Path[k] = v[0]
+				} else if len(vList) > 1 {
+					dataFile.Multi.Path[k] = v
+				}
+			}
+		} else {
+			path := aiRawData["Path参数"].(map[string]interface{})
+			for k, v := range path {
+				varType := fmt.Sprintf("%T", v)
+				var vList []interface{}
+				if varType == "[]interface {}" {
+					vList = v.([]interface{})
+				}
+				if len(vList) == 1 {
+					dataFile.Single.Path[k] = vList[0]
+				} else if len(vList) > 1 {
+					dataFile.Multi.Path[k] = vList
+				}
+			}
+
 		}
 	}
 

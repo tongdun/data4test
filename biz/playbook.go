@@ -295,7 +295,7 @@ func (playbook Playbook) RunPlaybookContent(envType int, source string) (result,
 		}
 	}
 
-	err = WriteDataResultByFile(filePath, result, dst, playbook.Product, envType, errTmp)
+	err = WriteDataResultByFile(filePath, result, dst, playbook.Product, source, envType, errTmp)
 
 	if errTmp != nil {
 		if err != nil {

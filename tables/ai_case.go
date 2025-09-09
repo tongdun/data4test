@@ -25,9 +25,9 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	aiPlatforms := biz.GetAiCreatePlatform()
-	aiTemplates := biz.GetAiTemplateOptions("1")
-	products := biz.GetProducts()
+	//aiPlatforms := biz.GetAiCreatePlatform()
+	//aiTemplates := biz.GetAiTemplateOptions("1")
+	products := biz.GetProducts() // 全局域
 	caseTypes := biz.GetTestcaseType()
 
 	info.AddField("自增主键", "id", db.Int).
@@ -45,7 +45,10 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		FieldFilterOptions(caseTypes)
 	info.AddField("优先级", "priority", db.Varchar).
 		FieldFilterable()
-	info.AddField("前置条件", "pre_condition", db.Varchar)
+	info.AddField("前置条件", "pre_condition", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return template.HTMLEscapeString(model.Value)
+		})
 	info.AddField("测试范围", "test_range", db.Varchar)
 	info.AddField("测试步骤", "test_steps", db.Varchar).
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -160,6 +163,8 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		aiPlatforms := biz.GetAiCreatePlatform()
+		products := biz.GetProducts() // 子域
 		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text)
 		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products).FieldDefault(products[0].Value)
@@ -181,6 +186,9 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		aiPlatforms := biz.GetAiCreatePlatform()
+		aiTemplates := biz.GetAiTemplateOptions("1")
+		products := biz.GetProducts()
 		panel.AddField("智能模板", "ai_template", db.Varchar, form.SelectSingle).
 			FieldOptions(aiTemplates).FieldDefault(aiTemplates[0].Value)
 		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text)
@@ -204,6 +212,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		Height: "480px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		aiPlatforms := biz.GetAiCreatePlatform()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
 		panel.AddField("优化平台", "optimize_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)

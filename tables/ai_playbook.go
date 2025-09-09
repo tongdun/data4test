@@ -145,6 +145,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		products := biz.GetProducts()
 		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
 		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
@@ -205,6 +206,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()

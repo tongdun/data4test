@@ -252,9 +252,10 @@ func GetProductTable(ctx *context.Context) table.Table {
 
 	formList.SetTable("product").SetTitle("产品配置").SetDescription("产品配置")
 
-	//formList.SetPostHook(func(values form2.Values) (err error) {  // 存量数据升级函数
-	//	err = biz.ModifyPlaybookContent()
-	//	return
+	//formList.SetPostHook(func(values form2.Values) (err error) { // 存量数据升级函数
+	//biz.ModifyDataContent()
+	//err = biz.ModifyPlaybookContent()
+	//return
 	//})
 
 	return product

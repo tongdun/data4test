@@ -182,6 +182,7 @@ func GetAiIssueTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		products := biz.GetProducts()
 		panel.AddField("分析平台", "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
 		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).

@@ -132,12 +132,24 @@ func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")
 				} else if strings.Contains(itemCase.TestSteps, "；") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.TestSteps, "\n") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", ";", -1), ";")
+					//} else if strings.Contains(itemCase.TestSteps, " ") {
+					//	testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
+				} else {
+					testSteps = []string{itemCase.TestSteps}
 				}
 
 				if strings.Contains(itemCase.ExpectResult, ";") {
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), ";")
 				} else if strings.Contains(itemCase.ExpectResult, "；") {
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.ExpectResult, "\n") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", ";", -1), ";")
+					//} else if strings.Contains(itemCase.ExpectResult, " ") {
+					//	expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
+				} else {
+					expectResults = []string{itemCase.ExpectResult}
 				}
 
 				var lastNode *goxmind.Node

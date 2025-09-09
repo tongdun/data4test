@@ -89,13 +89,24 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 	return
 }
 
-func WriteDataResultByFile(src, result, dst, product string, envType int, errIn error) (err error) {
+func WriteDataResultByFile(src, result, dst, product, source string, envType int, errIn error) (err error) {
 	var df DataFile
-	content, err := ioutil.ReadFile(src)
+	var content []byte
+
+	switch source {
+	case "task":
+		content, err = ioutil.ReadFile(dst)
+	case "data", "playbook":
+		content, err = ioutil.ReadFile(src)
+	default:
+		content, err = ioutil.ReadFile(dst)
+	}
 
 	if err != nil {
-		Logger.Error("Error: %s, filePath: %s", err, src)
-		return
+		Logger.Error("src: %s", src)
+		Logger.Error("dst: %s", dst)
+		Logger.Error("Error: %s", err)
+
 	}
 
 	tmps := strings.Split(src, ".")
@@ -112,6 +123,7 @@ func WriteDataResultByFile(src, result, dst, product string, envType int, errIn 
 	}
 
 	if err != nil {
+		Logger.Debug("content: %s", string(content))
 		Logger.Error("%s", err)
 	}
 
@@ -1750,6 +1762,16 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 	baseName := path.Base(fileName)
 	if strings.HasPrefix(source, "ai") {
 		models.Orm.Table("ai_data").Where("file_name = ?", baseName).Find(&dbData)
+	} else if strings.HasPrefix(source, "history") {
+		var dbHData HistoryDataDetail
+		Logger.Debug("baseName: %v", baseName)
+		models.Orm.Table("scene_data_test_history").Where("content = ?", baseName).Find(&dbHData)
+		dbData.Name = dbHData.Name
+		dbData.FileName = dbHData.Content
+		dbData.App = dbHData.App
+		dbData.RunTime = 1
+		dbData.FileType = dbHData.FileType
+		dbData.ApiId = dbHData.ApiId
 	} else {
 		models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&dbData)
 	}
@@ -1772,8 +1794,14 @@ func GetDataFileRawContent(fileName string) (content string, err error) {
 		Logger.Error("%s", err)
 		return
 	}
-	content = GetStrFromHtml(sceneData.Content)
 
+	// 历史数据修正
+	if strings.Contains(sceneData.Content, "<pre><code>") {
+		sceneData.Content = strings.Replace(sceneData.Content, "<pre><code>", "", -1)
+		sceneData.Content = strings.Replace(sceneData.Content, "</code></pre>", "", -1)
+	}
+
+	content = sceneData.Content
 	return
 }
 

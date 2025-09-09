@@ -1706,3 +1706,39 @@ func UpdateDataAssertContent() {
 	Logger.Debug("多数组数量：%d", doubleCount)
 	return
 }
+
+func ModifyDataContent() {
+	var dataList []DbSceneData
+	models.Orm.Table("scene_data").Find(&dataList)
+	count := 0
+	for _, dataInfo := range dataList {
+
+		if len(dataInfo.Content) == 0 {
+			err := fmt.Errorf("无内容信息%s", dataInfo.Name)
+			Logger.Error("%s", err)
+			continue
+		}
+
+		var content string
+		content = dataInfo.Content
+		isChange := 0
+		if strings.HasPrefix(content, "<pre><code>") {
+			isChange = 1
+			content = strings.TrimPrefix(content, "<pre><code>")
+		}
+
+		if strings.HasSuffix(content, "</code></pre>") {
+			isChange = 1
+			content = strings.TrimSuffix(content, "</code></pre>")
+		}
+
+		if isChange > 0 {
+			count++
+			Logger.Debug("name: %s", dataInfo.Name)
+			dataInfo.Content = content
+			models.Orm.Table("scene_data").Where("id = ?", dataInfo.Id).Update(&dataInfo)
+		}
+	}
+	Logger.Debug("更新数据条数: %d", count)
+	return
+}

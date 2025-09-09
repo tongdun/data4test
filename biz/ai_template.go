@@ -134,3 +134,25 @@ func UpdateAiTemplateAppendContend(appendContentList []string, id string) (err e
 
 	return
 }
+
+func CopyAiTemplate(id, userName string) (err error) {
+	var dbTemplate DbAiTemplateDefine
+	models.Orm.Table("ai_template").Where("id = ?", id).Find(&dbTemplate)
+	if len(dbTemplate.TemplateName) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var aiTemplate AiTemplateDefine
+	aiTemplate = dbTemplate.AiTemplateDefine
+	aiTemplate.TemplateName = fmt.Sprintf("%s_复制", dbTemplate.TemplateName)
+	aiTemplate.CreateUser = userName
+	aiTemplate.UseStatus = "edit"
+
+	err = models.Orm.Table("ai_template").Create(aiTemplate).Error
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+	return
+}

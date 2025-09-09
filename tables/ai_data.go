@@ -26,9 +26,9 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
 	apps := biz.GetApps()
-	aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
-	aiPlatforms := biz.GetAiCreatePlatform()
-	products := biz.GetProducts()
+	//aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
+	//aiPlatforms := biz.GetAiCreatePlatform()
+	//products := biz.GetProducts()
 
 	info.AddField("自增主键", "id", db.Int).
 		FieldFilterable()
@@ -142,6 +142,8 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		aiPlatforms := biz.GetAiCreatePlatform()
+		products := biz.GetProducts()
 		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
 		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
@@ -204,6 +206,9 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		aiPlatforms := biz.GetAiCreatePlatform()
+		products := biz.GetProducts()
+		aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
 		panel.AddField("分析模板", "ai_template", db.Varchar, form.SelectSingle).
 			FieldOptions(aiAnalysisTemplates).FieldDefault(aiAnalysisTemplates[0].Value)
@@ -226,6 +231,7 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 		Height: "300px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
 		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products).

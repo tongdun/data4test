@@ -940,7 +940,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		} else {
@@ -960,14 +960,14 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			status = "导入完成，请前往[接口-接口定义]列表查看"
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -988,7 +988,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -999,14 +999,14 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			status = fmt.Sprintf("转换完成，请前往[文件-用例文件]下载, 文件名: %s", fileName)
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1029,7 +1029,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1040,14 +1040,14 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			status = fmt.Sprintf("导入完成, 请刷新列表查看~ ")
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1076,7 +1076,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1087,13 +1087,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1112,7 +1112,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1124,13 +1124,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1151,7 +1151,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1162,13 +1162,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1190,7 +1190,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1201,13 +1201,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1235,7 +1235,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1245,13 +1245,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1270,7 +1270,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1282,13 +1282,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1309,7 +1309,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1320,13 +1320,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1348,7 +1348,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1359,13 +1359,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1386,13 +1386,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1410,7 +1410,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			ids := strings.Split(idStr, ",")
@@ -1439,13 +1439,13 @@ func startServer() {
 				c.JSON(http.StatusOK, map[string]interface{}{
 					"code": 200,
 					"msg":  status,
-					"data": map[string]interface{}{},
+					"data": map[string]string{},
 				})
 			} else {
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
-					"data": map[string]interface{}{},
+					"data": map[string]string{},
 				})
 			}
 		}
@@ -1493,13 +1493,13 @@ func startServer() {
 				c.JSON(http.StatusOK, map[string]interface{}{
 					"code": 200,
 					"msg":  status,
-					"data": map[string]interface{}{},
+					"data": map[string]string{},
 				})
 			} else {
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
-					"data": map[string]interface{}{},
+					"data": map[string]string{},
 				})
 			}
 		}
@@ -1522,7 +1522,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1533,13 +1533,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1567,7 +1567,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1577,13 +1577,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1602,7 +1602,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 			return
 		}
@@ -1614,13 +1614,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 		return
@@ -1641,7 +1641,7 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 
@@ -1651,13 +1651,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 	})
@@ -1677,13 +1677,17 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{
+					"reason": "操作失败",
+				},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{
+					"reason": "操作成功",
+				},
 			})
 		}
 	})
@@ -1702,13 +1706,13 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		} else {
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
-				"data": map[string]interface{}{},
+				"data": map[string]string{},
 			})
 		}
 	})

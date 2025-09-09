@@ -3,6 +3,7 @@ package biz
 import (
 	"data4test/models"
 	"fmt"
+	"io/ioutil"
 	"path"
 	"strings"
 	//"sync"
@@ -22,21 +23,22 @@ func HistoryDataRunAgain(id string) (err error) {
 	dirName := GetHistoryDataDirName(basePath)
 
 	filePath := fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, basePath)
+	contentByte, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return err
+	}
 
-	//var dbData DbSceneData
-	//dbData.App = hData.App
-	//dbData.Name = hData.Name
-	//dbData.Content = hData.Content
-
+	hData.Content = string(contentByte)
 	result, dst, err := hData.RunDataFile(filePath, hData.Product, "historyAgain", nil)
-	//result, dst, err := RunDataFile(hData.App, filePath, hData.Product, "historyAgain", nil)
+
 	var sceneDataRecord SceneDataRecord
 
 	if err != nil {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", err)
 	}
 
-	err = WriteDataResultByFile(filePath, result, dst, hData.Product, hData.EnvType, err)
+	err = WriteDataResultByFile(filePath, result, dst, hData.Product, "historyAgain", hData.EnvType, err)
 
 	if err != nil {
 		Logger.Error("%s", err)
