@@ -51,10 +51,16 @@ func CallDifyChat(aiConnect AIConnect, query string, userId, cId, fileId, fileTy
 	url := fmt.Sprintf("%s/chat-messages", aiConnect.BaseUrl)
 
 	respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header)
+	if err != nil {
+		Logger.Error("err: %s", err)
+		// 如果请求遇错，直接退出，不再进行后续会话
+		return "", "", fmt.Errorf("响应解析失败: %v, 原始响应: %s", err, string(respBody))
+
+	}
 
 	// 解析 JSON
 	var chatResp ChatResponse
-	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+	if err = json.Unmarshal(respBody, &chatResp); err != nil {
 		return "", "", fmt.Errorf("响应解析失败: %v, 原始响应: %s", err, string(respBody))
 	}
 
