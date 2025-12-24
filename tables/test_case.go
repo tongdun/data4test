@@ -157,8 +157,10 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 				status = fmt.Sprintf("导出失败: %s", err)
 				return false, status, ""
 			}
-
-			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			hostIp := ctx.Request.Host
+			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 			return true, status, ""
 		}))
 
@@ -176,8 +178,11 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 				status = fmt.Sprintf("导出失败: %s", err)
 				return false, status, ""
 			}
+			hostIp := ctx.Request.Host
+			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 
-			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
 			return true, status, ""
 		}))
 

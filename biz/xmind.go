@@ -326,7 +326,7 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 		}
 	}
 
-	titleList := []string{"所属产品", "所属模块", "用例名称", "优先级", "测试范围", "前置条件", "测试步骤", "预期结果"}
+	titleList := []string{"所属产品", "所属模块", "用例编号", "用例名称", "优先级", "测试范围", "前置条件", "测试步骤", "预期结果"}
 	for index1, item := range caseList {
 		var valueList []string
 
@@ -448,6 +448,186 @@ func Xmind2Import(product, introVersion, filePath string) (err error) {
 	//}
 	//WriteDataInXls(fileCasePath, valueList)
 	//}
+
+	return
+}
+
+func GetCaseFromXmind(filePath string) (caseList []map[string]string, err error) {
+	xmindContent, err := GetContentFromXmindFile(filePath)
+	if err != nil {
+		Logger.Error("err: %v", err)
+		return
+	}
+
+	if len(xmindContent) == 0 {
+		err = fmt.Errorf("未获取到用例信息")
+		return
+	}
+
+	target := xmindContent[0]
+	firstTitle := target.RootTopic.Title
+	//var caseList []map[string]string
+
+	for _, secondItem := range target.RootTopic.Children.Attached {
+		secondTitle := secondItem.Title
+		for _, thirdItem := range secondItem.Children.Attached {
+			thirdTitle := thirdItem.Title
+			caseMap := make(map[string]string)
+			var priorityTag string
+
+			if len(thirdItem.Markers) > 0 {
+				priorityMark := thirdItem.Markers[0].MarkerID
+				switch priorityMark {
+				case "priority-1":
+					priorityTag = "P1"
+				case "priority-2":
+					priorityTag = "P2"
+				case "priority-3":
+					priorityTag = "P3"
+				case "priority-4":
+					priorityTag = "P4"
+				case "priority-5":
+					priorityTag = "P5"
+				}
+			}
+			for index3, fourthItem := range thirdItem.Children.Attached {
+				fourthTitle := fourthItem.Title
+				if fourthTitle == "测试步骤" {
+					var stepStr, expectStr string
+					for _, fifthItem := range fourthItem.Children.Attached {
+						if len(stepStr) == 0 {
+							stepStr = fifthItem.Title
+						} else {
+							stepStr = fmt.Sprintf("%s;\n%s", stepStr, fifthItem.Title)
+						}
+
+						if len(fifthItem.Children.Attached) > 0 {
+							for _, sixthItem := range fifthItem.Children.Attached {
+								if len(expectStr) == 0 {
+									expectStr = sixthItem.Title
+								} else {
+									expectStr = fmt.Sprintf("%s;\n%s", expectStr, sixthItem.Title)
+
+								}
+							}
+						}
+
+					}
+					caseMap["测试步骤"] = stepStr
+					caseMap["预期结果"] = expectStr
+				} else {
+					infos := strings.Split(fourthTitle, ":")
+					if len(infos) > 1 {
+						caseMap[infos[0]] = infos[1]
+					}
+				}
+
+				if index3 == len(thirdItem.Children.Attached)-1 {
+					caseMap["所属产品"] = firstTitle
+					caseMap["所属模块"] = secondTitle
+					caseMap["用例名称"] = thirdTitle
+					if len(priorityTag) > 0 {
+						caseMap["优先级"] = priorityTag
+					}
+					caseList = append(caseList, caseMap)
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func Xmind2ImportAndUse(userName, product, introVersion, filePath string) (err error) {
+	//xmindContent, err := GetContentFromXmindFile(filePath)
+	//if err != nil {
+	//	return err
+	//}
+	//if len(xmindContent) == 0 {
+	//	err = fmt.Errorf("未获取到用例信息")
+	//	return
+	//}
+	//
+	//target := xmindContent[0]
+	//firstTitle := target.RootTopic.Title
+	//var caseList []map[string]string
+	//
+	//for _, secondItem := range target.RootTopic.Children.Attached {
+	//	secondTitle := secondItem.Title
+	//	for _, thirdItem := range secondItem.Children.Attached {
+	//		thirdTitle := thirdItem.Title
+	//		caseMap := make(map[string]string)
+	//		var priorityTag string
+	//
+	//		if len(thirdItem.Markers) > 0 {
+	//			priorityMark := thirdItem.Markers[0].MarkerID
+	//			switch priorityMark {
+	//			case "priority-1":
+	//				priorityTag = "P1"
+	//			case "priority-2":
+	//				priorityTag = "P2"
+	//			case "priority-3":
+	//				priorityTag = "P3"
+	//			case "priority-4":
+	//				priorityTag = "P4"
+	//			case "priority-5":
+	//				priorityTag = "P5"
+	//			}
+	//		}
+	//		for index3, fourthItem := range thirdItem.Children.Attached {
+	//			fourthTitle := fourthItem.Title
+	//			if fourthTitle == "测试步骤" {
+	//				var stepStr, expectStr string
+	//				for _, fifthItem := range fourthItem.Children.Attached {
+	//					if len(stepStr) == 0 {
+	//						stepStr = fifthItem.Title
+	//					} else {
+	//						stepStr = fmt.Sprintf("%s;\n%s", stepStr, fifthItem.Title)
+	//					}
+	//
+	//					if len(fifthItem.Children.Attached) > 0 {
+	//						for _, sixthItem := range fifthItem.Children.Attached {
+	//							if len(expectStr) == 0 {
+	//								expectStr = sixthItem.Title
+	//							} else {
+	//								expectStr = fmt.Sprintf("%s;\n%s", expectStr, sixthItem.Title)
+	//
+	//							}
+	//						}
+	//					}
+	//
+	//				}
+	//				caseMap["测试步骤"] = stepStr
+	//				caseMap["预期结果"] = expectStr
+	//			} else {
+	//				infos := strings.Split(fourthTitle, ":")
+	//				if len(infos) > 1 {
+	//					caseMap[infos[0]] = infos[1]
+	//				}
+	//			}
+	//
+	//			if index3 == len(thirdItem.Children.Attached)-1 {
+	//				caseMap["所属产品"] = firstTitle
+	//				caseMap["所属模块"] = secondTitle
+	//				caseMap["用例名称"] = thirdTitle
+	//				if len(priorityTag) > 0 {
+	//					caseMap["优先级"] = priorityTag
+	//				}
+	//				caseList = append(caseList, caseMap)
+	//			}
+	//		}
+	//
+	//	}
+	//}
+	caseList, err := GetCaseFromXmind(filePath)
+	for _, testCase := range caseList {
+		var DbAiCase DbAiCase
+		err = models.Orm.Table("ai_case").Where("product = ? and case_number = ? and intro_version = ?", product, testCase["case_number"], introVersion).Find(&DbAiCase).Error
+		if err != nil {
+			Logger.Error("%s", err)
+		}
+		UseAiData(DbAiCase.Id, userName)
+	}
 
 	return
 }

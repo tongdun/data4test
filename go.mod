@@ -1,6 +1,6 @@
 module data4test
 
-go 1.17
+go 1.23
 
 require (
 	github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9
@@ -25,14 +25,12 @@ require (
 	github.com/sleagon/chinaid v0.4.2
 	github.com/tealeg/xlsx v1.0.5
 	github.com/titanous/json5 v1.0.0
+	github.com/vivian0517/goxmind v1.0.0
 	gopkg.in/yaml.v2 v2.2.8
 	syreclabs.com/go/faker v1.2.3
 )
 
-require (
-	github.com/kisielk/godepgraph v0.0.0-20240411160502-0f324ca7e282 // indirect
-	github.com/vivian0517/goxmind v1.0.0 // indirect
-)
+require github.com/kisielk/godepgraph v0.0.0-20240411160502-0f324ca7e282 // indirect
 
 require (
 	github.com/360EntSecGroup-Skylar/excelize v1.4.1 // indirect

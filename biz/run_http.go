@@ -581,7 +581,6 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 		err = fmt.Errorf("header 未正常定义，请核对")
 		return
 	}
-
 	methodUpper := strings.ToUpper(method)
 	client := &http.Client{Transport: tr}
 
@@ -597,7 +596,6 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 		}
 		//reader = readerNew
 		payload := strings.NewReader(string(readerNew))
-
 		req, err = http.NewRequest(methodUpper, url, payload)
 	}
 

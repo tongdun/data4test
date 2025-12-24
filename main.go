@@ -1002,7 +1002,10 @@ func startServer() {
 				"data": map[string]string{},
 			})
 		} else {
-			status = fmt.Sprintf("转换完成，请前往[文件-用例文件]下载, 文件名: %s", fileName)
+			//status = fmt.Sprintf("转换完成，请前往[文件-用例文件]下载, 文件名: %s", fileName)
+			hostIp := c.Request.Host
+			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+			status = fmt.Sprintf("转换完成\n请复制下述链接下载:\n%s", downloadUrl)
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
@@ -1035,6 +1038,49 @@ func startServer() {
 		}
 
 		err := biz.Xmind2Import(product, introVersion, uploadFilePath)
+		if err != nil {
+			status = fmt.Sprintf("转换失败: %s", err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]string{},
+			})
+		} else {
+			status = fmt.Sprintf("导入完成, 请刷新列表查看~ ")
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  status,
+				"data": map[string]string{},
+			})
+		}
+		return
+	})
+
+	// Xmind2ImportAndUse
+	r.POST("/testcase_xmind_import_and_use", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		userName := user.Name
+		introVersion := c.PostForm("intro_version")
+		product := c.PostForm("product")
+		uploadFile, errTmp := c.FormFile("upload_file")
+		var uploadFilePath string
+		if errTmp == nil {
+			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+		}
+		var status string
+
+		if len(uploadFilePath) == 0 {
+			status = "请先上传Xmind用例文档"
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  status,
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		err := biz.Xmind2ImportAndUse(userName, product, introVersion, uploadFilePath)
 		if err != nil {
 			status = fmt.Sprintf("转换失败: %s", err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{

@@ -118,6 +118,7 @@ func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
 					priorityMark = goxmind.Priority2
 				}
 				thirdNode.AddMaker(priorityMark)
+				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
 				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
 				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
 				if itemCase.Auto == "1" {
@@ -134,8 +135,8 @@ func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), "；")
 				} else if strings.Contains(itemCase.TestSteps, "\n") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", ";", -1), ";")
-					//} else if strings.Contains(itemCase.TestSteps, " ") {
-					//	testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
+				} else if strings.Contains(itemCase.TestSteps, " ") { // 部分数据有幻觉，会拆的格式不正常
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
 				} else {
 					testSteps = []string{itemCase.TestSteps}
 				}
@@ -146,8 +147,8 @@ func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), "；")
 				} else if strings.Contains(itemCase.ExpectResult, "\n") {
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", ";", -1), ";")
-					//} else if strings.Contains(itemCase.ExpectResult, " ") {
-					//	expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
+				} else if strings.Contains(itemCase.ExpectResult, " ") { // 部分数据有幻觉，会拆的格式不正常
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
 				} else {
 					expectResults = []string{itemCase.ExpectResult}
 				}

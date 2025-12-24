@@ -555,7 +555,6 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
-
 		contentStr, errTmp := GetAfterContent(lang, dataContent, depOutVars)
 		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
 			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
@@ -578,7 +577,6 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		}
 
 		df.Single.Header = header
-
 		urls, errTmp = df.GetUrl(envConfig)
 		if errTmp != nil {
 			Logger.Debug("fileName: %s", path.Base(filePath))
@@ -1163,7 +1161,7 @@ func (df DataFile) GetBody() (bodys []map[string]interface{}, bodyAfterList []in
 		return
 	}
 
-	if df.Single.BodyList != nil {
+	if df.Single.BodyList != nil { // 当bodyList与body同时有值时，bodyList优先级更高
 		bodyAfterList = make([]interface{}, 0, len(df.Single.BodyList))
 		bodyAfterList = df.Single.BodyList
 	} else {
@@ -1171,7 +1169,6 @@ func (df DataFile) GetBody() (bodys []map[string]interface{}, bodyAfterList []in
 		if df.Single.Body != nil {
 			body = CopyMap(df.Single.Body)
 		}
-
 		if len(df.Multi.Body) > 0 {
 			minLen := GetSliceMinLen(df.Multi.Body)
 			for i := 0; i < minLen; i++ {

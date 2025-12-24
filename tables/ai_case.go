@@ -135,10 +135,13 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 				status = fmt.Sprintf("导出失败: %s", err)
 				return false, status, ""
 			}
-
-			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			hostIp := ctx.Request.Host
+			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 			return true, status, ""
 		}))
+
 	info.AddButton("导出Xmind", icon.File, action.Ajax("ai_test_case_export_xmind",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
@@ -153,8 +156,10 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 				status = fmt.Sprintf("导出失败: %s", err)
 				return false, status, ""
 			}
-
-			status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			hostIp := ctx.Request.Host
+			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 			return true, status, ""
 		}))
 	info.AddButton("AI导入", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
@@ -255,6 +260,24 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
+
+	info.AddButton("Xmind导入并取用", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/testcase_xmind_import_and_use",
+		Title:  "Xmind导入用例并同步取用",
+		Width:  "900px",
+		Height: "680px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		info.AddField("关联产品", "product", db.Varchar).
+			FieldFilterable(types.FilterType{FormType: form.Select}).
+			FieldFilterOptions(products)
+		info.AddField("引入版本", "intro_version", db.Varchar).
+			FieldFilterable()
+		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+			"maxFileCount": 1,
+		}).FieldHelpMsg("请上传标准的Xmind文档")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/testcase_xmind_import_and_use"))
 
 	info.SetTable("ai_case").SetTitle("智能用例").SetDescription("智能用例")
 

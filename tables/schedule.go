@@ -100,7 +100,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	info.AddField("关联场景", "scene_list", db.Longtext).
 		FieldHide()
 	info.AddField("关联产品", "product_list", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(products).
@@ -159,7 +159,22 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if fileName, err := biz.ExportSchedule(idStr, userNameSub); err == nil {
-				status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为: %s", fileName)
+				//status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为: %s", fileName)
+				hostIp := ctx.Request.Host
+				var fileNameList []string
+				var downloadUrl string
+				if strings.Contains(fileName, ",") {
+					fileNameList = strings.Split(fileName, ",")
+					for index, subFileNale := range fileNameList {
+						if index == 0 {
+							downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileNale)
+						} else {
+							downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileNale)
+						}
+					}
+				}
+				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+
 			} else {
 				status = fmt.Sprintf("一键导出失败：%s: %s", idStr, err)
 				return false, status, ""
@@ -174,7 +189,21 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if fileName, err := biz.ExportSchedule(id, userNameSub); err == nil {
-				status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为:[%s]", fileName)
+				//status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为:[%s]", fileName)
+				hostIp := ctx.Request.Host
+				var fileNameList []string
+				var downloadUrl string
+				if strings.Contains(fileName, ",") {
+					fileNameList = strings.Split(fileName, ",")
+					for index, subFileNale := range fileNameList {
+						if index == 0 {
+							downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileNale)
+						} else {
+							downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileNale)
+						}
+					}
+				}
+				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 			} else {
 				status = fmt.Sprintf("一键导出失败：%s: %s", id, err)
 			}

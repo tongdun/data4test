@@ -757,7 +757,7 @@ func GetEnumData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
 	// 匹配字符串
-	comReg := regexp.MustCompile(`\{Enum\(([-a-zA-Z0-9_,]+)\)\}`)
+	comReg := regexp.MustCompile(`\{Enum\(([-a-zA-Z0-9_.,]+)\)\}`) // 支持小数类型的枚举
 	comMatch := comReg.FindAllSubmatch(strByte, -1)
 	if len(comMatch) > 0 {
 		for _, item := range comMatch {

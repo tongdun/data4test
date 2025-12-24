@@ -4,8 +4,8 @@ import (
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
-	"github.com/GoAdminGroup/go-admin/template/types/form"
 	"github.com/GoAdminGroup/go-admin/template/types"
+	"github.com/GoAdminGroup/go-admin/template/types/form"
 	// editType "github.com/GoAdminGroup/go-admin/template/types/table"
 )
 
@@ -47,7 +47,6 @@ func GetFuzzingDefinitionTable(ctx *context.Context) table.Table {
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
 	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-
 
 	formList.SetTable("fuzzing_definition").SetTitle("随机数据定义").SetDescription("随机数据定义")
 
