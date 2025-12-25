@@ -258,32 +258,71 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 	firstTitle := target.RootTopic.Title
 	var caseList []map[string]string
 
+	priorityMap := map[string]string{
+		"priority-1": "P1",
+		"priority-2": "P2",
+		"priority-3": "P3",
+		"priority-4": "P4",
+		"priority-5": "P5",
+		"priority-6": "P6",
+		"priority-7": "P7",
+	}
+
+	testResultMap := map[string]string{
+		"c_symbol_like":        "Pass",
+		"c_symbol_dislike":     "Fail",
+		"c_symbol_music":       "Music",
+		"c_symbol_pen":         "Pen",
+		"c_symbol_telephone":   "Telephone",
+		"c_symbol_hourglass":   "Hourglass",
+		"c_symbol_flight":      "Flight",
+		"c_symbol_heart":       "Heart",
+		"symbol-lightning":     "Lightning",
+		"symbol-idea":          "Idea",
+		"symbol-question":      "Question",
+		"symbol-pin":           "Pin",
+		"symbol-run":           "Run",
+		"symbol-entertainment": "Entertainment",
+		"symbol-100":           "100%",
+	}
+
 	for _, secondItem := range target.RootTopic.Children.Attached {
 		secondTitle := secondItem.Title
 		for _, thirdItem := range secondItem.Children.Attached {
 			thirdTitle := thirdItem.Title
 			caseMap := make(map[string]string)
 			var priorityTag string
-
-			if len(thirdItem.Markers) > 0 {
-				priorityMark := thirdItem.Markers[0].MarkerID
-				switch priorityMark {
-				case "priority-1":
-					priorityTag = "P1"
-				case "priority-2":
-					priorityTag = "P2"
-				case "priority-3":
-					priorityTag = "P3"
-				case "priority-4":
-					priorityTag = "P4"
-				case "priority-5":
-					priorityTag = "P5"
+			var testResultTag string
+			var otherTag string
+			for _, thirdMark := range thirdItem.Markers {
+				markString := thirdMark.MarkerID
+				if strings.HasPrefix(markString, "priority") {
+					priorityTag = priorityMap[markString]
+				} else if strings.Contains(markString, "symbol_") {
+					if markString == "c_symbol_like" || markString == "c_symbol_dislike" {
+						testResultTag = testResultMap[markString]
+					} else {
+						if len(otherTag) == 0 {
+							otherTag = testResultMap[markString]
+						} else if !strings.Contains(otherTag, testResultMap[markString]) {
+							otherTag = fmt.Sprintf("%s,%s", otherTag, testResultMap[markString])
+						}
+					}
+				} else {
+					if len(otherTag) == 0 {
+						otherTag = markString
+					} else if !strings.Contains(otherTag, markString) {
+						otherTag = fmt.Sprintf("%s,%s", otherTag, markString)
+					}
 				}
+
 			}
+
 			for index3, fourthItem := range thirdItem.Children.Attached {
 				fourthTitle := fourthItem.Title
 				if fourthTitle == "测试步骤" {
 					var stepStr, expectStr string
+					var subResultTag string
 					for _, fifthItem := range fourthItem.Children.Attached {
 						if len(stepStr) == 0 {
 							stepStr = fifthItem.Title
@@ -299,12 +338,49 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 									expectStr = fmt.Sprintf("%s;\n%s", expectStr, sixthItem.Title)
 
 								}
+								if subResultTag == "Fail" || subResultTag == "PartTest" || len(testResultTag) > 0 {
+									continue
+								}
+
+								if len(sixthItem.Markers) == 0 {
+									subResultTag = "PartTest"
+								}
+
+								for _, sixthMark := range sixthItem.Markers {
+									sixMarkString := sixthMark.MarkerID
+									if strings.Contains(sixMarkString, "symbol_") && len(testResultTag) == 0 {
+										if sixMarkString == "c_symbol_like" || sixMarkString == "c_symbol_dislike" {
+											subResultTag = testResultMap[sixMarkString]
+										} else {
+											if len(otherTag) == 0 {
+												otherTag = testResultMap[sixMarkString]
+											} else if !strings.Contains(otherTag, testResultMap[sixMarkString]) {
+												otherTag = fmt.Sprintf("%s,%s", otherTag, testResultMap[sixMarkString])
+											}
+										}
+									} else {
+										if len(otherTag) == 0 {
+											otherTag = sixMarkString
+										} else if !strings.Contains(otherTag, sixMarkString) {
+											otherTag = fmt.Sprintf("%s,%s", otherTag, sixMarkString)
+										}
+									}
+								}
 							}
 						}
-
 					}
 					caseMap["测试步骤"] = stepStr
 					caseMap["预期结果"] = expectStr
+					if len(testResultTag) == 0 {
+						if len(subResultTag) == 0 {
+							testResultTag = "UnTest"
+						} else {
+							testResultTag = subResultTag
+						}
+					}
+					caseMap["测试结果"] = testResultTag
+					caseMap["标签"] = otherTag
+
 				} else {
 					infos := strings.Split(fourthTitle, ":")
 					if len(infos) > 1 {
@@ -319,6 +395,7 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 					if len(priorityTag) > 0 {
 						caseMap["优先级"] = priorityTag
 					}
+
 					caseList = append(caseList, caseMap)
 				}
 			}
@@ -326,7 +403,7 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 		}
 	}
 
-	titleList := []string{"所属产品", "所属模块", "用例编号", "用例名称", "优先级", "测试范围", "前置条件", "测试步骤", "预期结果"}
+	titleList := []string{"所属产品", "所属模块", "用例编号", "用例名称", "优先级", "测试范围", "前置条件", "测试步骤", "预期结果", "测试结果", "标签"}
 	for index1, item := range caseList {
 		var valueList []string
 
