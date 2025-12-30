@@ -21,6 +21,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	schedule := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	products := biz.GetProducts()
+	partProducts := biz.GetProductsByUpdateTime(1)
 	userName := auth.Auth(ctx).Name
 
 	info := schedule.GetInfo().HideFilterArea()
@@ -103,7 +104,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
-		FieldEditOptions(products).
+		FieldEditOptions(partProducts).
 		FieldWidth(220)
 
 	info.AddField("任务状态", "task_status", db.Enum).
