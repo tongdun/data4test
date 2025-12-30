@@ -24,6 +24,7 @@ func GetAiIssueTable(ctx *context.Context) table.Table {
 	user := auth.Auth(ctx)
 	userName := user.Name
 	products := biz.GetProducts()
+	partProducts := biz.GetProductsByUpdateTime(1)
 	aiPlatforms := biz.GetAiCreatePlatform()
 	issueSourceTypes := types.FieldOptions{
 		{Value: "1", Text: "数据"},
@@ -163,7 +164,7 @@ func GetAiIssueTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.SelectSingle}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
-		FieldEditOptions(products)
+		FieldEditOptions(partProducts)
 	info.AddField("创建人", "create_user", db.Varchar)
 	info.AddField("修改人", "modify_user", db.Varchar)
 	info.AddField("创建时间", "created_at", db.Timestamp).

@@ -597,7 +597,10 @@ func GetProductsTableCount() (contents []map[string]types.InfoItem, headers type
 	}
 
 	var infos []string
-	models.Orm.Table("product").Order("created_at DESC").Pluck("product", &infos)
+	//models.Orm.Table("product").Order("created_at DESC").Pluck("product", &infos)
+	curTimestamp := time.Now().Unix() - int64(86400*365*1) // 统计最近一年有更新的产品的统计数据
+	yearBefore := fmt.Sprintf(time.Unix(curTimestamp, 0).Format("2006-01-02 15:04:05"))
+	models.Orm.Table("product").Where("updated_at >= ? OR (updated_at is null AND created_at >= ?)", yearBefore, yearBefore).Order("created_at desc").Pluck("product", &infos)
 	if len(infos) == 0 {
 		return
 	}

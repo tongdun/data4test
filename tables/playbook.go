@@ -22,6 +22,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	playbook := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	products := biz.GetProducts()
+	partProducts := biz.GetProductsByUpdateTime(1)
 	info := playbook.GetInfo().HideFilterArea()
 	user := auth.Auth(ctx)
 	userName := user.Name
@@ -106,7 +107,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.Select}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
-		FieldEditOptions(products).
+		FieldEditOptions(partProducts).
 		FieldWidth(220)
 
 	info.AddField("创建人", "user_name", db.Varchar).

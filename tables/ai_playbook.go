@@ -27,6 +27,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	user := auth.Auth(ctx)
 	userName := user.Name
 	products := biz.GetProducts()
+	partProducts := biz.GetProductsByUpdateTime(1)
 	pTypes := types.FieldOptions{
 		{Value: "1", Text: "串行中断"},
 		{Value: "2", Text: "串行比较"},
@@ -124,7 +125,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.Select}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
-		FieldEditOptions(products).
+		FieldEditOptions(partProducts).
 		FieldWidth(220)
 	info.AddField("创建人", "create_user", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).

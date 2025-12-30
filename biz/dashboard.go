@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/GoAdminGroup/go-admin/template/types"
 )
@@ -29,6 +30,28 @@ func GetProducts() (products []types.FieldOption) {
 	var dbProducts []Product
 	var product types.FieldOption
 	models.Orm.Table("product").Order("created_at desc").Find(&dbProducts)
+
+	if len(dbProducts) >= 0 {
+		for _, item := range dbProducts {
+			product.Value = item.Name
+			product.Text = item.Name
+			products = append(products, product)
+		}
+	}
+
+	if len(products) == 0 {
+		products = GetNoSelectOption("请先前往[环境-产品配置]定义产品信息")
+	}
+
+	return
+}
+
+func GetProductsByUpdateTime(yearNo int) (products []types.FieldOption) {
+	var dbProducts []Product
+	var product types.FieldOption
+	curTimestamp := time.Now().Unix() - int64(86400*365*yearNo)
+	yearBefore := fmt.Sprintf(time.Unix(curTimestamp, 0).Format("2006-01-02 15:04:05"))
+	models.Orm.Table("product").Where("updated_at >= ? OR (updated_at is null AND created_at >= ?)", yearBefore, yearBefore).Order("created_at desc").Find(&dbProducts)
 
 	if len(dbProducts) >= 0 {
 		for _, item := range dbProducts {
