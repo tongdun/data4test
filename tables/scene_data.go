@@ -231,9 +231,45 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			{Value: "99", Text: "其他"},
 		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
 
+	//formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
+	//	FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
 	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
-		FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
-
+		FieldDefault(`name: "数据描述"
+version: 1
+api_id: "method_/path"
+is_run_pre_apis: "no"
+is_run_post_apis: "no"
+is_parallel: "no"
+is_use_env_config: "yes"
+env:
+  protocol: "http"
+  host: ""
+  prepath: "/prePath"
+api:
+  description: "描述"
+  module: ""  
+  app: "appName"
+  method: "get"
+  path: "/path"
+  pre_apis: []
+  param_apis: []
+  post_apis: []
+single:
+  header: {}
+  query: {}
+  path: {}
+  body: {}
+multi:
+  query: {}
+  path: {}
+  body: {}
+action: []
+assert: []
+output: {}
+test_result: []
+urls: []
+request: []
+response: []`)
 	formList.AddField("执行次数", "run_time", db.Int, form.Number).
 		FieldDefault("1")
 	formList.AddField("测试结果", "result", db.Varchar, form.Text)
@@ -255,6 +291,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		content := values["content"][0]
+		//content, _ = url.QueryUnescape(content) // 转译一下, Code模式需要转义，功能先屏蔽
 		fileName := values["file_name"][0]
 		id := values["id"][0]
 		err = biz.BakOldVer(id, content, fileName)
@@ -293,7 +330,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			}
 			return "标准"
 		})
-	//detail.AddField("文件内容", "content", db.Longtext)  // 格式没有换行，可读性差
+	//detail.AddField("文件内容", "content", db.Longtext)// 格式没有换行，可读性差
 	detail.AddField("执行次数", "run_time", db.Int)
 	detail.AddField("测试结果", "result", db.Varchar)
 	detail.AddField("失败原因", "fail_reason", db.Longtext)

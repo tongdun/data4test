@@ -142,26 +142,57 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddButton("导出Xmind", icon.File, action.Ajax("ai_test_case_export_xmind",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			var status string
-			if idStr == "," {
-				status = "请先选择数据再导出"
-				return false, status, ""
-			}
+	//info.AddButton("导出Xmind", icon.File, action.Ajax("ai_test_case_export_xmind",
+	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
+	//		idStr := ctx.FormValue("ids")
+	//		productStr := ctx.FormValue("product[]")
+	//		biz.Logger.Debug("productStr: %v", productStr)
+	//		var status string
+	//		if idStr == "," {
+	//			status = "请先选择数据再导出"
+	//			return false, status, ""
+	//		}
+	//
+	//		fileName, err := biz.ExportTestCase2Xmind(idStr, "ai_case")
+	//		if err != nil {
+	//			status = fmt.Sprintf("导出失败: %s", err)
+	//			return false, status, ""
+	//		}
+	//		hostIp := ctx.Request.Host
+	//		//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
+	//		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+	//		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+	//		return true, status, ""
+	//	}))
 
-			fileName, err := biz.ExportTestCase2Xmind(idStr, "ai_case")
-			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
-				return false, status, ""
-			}
-			hostIp := ctx.Request.Host
-			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
-			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
-			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
-			return true, status, ""
-		}))
+	info.AddButton("导出Xmind", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/ai_case_export_xmind",
+		Title:  "导出Xmind用例",
+		Width:  "900px",
+		Height: "720px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		aiPlatforms := biz.GetAiCreatePlatform()
+		products := biz.GetProducts() // 子域
+		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate().
+			FieldHelpMsg("选择数据和过滤条件二选一，若选择了数据，以下过滤条件将失效")
+		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+			FieldOptions(products)
+		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
+			FieldHelpMsg("如需设置多个版本，请以英文逗号分隔")
+		panel.AddField("生成来源", "create_platform", db.Varchar, form.SelectSingle).
+			FieldOptions(aiPlatforms)
+		panel.AddField("创建人", "create_user", db.Varchar, form.Text)
+		panel.AddField("所属模块", "module", db.Varchar, form.Text).
+			FieldHelpMsg("如需设置多个模块，请以英文逗号分隔")
+		panel.AddField("创建时间", "created_at", db.Varchar, form.DatetimeRange)
+		panel.AddField("用例来源", "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
+
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+
+		return panel
+	}, "/ai_case_export_xmind"))
+
 	info.AddButton("AI导入", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/ai_case_import",
 		Title:  "AI导入用例",

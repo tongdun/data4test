@@ -520,7 +520,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 
 	isExist, err := GetImportFilePackage(importFilePath, fileNameImportMap)
 	if isExist {
-		fileName = fmt.Sprintf("%s, %s", fileName, importFileName)
+		fileName = fmt.Sprintf("%s,%s", fileName, importFileName)
 	}
 
 	return

@@ -1056,22 +1056,20 @@ func startServer() {
 		return
 	})
 
-	// Xmind2ImportAndUse
-	r.POST("/testcase_xmind_import_and_use", func(c *gin.Context) {
-		user, _ := engine.User(c)
-		userName := user.Name
+	// AiCaseExport2Xmind
+	r.POST("/ai_case_export_xmind", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
 		introVersion := c.PostForm("intro_version")
 		product := c.PostForm("product")
-		uploadFile, errTmp := c.FormFile("upload_file")
-		var uploadFilePath string
-		if errTmp == nil {
-			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
-			c.SaveUploadedFile(uploadFile, uploadFilePath)
-		}
-		var status string
-
-		if len(uploadFilePath) == 0 {
-			status = "请先上传Xmind用例文档"
+		source := c.PostForm("source")
+		createUser := c.PostForm("create_user")
+		module := c.PostForm("module")
+		createdAtStart := c.PostForm("created_at_start__goadmin")
+		createdAtEnd := c.PostForm("created_at_end__goadmin")
+		createPlatform := c.PostForm("create_platform")
+		var status, fileName string
+		if idStr == "," && len(product) == 0 && len(introVersion) == 0 && len(createPlatform) == 0 && len(createUser) == 0 && len(module) == 0 && len(createdAtStart) == 0 {
+			status = "请先选择数据或设置过滤条件再导出"
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1080,22 +1078,96 @@ func startServer() {
 			return
 		}
 
-		err := biz.Xmind2ImportAndUse(userName, product, introVersion, uploadFilePath)
-		if err != nil {
-			status = fmt.Sprintf("转换失败: %s", err)
+		if len(idStr) > 0 && idStr != "," {
+			fileName, err = biz.ExportTestCase2XmindById(idStr, source)
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]string{},
+				})
+				return
+			}
+		} else {
+			fileName, err = biz.ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module, createUser, createdAtStart, createdAtEnd, source)
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]string{},
+				})
+				return
+			}
+		}
+
+		hostIp := c.Request.Host
+		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  status,
+			"data": map[string]string{},
+		})
+
+		return
+	})
+
+	// TestCaseExport2Xmind
+	r.POST("/test_case_export_xmind", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		introVersion := c.PostForm("intro_version")
+		product := c.PostForm("product")
+		source := c.PostForm("source")
+		caseDesigner := c.PostForm("case_designer")
+		module := c.PostForm("module")
+		createdAtStart := c.PostForm("created_at_start__goadmin")
+		createdAtEnd := c.PostForm("created_at_end__goadmin")
+		var status, fileName string
+		if idStr == "," && len(product) == 0 && len(introVersion) == 0 && len(caseDesigner) == 0 && len(module) == 0 && len(createdAtStart) == 0 {
+			status = "请先选择数据或设置过滤条件再导出"
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
 				"data": map[string]string{},
 			})
-		} else {
-			status = fmt.Sprintf("导入完成, 请刷新列表查看~ ")
-			c.JSON(http.StatusOK, map[string]interface{}{
-				"code": 200,
-				"msg":  status,
-				"data": map[string]string{},
-			})
+			return
 		}
+
+		if len(idStr) > 0 && idStr != "," {
+			fileName, err = biz.ExportTestCase2XmindById(idStr, source)
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]string{},
+				})
+				return
+			}
+		} else {
+			fileName, err = biz.ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner, createdAtStart, createdAtEnd, source)
+			if err != nil {
+				status = fmt.Sprintf("导出失败: %s", err)
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  status,
+					"data": map[string]string{},
+				})
+				return
+			}
+		}
+
+		hostIp := c.Request.Host
+		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  status,
+			"data": map[string]string{},
+		})
+
 		return
 	})
 

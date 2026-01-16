@@ -76,7 +76,7 @@ func ExportTestCase2Markdown(ids, source string) (fileName string, err error) {
 	return
 }
 
-func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
+func ExportTestCase2XmindById(ids, source string) (fileName string, err error) {
 	idList := strings.Split(ids, ",")
 	var productNames, modules []string
 	models.Orm.Table(source).Where("id in (?)", idList).Group("product").Pluck("product", &productNames)
@@ -98,6 +98,292 @@ func ExportTestCase2Xmind(ids, source string) (fileName string, err error) {
 	for _, module := range modules {
 		var testCases []TestCase
 		models.Orm.Table(source).Where(" module = ? and id in (?)", module, idList).Find(&testCases)
+		if len(testCases) > 0 {
+			secondNode := firstNode.AddNode(module)
+			for _, itemCase := range testCases {
+				thirdNode := secondNode.AddNode(itemCase.CaseName)
+				var priorityMark goxmind.MarkerId
+				switch itemCase.Priority {
+				case "P0":
+					priorityMark = goxmind.Priority1
+				case "P1", "高":
+					priorityMark = goxmind.Priority1
+				case "P2", "中":
+					priorityMark = goxmind.Priority2
+				case "P3", "低":
+					priorityMark = goxmind.Priority3
+				case "P4":
+					priorityMark = goxmind.Priority4
+				default:
+					priorityMark = goxmind.Priority2
+				}
+				thirdNode.AddMaker(priorityMark)
+				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
+				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
+				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
+				if itemCase.Auto == "1" {
+					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 是"))
+				} else if itemCase.Auto == "0" {
+					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 否"))
+				}
+
+				fourthNode := thirdNode.AddNode(fmt.Sprintf("测试步骤"))
+				var testSteps, expectResults []string
+				if strings.Contains(itemCase.TestSteps, ";") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")
+				} else if strings.Contains(itemCase.TestSteps, "；") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.TestSteps, "\n") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", ";", -1), ";")
+				} else if strings.Contains(itemCase.TestSteps, " ") { // 部分数据有幻觉，会拆的格式不正常
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
+				} else {
+					testSteps = []string{itemCase.TestSteps}
+				}
+
+				if strings.Contains(itemCase.ExpectResult, ";") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), ";")
+				} else if strings.Contains(itemCase.ExpectResult, "；") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.ExpectResult, "\n") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", ";", -1), ";")
+				} else if strings.Contains(itemCase.ExpectResult, " ") { // 部分数据有幻觉，会拆的格式不正常
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
+				} else {
+					expectResults = []string{itemCase.ExpectResult}
+				}
+
+				var lastNode *goxmind.Node
+				for index, itemStep := range testSteps {
+					fifthNode := fourthNode.AddNode(itemStep)
+					if len(expectResults) > index {
+						fifthNode.AddNode(expectResults[index])
+					}
+					if index == len(testSteps)-1 {
+						lastNode = fifthNode
+					}
+
+				}
+
+				if len(expectResults) > len(testSteps) {
+					for _, itemExpect := range expectResults[len(testSteps):] {
+						lastNode.AddNode(itemExpect)
+					}
+				}
+
+			}
+		}
+	}
+
+	xmind.Save(filePath)
+
+	return
+}
+
+func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module, createUser, createdAtStart, createdAtEnd, source string) (fileName string, err error) {
+	var productNames, modules []string
+	dbHandle := models.Orm.Table(source)
+	if len(product) > 0 {
+		dbHandle = dbHandle.Where("product = ?", product)
+	}
+
+	if len(createPlatform) > 0 {
+		dbHandle = dbHandle.Where("source = ?", createPlatform)
+	}
+
+	if len(createUser) > 0 {
+		dbHandle = dbHandle.Where("create_user = ?", createUser)
+	}
+
+	if len(createdAtStart) > 0 {
+		dbHandle = dbHandle.Where("created_at >= ?", createdAtStart)
+	}
+
+	if len(createdAtEnd) > 0 {
+		dbHandle = dbHandle.Where("created_at < ?", createdAtEnd)
+	}
+
+	if len(module) > 0 {
+		moduleList := strings.Split(module, ",")
+		dbHandle = dbHandle.Where("module in (?)", moduleList)
+	}
+
+	if len(introVersion) > 0 {
+		introVersionList := strings.Split(introVersion, ",")
+		dbHandle = dbHandle.Where("intro_version in (?)", introVersionList)
+	}
+
+	if len(product) == 0 {
+		dbHandle.Group("product").Pluck("product", &productNames)
+	} else {
+		productNames = append(productNames, product)
+	}
+
+	if len(productNames) == 0 {
+		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		return "", errTmp
+	} else if len(productNames) > 1 {
+		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+	}
+
+	if len(module) == 0 {
+		dbHandle.Group("module").Pluck("module", &modules)
+	} else {
+		modules = strings.Split(module, ",")
+	}
+
+	timeFormat := "20060102150405"
+	curTime := time.Now().Format(timeFormat)
+	fileName = fmt.Sprintf("%s_%s.xmind", productNames[0], curTime)
+	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
+	xmind := goxmind.New()
+	firstNode := xmind.AddSheet("Sheet title", productNames[0])
+
+	for _, module := range modules {
+		var testCases []TestCase
+		dbHandle.Where("module = ?", module).
+			Find(&testCases)
+		if len(testCases) > 0 {
+			secondNode := firstNode.AddNode(module)
+			for _, itemCase := range testCases {
+				thirdNode := secondNode.AddNode(itemCase.CaseName)
+				var priorityMark goxmind.MarkerId
+				switch itemCase.Priority {
+				case "P0":
+					priorityMark = goxmind.Priority1
+				case "P1", "高":
+					priorityMark = goxmind.Priority1
+				case "P2", "中":
+					priorityMark = goxmind.Priority2
+				case "P3", "低":
+					priorityMark = goxmind.Priority3
+				case "P4":
+					priorityMark = goxmind.Priority4
+				default:
+					priorityMark = goxmind.Priority2
+				}
+				thirdNode.AddMaker(priorityMark)
+				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
+				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
+				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
+				if itemCase.Auto == "1" {
+					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 是"))
+				} else if itemCase.Auto == "0" {
+					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 否"))
+				}
+
+				fourthNode := thirdNode.AddNode(fmt.Sprintf("测试步骤"))
+				var testSteps, expectResults []string
+				if strings.Contains(itemCase.TestSteps, ";") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")
+				} else if strings.Contains(itemCase.TestSteps, "；") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.TestSteps, "\n") {
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", ";", -1), ";")
+				} else if strings.Contains(itemCase.TestSteps, " ") { // 部分数据有幻觉，会拆的格式不正常
+					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
+				} else {
+					testSteps = []string{itemCase.TestSteps}
+				}
+
+				if strings.Contains(itemCase.ExpectResult, ";") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), ";")
+				} else if strings.Contains(itemCase.ExpectResult, "；") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", "", -1), "；")
+				} else if strings.Contains(itemCase.ExpectResult, "\n") {
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", ";", -1), ";")
+				} else if strings.Contains(itemCase.ExpectResult, " ") { // 部分数据有幻觉，会拆的格式不正常
+					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
+				} else {
+					expectResults = []string{itemCase.ExpectResult}
+				}
+
+				var lastNode *goxmind.Node
+				for index, itemStep := range testSteps {
+					fifthNode := fourthNode.AddNode(itemStep)
+					if len(expectResults) > index {
+						fifthNode.AddNode(expectResults[index])
+					}
+					if index == len(testSteps)-1 {
+						lastNode = fifthNode
+					}
+
+				}
+
+				if len(expectResults) > len(testSteps) {
+					for _, itemExpect := range expectResults[len(testSteps):] {
+						lastNode.AddNode(itemExpect)
+					}
+				}
+
+			}
+		}
+	}
+
+	xmind.Save(filePath)
+
+	return
+}
+
+func ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner, createdAtStart, createdAtEnd, source string) (fileName string, err error) {
+	var productNames, modules []string
+	dbHandle := models.Orm.Table(source)
+	if len(product) > 0 {
+		dbHandle = dbHandle.Where("product = ?", product)
+	}
+
+	if len(caseDesigner) > 0 {
+		dbHandle = dbHandle.Where("case_designer = ?", caseDesigner)
+	}
+
+	if len(createdAtStart) > 0 {
+		dbHandle = dbHandle.Where("created_at >= ?", createdAtStart)
+	}
+
+	if len(createdAtEnd) > 0 {
+		dbHandle = dbHandle.Where("created_at < ?", createdAtEnd)
+	}
+
+	if len(module) > 0 {
+		moduleList := strings.Split(module, ",")
+		dbHandle = dbHandle.Where("module in (?)", moduleList)
+	}
+
+	if len(introVersion) > 0 {
+		introVersionList := strings.Split(introVersion, ",")
+		dbHandle = dbHandle.Where("intro_version in (?)", introVersionList)
+	}
+
+	if len(product) == 0 {
+		dbHandle.Group("product").Pluck("product", &productNames)
+	} else {
+		productNames = append(productNames, product)
+	}
+
+	if len(productNames) == 0 {
+		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		return "", errTmp
+	} else if len(productNames) > 1 {
+		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+	}
+
+	if len(module) == 0 {
+		dbHandle.Group("module").Pluck("module", &modules)
+	} else {
+		modules = strings.Split(module, ",")
+	}
+
+	timeFormat := "20060102150405"
+	curTime := time.Now().Format(timeFormat)
+	fileName = fmt.Sprintf("%s_%s.xmind", productNames[0], curTime)
+	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
+	xmind := goxmind.New()
+	firstNode := xmind.AddSheet("Sheet title", productNames[0])
+
+	for _, module := range modules {
+		var testCases []TestCase
+		dbHandle.Where("module = ?", module).
+			Find(&testCases)
 		if len(testCases) > 0 {
 			secondNode := firstNode.AddNode(module)
 			for _, itemCase := range testCases {

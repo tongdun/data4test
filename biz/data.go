@@ -724,9 +724,10 @@ func BakOldVer(id, content, fileName string) (err error) {
 				Logger.Error("%s", err)
 				return
 			}
-			dbContent := dbContents[0]
-			dbContent = strings.Replace(dbContent, rawStr, newVer, 1)
-			models.Orm.Table("scene_data").Where("id = ?", id).Update("content", dbContent)
+			//dbContent := dbContents[0]
+			//dbContent = strings.Replace(dbContent, rawStr, newVer, 1)
+			//models.Orm.Table("scene_data").Where("id = ?", id).Update("content", dbContent)
+			models.Orm.Table("scene_data").Where("id = ?", id).Update("content", content)
 			break
 		}
 	}
