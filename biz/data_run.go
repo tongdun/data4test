@@ -89,7 +89,7 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 	return
 }
 
-func WriteDataResultByFile(src, result, dst, product, source string, envType int, errIn error) (err error) {
+func WriteDataResultByFile(userName, src, result, dst, product, source string, envType int, errIn error) (err error) {
 	var df DataFile
 	var content []byte
 
@@ -152,6 +152,7 @@ func WriteDataResultByFile(src, result, dst, product, source string, envType int
 	sceneDataRecord.Result = result
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
+	sceneDataRecord.UserName = userName
 
 	if errIn != nil {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
@@ -224,7 +225,7 @@ func (apiModel HistorySaveModel) WriteDataFileHistoryResult(result, dst string, 
 	return
 }
 
-func WriteSceneDataResult(id string, result, dst, product, source string, envType int, errIn error) (err error) {
+func WriteSceneDataResult(userName, id string, result, dst, product, source string, envType int, errIn error) (err error) {
 	var dbSceneData DbSceneData
 	s, _ := strconv.Atoi(id)
 	if source == "ai_data" {
@@ -259,7 +260,7 @@ func WriteSceneDataResult(id string, result, dst, product, source string, envTyp
 		return
 	}
 
-	err = RecordDataHistory(dst, product, source, envType, dbSceneData)
+	err = RecordDataHistory(userName, dst, product, source, envType, dbSceneData)
 
 	return
 }
@@ -268,7 +269,8 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 	header := make(map[string]interface{})
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
+		//sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
+		sceneEnvConfig, errTmp := GetEnvConfig(product, "")
 		if errTmp != nil {
 			Logger.Warning("%s", errTmp)
 		}
@@ -305,7 +307,7 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 			}
 		}
 	} else if len(app) > 0 {
-		envConfig, err := GetEnvConfig(app, "app")
+		envConfig, err := GetEnvConfig("", app)
 		if err != nil {
 			Logger.Warning("%s", err)
 		}
@@ -461,8 +463,8 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 	//}   // 功能待完善
 
 	var envConfig EnvConfig
-
-	envConfig, _ = GetEnvConfig(df.Api.App, "app")
+	//envConfig, _ = GetEnvConfig(df.Api.App, productName, appName"app")
+	envConfig, _ = GetEnvConfig(product, df.Api.App)
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -481,14 +483,14 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 	}
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
-		if errTmp != nil {
-			Logger.Warning("%s", errTmp)
-		}
-		envConfig.Ip = sceneEnvConfig.Ip
-		envConfig.Auth = sceneEnvConfig.Auth
-		envConfig.Product = product
-		envConfig.Protocol = sceneEnvConfig.Protocol
+		//sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
+		//if errTmp != nil {
+		//	Logger.Warning("%s", errTmp)
+		//}
+		//envConfig.Ip = sceneEnvConfig.Ip
+		//envConfig.Auth = sceneEnvConfig.Auth
+		//envConfig.Product = product
+		//envConfig.Protocol = sceneEnvConfig.Protocol
 
 		dbProductList, err := GetProductInfo(product)
 		dbProduct := dbProductList[0]
@@ -604,6 +606,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		return
 	}
 
+	var respHeaderList []map[string]string
 	var resList [][]byte
 	var errs []error
 	tag := 0
@@ -622,8 +625,9 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 					wg.Add(1)
 					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
 						defer wg.Add(-1)
-						res, err := RunHttp(method, url, data, header, rHeader)
+						respHeader, res, err := RunHttp(method, url, data, header, rHeader)
 						resList = append(resList, res)
+						respHeaderList = append(respHeaderList, respHeader)
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					}(df.Api.Method, url, data, header)
@@ -655,7 +659,8 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 						//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
 						go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
 							defer wg.Add(-1)
-							res, err := RunHttp(method, url, data, header, rHeader)
+							respHeader, res, err := RunHttp(method, url, data, header, rHeader)
+							respHeaderList = append(respHeaderList, respHeader)
 							resList = append(resList, res)
 							df.Response = append(df.Response, string(res))
 							errs = append(errs, err)
@@ -666,7 +671,8 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 				df.Request = []string{} // 没有请求参数，默认置空
 				wg.Add(1)
 				go func(method, url string, header map[string]interface{}) {
-					res, err := RunHttp(method, url, nil, header, rHeader)
+					respHeader, res, err := RunHttp(method, url, nil, header, rHeader)
+					respHeaderList = append(respHeaderList, respHeader)
 					resList = append(resList, res)
 					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
@@ -697,12 +703,14 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 							}
 							subTag++
 						}
-						res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+						respHeader, res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+						respHeaderList = append(respHeaderList, respHeader)
 						resList = append(resList, res)
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
 					} else {
-						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+						respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+						respHeaderList = append(respHeaderList, respHeader)
 						resList = append(resList, res)
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
@@ -743,7 +751,8 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 							df.Request = append(df.Request, string(dJson))
 						}
 						tag++
-						res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+						respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+						respHeaderList = append(respHeaderList, respHeader)
 						resList = append(resList, res)
 						df.Response = append(df.Response, string(res))
 						errs = append(errs, err)
@@ -752,10 +761,11 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 				}
 			} else {
 				df.Request = []string{} // 当只有路由时，请求数据默认设置为空
-				res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
+				respHeader, res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 				if err != nil {
 					Logger.Error("%s", err)
 				}
+				respHeaderList = append(respHeaderList, respHeader)
 				resList = append(resList, res)
 				df.Response = append(df.Response, string(res))
 				errs = append(errs, err)
@@ -764,7 +774,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		}
 	}
 
-	result, dst, df.Output, err = df.GetResult(source, filePath, resList, depOutVars, errs)
+	result, dst, df.Output, err = df.GetResult(source, filePath, respHeaderList, resList, depOutVars, errs)
 
 	if result != "pass" {
 		for _, item := range errs {
@@ -824,7 +834,7 @@ func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOu
 	return
 }
 
-func RepeatRunDataFile(id, product, source string) (err error) {
+func RepeatRunDataFile(userName, id, product, source string) (err error) {
 	dataInfo, appInfo, filePath, err := GetRunTimeData(id, source)
 	var envType, maxThreadNum int
 	var isThread string
@@ -875,10 +885,10 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 						result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 						if err1 != nil {
 							err = err1
-							err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+							err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 							return
 						}
-						err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 						wg.Done()
 					}(dataInfo)
 					count++
@@ -893,10 +903,10 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 				go func(dbData DbSceneData) {
 					result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 					if err1 != nil {
-						err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 						return
 					}
-					err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+					err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 					wg.Done()
 				}(dataInfo)
 			}
@@ -914,7 +924,7 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 				err = err1
 			}
 
-			err2 := WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+			err2 := WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 			if err2 != nil {
 				Logger.Error("%s", err2)
 				if err != nil {
@@ -936,7 +946,7 @@ func RepeatRunDataFile(id, product, source string) (err error) {
 	return
 }
 
-func RunSceneDataOnce(id, product, source string) (err error) {
+func RunSceneDataOnce(userName, id, product, source string) (err error) {
 	dataInfo, _, filePath, err := GetRunTimeData(id, source)
 	var envType int
 	if len(product) > 0 {
@@ -968,7 +978,7 @@ func RunSceneDataOnce(id, product, source string) (err error) {
 		Logger.Error("\n%s", err1)
 		err = err1
 	}
-	err = WriteSceneDataResult(id, result, dst, product, source, envType, err1)
+	err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
 	if err != nil {
 		Logger.Error("%s", err)
 		return
@@ -1408,7 +1418,7 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 	return
 }
 
-func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
+func (df DataFile) GetResult(source, filePath string, respHeaderList []map[string]string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
 	outputDict = make(map[string][]interface{})
 	isPass := 0
 	dst, err = GetResultFilePath(filePath)
@@ -1559,40 +1569,76 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 						continue
 					}
 				}
+			} else if strings.HasPrefix(assert.Source, "ResponseHeader:") {
+				tmpList := strings.Split(assert.Source, ":")
+				var keyName string
+				if len(tmpList) >= 2 {
+					if assert.Type == "output_re" {
+						var reMatchStr string
+						reMatchStr = tmpList[1]
+						var assertTmp SceneAssert
+						assertTmp.Source = reMatchStr
+						assertTmp.Value = assert.Value
+						assertTmp.Type = assert.Type
+						jsonString, errTmp := json.Marshal(respHeaderList[i])
+						if errTmp != nil {
+							fmt.Println("Error marshaling map to JSON:", errTmp)
+							err = errTmp
+							return
+						}
+						keyName, values, err := assertTmp.GetOutputRe([]byte(jsonString))
+						if err != nil {
+							Logger.Error("err: %v", err)
+						}
+						outputDict[keyName] = values
+					} else if assert.Type == "output" {
+						headerKeyName := tmpList[1]
+						keyName = Interface2Str(assert.Value)
+						outputDict[keyName] = append(outputDict[keyName], respHeaderList[i][headerKeyName])
+					} else {
+						Logger.Warning("暂不支持ResponseHeader的%s断言比较，仅支持output和output_re类型", assert.Type)
+					}
+				}
+
 			} else {
-				// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
+				//// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
 				var resDict map[string]interface{}
 				resDict = make(map[string]interface{})
 				var errTmp error
-				if len(res[i]) == 0 {
-					errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
-				} else {
-					errTmp = json.Unmarshal(res[i], &resDict)
-				}
-
-				if errTmp != nil {
-					Logger.Error("err: %v", errTmp)
-					if err != nil {
-						err = fmt.Errorf("%v,%v", err, errTmp)
-					} else {
-						err = errTmp
-					}
-					failReason := fmt.Sprintf("%v", err)
-
-					if len(df.TestResult) < i+1 {
-						df.TestResult = append(df.TestResult, "fail")
-						df.FailReason = append(df.FailReason, failReason)
-					} else {
-						df.TestResult[i] = "fail"
-						df.FailReason[i] = failReason
-					}
-					isPass++
-					inIsPass++
-					continue
-				}
 
 				switch aType {
 				case "output":
+					// 加载返回信息Response，若不是标准的 json 格式，则结果设置为失败，不再走后续流程
+					//var resDict map[string]interface{}
+					//resDict = make(map[string]interface{})
+
+					if len(res[i]) == 0 {
+						errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+					} else {
+						errTmp = json.Unmarshal(res[i], &resDict)
+					}
+
+					if errTmp != nil {
+						Logger.Error("err: %v", errTmp)
+						if err != nil {
+							err = fmt.Errorf("%v,%v", err, errTmp)
+						} else {
+							err = errTmp
+						}
+						failReason := fmt.Sprintf("%v", err)
+
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
+						inIsPass++
+						continue
+					}
+
 					keyName, values, err1 := assert.GetOutput(resDict)
 					if err1 != nil {
 						if err != nil {
@@ -1619,6 +1665,7 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 				case "output_re":
 					keyName, values, err1 := assert.GetOutputRe(res[i])
 					if err1 != nil {
+						Logger.Debug("res[%d]: %s", i, string(res[i]))
 						Logger.Error("err1: %v", err1)
 						if err != nil {
 							err = fmt.Errorf("%s, %s", err, err1)
@@ -1640,6 +1687,32 @@ func (df DataFile) GetResult(source, filePath string, res [][]byte, inOutPutDict
 					}
 					outputDict[keyName] = append(outputDict[keyName], values...)
 				default:
+					if len(res[i]) == 0 {
+						errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+					} else {
+						errTmp = json.Unmarshal(res[i], &resDict)
+					}
+
+					if errTmp != nil {
+						Logger.Error("err: %v", errTmp)
+						if err != nil {
+							err = fmt.Errorf("%v,%v", err, errTmp)
+						} else {
+							err = errTmp
+						}
+						failReason := fmt.Sprintf("%v", err)
+
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
+						inIsPass++
+						continue
+					}
 					_, err1 := assert.AssertResult(resDict, inOutPutDict)
 					if err1 != nil {
 						Logger.Error("\n%v", err1)
@@ -1761,7 +1834,6 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 		models.Orm.Table("ai_data").Where("file_name = ?", baseName).Find(&dbData)
 	} else if strings.HasPrefix(source, "history") {
 		var dbHData HistoryDataDetail
-		Logger.Debug("baseName: %v", baseName)
 		models.Orm.Table("scene_data_test_history").Where("content = ?", baseName).Find(&dbHData)
 		dbData.Name = dbHData.Name
 		dbData.FileName = dbHData.Content
