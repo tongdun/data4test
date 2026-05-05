@@ -11,6 +11,15 @@
 - 从请求到得到Response的返回时间
 - 数据源定义(source)为RT/ResponseTime
 
+#### 返回请求头断言
+- 从返回请求头中取特定的字段进行断言
+- 数据源定义(source)为ResponseHeader:keyName
+- 数据源定义(source)为ResponseHeader:regexMatchStr, 用正则匹配取值
+- 数据类型只支持output和output_re
+- 示例: 
+  - {type: output, source: ResponseHeader:Connection, value:connectionType}, 取ResponseHeader中Connection的值赋值给connectionType变量，提供给其他接口依赖使用
+  - {type: output_re, source: ResponseHeader:application/([a-z]+), value: testFormat}, 用正则匹配ResponseHeader中匹配到的值，赋值给testFormat变量，提供给其他接口依赖使用
+
 #### 文件值断言
 - 从接口获取下载的文件，对文件的内容进行断言
 - 数据源定义(source)为FileType:line:column:split

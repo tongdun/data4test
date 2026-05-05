@@ -144,8 +144,8 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldHide()
 	info.AddField("删除时间", "deleted_at", db.Timestamp).
 		FieldHide()
-	dataNames := biz.GetDatas()
-	sceneNames := biz.GetScenes()
+	//dataNames := biz.GetDatas()
+	//sceneNames := biz.GetScenes()
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
@@ -160,20 +160,19 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if fileName, err := biz.ExportSchedule(idStr, userNameSub); err == nil {
-				//status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为: %s", fileName)
 				hostIp := ctx.Request.Host
 				var fileNameList []string
 				var downloadUrl string
-				if strings.Contains(fileName, ",") {
-					fileNameList = strings.Split(fileName, ",")
-					for index, subFileNale := range fileNameList {
-						if index == 0 {
-							downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileNale)
-						} else {
-							downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileNale)
-						}
+				fileNameList = strings.Split(fileName, ",")
+
+				for index, subFileName := range fileNameList {
+					if index == 0 {
+						downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileName)
+					} else {
+						downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileName)
 					}
 				}
+
 				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 
 			} else {
@@ -190,20 +189,19 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if fileName, err := biz.ExportSchedule(id, userNameSub); err == nil {
-				//status = fmt.Sprintf("一键导出成功，请至[文件-下载文件]下载, 文件名为:[%s]", fileName)
 				hostIp := ctx.Request.Host
 				var fileNameList []string
 				var downloadUrl string
-				if strings.Contains(fileName, ",") {
-					fileNameList = strings.Split(fileName, ",")
-					for index, subFileNale := range fileNameList {
-						if index == 0 {
-							downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileNale)
-						} else {
-							downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileNale)
-						}
+				fileNameList = strings.Split(fileName, ",")
+
+				for index, subFileNale := range fileNameList {
+					if index == 0 {
+						downloadUrl = fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, subFileNale)
+					} else {
+						downloadUrl = fmt.Sprintf("%s\nhttp://%s/admin/fm/download/download?path=/%s", downloadUrl, hostIp, subFileNale)
 					}
 				}
+
 				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
 			} else {
 				status = fmt.Sprintf("一键导出失败：%s: %s", id, err)
@@ -253,12 +251,14 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	info.AddButton("执行", icon.Android, action.Ajax("run_batch_task",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			var status string
 			if idStr == "," {
 				status = "请先选择数据再执行"
 				return false, status, ""
 			}
-			if err := biz.RunTask(idStr, ""); err == nil {
+			if err := biz.RunTask(idStr, "", userNameSub); err == nil {
 				status = "任务已在后台执行"
 			} else {
 				status = fmt.Sprintf("任务执行失败：%s", err)
@@ -270,7 +270,9 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RunTask(id, ""); err == nil {
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if err := biz.RunTask(id, "", userNameSub); err == nil {
 				status = "任务已在后台执行"
 			} else {
 				status = fmt.Sprintf("任务执行失败：%s", err)
@@ -366,18 +368,18 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	formList.AddField("编辑模式", "edit_type", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
-			{Value: "select_scene", Text: "选择场景"},
+			//{Value: "select_scene", Text: "选择场景"},
 			{Value: "input_scene", Text: "输入场景"},
-			{Value: "select_data", Text: "选择数据"},
+			//{Value: "select_data", Text: "选择数据"},
 			{Value: "input_data", Text: "输入数据"},
 		}).
 		FieldOnChooseHide("input_scene", "scene_table", "data_table", "input_data").
-		FieldOnChooseHide("select_scene", "input_data", "data_table", "input_scene").
-		FieldOnChooseHide("select_data", "input_scene", "scene_table", "data_table").
+		//FieldOnChooseHide("select_scene", "input_data", "data_table", "input_scene").
+		//FieldOnChooseHide("select_data", "input_scene", "scene_table", "data_table").
 		FieldOnChooseHide("input_data", "scene_table", "data_table", "input_scene").
-		FieldOnChooseShow("select_scene", "scene_table").
+		//FieldOnChooseShow("select_scene", "scene_table").
 		FieldOnChooseShow("input_scene", "input_scene").
-		FieldOnChooseShow("select_data", "data_table").
+		//FieldOnChooseShow("select_data", "data_table").
 		FieldOnChooseShow("input_data", "input_data").
 		FieldDefault("input_scene").
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -390,20 +392,20 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(dataHelp)
 
-	formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
-		panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
-			FieldHideLabel().
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return strings.Split(model.Value, ",")
-			})
-		panel.AddField("关联数据", "data_list", db.Varchar, form.SelectSingle).
-			FieldHideLabel().
-			FieldOptions(dataNames).
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return strings.Split(model.Value, ",")
-			})
-		panel.SetInputWidth(10)
-	}).FieldHelpMsg(dataHelp)
+	//formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
+	//	panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
+	//		FieldHideLabel().
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return strings.Split(model.Value, ",")
+	//		})
+	//	panel.AddField("关联数据", "data_list", db.Varchar, form.SelectSingle).
+	//		FieldHideLabel().
+	//		FieldOptions(dataNames).
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return strings.Split(model.Value, ",")
+	//		})
+	//	panel.SetInputWidth(10)
+	//}).FieldHelpMsg(dataHelp)
 
 	sceneHelp := template.HTML("关联场景必填")
 	formList.AddField("输入场景", "input_scene", db.Varchar, form.TextArea).
@@ -411,21 +413,21 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(sceneHelp)
 
-	formList.AddTable("关联场景", "scene_table", func(panel *types.FormPanel) {
-		panel.AddField("序号/标签", "scene_number", db.Varchar, form.Text).
-			FieldHideLabel().
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return strings.Split(model.Value, ",")
-			})
-
-		panel.AddField("关联场景", "scene_list", db.Varchar, form.SelectSingle).
-			FieldHideLabel().
-			FieldOptions(sceneNames).
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return strings.Split(model.Value, ",")
-			})
-		panel.SetInputWidth(10)
-	}).FieldHelpMsg(sceneHelp)
+	//formList.AddTable("关联场景", "scene_table", func(panel *types.FormPanel) {
+	//	panel.AddField("序号/标签", "scene_number", db.Varchar, form.Text).
+	//		FieldHideLabel().
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return strings.Split(model.Value, ",")
+	//		})
+	//
+	//	panel.AddField("关联场景", "scene_list", db.Varchar, form.SelectSingle).
+	//		FieldHideLabel().
+	//		FieldOptions(sceneNames).
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return strings.Split(model.Value, ",")
+	//		})
+	//	panel.SetInputWidth(10)
+	//}).FieldHelpMsg(sceneHelp)
 
 	formList.AddField("关联产品", "product_list", db.Varchar, form.Select).
 		FieldOptions(products)

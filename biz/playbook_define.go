@@ -61,6 +61,7 @@ type SceneRecord struct {
 	Product    string `gorm:"column:product" json:"product" yaml:"product"`
 	FailReason string `gorm:"column:fail_reason" json:"fail_reason" yaml:"fail_reason"`
 	EnvType    int    `gorm:"column:env_type" json:"env_type" yaml:"env_type"`
+	UserName   string `gorm:"column:user_name" json:"remark" yaml:"user_name"`
 }
 
 type DbSceneRecord struct {

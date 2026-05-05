@@ -74,7 +74,8 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		FieldFilterable()
 	//info.AddField("用例版本", "case_version", db.Int)
 	info.AddField("关联产品", "product", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).
+		//FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterOptions(products)
 	info.AddField("生成来源", "source", db.Varchar).
 		FieldFilterable()
@@ -186,7 +187,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField("所属模块", "module", db.Varchar, form.Text).
 			FieldHelpMsg("如需设置多个模块，请以英文逗号分隔")
 		panel.AddField("创建时间", "created_at", db.Varchar, form.DatetimeRange)
-		panel.AddField("用例来源", "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
+		panel.AddField("用例来源", "source", db.Varchar, form.Text).FieldDefault("ai_case").FieldHide()
 
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 

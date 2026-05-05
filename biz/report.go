@@ -17,7 +17,7 @@ func GetAPITypeCount(mode, appName string) (infos []string, counts []float64, co
 	appList := strings.Split(appName, ",")
 	if mode == "all" {
 		models.Orm.Table("api_definition").Group("http_method").Pluck("http_method", &infos)
-	} else {
+	} else { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 		models.Orm.Table("api_definition").Group("http_method").Where("app in (?)", appList).Pluck("http_method", &infos)
 	}
 
@@ -36,7 +36,7 @@ func GetAPITypeCount(mode, appName string) (infos []string, counts []float64, co
 		labelInfo := make(map[string]string)
 		if mode == "all" {
 			models.Orm.Table("api_definition").Where("http_method = ?", item).Count(&apiCount)
-		} else if mode == "product" || mode == "app" {
+		} else if mode == "product" || mode == "app" { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 			models.Orm.Table("api_definition").Where("http_method = ? and app in (?)", item, appList).Count(&apiCount)
 		}
 
@@ -71,7 +71,7 @@ func GetAPISpecCount(mode, appName string) (infos []string, counts []float64, co
 			var allCount, unknownCount float64
 			if mode == "all" {
 				models.Orm.Table("api_definition").Count(&allCount)
-			} else if mode == "product" || mode == "app" {
+			} else if mode == "product" || mode == "app" { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 				models.Orm.Table("api_definition").Where("app in (?)", appList).Count(&allCount)
 			}
 
@@ -83,7 +83,7 @@ func GetAPISpecCount(mode, appName string) (infos []string, counts []float64, co
 		} else {
 			if mode == "all" {
 				models.Orm.Table("api_definition").Where("`check` = ?", item).Count(&itemCount)
-			} else if mode == "product" || mode == "app" {
+			} else if mode == "product" || mode == "app" { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 				models.Orm.Table("api_definition").Where("`check` = ? and app in (?)", item, appList).Count(&itemCount)
 			}
 			counts = append(counts, itemCount)
@@ -120,7 +120,7 @@ func GetAutoAPICount(mode, appName string) (infos []string, counts []float64, co
 				if apiCount == 0 {
 					models.Orm.Table("scene_data").Group("api_id").Count(&apiCount)
 				}
-			} else if mode == "product" || mode == "app" {
+			} else if mode == "product" || mode == "app" { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 				models.Orm.Table("api_definition").Group("api_id").Where("app in (?) and is_auto = '1'", appList).Count(&apiCount)
 				if apiCount == 0 {
 					models.Orm.Table("scene_data").Group("api_id").Where("app in (?)", appList).Count(&apiCount)
@@ -130,7 +130,7 @@ func GetAutoAPICount(mode, appName string) (infos []string, counts []float64, co
 			if mode == "all" {
 				models.Orm.Table("api_definition").Count(&allCount)
 				models.Orm.Table("api_definition").Where("is_need_auto = 0").Count(&noNeedAutoCount)
-			} else if mode == "product" || mode == "app" {
+			} else if mode == "product" || mode == "app" { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 				models.Orm.Table("api_definition").Where("app in (?)", appList).Count(&allCount)
 				models.Orm.Table("api_definition").Where("app in (?) and is_need_auto = 0", appList).Count(&noNeedAutoCount)
 			}
@@ -643,7 +643,7 @@ func GetAPIRunResultCount(mode, name string) (title template.HTML, dayList, info
 
 			if mode == "product" {
 				models.Orm.Table("scene_data_test_history").Where("result = ? and created_at > ? and created_at < ? and product = ?", item, subItem, dayList[subIndex+2], name).Count(&dayCount)
-			} else {
+			} else { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 				models.Orm.Table("scene_data_test_history").Where("result = ? and created_at > ? and created_at < ? and app in (?)", item, subItem, dayList[subIndex+2], appList).Count(&dayCount)
 			}
 			daysCount = append(daysCount, dayCount)
@@ -700,7 +700,7 @@ func GetDaysAPIResultCount(mode, name string, day int) (infos []string, counts [
 
 		if mode == "product" {
 			models.Orm.Table("scene_data_test_history").Where("result = ? and created_at > ? and product = ? ", item, timeStr, name).Count(&apiCount)
-		} else {
+		} else { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 			models.Orm.Table("scene_data_test_history").Where("result = ? and created_at > ? and app in (?)", item, timeStr, appList).Count(&apiCount)
 		}
 
@@ -764,7 +764,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 
 	appList := strings.Split(appName, ",")
 	var infos, httpMethods []string
-
+	// todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 	models.Orm.Table("api_definition").Group("api_module").Where("app in (?)", appList).Pluck("api_module", &infos)
 
 	models.Orm.Table("api_definition").Group("http_method").Where("app in (?)", appList).Pluck("http_method", &httpMethods)
@@ -790,7 +790,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 
 		var allCount, autoCount, notAutoCount, dataFileCount int
 		var apiList []string
-
+		// todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 		models.Orm.Table("api_definition").Where("api_module = ? and app in (?)", item, appList).Count(&allCount).Select("api_id").Find(&apiIds)
 		allCountHtml := template.HTML(fmt.Sprintf("%d", allCount))
 		content["接口定义总数"] = types.InfoItem{Content: allCountHtml}
@@ -798,6 +798,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 		for _, subItem := range apiIds {
 			apiList = append(apiList, subItem.ApiId)
 		}
+		// todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 		models.Orm.Table("scene_data").Group("api_id").Where("api_id in (?) and app in (?)", apiList, appList).Count(&autoCount)
 		autoCountHtml := template.HTML(fmt.Sprintf("%d", autoCount))
 		content["已自动化接口数"] = types.InfoItem{Content: autoCountHtml}
@@ -810,7 +811,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 		notAutoCountHtml := template.HTML(fmt.Sprintf("%d", notAutoCount))
 		content["未自动化接口数"] = types.InfoItem{Content: notAutoCountHtml}
 
-		if len(appList) > 0 {
+		if len(appList) > 0 { // todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 			models.Orm.Table("scene_data").Where("api_id in (?) and app in (?)", apiList, appList).Select("api_id").Count(&dataFileCount)
 		} else {
 			dataFileCount = 0
@@ -821,6 +822,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 		for _, subItem := range httpMethods {
 			var apiIds []string
 			var methodCount int
+			// todo: 可以尝试用EXISTS来优化查询效率，尤其是在appList较大的情况下
 			models.Orm.Table("api_definition").Group("api_id").Where("api_module = ? and http_method = ? and app in (?)", item, subItem, appList).Pluck("api_id", &apiIds).Count(&methodCount)
 			methodCountHtml := template.HTML(fmt.Sprintf("%d", methodCount))
 			content[subItem] = types.InfoItem{Content: methodCountHtml}
@@ -869,7 +871,7 @@ func GetProductAppTableCount(appName string) (contents []map[string]types.InfoIt
 		for _, subItem := range apiIds {
 			apiList = append(apiList, subItem.ApiId)
 		}
-
+		// todo: 可以尝试用EXISTS来优化查询效率，尤其是在apiList较大的情况下
 		models.Orm.Table("scene_data").Group("api_id").Where("app = ? and api_id in (?)", item, apiList).Count(&autoCount)
 		autoCountHtml := template.HTML(fmt.Sprintf("%d", autoCount))
 		content["已自动化数"] = types.InfoItem{Content: autoCountHtml}

@@ -10,6 +10,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"os"
 	"runtime/debug"
 	"strconv"
@@ -25,7 +26,7 @@ func Init() {
 
 func ServiceRestart() {
 	ids := GetRunningTask()
-	_ = RunTask(ids, "init")
+	_ = RunTask(ids, "init", "系统")
 }
 
 // NewCrontab new crontab
@@ -37,7 +38,7 @@ func NewCrontab() *Crontab {
 }
 
 func (r *RunSchecdule) Run() {
-	OneTask(r.Id)
+	OneTask(r.Id, r.UserName)
 	CronHandle.UpdateTime(r.Id)
 }
 
@@ -158,7 +159,7 @@ func (c *Crontab) IsExists(jid string) bool {
 	return exist
 }
 
-func OneTask(id string) (err error) {
+func OneTask(id, userName string) (err error) {
 	var dbSchedule DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&dbSchedule)
 	if len(dbSchedule.TaskName) == 0 {
@@ -173,7 +174,7 @@ func OneTask(id string) (err error) {
 	sceneList, _, _ := dbSchedule.GetSceneIds()
 	if dbSchedule.TaskType == "data" {
 		for _, dataId := range dataList {
-			err1 = RunSceneDataOnce(dataId, dbSchedule.ProductList, "task")
+			err1 = RunSceneDataOnce(userName, dataId, dbSchedule.ProductList, "task")
 			if err1 != nil {
 				err = err1
 				Logger.Error("%s", err)
@@ -186,9 +187,9 @@ func OneTask(id string) (err error) {
 			playbook := playbookInfo.GetPlaybook("task")
 			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
-				_, _, err1 = playbook.RunPlaybook(playbookInfo.Id, "start", "task", productSceneInfo)
+				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productSceneInfo)
 			} else {
-				_, _, err1 = playbook.RunPlaybook(playbookInfo.Id, "start", "task", productTaskInfo)
+				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productTaskInfo)
 			}
 
 			if err1 != nil {
@@ -319,7 +320,7 @@ func StopTask(ids string) (err error) {
 	return
 }
 
-func RunOnceTask(id string) (err error) {
+func RunOnceTask(id, userName string) (err error) {
 	var task DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&task)
 	if len(task.TaskName) == 0 {
@@ -330,7 +331,7 @@ func RunOnceTask(id string) (err error) {
 	case "data":
 		dataIds, _ := task.GetDataIds()
 		for _, dataId := range dataIds {
-			err1 := RepeatRunDataFile(dataId, task.ProductList, "task")
+			err1 := RepeatRunDataFile(userName, dataId, task.ProductList, "task")
 			if err1 != nil {
 				err = err1
 				Logger.Error("%v", err)
@@ -341,7 +342,7 @@ func RunOnceTask(id string) (err error) {
 		sceneIds, _, _ := task.GetSceneIds()
 		for index, sceneId := range sceneIds {
 			var err1 error
-			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task")
+			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task", userName)
 			if err1 != nil {
 				if err != nil {
 					err = fmt.Errorf("%v; %v", err, err1)
@@ -364,7 +365,7 @@ func RunOnceTask(id string) (err error) {
 	return
 }
 
-func RunTask(ids, mode string) (err error) {
+func RunTask(ids, mode, userName string) (err error) {
 	idList := strings.Split(ids, ",")
 	for _, id := range idList {
 		if len(id) == 0 {
@@ -394,10 +395,10 @@ func RunTask(ids, mode string) (err error) {
 						Logger.Error("stack: %v", string(debug.Stack()))
 					}
 				}()
-				RunOnceTask(id)
+				RunOnceTask(id, userName)
 			}(id)
 		} else {
-			task := &RunSchecdule{id}
+			task := &RunSchecdule{id, userName}
 			isExist := CronHandle.IsExists(id)
 			if isExist {
 				err1 := errors.Errorf("任务[%s]已添加", retSchedule.TaskName)
@@ -459,9 +460,9 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 
 	curTime := time.Now().Format("20060102150405")
 	fileName = fmt.Sprintf("%s_%s.sql", "数据SQL", curTime)
-	importFileName := fmt.Sprintf("%s_%s.tgz", "导入文件", curTime)
+
 	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName)
-	importFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, importFileName)
+
 	_ = WriteDataInCommonFile(filePath, sqlRule1)
 	_ = WriteDataInCommonFile(filePath, sqlRule2)
 	_ = WriteDataInCommonFile(filePath, sqlRule3)
@@ -518,9 +519,18 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
+	importFileName := fmt.Sprintf("%s_%s.tgz", "导入文件", curTime)
+	importFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, importFileName)
 	isExist, err := GetImportFilePackage(importFilePath, fileNameImportMap)
 	if isExist {
 		fileName = fmt.Sprintf("%s,%s", fileName, importFileName)
+	}
+
+	exportDataFilePackageName := fmt.Sprintf("%s_%s.tgz", "数据文件包", curTime)
+	exportDataFileAsPackagePath := fmt.Sprintf("%s/%s", DownloadBasePath, exportDataFilePackageName)
+	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, dataMap, playbookMap) // 导出数据文件包
+	if isExist {
+		fileName = fmt.Sprintf("%s,%s", fileName, exportDataFilePackageName)
 	}
 
 	return
@@ -593,11 +603,11 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 		}
 		if index == 0 {
 			productName = item.Product.Name
-			productValueStr = fmt.Sprintf("('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s')", item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.Remark)
+			productValueStr = fmt.Sprintf("('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s','%s')", item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateAppPrefix, item.PrivateParameter, item.Remark)
 			appNameList = strings.Split(item.Apps, ",")
 			productNameDesc = fmt.Sprintf("# 导出的产品为: %s", item.Name)
 		} else {
-			productValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s')", productValueStr, item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.Remark)
+			productValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s','%s')", productValueStr, item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.PrivateParameter, item.Remark)
 			appTmp := strings.Split(item.Apps, ",")
 			appNameList = append(appNameList, appTmp...)
 			productNameDesc = fmt.Sprintf("%s / %s", productNameDesc, item.Name)
@@ -611,7 +621,7 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 		}
 	}
 
-	productSQL := fmt.Sprintf("INSERT IGNORE INTO `product`(product, ip, protocol, threading, thread_number, auth,testmode, apps, env_type, private_parameter, remark) VALUES %s;", productValueStr)
+	productSQL := fmt.Sprintf("INSERT IGNORE INTO `product`(product, ip, protocol, threading, thread_number, auth,testmode, apps, env_type, private_app_prefix, private_parameter, remark) VALUES %s;", productValueStr)
 
 	_ = WriteDataInCommonFile(filePath, productSQLDesc)
 	_ = WriteDataInCommonFile(filePath, productNameDesc)
@@ -845,7 +855,6 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			dataValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s',%d,'%s','%s')", dataValueStr, item.Name, item.ApiId, item.App, item.FileName, item.FileType, item.Content, item.RunTime, item.Remark, userName)
 		}
 
-		//indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:\n", "output: {}")
 		indexStr, _, _, _ := GetStrByIndex(item.Content, "assert:", "output: {}")
 		if len(indexStr) > 0 {
 			assertVars, _ := GetInStrDef(indexStr)
@@ -856,7 +865,6 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 			}
 		}
 
-		//indexStr, _, _, _ = GetStrByIndex(item.Content, "env:\n", "action:")
 		indexStr, _, _, _ = GetStrByIndex(item.Content, "env:", "action:")
 		if len(indexStr) > 0 {
 			systemParameterVars, _ := GetInStrDef(indexStr)
@@ -1092,7 +1100,7 @@ func UpdateTaskInfoList(id, taskType string, dataList, dataNumList []string) (er
 	return
 }
 
-func AutoCreateSchedule(id string, taskType string) (err error) {
+func AutoCreateSchedule(id, userName string, taskType string) (err error) {
 	var schedule Schedule4Copy
 	curTimeStr := fmt.Sprintf(time.Unix(time.Now().Unix(), 0).Format("20060102"))
 	idList := strings.Split(id, ",")
@@ -1118,9 +1126,9 @@ func AutoCreateSchedule(id string, taskType string) (err error) {
 		}
 		for _, item := range dbSceneDatas {
 			if len(schedule.DataList) == 0 {
-				schedule.DataList = item.Name
+				schedule.DataList = item.FileName
 			} else {
-				schedule.DataList = fmt.Sprintf("%s,%s", schedule.DataList, item.Name)
+				schedule.DataList = fmt.Sprintf("%s,%s", schedule.DataList, item.FileName)
 			}
 		}
 		schedule.DataNumber = numStr
@@ -1148,7 +1156,7 @@ func AutoCreateSchedule(id string, taskType string) (err error) {
 	schedule.Threading = "no"
 	schedule.TaskMode = "once"
 	schedule.TaskStatus = "not_started"
-	schedule.UserName = "系统"
+	schedule.UserName = userName
 
 	err = models.Orm.Table("schedule").Create(schedule).Error
 	if err != nil {
@@ -1238,5 +1246,142 @@ func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
 			}
 		}
 	}
+	return
+}
+
+func ExportDataFilePackage(filePath string, fileNameImportMap, playbookNameMap map[string]bool) (isExist bool, err error) {
+	var dataNameList []string
+	for k, _ := range fileNameImportMap {
+		dataNameList = append(dataNameList, k)
+	}
+
+	count := 0
+	fw, err := os.Create(filePath)
+	if err != nil {
+		Logger.Debug("filePath: %v", filePath)
+		Logger.Error("%s", err)
+	}
+	defer fw.Close()
+	// gzip write
+	gw := gzip.NewWriter(fw)
+	defer gw.Close()
+	// tar write
+
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	var dataList []DbSceneData
+	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Find(&dataList)
+	if len(dataList) == 0 {
+		err = fmt.Errorf("未找到[%v]数据，请核对", dataNameList)
+		Logger.Error("%s", err)
+		return
+	}
+
+	curTime := time.Now().Format("20060102150405")
+	exportDataFileDir := fmt.Sprintf("%s/%s_%s", DownloadBasePath, "数据文件", curTime)
+
+	if _, err := os.Stat(exportDataFileDir); os.IsNotExist(err) {
+		// 目录不存在，递归创建
+		if err := os.MkdirAll(exportDataFileDir, 0755); err != nil {
+			Logger.Error("%s", err)
+		}
+	}
+
+	for _, item := range dataList {
+		if len(item.FileName) == 0 {
+			Logger.Warning("数据%s为空，不支持导出", item.FileName)
+			continue
+		}
+		count++
+		ymlFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, item.FileName)
+
+		err = ioutil.WriteFile(ymlFilePath, []byte(item.Content), 0644)
+		if err != nil {
+			Logger.Warning("ymlFilePath: %s", ymlFilePath)
+			Logger.Error("%s", err)
+		}
+		errTmp := WriteTarFile(tw, ymlFilePath)
+		if errTmp != nil {
+			Logger.Warning("ymlFilePath: %s", ymlFilePath)
+			Logger.Error("%s", errTmp)
+			continue
+		}
+	}
+
+	fileName := "playbook_from_task.json"
+	playbookFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, fileName)
+	var playbookList []Scene
+	var playbookNameList []string
+
+	for k, _ := range playbookNameMap {
+		playbookNameList = append(playbookNameList, k)
+	}
+
+	models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
+	if len(playbookList) == 0 {
+		return
+	}
+
+	var allPlaybook []KPlaybook
+
+	for _, playbook := range playbookList {
+		var kPlaybook KPlaybook
+		kPlaybook.Name = playbook.Name
+		kPlaybook.DataList = strings.Split(playbook.DataFileList, ",")
+		if len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
+			kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
+		}
+		allPlaybook = append(allPlaybook, kPlaybook)
+
+	}
+	kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+	WriteDataInCommonFile(playbookFilePath, string(kByte))
+	WriteTarFile(tw, playbookFilePath)
+
+	if count > 0 {
+		isExist = true
+	}
+
+	return
+}
+
+func WriteTarFile(tw *tar.Writer, filePath string) (err error) {
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		Logger.Warning("filePath: %v", filePath)
+		Logger.Error("%s", err)
+		return
+	}
+
+	fr, err := os.Open(filePath)
+	if err != nil {
+		Logger.Warning("filePath: %v", filePath)
+		Logger.Error("%s", err)
+		return
+	}
+	defer fr.Close()
+
+	h := new(tar.Header)
+
+	h.Name = fi.Name()
+	h.Size = fi.Size()
+	h.Mode = int64(fi.Mode())
+	h.ModTime = fi.ModTime()
+
+	// 写信息头
+	err = tw.WriteHeader(h)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	// 写文件
+	_, err = io.Copy(tw, fr)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
 	return
 }

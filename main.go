@@ -656,6 +656,8 @@ func startServer() {
 
 	r.POST("/sceneRun", func(c *gin.Context) {
 		var sceneSave biz.SceneSaveModel
+		user, _ := engine.User(c)
+		userName := user.Name
 		sceneSave.Product = c.PostForm("product")[1 : len(c.PostForm("product"))-1]
 		data := make(map[string]interface{})
 		if len(sceneSave.Product) == 0 {
@@ -697,7 +699,7 @@ func startServer() {
 
 		json.Unmarshal([]byte(c.PostForm("dataList")), &sceneSave.DataList)
 
-		reqDataResps, err := biz.RunPlaybookFromConsole(sceneSave)
+		reqDataResps, err := biz.RunPlaybookFromConsole(userName, sceneSave)
 
 		if err != nil {
 			data["code"] = 400
@@ -1498,7 +1500,7 @@ func startServer() {
 		analysisInput.AiTemplate = c.PostForm("ai_template")
 		analysisInput.Product = c.PostForm("product")
 		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
-		err = biz.AiDataTest(ids, analysisInput)
+		err = biz.AiDataTest(user.Name, ids, analysisInput)
 		if err != nil {
 			status = fmt.Sprintf("分析遇错：%s", err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -1521,7 +1523,7 @@ func startServer() {
 		//userName := user.Name
 		idStr := c.PostForm("ids")
 		product := c.PostForm("product")
-
+		user, _ := engine.User(c)
 		var status string
 		if idStr == "," {
 			status = "请先选择数据再测试"
@@ -1542,7 +1544,7 @@ func startServer() {
 					continue
 				}
 
-				err := biz.RepeatRunDataFile(id, product, source)
+				err := biz.RepeatRunDataFile(user.Name, id, product, source)
 				if err != nil {
 					if errTag == 0 {
 						status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -1576,7 +1578,7 @@ func startServer() {
 		//userName := user.Name
 		idStr := c.PostForm("ids")
 		product := c.PostForm("product")
-
+		user, _ := engine.User(c)
 		var status string
 		if idStr == "," {
 			status = "请先选择数据再测试"
@@ -1596,7 +1598,7 @@ func startServer() {
 					//status = "测试完成，请刷新列表查看测试结果"
 					continue
 				}
-				err := biz.RepeatRunDataFile(id, product, source)
+				err := biz.RepeatRunDataFile(user.Name, id, product, source)
 				if err != nil {
 					if errTag == 0 {
 						status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -1789,7 +1791,7 @@ func startServer() {
 		analysisInput.AiTemplate = c.PostForm("ai_template")
 		analysisInput.Product = c.PostForm("product")
 		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
-		err = biz.AiPlaybookTest(ids, "ai_playbook", analysisInput)
+		err = biz.AiPlaybookTest(user.Name, ids, "ai_playbook", analysisInput)
 		if err != nil {
 			status = fmt.Sprintf("分析遇错：%s", err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{

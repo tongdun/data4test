@@ -254,3 +254,14 @@ alter table playbook change api_list data_file_list text null comment '数据文
 alter table scene_test_history change api_list data_file_list text null comment '数据文件列表';
 alter table ai_playbook change playbook_desc name varchar(255) not null comment '场景描述';
 alter table ai_playbook change playbook_type scene_type enum('1', '2', '3', '4', '5') default '1' null comment '场景类型，1:串行中断，2:串行比较，3:串行继续，4:普通并发, 5:并发比较';
+
+# 2026年4月20日
+alter table scene_data_test_history
+    add user_name varchar(100) null comment '创建人' after product;
+alter table scene_test_history
+    add user_name varchar(100) null comment '创建人' after product;
+
+# 2026年4月21日
+alter table product
+    add private_app_prefix longtext null comment '专用应用前缀' after env_type;
+

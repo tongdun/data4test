@@ -29,7 +29,8 @@ func GetApps() (apps []types.FieldOption) {
 func GetProducts() (products []types.FieldOption) {
 	var dbProducts []Product
 	var product types.FieldOption
-	models.Orm.Table("product").Order("created_at desc").Find(&dbProducts)
+	//models.Orm.Table("product").Order("created_at desc").Find(&dbProducts)
+	models.Orm.Table("product").Order("updated_at desc").Find(&dbProducts) // 改成按更新时间来排序
 
 	if len(dbProducts) >= 0 {
 		for _, item := range dbProducts {
@@ -51,7 +52,8 @@ func GetProductsByUpdateTime(yearNo int) (products []types.FieldOption) {
 	var product types.FieldOption
 	curTimestamp := time.Now().Unix() - int64(86400*365*yearNo)
 	yearBefore := fmt.Sprintf(time.Unix(curTimestamp, 0).Format("2006-01-02 15:04:05"))
-	models.Orm.Table("product").Where("updated_at >= ? OR (updated_at is null AND created_at >= ?)", yearBefore, yearBefore).Order("created_at desc").Find(&dbProducts)
+	//models.Orm.Table("product").Where("updated_at >= ? OR (updated_at is null AND created_at >= ?)", yearBefore, yearBefore).Order("created_at desc").Find(&dbProducts)
+	models.Orm.Table("product").Where("updated_at >= ? OR (updated_at is null AND created_at >= ?)", yearBefore, yearBefore).Order("updated_at desc").Find(&dbProducts) // 改成按更新时间来排序
 
 	if len(dbProducts) >= 0 {
 		for _, item := range dbProducts {

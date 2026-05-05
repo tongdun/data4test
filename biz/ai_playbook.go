@@ -249,7 +249,7 @@ func (input InputPlaybook) AICreateDataAndPlaybookByCreateDesc(createDesc, uploa
 	return
 }
 
-func AiPlaybookTest(idStr, source string, analysisInput AnalysisDataInput) (err error) {
+func AiPlaybookTest(userName, idStr, source string, analysisInput AnalysisDataInput) (err error) {
 	idList := strings.Split(idStr, ",")
 	for _, id := range idList {
 		if len(id) == 0 {
@@ -269,7 +269,7 @@ func AiPlaybookTest(idStr, source string, analysisInput AnalysisDataInput) (err 
 			playbook.Apis = append(playbook.Apis, fmt.Sprintf("%s/%s", AiDataBasePath, item))
 		}
 		playbook.SceneType, _ = strconv.Atoi(aiPlaybook.PlaybookType)
-		_, _, errTmp := playbook.RunAiPlaybook(id, source, analysisInput)
+		_, _, errTmp := playbook.RunAiPlaybook(userName, id, source, analysisInput)
 
 		if errTmp != nil {
 			if err == nil {
@@ -284,7 +284,7 @@ func AiPlaybookTest(idStr, source string, analysisInput AnalysisDataInput) (err 
 	return
 }
 
-func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput AnalysisDataInput) (result, lastFile string, err error) {
+func (playbook Playbook) RunAiPlaybook(userName, dbId, source string, analysisInput AnalysisDataInput) (result, lastFile string, err error) {
 	var runApis []string
 	var tag int
 	envType := GetEnvTypeByName(playbook.Product)
@@ -295,7 +295,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunAiPlaybookContent(source, analysisInput)
+			subResult, historyApi, errTmp := playbook.RunAiPlaybookContent(userName, source, analysisInput)
 			if errTmp != nil {
 				if err != nil {
 					err = fmt.Errorf("%s; %s", err, errTmp)
@@ -308,7 +308,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 			playbook.LastFile = historyApi
 
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(dbId, subResult, source, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(userName, dbId, subResult, source, envType, errTmp)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -324,7 +324,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunAiPlaybookContent(source, analysisInput)
+			subResult, historyApi, errTmp := playbook.RunAiPlaybookContent(userName, source, analysisInput)
 			if errTmp != nil {
 				Logger.Error("%v", errTmp)
 				if err != nil {
@@ -341,7 +341,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(dbId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -359,7 +359,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunAiPlaybookContent(source, analysisInput)
+				subResult, historyApi, errTmp := inPlaybook.RunAiPlaybookContent(userName, source, analysisInput)
 				if errTmp != nil {
 					Logger.Error("%v", errTmp)
 					if errIn != nil {
@@ -381,7 +381,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(dbId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -404,7 +404,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 		result, err = CompareResult(playbook.HistoryApis, "yaml")
 	}
 	playbook.LastFile = lastFile
-	err = playbook.WritePlaybookResult(dbId, result, source, envType, err)
+	err = playbook.WritePlaybookResult(userName, dbId, result, source, envType, err)
 	if err != nil {
 		Logger.Error("%v", err)
 		return
@@ -416,7 +416,7 @@ func (playbook Playbook) RunAiPlaybook(dbId, source string, analysisInput Analys
 	return
 }
 
-func (playbook Playbook) RunAiPlaybookContent(source string, analysisInput AnalysisDataInput) (result, historyApi string, err error) {
+func (playbook Playbook) RunAiPlaybookContent(userName, source string, analysisInput AnalysisDataInput) (result, historyApi string, err error) {
 	filePath := playbook.Apis[playbook.Tag]
 	depOutVars, err := playbook.GetPlaybookDepParams()
 	if err != nil {
@@ -427,7 +427,7 @@ func (playbook Playbook) RunAiPlaybookContent(source string, analysisInput Analy
 	if err != nil {
 		return
 	}
-
+	//AiDataTest(ids string, analysisInput AnalysisDataInput) (err error)
 	df, err1 := RunAiData(dbData.App, analysisInput.Product, filePath, depOutVars, []byte(dbData.Content))
 	if err1 != nil {
 		Logger.Error("%s", err1)
@@ -470,7 +470,7 @@ func (playbook Playbook) RunAiPlaybookContent(source string, analysisInput Analy
 		return
 	}
 
-	result, err = df.AnalysisWithLLM(dst, analysisInput)
+	result, err = df.AnalysisWithLLM(userName, dst, analysisInput)
 
 	return
 }
@@ -580,6 +580,11 @@ func UseAiPlaybook(ids, userName string) (err error) {
 			if err != nil {
 				Logger.Error("%s", err)
 			}
+		}
+
+		err = UseAiDataByFileName(item.DataFileList, userName)
+		if err != nil {
+			Logger.Error("%v", err)
 		}
 	}
 

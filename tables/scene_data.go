@@ -22,7 +22,8 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	sceneData := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	apps := biz.GetApps()
-	info := sceneData.GetInfo().HideFilterArea()
+	//info := sceneData.GetInfo().HideFilterArea()
+	info := sceneData.GetInfo()
 	products := biz.GetProducts()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
@@ -141,7 +142,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
-	info.AddActionButton("复制", action.Ajax("scenedata_copy",
+	info.AddActionButton("复制", action.Ajax("data_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
@@ -154,22 +155,45 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
-	info.AddButton("测试任务", icon.Android, action.Ajax("scenedata_batch_task_run",
+	info.AddButton("创建任务", icon.Android, action.Ajax("data_batch_task_create_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再测试"
+				status = "请先选择数据再创建"
 				return false, status, ""
 			}
 
-			err := biz.AutoCreateSchedule(idStr, "data")
+			err := biz.AutoCreateSchedule(idStr, userNameSub, "data")
 			if err != nil {
-				status = "发起测试任务失败"
+				status = "发起创建任务失败"
 				return false, status, fmt.Sprintf("%s", err)
 			}
 
 			status = "已创建任务，请前往任务列表查看，确认后再发起任务执行"
+			return true, status, ""
+		}))
+
+	info.AddButton("创建场景", icon.Android, action.Ajax("data_batch_playbook_create_run",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if idStr == "," {
+				status = "请先选择数据再创建"
+				return false, status, ""
+			}
+
+			err := biz.AutoCreatePlaybook(idStr, userNameSub)
+			if err != nil {
+				status = "发起创建场景失败"
+				return false, status, fmt.Sprintf("%s", err)
+			}
+
+			status = "已创建场景，请前往场景列表查看，确认后再发起场景执行"
 			return true, status, ""
 		}))
 
@@ -194,7 +218,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RepeatRunDataFile(id, "", "data"); err == nil {
+			if err := biz.RepeatRunDataFile(userName, id, "", "data"); err == nil {
 				status = "测试完成，请刷新列表查看测试结果"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)

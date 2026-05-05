@@ -78,8 +78,12 @@ func GetProductTable(ctx *context.Context) table.Table {
 		{Value: "4", Text: "演示"},
 		{Value: "5", Text: "生产"},
 	})
+	info.AddField("专用应用前缀", "private_app_prefix", db.Longtext).
+		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace().
+		FieldHide()
 	info.AddField("专用参数", "private_parameter", db.Longtext).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().
 		FieldHide()
 	info.AddField("备注", "remark", db.Longtext).
@@ -208,6 +212,7 @@ func GetProductTable(ctx *context.Context) table.Table {
 
 	info.SetTable("product").SetTitle("产品配置").SetDescription("产品配置")
 	helpMsg := template.HTML("JSON格式，e.g.: {\"name1\": \"value1\", \"name2\": \"value2\"}")
+	helpPrefixMsg := template.HTML("JSON格式，e.g.: {\"app1\": \"/prefix1\", \"app2\": \"/prefix2\"}")
 
 	formList := product.GetForm()
 	formList.AddField("唯一标识", "id", db.Int, form.Default).
@@ -241,6 +246,8 @@ func GetProductTable(ctx *context.Context) table.Table {
 			{Text: "演示", Value: "4"},
 			{Text: "生产", Value: "5"},
 		}).FieldDefault("2")
+	formList.AddField("专用应用前缀", "private_app_prefix", db.Longtext, form.TextArea).FieldHelpMsg(helpPrefixMsg)
+
 	formList.AddField("专用参数", "private_parameter", db.Longtext, form.TextArea).FieldHelpMsg(helpMsg)
 	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
 	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).

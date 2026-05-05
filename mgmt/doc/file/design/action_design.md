@@ -1,5 +1,5 @@
 ##### 动作类型：
-- sleep
+- sleep       // 执行后进行sleep动作
 - create_csv
 - create_xls / create_excel / create_xlsx  动作相同，生成excel形式的批量数据
 - create_hive_table_sql  生成Hive创建表单，字段数据类型待完善
@@ -7,6 +7,7 @@
 - record_xls / record_excel / record_xlsx   动作相同，记录当前的请求数据为EXCEL文件
 - modify_file   根据模板文件内容生成新的带请求数据的文件
 - change_output  通过查询接口获取到数据，针对获取到的数据值进行一定的变化再输出
+- loop      // 循环执行
 
 ##### 使用示例：
 ```action:
@@ -28,6 +29,8 @@
   value: record_template.yml:record_template_{certid}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
 - type: change_output
   value: parameter_name:old:new:num  // 输出参数名称:替换前的字符串:替换后的字符串:替换范围  ，替换范围无或为-1表示全局替换，为正整数，表示替换前N个匹配到的字符串。 todo: old可以是正则表达式，需要替换的用()匹配出来
+- type: loop     // todo
+  value: 5:10    // 冒号前是间隔时间，冒号后是循环次数，循环次数不写默认3次。每隔5秒请求一次接口，断言通过则退出循环，共循环请求10次，如果最后一次请求断言存在失败，则失败
 ```
 
 #### modify_file动作模板文件示例

@@ -201,12 +201,14 @@ func GetAiIssueTable(ctx *context.Context) table.Table {
 	info.AddButton("回归测试", icon.Android, action.Ajax("source_again_batch_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
+			user := auth.Auth(ctx)
+			userName := user.Name
 			var status string
 			if idStr == "," {
 				status = "请先选择数据再测试"
 				return false, status, ""
 			}
-			if err := biz.SourceAgainTest(idStr); err == nil {
+			if err := biz.SourceAgainTest(userName, idStr); err == nil {
 				status = "测试完成，请刷新列表查看测试结果"
 			} else {
 				status = fmt.Sprintf("测试失败: %s", err)

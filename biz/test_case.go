@@ -281,6 +281,7 @@ func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module
 				} else if strings.Contains(itemCase.TestSteps, "\n") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", ";", -1), ";")
 				} else if strings.Contains(itemCase.TestSteps, " ") { // 部分数据有幻觉，会拆的格式不正常
+					itemCase.TestSteps = strings.Replace(itemCase.TestSteps, ". ", ".", -1)
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, " ", ";", -1), ";")
 				} else {
 					testSteps = []string{itemCase.TestSteps}
@@ -293,6 +294,7 @@ func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module
 				} else if strings.Contains(itemCase.ExpectResult, "\n") {
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, "\n", ";", -1), ";")
 				} else if strings.Contains(itemCase.ExpectResult, " ") { // 部分数据有幻觉，会拆的格式不正常
+					itemCase.ExpectResult = strings.Replace(itemCase.ExpectResult, ". ", ".", -1)
 					expectResults = strings.Split(strings.Replace(itemCase.ExpectResult, " ", ";", -1), ";")
 				} else {
 					expectResults = []string{itemCase.ExpectResult}

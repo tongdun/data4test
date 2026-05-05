@@ -25,6 +25,10 @@
   value: record_template.json:record_template_{phoneno}.json   // Before the colon is the template file, placeholders for the fields to be replaced. After the colon is the file to save after replacing data. {certid} takes the value of the certid variable in the request data.
 - type: modify_file
   value: record_template.yml:record_template_{certid}.xml  // Template file name: Generated file name; It is best to make the placeholders used in the generated file name unique, otherwise data may be overwritten.
+- type: change_output
+  value: parameter_name:old:new:num  // Output parameter names:String to be replaced:Replacement string:Replacement scope, If the replacement scope is empty or -1, it indicates a global replacement; If the replacement scope is a positive integer, it means replacing the first N matched strings; TODO: The "old" parameter can be a regular expression, and the parts to be replaced should be matched using parentheses.
+- type: loop     // todo
+  value: 5:10    // Before the colon is the interval time, after the colon is the number of cycles. If the number of cycles is not specified, it defaults to 3 times. Request the interface every 5 seconds. Exit the loop if the assertion passes, for a total of 10 cycles. If the assertion fails on the last request, the entire process is considered a failure.
 ```
 
 ##### Example of modify_file Action Template Files

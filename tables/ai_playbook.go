@@ -37,7 +37,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	}
 
 	aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
-	aiPlatforms := biz.GetAiCreatePlatform()
+	//aiPlatforms := biz.GetAiCreatePlatform()
 
 	info.AddField("自增主键", "id", db.Int).
 		FieldFilterable().
@@ -146,6 +146,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		aiPlatforms := biz.GetAiCreatePlatform()
 		products := biz.GetProducts()
 		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
@@ -207,6 +208,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
+		aiPlatforms := biz.GetAiCreatePlatform()
 		products := biz.GetProducts()
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
@@ -240,7 +242,7 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RunPlaybookFromMgmt(id, "start", "", "ai_playbook"); err == nil {
+				if err := biz.RunPlaybookFromMgmt(id, "start", "", "ai_playbook", userName); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)

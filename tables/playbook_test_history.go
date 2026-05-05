@@ -4,6 +4,7 @@ import (
 	"data4test/biz"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
+	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template"
@@ -19,10 +20,12 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	playbookTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	info := playbookTestHistory.GetInfo().HideFilterArea()
+	//info := playbookTestHistory.GetInfo().HideFilterArea()
+	info := playbookTestHistory.GetInfo()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
-
+	user := auth.Auth(ctx)
+	userName := user.Name
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
 	info.AddField("唯一标识", "id", db.Int).
@@ -119,6 +122,9 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddField("所属产品", "product", db.Varchar).
 		FieldWidth(60).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+	info.AddField("创建人", "user_name", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace().FieldWidth(80)
 	info.AddField("创建时间", "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(100).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
@@ -129,6 +135,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	info.AddButton("再来一次", icon.Android, action.Ajax("historyPlaybook_batch_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			user := auth.Auth(ctx)
+			userName := user.Name
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
@@ -141,7 +149,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 					status = "测试完成，请刷新列表查看"
 					continue
 				}
-				if err := biz.RunHistoryPlaybook(id, "again"); err == nil {
+				if err := biz.RunHistoryPlaybook(id, "again", userName); err == nil {
 					status = "测试完成，请刷新列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -154,8 +162,10 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddActionButton("再来一次", action.Ajax("historyPlaybook_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
+			user := auth.Auth(ctx)
+			userName := user.Name
 			var status string
-			if err := biz.RunHistoryPlaybook(id, "again"); err == nil {
+			if err := biz.RunHistoryPlaybook(id, "again", userName); err == nil {
 				status = "测试完成，请刷新列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -166,6 +176,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddButton("继续", icon.Android, action.Ajax("historyPlaybook_batch_continue",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
+			user := auth.Auth(ctx)
+			userName := user.Name
 			var status string
 			if idStr == "," {
 				status = "请先选择数据再继续"
@@ -178,7 +190,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 				if len(id) == 0 {
 					continue
 				}
-				if err := biz.RunHistoryPlaybook(id, "continue"); err == nil {
+				if err := biz.RunHistoryPlaybook(id, "continue", userName); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -192,8 +204,9 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-
-			if err := biz.RunHistoryPlaybook(id, "continue"); err == nil {
+			user := auth.Auth(ctx)
+			userName := user.Name
+			if err := biz.RunHistoryPlaybook(id, "continue", userName); err == nil {
 				status = "测试完成，请前往[结果详情]列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -239,6 +252,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		}).FieldDefault("2")
 	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
 	formList.AddField("所属产品", "product", db.Varchar, form.Text)
+	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
+		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
 	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
 		FieldNowWhenInsert().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
@@ -294,6 +309,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		})
 	detail.AddField("备注", "remark", db.Longtext)
 	detail.AddField("所属产品", "product", db.Varchar)
+	detail.AddField("创建人", "user_name", db.Varchar)
 	detail.AddField("创建时间", "created_at", db.Timestamp)
 	detail.AddField("更新时间", "updated_at", db.Timestamp)
 	detail.AddField("删除时间", "deleted_at", db.Timestamp)

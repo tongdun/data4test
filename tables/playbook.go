@@ -23,7 +23,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	playbook := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	products := biz.GetProducts()
 	partProducts := biz.GetProductsByUpdateTime(1)
-	info := playbook.GetInfo().HideFilterArea()
+	//info := playbook.GetInfo().HideFilterArea()
+	info := playbook.GetInfo()
 	user := auth.Auth(ctx)
 	userName := user.Name
 
@@ -163,18 +164,20 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-	info.AddButton("测试任务", icon.Android, action.Ajax("playbook_batch_task_run",
+	info.AddButton("创建任务", icon.Android, action.Ajax("playbook_batch_task_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再测试"
+				status = "请先选择数据再创建任务"
 				return false, status, ""
 			}
 
-			err := biz.AutoCreateSchedule(idStr, "scene")
+			err := biz.AutoCreateSchedule(idStr, userNameSub, "scene")
 			if err != nil {
-				status = "发起测试任务失败"
+				status = "发起创建任务失败"
 				return false, status, fmt.Sprintf("%s", err)
 			}
 			//status = "已开启任务执行，请稍后查看测试结果，可在任务列表管理任务"
@@ -185,6 +188,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	info.AddButton("测试", icon.Android, action.Ajax("playbook_batch_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
@@ -202,7 +207,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook"); err == nil {
+				if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook", userNameSub); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -214,9 +219,11 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	info.AddActionButton("测试", action.Ajax("playbook_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			id := ctx.FormValue("id")
 			var status string
-			if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook"); err == nil {
+			if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook", userNameSub); err == nil {
 				status = "测试完成，请前往[结果详情]列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -226,6 +233,8 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	info.AddButton("继续", icon.Android, action.Ajax("playbook_batch_continue",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
@@ -242,7 +251,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 				if len(id) == 0 {
 					continue
 				}
-				if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook"); err == nil {
+				if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook", userNameSub); err == nil {
 					status = "测试完成，请前往[结果详情]列表查看"
 				} else {
 					status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -256,8 +265,9 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
-
-			if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook"); err == nil {
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			if err := biz.RunPlaybookFromMgmt(id, "continue", "", "playbook", userNameSub); err == nil {
 				status = "测试完成，请前往[结果详情]列表查看"
 			} else {
 				status = fmt.Sprintf("测试失败：%s: %s", id, err)
@@ -287,31 +297,31 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	formList.AddField("编辑模式", "edit_type", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
 			{Value: "input", Text: "输入"},
-			{Value: "select", Text: "选择"},
+			//{Value: "select", Text: "选择"},
 		}).
 		FieldOnChooseHide("input", "select_table").
-		FieldOnChooseHide("select", "input_list").
-		FieldOnChooseShow("select", "select_table").
+		//FieldOnChooseHide("select", "input_list").
+		//FieldOnChooseShow("select", "select_table").
 		FieldOnChooseShow("input", "input_list").
 		FieldDefault("input").
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookEditTypeById(model.ID)
 		})
 
-	formList.AddTable("选择数据", "select_table", func(panel *types.FormPanel) {
-		panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
-			FieldHideLabel().
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return strings.Split(model.Value, ",")
-			})
-		panel.AddField("关联数据", "select_list", db.Varchar, form.SelectSingle).
-			FieldHideLabel().
-			FieldOptions(files).
-			FieldDisplay(func(model types.FieldModel) interface{} {
-				return biz.GetPlaybookApiList(model.ID)
-			})
-		panel.SetInputWidth(10)
-	}).FieldHelpMsg(dataHelp)
+	//formList.AddTable("选择数据", "select_table", func(panel *types.FormPanel) {
+	//	panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
+	//		FieldHideLabel().
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return strings.Split(model.Value, ",")
+	//		})
+	//	panel.AddField("关联数据", "select_list", db.Varchar, form.SelectSingle).
+	//		FieldHideLabel().
+	//		FieldOptions(files).
+	//		FieldDisplay(func(model types.FieldModel) interface{} {
+	//			return biz.GetPlaybookApiList(model.ID)
+	//		})
+	//	panel.SetInputWidth(10)
+	//}).FieldHelpMsg(dataHelp)
 
 	formList.AddField("输入数据", "input_list", db.Varchar, form.TextArea).
 		FieldDisplay(func(model types.FieldModel) interface{} {

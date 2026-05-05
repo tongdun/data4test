@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"gopkg.in/yaml.v2"
 	"regexp"
 	"strings"
 )
 
-func GetAnalysisFromReplyList(replyList []string) (issueList, testResultList, asserList []map[string]interface{}, err error) {
+func GetAnalysisFromReplyList(replyList []string) (dataDesc string, issueList, testResultList, asserList []map[string]interface{}, err error) {
 	for _, reply := range replyList {
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(reply))
 		if err != nil {
@@ -21,16 +22,17 @@ func GetAnalysisFromReplyList(replyList []string) (issueList, testResultList, as
 			Logger.Warning("未找到有效信息，请核对~")
 		}
 
-		issueSubList, testResultSubList, asserSubList, _ := GetAnalysisFromReply(reply)
+		dataTmpDesc, issueSubList, testResultSubList, asserSubList, _ := GetAnalysisFromReply(reply)
 		issueList = append(issueList, issueSubList...)
 		testResultList = append(testResultList, testResultSubList...)
 		asserList = append(asserList, asserSubList...)
+		dataDesc = dataTmpDesc
 	}
 
 	return
 }
 
-func GetAnalysisFromReply(reply string) (issueList, testResultList, assertList []map[string]interface{}, err error) {
+func GetAnalysisFromReply(reply string) (dataDesc string, issueList, testResultList, assertList []map[string]interface{}, err error) {
 	issueList, errTmp1 := GetIssueFromReply(reply)
 	if errTmp1 != nil {
 		err = errTmp1
@@ -124,7 +126,7 @@ func GetAssertFromReply(reply string) (assertList []map[string]interface{}, err 
 			Logger.Debug("assertMatch: %s", assertMatch[0])
 		}
 	}
-
+	Logger.Debug("targetStr: %s", targetStr)
 	err = json.Unmarshal([]byte(targetStr), &assertList)
 	if err != nil {
 		Logger.Debug("reply: %s", reply)
@@ -135,14 +137,36 @@ func GetAssertFromReply(reply string) (assertList []map[string]interface{}, err 
 	return
 }
 
-func (input AnalysisDataInput) SaveAIIssueByRepyList(df DataFile, replyList []string) (testResult, failReason []string, assert []SceneAssert, err error) {
-	issueList, testResultRaw, assertRaw, err := GetAnalysisFromReplyList(replyList)
+func GetDataDescFromReply(reply string) (dataDesc string, err error) {
+	assertReg := regexp.MustCompile(`"数据描述":[\s\S](".+")`)
+
+	// 查找所有匹配项
+	assertMatch := assertReg.FindAllStringSubmatch(reply, -1)
+
+	var targetStr string
+	if len(assertMatch) > 0 {
+		if len(assertMatch[0]) > 1 {
+			targetStr = assertMatch[0][1]
+		}
+		if len(assertMatch[0]) > 2 {
+			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Debug("assertMatch: %s", assertMatch[0])
+		}
+	}
+	dataDesc = strings.Replace(targetStr, "\"", "", -1)
+	Logger.Debug("dataDesc: %v", dataDesc)
+	return
+}
+
+func (input AnalysisDataInput) SaveAIIssueByRepyList(dataDesc string, replyList []string) (testResult, failReason []string, assert []SceneAssert, err error) {
+	dataDesc, issueList, testResultRaw, assertRaw, err := GetAnalysisFromReplyList(replyList)
 	if err != nil {
 		Logger.Error("%s", err)
 	}
 
 	for _, item := range issueList {
-		aiIssue := input.AssembleAIIssue(df, item)
+		//aiIssue := input.AssembleAIIssue(df, item)
+		aiIssue := input.AssembleAIIssue(dataDesc, item)
 		errTmp := aiIssue.AddAiIssue()
 		if errTmp != nil {
 			if err != nil {
@@ -185,9 +209,73 @@ func (input AnalysisDataInput) SaveAIIssueByRepyList(df DataFile, replyList []st
 	return
 }
 
-func (input AnalysisDataInput) AssembleAIIssue(df DataFile, issue map[string]interface{}) (aiIssue AIIssue) {
-	rKeyList := []string{"问题名称", "问题级别", "问题类型", "问题详情", "问题原因推测", "影响范围分析", "受影响的场景推测", "受影响的数据推测"}
-	tKeyList := []string{"issue_name", "issue_level", "issue_type", "issue_detail", "root_cause", "impact_scope_analysis", "impact_playbook", "impact_data"}
+//func (input AnalysisDataInput) AssembleAIIssue(df DataFile, issue map[string]interface{}) (aiIssue AIIssue) {
+//	rKeyList := []string{"问题名称", "问题级别", "问题类型", "问题详情", "问题原因推测", "影响范围分析", "受影响的场景推测", "受影响的数据推测"}
+//	tKeyList := []string{"issue_name", "issue_level", "issue_type", "issue_detail", "root_cause", "impact_scope_analysis", "impact_playbook", "impact_data"}
+//
+//	aiTmpIssue := make(map[string]string)
+//	for index, k := range rKeyList {
+//		if v, ok := issue[k]; ok {
+//			vType := fmt.Sprintf("%T", v)
+//			if vType == "string" {
+//				aiTmpIssue[tKeyList[index]] = v.(string)
+//			} else if vType == "[]interface {}" {
+//				tmpList := v.([]interface{})
+//				var tmpStr string
+//				for index, item := range tmpList {
+//					if index == 0 {
+//						tmpStr = item.(string)
+//					} else {
+//						tmpStr = fmt.Sprintf("%s,%s", tmpStr, item.(string))
+//					}
+//				}
+//				aiTmpIssue[tKeyList[index]] = tmpStr
+//			} else {
+//				Logger.Warning("值类型为: %s, 不支持", vType)
+//			}
+//
+//		}
+//	}
+//
+//	aiIssue.IssueName = aiTmpIssue["issue_name"]
+//	aiIssue.IssueLevel = aiTmpIssue["issue_level"]
+//	aiIssue.IssueSource = "1" //  1: 数据
+//	aiIssue.SourceName = fmt.Sprintf("%s.yml", df.Name)
+//	if len(df.Request) > 0 {
+//		aiIssue.RequestData = df.Request[0]
+//	} else {
+//		aiIssue.RequestData = ""
+//	}
+//	if len(df.Response) > 0 {
+//		aiIssue.ResponseData = df.Response[0]
+//	} else {
+//		aiIssue.ResponseData = ""
+//	}
+//
+//	aiIssue.IssueDetail = aiTmpIssue["issue_detail"]
+//	if aiTmpIssue["issue_type"] == "BUG" {
+//		aiIssue.ConfirmStatus = "1"
+//	} else {
+//		aiIssue.ConfirmStatus = "2"
+//	}
+//
+//	aiIssue.RootCause = aiTmpIssue["root_cause"]
+//	aiIssue.ImpactScopeAnalysis = aiTmpIssue["impact_scope_analysis"]
+//	aiIssue.ImpactPlaybook = aiTmpIssue["impact_playbook"]
+//	aiIssue.ImpactData = aiTmpIssue["impact_data"]
+//	aiIssue.ResolutionStatus = "1" // 默认创建
+//	aiIssue.AgainTestResult = "2"  // 默认未知
+//	aiIssue.ImpactTestResult = "2" // 默认未知
+//	aiIssue.CreateUser = input.CreateUser
+//	aiIssue.ProductList = input.Product
+//	aiIssue.CreatePlatform = input.CreatePlatform
+//
+//	return
+//}
+
+func (input AnalysisDataInput) AssembleAIIssue(dataDesc string, issue map[string]interface{}) (aiIssue AIIssue) {
+	rKeyList := []string{"问题名称", "问题级别", "问题类型", "请求数据", "返回数据", "问题详情", "问题原因推测", "影响范围分析", "受影响的场景推测", "受影响的数据推测"}
+	tKeyList := []string{"issue_name", "issue_level", "issue_type", "request_data", "response_data", "issue_detail", "root_cause", "impact_scope_analysis", "impact_playbook", "impact_data"}
 
 	aiTmpIssue := make(map[string]string)
 	for index, k := range rKeyList {
@@ -216,14 +304,14 @@ func (input AnalysisDataInput) AssembleAIIssue(df DataFile, issue map[string]int
 	aiIssue.IssueName = aiTmpIssue["issue_name"]
 	aiIssue.IssueLevel = aiTmpIssue["issue_level"]
 	aiIssue.IssueSource = "1" //  1: 数据
-	aiIssue.SourceName = fmt.Sprintf("%s.yml", df.Name)
-	if len(df.Request) > 0 {
-		aiIssue.RequestData = df.Request[0]
+	aiIssue.SourceName = fmt.Sprintf("%s.yml", dataDesc)
+	if len(aiTmpIssue["request_data"]) > 0 {
+		aiIssue.RequestData = aiTmpIssue["request_data"]
 	} else {
 		aiIssue.RequestData = ""
 	}
-	if len(df.Response) > 0 {
-		aiIssue.ResponseData = df.Response[0]
+	if len(aiTmpIssue["response_data"]) > 0 {
+		aiIssue.ResponseData = aiTmpIssue["response_data"]
 	} else {
 		aiIssue.ResponseData = ""
 	}
@@ -287,15 +375,15 @@ func (input ImportCommon) AIAnalysisDataByImport() (err error) {
 		if len(replyList) == 0 {
 			return fmt.Errorf("未获取到回复信息，请核对")
 		}
-		issueList, _, _, _ := GetAnalysisFromReplyList(replyList)
+		dataDesc, issueList, _, _, _ := GetAnalysisFromReplyList(replyList)
 
-		errTmp = input.SaveAIIssueByIssueListMap(issueList)
+		errTmp = input.SaveAIIssueByIssueListMap(dataDesc, issueList)
 	}
 
 	return
 }
 
-func (input ImportCommon) SaveAIIssueByIssueListMap(issueList []map[string]interface{}) (err error) {
+func (input ImportCommon) SaveAIIssueByIssueListMap(dataDesc string, issueList []map[string]interface{}) (err error) {
 	if len(issueList) == 0 {
 		return fmt.Errorf("无数据信息，请核对~")
 	}
@@ -304,9 +392,10 @@ func (input ImportCommon) SaveAIIssueByIssueListMap(issueList []map[string]inter
 	inputA.CreateUser = input.CreateUser
 	inputA.CreatePlatform = input.CreatePlatform
 
-	var df DataFile
+	//var df DataFile
 	for _, item := range issueList {
-		aiIssue := inputA.AssembleAIIssue(df, item)
+		//aiIssue := inputA.AssembleAIIssue(df, item)
+		aiIssue := inputA.AssembleAIIssue(dataDesc, item)
 		errTmp := aiIssue.AddAiIssue()
 		if errTmp != nil {
 			if err != nil {
@@ -320,8 +409,44 @@ func (input ImportCommon) SaveAIIssueByIssueListMap(issueList []map[string]inter
 	return
 }
 
+//func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
+//
+//	issueList, err := GetIssueFromReply(input.RawReply)
+//	if err != nil {
+//		Logger.Error("%s", err)
+//	}
+//	var inputA AnalysisDataInput
+//	inputA.Product = input.Product
+//	inputA.CreatePlatform = input.CreatePlatform
+//	inputA.CreateUser = input.CreateUser
+//
+//	//var df DataFile
+//	for _, item := range issueList {
+//		//aiIssue := inputA.AssembleAIIssue(df, item)
+//		aiIssue := inputA.AssembleAIIssue(item)
+//		errTmp := aiIssue.AddAiIssue()
+//		if errTmp != nil {
+//			if err != nil {
+//				err = fmt.Errorf("%s;%s", err, errTmp)
+//			} else {
+//				err = errTmp
+//			}
+//		}
+//	}
+//
+//	return
+//}
+
 func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
+	issueInfo := make(map[string]string)
+	err = json.Unmarshal([]byte(input.RawReply), &issueInfo)
+	if err != nil {
+		Logger.Error("%s", err)
+	}
+	sourceData, err := GetDataDescFromReply(input.RawReply)
 	issueList, err := GetIssueFromReply(input.RawReply)
+	testResultList, err := GetTestResultFromReply(input.RawReply)
+	assertList, err := GetAssertFromReply(input.RawReply)
 	if err != nil {
 		Logger.Error("%s", err)
 	}
@@ -330,9 +455,8 @@ func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
 	inputA.CreatePlatform = input.CreatePlatform
 	inputA.CreateUser = input.CreateUser
 
-	var df DataFile
 	for _, item := range issueList {
-		aiIssue := inputA.AssembleAIIssue(df, item)
+		aiIssue := inputA.AssembleAIIssue(sourceData, item)
 		errTmp := aiIssue.AddAiIssue()
 		if errTmp != nil {
 			if err != nil {
@@ -343,10 +467,77 @@ func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
 		}
 	}
 
+	var failReason []string
+	var testResult []string
+	for _, item := range testResultList {
+		testResult = append(testResult, item["测试结果"].(string))
+		vType := fmt.Sprintf("%T", item["失败原因"])
+		if vType == "string" {
+			failReason = append(failReason, item["失败原因"].(string))
+		} else if vType == "[]interface {}" {
+			tmpList := item["失败原因"].([]interface{})
+			var tmpStr string
+			for index, item := range tmpList {
+				if index == 0 {
+					tmpStr = item.(string)
+				} else {
+					tmpStr = fmt.Sprintf("%s,%s", tmpStr, item.(string))
+				}
+			}
+			failReason = append(failReason, tmpStr)
+		} else {
+			Logger.Warning("值类型为: %s, 不支持", vType)
+		}
+	}
+
+	var assert []SceneAssert
+	for _, item := range assertList {
+		var assertTmp SceneAssert
+		assertTmp.Type = item["断言类型"].(string)
+		if item["返回数据字段定位"] == nil {
+			continue
+		}
+		assertTmp.Source = item["返回数据字段定位"].(string)
+		assertTmp.Value = item["断言值"]
+		assert = append(assert, assertTmp)
+	}
+
+	fileName := fmt.Sprintf("%s.yml", sourceData)
+	dbFileData, _ := GetDataByFileName(fileName, "ai")
+	var df DataFile
+	err = yaml.Unmarshal([]byte(dbFileData.Content), &df)
+
+	if err != nil {
+		return
+	}
+
+	filePath := fmt.Sprintf("%s/%s", AiDataBasePath, fileName)
+	dst, _ := GetResultFilePath(filePath)
+	b, _ := IsStrEndWithTimeFormat(filePath)
+	if b {
+		dst = filePath
+	}
+
+	if strings.Contains(dst, "/history/") {
+	} else {
+		dst = filePath
+	}
+	df.Assert = assert
+	df.TestResult = testResult
+	df.FailReason = failReason
+	dbData, err := df.UpdateAiDataContent()
+	if err != nil {
+		return
+	}
+	df.UpdateAiDataFileResult(dst, dbData.FileName)
+	envType := GetEnvTypeByName(input.Product)
+
+	err = RecordDataHistory(input.CreateUser, dst, input.Product, "ai", envType, dbData)
+
 	return
 }
 
-func AiDataTestAgain(aiIssue DbAIIssue) (err error) {
+func AiDataTestAgain(userName string, aiIssue DbAIIssue) (err error) {
 	filePath := fmt.Sprintf("%s/%s", AiDataBasePath, aiIssue.SourceName)
 	var dbData DbSceneData
 	Logger.Debug("item.SourceName: %v", aiIssue.SourceName)
@@ -368,7 +559,7 @@ func AiDataTestAgain(aiIssue DbAIIssue) (err error) {
 	}
 
 	envType := GetEnvTypeByName(aiIssue.ProductList)
-	err2 := WriteSceneDataResult(dbData.Id, result, dst, aiIssue.ProductList, "ai_data", envType, err1)
+	err2 := WriteSceneDataResult(userName, dbData.Id, result, dst, aiIssue.ProductList, "ai_data", envType, err1)
 	if err2 != nil {
 		Logger.Error("%s", err2)
 		if err != nil {
@@ -393,14 +584,14 @@ func AiDataTestAgain(aiIssue DbAIIssue) (err error) {
 	return
 }
 
-func SourceAgainTest(ids string) (err error) {
+func SourceAgainTest(userName, ids string) (err error) {
 	idList := strings.Split(ids, ",")
 	var aiIssueList []DbAIIssue
 	models.Orm.Table("ai_issue").Where("id in (?)", idList).Find(&aiIssueList)
 
 	for _, item := range aiIssueList {
 		if item.IssueSource == "1" {
-			errTmp := AiDataTestAgain(item)
+			errTmp := AiDataTestAgain(userName, item)
 			if errTmp != nil {
 				if err != nil {
 					err = fmt.Errorf("%v; %v", err, errTmp)
@@ -416,3 +607,29 @@ func SourceAgainTest(ids string) (err error) {
 
 	return
 }
+
+//func GetIssueAllFromReply(reply string) (issueList []map[string]string, err error) {
+//	// 编译正则表达式（含跨行匹配）
+//	//answerReg := regexp.MustCompile(`(\{[\s\S]*?\})`)
+//	answerReg := regexp.MustCompile(`(\{[\s\S]*?[^{\w}]\})`)
+//
+//	// 查找所有匹配项
+//	answerMatch := answerReg.FindAllStringSubmatch(reply, -1)
+//	if len(answerMatch) == 0 {
+//	}
+//	for _, match := range answerMatch {
+//		for _, item := range match {
+//			testCase := make(map[string]string)
+//			err = json.Unmarshal([]byte(item), &testCase)
+//			if err != nil {
+//				Logger.Debug("matchCase: %v", item)
+//				Logger.Error("%s", err)
+//				continue
+//			}
+//			issueList = append(issueList, testCase)
+//		}
+//
+//	}
+//
+//	return
+//}

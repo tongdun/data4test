@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId string) (result, lastFile string, err error) {
+func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId, userName string) (result, lastFile string, err error) {
 	if productInfo.Threading == "yes" && runNum > 1 && productInfo.ThreadNumber > 1 {
 		if runNum > productInfo.ThreadNumber {
 			loopNum := runNum/productInfo.ThreadNumber + 1
@@ -31,7 +31,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 					Logger.Info("并发模式-执行次数:%d", count)
 					wg.Add(1)
 					go func(playbook Playbook, dbId string) {
-						subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+						subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
 						result = subResult
 						lastFile = subLastFile
 						if err1 != nil {
@@ -51,7 +51,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 				Logger.Info("并发模式-执行次数:%d", i+1)
 				wg.Add(1)
 				go func(playbook Playbook, dbId string) {
-					subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+					subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
 					result = subResult
 					lastFile = subLastFile
 					if err1 != nil {
@@ -69,7 +69,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 			if runNum > 1 {
 				Logger.Info("串行模式-执行次数:%d", i+1)
 			}
-			subResult, subLastFile, err1 := playbook.RunPlaybook(dbId, mode, source, productInfo)
+			subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
 			result = subResult
 			lastFile = subLastFile
 			if err1 != nil {
@@ -89,7 +89,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 	return
 }
 
-func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
+func RunPlaybookFromMgmt(id, mode, product, source, userName string) (err error) {
 	var productList []DbProduct
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
 
@@ -106,7 +106,7 @@ func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	}
 
 	for _, productInfo := range productList {
-		_, _, errTmp := RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id)
+		_, _, errTmp := RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id, userName)
 		if errTmp != nil {
 			if err != nil {
 				err = fmt.Errorf("%s;%s", err, errTmp)
@@ -118,7 +118,7 @@ func RunPlaybookFromMgmt(id, mode, product, source string) (err error) {
 	return
 }
 
-func RunPlaybookFromConsole(sceneModel SceneSaveModel) (runResp RunSceneRespModel, err error) {
+func RunPlaybookFromConsole(userName string, sceneModel SceneSaveModel) (runResp RunSceneRespModel, err error) {
 	var productInfo DbProduct
 	var playbook Playbook
 
@@ -151,7 +151,7 @@ func RunPlaybookFromConsole(sceneModel SceneSaveModel) (runResp RunSceneRespMode
 	runResp.TestResult = "pass"
 	var lastFilePath string
 
-	runResp.TestResult, lastFilePath, err = RepeatRunPlaybook(productInfo, playbook, sceneModel.RunNum, "start", "consolePlaybook", "")
+	runResp.TestResult, lastFilePath, err = RepeatRunPlaybook(productInfo, playbook, sceneModel.RunNum, "start", "consolePlaybook", "", userName)
 	if runResp.TestResult != "pass" {
 		if err != nil {
 			runResp.FailReason = fmt.Sprintf("%s", err)
@@ -255,7 +255,7 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 	return
 }
 
-func (playbook Playbook) RunPlaybookContent(envType int, source string) (result, historyApi string, err error) {
+func (playbook Playbook) RunPlaybookContent(envType int, source, userName string) (result, historyApi string, err error) {
 	filePath := playbook.Apis[playbook.Tag]
 	depOutVars, err := playbook.GetPlaybookDepParams()
 	if err != nil {
@@ -295,7 +295,7 @@ func (playbook Playbook) RunPlaybookContent(envType int, source string) (result,
 		}
 	}
 
-	err = WriteDataResultByFile(filePath, result, dst, playbook.Product, source, envType, errTmp)
+	err = WriteDataResultByFile(userName, filePath, result, dst, playbook.Product, source, envType, errTmp)
 
 	if errTmp != nil {
 		if err != nil {
@@ -360,7 +360,7 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 	return
 }
 
-func (playbook Playbook) WritePlaybookResult(id, result, source string, envType int, errIn error) (err error) {
+func (playbook Playbook) WritePlaybookResult(userName, id, result, source string, envType int, errIn error) (err error) {
 	var sceneRecode SceneRecord
 	apiStr := playbook.GetHistoryApiList()
 	lastFile := playbook.LastFile
@@ -381,6 +381,7 @@ func (playbook Playbook) WritePlaybookResult(id, result, source string, envType 
 
 	sceneRecode.Product = playbook.Product
 	sceneRecode.EnvType = envType
+	sceneRecode.UserName = userName
 
 	errTmp := WritePlaybookRecord(sceneRecode)
 	if errTmp != nil {
@@ -615,20 +616,21 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 
 	for k, v := range privateParameter {
 		vStr := Interface2Str(v)
-		var values []string
+		outputDict[k] = append(outputDict[k], vStr)
+		//var values []string
 		//if _, ok := outputDict[k]; ok {
 		//	outputDict[k] = outputDict[k][:0] // 同名参数进行重置, 私有参数的优先级同名优先级最高
 		//}
 
-		if strings.Contains(vStr, ",") {
-			values = strings.Split(vStr, ",")
-			for _, subV := range values {
-				strings.TrimSpace(subV)
-				outputDict[k] = append(outputDict[k], subV)
-			}
-		} else {
-			outputDict[k] = append(outputDict[k], v)
-		}
+		//if strings.Contains(vStr, ",") {
+		//	values = strings.Split(vStr, ",")
+		//	for _, subV := range values {
+		//		strings.TrimSpace(subV)
+		//		outputDict[k] = append(outputDict[k], subV)
+		//	}
+		//} else {
+		//	outputDict[k] = append(outputDict[k], v)
+		//}
 	}
 
 	// 动态过程执行参数的取用
@@ -660,6 +662,26 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			err1 = json.Unmarshal(content, &sceneFile)
 		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &sceneFile)
+		case ".log":
+			tmpContent, err1 := ioutil.ReadFile(filePath)
+			if err1 != nil {
+				err = err1
+				Logger.Debug("filePath: %s", filePath)
+				return
+			}
+			tmpList := strings.Split(string(tmpContent), "output:")
+			if len(tmpList) >= 2 {
+				tmpMap := make(map[string][]interface{})
+				err = json.Unmarshal([]byte(tmpList[1]), &tmpMap)
+				if err != nil {
+					Logger.Error("解析output参数异常: %s", err)
+					return
+				}
+				for k, v := range tmpMap {
+					outputDict[k] = v
+				}
+			}
+			continue
 		default:
 			continue // 如果非标准结构数据，直接进入下一个数据文件的参数取用
 		}
@@ -723,6 +745,25 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 			err1 = json.Unmarshal(content, &selfScene)
 		case ".yml", ".yaml":
 			err1 = yaml.Unmarshal(content, &selfScene)
+		case ".log":
+			tmpContent, err1 := ioutil.ReadFile(selfApi)
+			if err1 != nil {
+				err = err1
+				Logger.Debug("filePath: %s", selfApi)
+				return
+			}
+			tmpList := strings.Split(string(tmpContent), "output:")
+			if len(tmpList) >= 2 {
+				tmpMap := make(map[string][]interface{})
+				err = json.Unmarshal([]byte(tmpList[1]), &tmpMap)
+				if err != nil {
+					Logger.Error("解析output参数异常: %s", err)
+					return
+				}
+				for k, v := range tmpMap {
+					outputDict[k] = v
+				}
+			}
 		default:
 			return // 如果非标准结构数据，直接返回
 		}
@@ -1488,6 +1529,56 @@ func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
 				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
 			}
 		}
+	}
+	return
+}
+
+func AutoCreatePlaybook(dataIds, userName string) (err error) {
+	curTimeStr := fmt.Sprintf(time.Unix(time.Now().Unix(), 0).Format("20060102"))
+	idList := strings.Split(dataIds, ",")
+	var numStr string
+	for index, item := range idList {
+		if len(item) == 0 {
+			continue
+		}
+		if index == 0 {
+			numStr = fmt.Sprintf("%v", index+1)
+		} else {
+			numStr = fmt.Sprintf("%s,%v", numStr, index+1)
+		}
+	}
+
+	var dbSceneDatas []DbSceneData
+	models.Orm.Table("scene_data").Where("id in (?)", idList).Find(&dbSceneDatas)
+	if len(dbSceneDatas) == 0 {
+		err = fmt.Errorf("未找到对应[%v]的数据，请核对", dataIds)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var dataFileStr string
+	for _, item := range dbSceneDatas {
+		if len(dataFileStr) == 0 {
+			dataFileStr = item.FileName
+		} else {
+			dataFileStr = fmt.Sprintf("%s,%s", dataFileStr, item.FileName)
+		}
+	}
+
+	playbookName := fmt.Sprintf("自动场景_%s_%s", curTimeStr, GetRandomStr(4, ""))
+	var tmpPlaybook SceneWithNoUpdateTime
+	tmpPlaybook.SceneType = 1
+	tmpPlaybook.RunTime = 1
+	tmpPlaybook.DataFileList = dataFileStr
+	tmpPlaybook.Product = ""
+	tmpPlaybook.UserName = userName // 设置为当前操作用户
+	tmpPlaybook.Priority = 999
+	tmpPlaybook.Name = playbookName
+	tmpPlaybook.DataNumber = numStr
+
+	err = models.Orm.Table("playbook").Create(&tmpPlaybook).Error
+	if err != nil {
+		Logger.Error("%s", err)
 	}
 	return
 }

@@ -49,27 +49,32 @@
 - 4. Operation-friendly: Logs can be viewed online, and system or execution issues can be debugged online.
 - 5. Documentation-friendly: User manuals and guides are online for easy access and use.
 - 6. Cross-platform Compatible: Golang program, compilable into various cross-platform executables.
+- 7. LLM-Friendly: Customizable large model generation engines with on-demand scalability.
 
-### Functions
+### Functionality
 
-#### Functional Features
-- 1. Supports interface management, change tracking, and Swagger interface one-click import and specification checks.
-- 2. Supports Postman-style visual writing and YAML file batch writing for test data.
-- 3. Supports rich assertion types for standardized data files for result verification.
-- 4. Supports rich built-in characteristic data auto-generation and assembly for standardized data files.
-- 5. Supports quick verification of exported standardized data files (e.g., CSV/EXCEL/YAML/JSON).
-- 6. Supports N-level nested variable substitution for JSON format input parameters in standardized data files.
-- 7. Supports correlated input parameters in standardized data files, using output List variables as references.
-- 8. Supports management and execution of non-standardized script data files (e.g., Python, Shell, JMeter, DOS, etc.), with extensible script execution engines.
-- 9. Supports scenario orchestration of standardized data files and non-standardized script files for management and execution.
-- 10. Supports multiple types of scenario control: serial interruption, serial comparison, ordinary concurrency, and concurrency comparison.
-- 11. Supports various task management: custom, one-time, daily, and weekly.
-- 12. Supports scenario and task execution and scheduling across multiple environments simultaneously.
-- 13. Supports historical data replay, re-execution of historical data/scenarios, and scenario continuation testing.
-- 14. Supports the generation and online invocation of various custom format third-party Mock data.
-- 15. Supports the generation of controllable polymorphic test data for upstream and downstream interfaces or function calls.
-- 16. Supports one-click viewing of non-automated interfaces.
-- 17. And more...
+#### Feature Highlights
+
+- 1. Full Lifecycle API Management
+  - Standardized API Management: Supports API definition, change tracking, and version control, with one-click Swagger import and automated API specification validation
+  - Fine-Grained Interface Change Analysis: Dynamically detects interface change states to facilitate precise testing
+- 2. Multimodal Data Management
+  - Visual Data Editing: Provides Postman-like graphical data editing, compatible with YAML batch editing to lower the barrier of use
+  - Built-in Rich Assertion Types: Such as status code, response body structure, dynamic data validation, supporting precise result verification by attribute value
+  - Smart Data Generation Engine: Dynamically generates characteristic data (e.g., name, address, ID), supports combinatorial data assembly and polymorphic output (CSV/JSON/YAML, etc.)
+- 3. Scenario Orchestration & Execution Control
+  - Hybrid Scenario Construction: Supports unified orchestration and management of standardized data files and non-standard scripts (Python/Shell/JMeter, etc.)
+  - Flexible Control Strategies: Serial Interruption, Serial Comparison, General Concurrency, Concurrency Comparison, and other modes
+  - Task Scheduling Engine: Customizable task types (single/daily/weekly) with associated multi-environment parallel execution and resource scheduling
+- 4. History Replay & Mock Service
+  - Scenario Reproduction & Resumption: Supports historical data replay, "run again" for scenarios, and breakpoint resume testing
+  - Dynamic Mock Service: Generates custom-format third-party mock data (JSON/XML, etc.) on demand, supporting online real-time invocation
+- 5. Intelligent Testing System
+  - AI-Driven Full Testing Workflow: Intelligently generates test cases and data, automatically optimizing coverage for boundary values and exception scenarios
+  - AI Defect Insight: Synchronously analyzes defects after execution, generating defect reports and optimization suggestions
+  - Intelligent Analysis Hub: Provides analysis closed-loop management capabilities, including generated defect/optimization ticket import, status tracking (change management), and regression test scheduling
+  - Intelligent Template Management: Centralized management of prompt templates used to drive the generation of intelligent test cases, data, and scenarios
+  - Automated Coverage Monitoring: One-click identification of non-automated interfaces for rapid localization of testing gaps
 
 #### Applicable Test Types
 - 1. Functional Testing: Positive path functional testing, custom or automatically generated characteristic test data.

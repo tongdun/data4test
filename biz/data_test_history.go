@@ -9,7 +9,7 @@ import (
 	//"sync"
 )
 
-func HistoryDataRunAgain(id string) (err error) {
+func HistoryDataRunAgain(id, userName string) (err error) {
 	var hData HistoryDataDetail
 	models.Orm.Table("scene_data_test_history").Where("id = ?", id).Find(&hData)
 
@@ -38,7 +38,7 @@ func HistoryDataRunAgain(id string) (err error) {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", err)
 	}
 
-	err = WriteDataResultByFile(filePath, result, dst, hData.Product, "historyAgain", hData.EnvType, err)
+	err = WriteDataResultByFile(userName, filePath, result, dst, hData.Product, "historyAgain", hData.EnvType, err)
 
 	if err != nil {
 		Logger.Error("%s", err)
@@ -46,7 +46,7 @@ func HistoryDataRunAgain(id string) (err error) {
 	return
 }
 
-func RecordDataHistory(dst, product, source string, envType int, dbData DbSceneData) (err error) {
+func RecordDataHistory(userName, dst, product, source string, envType int, dbData DbSceneData) (err error) {
 	var sceneDataRecord SceneDataRecord
 
 	if len(dst) > 0 {
@@ -71,6 +71,7 @@ func RecordDataHistory(dst, product, source string, envType int, dbData DbSceneD
 	sceneDataRecord.FailReason = dbData.FailReason
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
+	sceneDataRecord.UserName = userName
 
 	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
 

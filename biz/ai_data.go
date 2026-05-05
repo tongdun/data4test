@@ -75,6 +75,66 @@ func UseAiData(ids, userName string) (err error) {
 	return
 }
 
+func UseAiDataByFileName(fielNameList, userName string) (err error) {
+	idList := strings.Split(fielNameList, ",")
+	var aiDataList []AiData
+	models.Orm.Table("ai_data").Where("file_name in (?)", idList).Find(&aiDataList)
+	if len(aiDataList) == 0 {
+		Logger.Error("数据存在异常:%s，请核对~ ", fielNameList)
+		err = fmt.Errorf("据存在异常，请核对~")
+		return
+	}
+
+	for _, item := range aiDataList {
+		var tmpData SceneData
+		models.Orm.Table("scene_data").Where("name = ?", item.Name).Find(&tmpData)
+		tmpData.ApiId = item.ApiId
+		tmpData.App = item.App
+		tmpData.FileName = item.FileName
+		tmpData.FileType = item.FileType
+		tmpData.Content = item.Content
+		tmpData.Result = item.Result
+		tmpData.FailReason = item.FailReason
+		tmpData.UserName = userName // 设置为当前操作用户
+		tmpData.RunTime = 1
+		if len(tmpData.Name) == 0 {
+			tmpData.Name = item.Name
+			err = models.Orm.Table("scene_data").Create(tmpData).Error
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+		} else {
+			tmpData.Name = item.Name
+			err = models.Orm.Table("scene_data").Where("name = ?", item.Name).Update(tmpData).Error
+			if err != nil {
+				Logger.Error("%s", err)
+			}
+		}
+
+		dst := fmt.Sprintf("%s/%s", DataBasePath, tmpData.FileName)
+
+		errTmp := ioutil.WriteFile(dst, []byte(tmpData.Content), 0644)
+
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%v,%v", err, errTmp)
+			} else {
+				err = errTmp
+			}
+		}
+	}
+
+	// 数据落库成功后再设置取用状态
+	err = models.Orm.Table("ai_data").Where("file_name in (?)", fielNameList).UpdateColumn(&StatusMgmt{UseStatus: 2}).Error
+	if err != nil {
+		Logger.Error("%v", err)
+		return
+	}
+
+	return
+}
+
 func (input InputData) AICreateDataAndPlaybookByApiDefine(ids string) (err error) {
 	content, appendContent, err := GetAiTemplateByName(input.AiTemplate, "2")
 	if err != nil {
@@ -314,6 +374,24 @@ func (input CommonExtend) AssembleAIData(aiRawData map[string]interface{}) (aiDa
 		}
 	}
 
+	if _, ok := aiRawData["断言设置"]; ok {
+		pathVarType := fmt.Sprintf("%T", aiRawData["断言设置"])
+		if pathVarType == "[]interface {}" {
+			assertTmpList := aiRawData["断言设置"].([]interface{})
+			var assertList []SceneAssert
+			for _, item := range assertTmpList {
+				var sAssert SceneAssert
+				itemMap := make(map[string]interface{})
+				itemMap = item.(map[string]interface{})
+				sAssert.Type = itemMap["断言类型"].(string)
+				sAssert.Source = itemMap["返回数据字段定位"].(string)
+				sAssert.Value = itemMap["断言值"]
+				assertList = append(assertList, sAssert)
+			}
+			dataFile.Assert = assertList
+		}
+	}
+
 	dataContent, errTmp := yaml.Marshal(dataFile)
 	if errTmp != nil {
 		Logger.Debug("dataContent: %s", dataContent)
@@ -365,7 +443,9 @@ func GetDataFromReply(reply string) (dataList []map[string]interface{}, err erro
 	//dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\S]\{[\s\S]*?[^{\w\S}]\}[\s\S]\])[\s\S]`) // all
 	//dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\S]\{[\s\S]*?[^{\w\S}]\}[\s\S]\])[\s\S]`) // all,开始没有空格
 	//dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\S]\{[\s\S]*?[^{\w\S}]\}[\s\S]\])[\s\S]`) // all， 开始有空格
-	dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\n]*\{[\s\n]*[\s\S]*?[^{\w\S}]\}.?[\s\n]*\])`) // all， 开始有空格
+	//dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\n]*\{[\s\n]*[\s\S]*?[^{\w\S}]\}.?[\s\n]*\])`) // all， 开始有空格
+	////dataReg := regexp.MustCompile(`[\n]\{[\s\S]*[^{\w\S}]\}`) // 同时匹配数据和场景
+	dataReg := regexp.MustCompile(`"测试数据":[\s\S](\[[\s\n]*\{[\s\n]*[\s\S]*?[^{\w\S}]\}.?[\s\n]*\]*\].?[\s\n]*\}.?[\s\n]*\])`) // all， 开始有空格
 	//dataReg := regexp.MustCompile(`[\n]\{[\s\S]*[^{\w\S}]\}`) // 同时匹配数据和场景
 
 	// 查找所有匹配项
@@ -380,7 +460,7 @@ func GetDataFromReply(reply string) (dataList []map[string]interface{}, err erro
 			Logger.Debug("dataMatch: %s", dataMatch[0])
 		}
 	}
-
+	//Logger.Debug("targetStr: %s", targetStr)
 	err = json.Unmarshal([]byte(targetStr), &dataList)
 	if err != nil {
 		Logger.Debug("matchData: %v", targetStr)
@@ -744,7 +824,7 @@ func AIOptimizeData(ids, optimizeDesc, aiPlatform, createUser string) (err error
 	return
 }
 
-func AiDataTest(ids string, analysisInput AnalysisDataInput) (err error) {
+func AiDataTest(userName, ids string, analysisInput AnalysisDataInput) (err error) {
 	idList := strings.Split(ids, ",")
 	var aiDataList []AiData
 	models.Orm.Table("ai_data").Where("id in (?)", idList).Find(&aiDataList)
@@ -778,7 +858,7 @@ func AiDataTest(ids string, analysisInput AnalysisDataInput) (err error) {
 			return
 		}
 
-		df.AnalysisWithLLM(dst, analysisInput)
+		df.AnalysisWithLLM(userName, dst, analysisInput)
 
 	}
 
@@ -805,7 +885,8 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 		targetApp = df.Api.App
 	}
 
-	envConfig, _ = GetEnvConfig(targetApp, "app")
+	//envConfig, _ = GetEnvConfig(targetApp, "app")
+	envConfig, _ = GetEnvConfig(product, targetApp)
 
 	depOutVarsTmp, err1 := df.GetDepParams()
 	if err1 != nil {
@@ -827,14 +908,14 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 	}
 
 	if len(product) > 0 {
-		sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
-		if errTmp != nil {
-			Logger.Warning("%s", errTmp)
-		}
-		envConfig.Ip = sceneEnvConfig.Ip
-		envConfig.Auth = sceneEnvConfig.Auth
-		envConfig.Product = product
-		envConfig.Protocol = sceneEnvConfig.Protocol
+		//sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
+		//if errTmp != nil {
+		//	Logger.Warning("%s", errTmp)
+		//}
+		//envConfig.Ip = sceneEnvConfig.Ip
+		//envConfig.Auth = sceneEnvConfig.Auth
+		//envConfig.Product = product
+		//envConfig.Protocol = sceneEnvConfig.Protocol
 
 		dbProductList, err := GetProductInfo(product)
 		dbProduct := dbProductList[0]
@@ -915,7 +996,7 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 		Logger.Error("%s", err)
 		return
 	}
-
+	var resHeaderList []map[string]string
 	var resList [][]byte
 	var errs []error
 	tag := 0
@@ -941,12 +1022,14 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 						}
 						subTag++
 					}
-					res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+					respHeader, res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+					resHeaderList = append(resHeaderList, respHeader)
 					resList = append(resList, res)
 					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
 				} else {
-					res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+					respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+					resHeaderList = append(resHeaderList, respHeader)
 					resList = append(resList, res)
 					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
@@ -987,7 +1070,8 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 						df.Request = append(df.Request, string(dJson))
 					}
 					tag++
-					res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+					respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+					resHeaderList = append(resHeaderList, respHeader)
 					resList = append(resList, res)
 					df.Response = append(df.Response, string(res))
 					errs = append(errs, err)
@@ -996,7 +1080,7 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 			}
 		} else {
 			df.Request = []string{} // 当只有路由时，请求数据默认设置为空
-			res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
+			_, res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
 			if err != nil {
 				Logger.Error("%s", err)
 			}
@@ -1009,9 +1093,9 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 	return
 }
 
-func (df DataFile) AnalysisWithLLM(dst string, input AnalysisDataInput) (result string, err error) {
+func (df DataFile) AnalysisWithLLM(userName, dst string, input AnalysisDataInput) (result string, err error) {
 	var analysisDesc string
-	analysisDesc = fmt.Sprintf("接口ID: %s, 所属应用: %s, 所属模块: %s, 接口描述: %s, 请求方法: %s, 请求路径: %s", df.ApiId, df.Api.App, df.Api.Module, df.Api.Description, df.Api.Method, df.Api.Path)
+	analysisDesc = fmt.Sprintf("数据描述: %s,接口ID: %s, 所属应用: %s, 所属模块: %s, 接口描述: %s, 请求方法: %s, 请求路径: %s", df.Name, df.ApiId, df.Api.App, df.Api.Module, df.Api.Description, df.Api.Method, df.Api.Path)
 
 	for index, item := range df.Response {
 		if len(df.Request) == 0 {
@@ -1030,7 +1114,7 @@ func (df DataFile) AnalysisWithLLM(dst string, input AnalysisDataInput) (result 
 
 	query := strings.Replace(content, "{分析定义}", analysisDesc, -1)
 
-	go func(query, appendContent, dst string, input AnalysisDataInput, df DataFile) {
+	go func(userName, query, appendContent, dst string, input AnalysisDataInput, df DataFile) {
 		defer func() { // 如果遇到panic， 不影响主程序的运行
 			if e := recover(); e != nil {
 				Logger.Error("panic: %v", e)
@@ -1042,7 +1126,7 @@ func (df DataFile) AnalysisWithLLM(dst string, input AnalysisDataInput) (result 
 			Logger.Debug("query: %v", query)
 			Logger.Debug("replyList: %v", replyList)
 		}
-		testResult, failReason, assert, err := input.SaveAIIssueByRepyList(df, replyList)
+		testResult, failReason, assert, err := input.SaveAIIssueByRepyList(df.Name, replyList)
 		if err != nil {
 			Logger.Error("%s", err)
 		}
@@ -1057,8 +1141,8 @@ func (df DataFile) AnalysisWithLLM(dst string, input AnalysisDataInput) (result 
 		df.UpdateAiDataFileResult(dst, dbData.FileName)
 		envType := GetEnvTypeByName(input.Product)
 
-		err = RecordDataHistory(dst, input.Product, "ai", envType, dbData)
-	}(query, appendContent, dst, input, df)
+		err = RecordDataHistory(userName, dst, input.Product, "ai", envType, dbData)
+	}(userName, query, appendContent, dst, input, df)
 
 	return
 }

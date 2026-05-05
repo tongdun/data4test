@@ -18,6 +18,7 @@ type Product struct {
 	Apps             string `gorm:"column:apps" json:"apps"`
 	Testmode         string `gorm:"column:testmode" json:"testmode"`
 	EnvType          int    `gorm:"column:env_type" json:"env_type"`
+	PrivateAppPrefix string `gorm:"column:private_app_prefix" json:"private_app_prefix"`
 	PrivateParameter string `gorm:"column:private_parameter" json:"private_parameter"`
 	Remark           string `gorm:"column:remark" json:"remark"`
 }

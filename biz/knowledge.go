@@ -49,14 +49,18 @@ func WritePlaybookKnowledge() {
 		return
 	}
 	EmptyFileContent(filePath)
-	var kPlaybook KPlaybook
+	var allPlaybook []KPlaybook
 	for _, playbook := range playbookList {
+		var kPlaybook KPlaybook
 		kPlaybook.Name = playbook.Name
 		kPlaybook.DataList = strings.Split(playbook.DataFileList, ",")
-		kByte, _ := json.MarshalIndent(kPlaybook, "", "    ")
-		WriteDataInCommonFile(filePath, string(kByte))
+		if len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
+			kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
+		}
+		allPlaybook = append(allPlaybook, kPlaybook)
 	}
-
+	kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+	WriteDataInCommonFile(filePath, string(kByte))
 	return
 }
 
@@ -96,13 +100,18 @@ func WriteTaskKnowledge() {
 
 	EmptyFileContent(filePath)
 
-	var kTask KTask
+	var allTask []KTask
 	for _, task := range taskList {
+		var kTask KTask
 		kTask.Name = task.TaskName
 		kTask.PlaybookList = strings.Split(task.SceneList, ",")
-		kByte, _ := json.MarshalIndent(kTask, "", "    ")
-		WriteDataInCommonFile(filePath, string(kByte))
+		if len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
+			kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
+		}
+		allTask = append(allTask, kTask)
 	}
+	kByte, _ := json.MarshalIndent(allTask, "", "    ")
+	WriteDataInCommonFile(filePath, string(kByte))
 
 	return
 }
@@ -120,8 +129,9 @@ func WriteTestCaseKnowledge() {
 
 	EmptyFileContent(filePath)
 
-	var kCase KCase
+	var allKCase []KCase
 	for _, testCase := range caseList {
+		var kCase KCase
 		kCase.CaseNumber = testCase.CaseNumber
 		kCase.CaseName = testCase.CaseName
 		kCase.TestSteps = testCase.TestSteps
@@ -131,9 +141,13 @@ func WriteTestCaseKnowledge() {
 		kCase.ExpectResult = testCase.ExpectResult
 		kCase.Priority = testCase.Priority
 		kCase.Auto = testCase.Auto
-		kByte, _ := json.MarshalIndent(kCase, "", "    ")
-		WriteDataInCommonFile(filePath, string(kByte))
+		allKCase = append(allKCase, kCase)
+		//kByte, _ := json.MarshalIndent(kCase, "", "    ")
+		//WriteDataInCommonFile(filePath, string(kByte))
 	}
+
+	kByte, _ := json.MarshalIndent(allKCase, "", "    ")
+	WriteDataInCommonFile(filePath, string(kByte))
 
 	return
 }

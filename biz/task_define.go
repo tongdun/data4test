@@ -58,5 +58,6 @@ type Crontab struct {
 }
 
 type RunSchecdule struct {
-	Id string
+	Id       string
+	UserName string
 }

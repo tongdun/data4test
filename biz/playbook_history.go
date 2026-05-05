@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func RunHistoryPlaybook(id, mode string) (err error) {
+func RunHistoryPlaybook(id, mode, userName string) (err error) {
 	playbook, _ := GetHistoryPlaybook(id)
 
 	switch playbook.SceneType {
@@ -55,7 +55,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
 			if errTmp != nil {
 				if err != nil {
 					err = errTmp
@@ -82,7 +82,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
 			if errTmp != nil {
 				Logger.Error("%s", errTmp)
 				if err != nil {
@@ -112,7 +112,7 @@ func RunHistoryPlaybook(id, mode string) (err error) {
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source)
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {

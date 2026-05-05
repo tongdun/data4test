@@ -1085,7 +1085,7 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 	return
 }
 
-func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct DbProduct) (result, lastFile string, err error) {
+func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, dbProduct DbProduct) (result, lastFile string, err error) {
 	if len(dbProduct.Name) > 0 {
 		playbook.Product = dbProduct.Name
 	}
@@ -1116,7 +1116,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
 			if errTmp != nil {
 				if err != nil {
 					err = fmt.Errorf("%s; %s", err, errTmp)
@@ -1128,7 +1128,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			playbook.LastFile = historyApi
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(playbookId, subResult, source, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(userName, playbookId, subResult, source, envType, errTmp)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -1144,7 +1144,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
 			if errTmp != nil {
 				Logger.Error("%v", errTmp)
 				if err != nil {
@@ -1161,7 +1161,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1179,7 +1179,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source)
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName)
 				if errTmp != nil {
 					Logger.Error("%v", errTmp)
 					if errIn != nil {
@@ -1201,7 +1201,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(playbookId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1225,7 +1225,7 @@ func (playbook Playbook) RunPlaybook(playbookId, mode, source string, dbProduct 
 		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
 	playbook.LastFile = lastFile
-	err = playbook.WritePlaybookResult(playbookId, result, source, envType, err)
+	err = playbook.WritePlaybookResult(userName, playbookId, result, source, envType, err)
 	if err != nil {
 		Logger.Error("%v", err)
 		return

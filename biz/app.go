@@ -2,27 +2,81 @@ package biz
 
 import (
 	"data4test/models"
+	"encoding/json"
 	"fmt"
 )
 
-func GetEnvConfig(name, nameType string) (envConfig EnvConfig, err error) {
-	switch nameType {
-	case "product":
+//func GetEnvConfig(name, nameType string) (envConfig EnvConfig, privateAppPrefix map[string]interface{}, err error) {
+//	switch nameType {
+//	case "product":
+//		var dbProduct DbProduct
+//		models.Orm.Table("product").Where("product = ?", name).Find(&dbProduct)
+//		if len(dbProduct.Name) > 0 {
+//			envConfig.Product = name
+//			envConfig.Protocol = dbProduct.Protocol
+//			envConfig.Auth = dbProduct.Auth
+//			envConfig.Testmode = dbProduct.Testmode
+//			envConfig.Ip = dbProduct.Ip
+//			if len(dbProduct.PrivateAppPrefix) > 0 {
+//				//privateAppPrefix := make(map[string]interface{})
+//				err = json.Unmarshal([]byte(dbProduct.PrivateAppPrefix), &privateAppPrefix)
+//				if err != nil {
+//					Logger.Error("解析专用应用前缀异常: %s", err)
+//					return
+//				}
+//			}
+//		} else {
+//			Logger.Warning("未找到[%s]产品配置信息", name)
+//		}
+//	case "app":
+//		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
+//		if len(envConfig.App) == 0 {
+//			Logger.Warning("未找到[%s]应用配置信息", name)
+//		}
+//	}
+//
+//	return
+//}
+
+func GetEnvConfig(productName, appName string) (envConfig EnvConfig, err error) {
+	if len(productName) == 0 && len(appName) == 0 {
+		err = fmt.Errorf("产品名称和应用名称不能同时为空")
+		Logger.Error("%s", err)
+		return
+	}
+
+	if len(appName) > 0 {
+		models.Orm.Table("env_config").Where("app = ?", appName).Find(&envConfig)
+		if len(envConfig.App) == 0 {
+			Logger.Warning("未找到[%s]应用配置信息", appName)
+		}
+	}
+
+	if len(productName) > 0 {
 		var dbProduct DbProduct
-		models.Orm.Table("product").Where("product = ?", name).Find(&dbProduct)
+		models.Orm.Table("product").Where("product = ?", productName).Find(&dbProduct)
 		if len(dbProduct.Name) > 0 {
-			envConfig.Product = name
+			envConfig.Product = productName
 			envConfig.Protocol = dbProduct.Protocol
 			envConfig.Auth = dbProduct.Auth
 			envConfig.Testmode = dbProduct.Testmode
 			envConfig.Ip = dbProduct.Ip
+			if len(dbProduct.PrivateAppPrefix) > 0 {
+				privateAppPrefix := make(map[string]interface{})
+				err = json.Unmarshal([]byte(dbProduct.PrivateAppPrefix), &privateAppPrefix)
+				if err != nil {
+					Logger.Error("解析专用应用前缀异常: %s", err)
+					return
+				}
+
+				if len(appName) > 0 {
+					if prefix, ok := privateAppPrefix[appName]; ok {
+						envConfig.Prepath = prefix.(string)
+					}
+				}
+			}
 		} else {
-			Logger.Warning("未找到[%s]产品配置信息", name)
-		}
-	case "app":
-		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
-		if len(envConfig.App) == 0 {
-			Logger.Warning("未找到[%s]应用配置信息", name)
+			Logger.Warning("未找到[%s]产品配置信息", productName)
 		}
 	}
 

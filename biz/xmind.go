@@ -342,9 +342,9 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 									continue
 								}
 
-								if len(sixthItem.Markers) == 0 {
-									subResultTag = "PartTest"
-								}
+								//if len(sixthItem.Markers) == 0 {
+								//	subResultTag = "UnTest"
+								//} // 代码看着像写错了
 
 								for _, sixthMark := range sixthItem.Markers {
 									sixMarkString := sixthMark.MarkerID
@@ -392,6 +392,11 @@ func Xmind2Excel(filePath string) (fileName string, err error) {
 					caseMap["所属产品"] = firstTitle
 					caseMap["所属模块"] = secondTitle
 					caseMap["用例名称"] = thirdTitle
+
+					if strings.HasPrefix(thirdTitle, "#") {
+						caseMap["测试结果"] = "Deprecated"
+					}
+
 					if len(priorityTag) > 0 {
 						caseMap["优先级"] = priorityTag
 					}

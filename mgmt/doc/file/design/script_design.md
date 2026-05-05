@@ -26,6 +26,11 @@
 #### 1.5 编写的脚本尽量有help信息
 1、提供帮助信息给使用者查看，指导使用
 
+#### 1.6 自定义脚本提供出参
+1、在脚本最后打印如下格式出参信息:
+output: {"key1": ["value1", "value1"], "key2": ["value1", "value1"]}
+
+
 ### 二、示例脚本
 #### 2.1 shell脚本
 ```
@@ -68,6 +73,8 @@ function test()
 # ============================= MAIN ============================================
 test
 testParameter "paramter1" "parameter2"
+# 如有出参，最后需以如下格式打印输出
+# echo "output: {\"key1\": [\"value1\", \"value2\"], \"key2\": [\"value3\", \"value4\"]}"
 ```
 
 #### 2.2 python脚本
@@ -109,4 +116,7 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(1)
     handler = functon_something()
+    
+# 如有出参，最后需以如下格式打印输出
+# print("output: {\"key1\": [\"value1\", \"value2\"], \"key2\": [\"value3\", \"value4\"]}") 
 ```
