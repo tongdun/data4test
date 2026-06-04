@@ -1515,7 +1515,7 @@ func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
 		}
 		var ids []int
 		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
-		if len(dList) == 0 {
+		if len(ids) == 0 {
 			Logger.Warning("未找到数据文件[%s], 请核对", item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写

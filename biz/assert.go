@@ -141,7 +141,8 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 						propertyName := strings.Split(property, "=")[0]
 						propertyValue := strings.Split(property, "=")[1]
 						if value, ok := subMap[propertyName]; ok {
-							if propertyValue != value {
+							strValue := Interface2Str(value)
+							if propertyValue != strValue {
 								if index == len(listInterface)-1 {
 									err = fmt.Errorf("未找到%s=%s的值，请核对", propertyName, propertyValue)
 									Logger.Error("%s", err)
@@ -784,120 +785,221 @@ func GetMathResult(content string) (afterContent string) {
 	return
 }
 
-func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
-	var b bool
-	var rawTargetStr string
-	targetStr := Interface2Str(assert.Value)
-	switch assert.Type {
-	case "=", "equal", "!=", "not_equal", ">", "larger_than", "greater_than", ">=", "larger_equal", "greater_equal", "<", "less_than", "<=", "less_equal":
-		targetStr = GetMathResult(targetStr) //如果有统计类运行符号，进行运算
-		expression, errTmp := govaluate.NewEvaluableExpression(targetStr)
-		if errTmp == nil {
-			parameters := make(map[string]interface{})
-			newTarget, errTmp := expression.Evaluate(parameters)
-			if errTmp == nil {
-				rawTargetStr = targetStr
-				targetStr = Interface2Str(newTarget)
+func ContainsArithmeticOperator(s string) bool {
+	re := regexp.MustCompile(`[+\-*/]`)
+	return re.MatchString(s)
+}
 
+// 数值比较操作符集合，便于判断
+var numericOps = map[string]bool{
+	"=": true, "equal": true,
+	"!=": true, "not_equal": true,
+	">": true, "larger_than": true, "greater_than": true,
+	">=": true, "larger_equal": true, "greater_equal": true,
+	"<": true, "less_than": true,
+	"<=": true, "less_equal": true,
+}
+
+//func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
+//	var b bool
+//	var rawTargetStr string
+//	targetStr := Interface2Str(assert.Value)
+//
+//	// 仅对数值比较类型处理数学表达式
+//	if numericOps[assert.Type] && ContainsArithmeticOperator(targetStr) {
+//		targetStr = GetMathResult(targetStr) //如果有统计类运行符号，进行运算
+//		expression, errTmp := govaluate.NewEvaluableExpression(targetStr)
+//		if errTmp == nil {
+//			parameters := make(map[string]interface{})
+//			newTarget, errTmp := expression.Evaluate(parameters)
+//			if errTmp == nil {
+//				rawTargetStr = targetStr
+//				targetStr = Interface2Str(newTarget)
+//			}
+//		}
+//	}
+//
+//	// 辅助函数：将字符串转换为 float64，失败则返回错误
+//	toFloat := func(s string) (float64, error) {
+//		f, err := strconv.ParseFloat(s, 64)
+//		if err != nil {
+//			return 0, fmt.Errorf("无法将 %q 转换为数字", s)
+//		}
+//		return f, nil
+//	}
+//
+//	switch assert.Type {
+//	case "=", "equal":
+//		if curStr == targetStr {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "!=", "not_equal":
+//		if curStr != targetStr {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "in", "contain":
+//		if strings.Contains(curStr, targetStr) {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "!in", "not_in", "not_contain":
+//		if !strings.Contains(curStr, targetStr) {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "re", "regex", "regexp":
+//		re := regexp.MustCompile(targetStr)
+//		result := re.FindStringSubmatch(curStr)
+//		if len(result) > 0 {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "null", "empty":
+//		if len(curStr) == 0 {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case "!null", "!empty", "not_null", "not_empty":
+//		if len(curStr) > 0 {
+//			b = true
+//		} else {
+//			b = false
+//		}
+//	case ">", "larger_than", "greater_than",
+//		">=", "larger_equal", "greater_equal",
+//		"<", "less_than",
+//		"<=", "less_equal":
+//		curF, err1 := toFloat(curStr)
+//		tarF, err2 := toFloat(targetStr)
+//		if err1 != nil || err2 != nil {
+//			return fmt.Errorf("数值比较失败: %v, %v", err1, err2)
+//		}
+//		switch assert.Type {
+//		case ">", "larger_than", "greater_than":
+//			b = curF > tarF
+//		case ">=", "larger_equal", "greater_equal":
+//			b = curF >= tarF
+//		case "<", "less_than":
+//			b = curF < tarF
+//		case "<=", "less_equal":
+//			b = curF <= tarF
+//		}
+//	default:
+//		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", assert.Type)
+//	}
+//
+//	if !b {
+//		var expectPrompt string
+//		switch assert.Source {
+//		case "raw", "ResponseBody", "Response":
+//			if len(rawTargetStr) > 0 {
+//				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, rawTargetStr)
+//			} else {
+//				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, targetStr)
+//			}
+//			actualPrompt := fmt.Sprintf("实际: ResponseBody = %s", curStr)
+//			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
+//		default:
+//			if len(rawTargetStr) > 0 {
+//				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
+//			} else {
+//				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
+//			}
+//			actualPrompt := fmt.Sprintf("实际: %s = %s", assert.Source, curStr)
+//			err = fmt.Errorf("%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
+//		}
+//	}
+//
+//	return
+//}
+
+func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
+	targetStr := Interface2Str(assert.Value)
+	rawTargetStr := ""
+
+	// 仅对数值比较类型处理数学表达式
+	if numericOps[assert.Type] && ContainsArithmeticOperator(targetStr) {
+		expr, err := govaluate.NewEvaluableExpression(targetStr)
+		if err == nil {
+			params := map[string]interface{}{}
+			result, err := expr.Evaluate(params)
+			if err == nil {
+				rawTargetStr = targetStr
+				targetStr = Interface2Str(result)
 			}
 		}
 	}
 
+	// 辅助函数：将字符串转换为 float64，失败则返回错误
+	toFloat := func(s string) (float64, error) {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, fmt.Errorf("无法将 %q 转换为数字", s)
+		}
+		return f, nil
+	}
+
+	var b bool
 	switch assert.Type {
 	case "=", "equal":
-		if curStr == targetStr {
-			b = true
+		curF, curErr := toFloat(curStr)
+		tarF, tarErr := toFloat(targetStr)
+		if curErr == nil && tarErr == nil {
+			b = curF == tarF
 		} else {
-			b = false
+			b = curStr == targetStr
 		}
 	case "!=", "not_equal":
-		if curStr != targetStr {
-			b = true
+		curF, curErr := toFloat(curStr)
+		tarF, tarErr := toFloat(targetStr)
+		if curErr == nil && tarErr == nil {
+			b = curF != tarF
 		} else {
-			b = false
+			b = curStr != targetStr
 		}
 	case "in", "contain":
-		if strings.Contains(curStr, targetStr) {
-			b = true
-		} else {
-			b = false
-		}
+		b = strings.Contains(curStr, targetStr)
 	case "!in", "not_in", "not_contain":
-		if !strings.Contains(curStr, targetStr) {
-			b = true
-		} else {
-			b = false
-		}
+		b = !strings.Contains(curStr, targetStr)
 	case "re", "regex", "regexp":
-		re := regexp.MustCompile(targetStr)
-		result := re.FindStringSubmatch(curStr)
-		if len(result) > 0 {
-			b = true
-		} else {
-			b = false
+		re, err := regexp.Compile(targetStr)
+		if err != nil {
+			return fmt.Errorf("无效的正则表达式 %q: %v", targetStr, err)
 		}
+		b = re.MatchString(curStr)
 	case "null", "empty":
-		if len(curStr) == 0 {
-			b = true
-		} else {
-			b = false
-		}
+		b = curStr == ""
 	case "!null", "!empty", "not_null", "not_empty":
-		if len(curStr) > 0 {
-			b = true
-		} else {
-			b = false
-		}
-	case ">", "larger_than", "greater_than":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
+		b = curStr != ""
+	case ">", "larger_than", "greater_than",
+		">=", "larger_equal", "greater_equal",
+		"<", "less_than",
+		"<=", "less_equal":
+		curF, err1 := toFloat(curStr)
+		tarF, err2 := toFloat(targetStr)
 		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt > targetInt {
-				b = true
-			} else {
-				b = false
-			}
+			return fmt.Errorf("数值比较失败: %v, %v", err1, err2)
 		}
-	case ">=", "larger_equal", "greater_equal":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt >= targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	case "<", "less_than":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt < targetInt {
-				b = true
-			} else {
-				b = false
-			}
-		}
-	case "<=", "less_equal":
-		targetInt, err1 := strconv.Atoi(targetStr)
-		curInt, err2 := strconv.Atoi(curStr)
-		if err1 != nil || err2 != nil {
-			b = false
-		} else {
-			if curInt <= targetInt {
-				b = true
-			} else {
-				b = false
-			}
+		switch assert.Type {
+		case ">", "larger_than", "greater_than":
+			b = curF > tarF
+		case ">=", "larger_equal", "greater_equal":
+			b = curF >= tarF
+		case "<", "less_than":
+			b = curF < tarF
+		case "<=", "less_equal":
+			b = curF <= tarF
 		}
 	default:
-		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", assert.Type)
+		return fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", assert.Type)
 	}
 
 	if !b {

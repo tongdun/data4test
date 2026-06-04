@@ -269,7 +269,6 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 	header := make(map[string]interface{})
 
 	if len(product) > 0 {
-		//sceneEnvConfig, errTmp := GetEnvConfig(product, "product")
 		sceneEnvConfig, errTmp := GetEnvConfig(product, "")
 		if errTmp != nil {
 			Logger.Warning("%s", errTmp)
@@ -330,7 +329,7 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 
 	lang := GetRequestLangage(header)
 
-	contentStr, notDefVars, falseCount, errTmp := GetIndexStr(lang, string(content), "", "", depOutVars)
+	contentStr, notDefVars, falseCount, errTmp := GetIndexStr(lang, content, "", "", depOutVars)
 	if falseCount > 0 {
 		if errTmp != nil {
 			err = fmt.Errorf("%s; 存在未定义参数: %s，请先定义或关联", errTmp, notDefVars)
@@ -826,7 +825,6 @@ func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOu
 		if len(dbData.App) > 0 {
 			df.Api.App = dbData.App
 		}
-
 		_, _, _, _, _, result, dst, err = df.RunStandard(product, filePath, mode, source, dbData.Content, depOutVars)
 
 	}

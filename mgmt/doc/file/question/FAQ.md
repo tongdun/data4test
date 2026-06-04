@@ -7,7 +7,14 @@
 ### 数据文件编写常见问题
 #### 总则
 - 因为yaml文件语法的原因，编写内容带特殊字符时，需要使用引号以示为字符串
+  - 如请求值中有{},需要用引号括起来表示为字符串：script: 'αBOOLEAN@S_B_INDUSTRIALINJURY = αENUM@S_E_CUSTTYPE #INLIST {0,1,2,4};'
+    ```
+    - source: success
+      type: re
+      value: "true"
+    ```
 - 因一段内容中同时有单引用和双引号，可使用|换行符规避引用转义
+
 
 #### 具体实例：
 - 断言值如果为布尔类型时，使用引号, e.g.: 
