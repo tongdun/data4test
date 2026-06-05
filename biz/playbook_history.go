@@ -67,7 +67,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			if subResult == "fail" {
 				playbook.LastFile = historyApi
-				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
+				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, userName, envType, errTmp)
 				if errTmp2 != nil {
 					Logger.Error("%s", errTmp2)
 					if err != nil {
@@ -95,7 +95,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 			if subResult == "fail" {
 				isFail++
 				playbook.LastFile = historyApi
-				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
+				errTmp2 := playbook.WritePlaybookHistoryResult(id, subResult, mode, userName, envType, errTmp)
 				if errTmp2 != nil {
 					Logger.Error("%s", errTmp2)
 					if err != nil {
@@ -126,7 +126,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 				if subResult == "fail" {
 					isFail++
 					inPlaybook.LastFile = historyApi
-					errTmp2 := inPlaybook.WritePlaybookHistoryResult(id, subResult, mode, envType, errTmp)
+					errTmp2 := inPlaybook.WritePlaybookHistoryResult(id, subResult, mode, userName, envType, errTmp)
 					if errTmp2 != nil {
 						Logger.Error("%s", errTmp2)
 						if errIn != nil {
@@ -167,7 +167,11 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 		}
 	}
 
-	errTmp = playbook.WritePlaybookHistoryResult(id, result, mode, productInfo.EnvType, err)
+	if source == "historyContinue" {
+		errTmp = playbook.WritePlaybookHistoryResult(id, result, mode, userName, productInfo.EnvType, err)
+	} else {
+		errTmp = playbook.WritePlaybookHistoryResult("", result, mode, userName, productInfo.EnvType, err)
+	}
 
 	if errTmp != nil {
 		Logger.Error("%s", errTmp)

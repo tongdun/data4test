@@ -443,13 +443,13 @@ func UpdateDBPlaybook(dbId, source, result, lastFile string, errIn error) (err e
 }
 
 // WritePlaybookHistoryResult id为历史记录中的ID, mode为继续还是再来一次，envType为执行环境的类型
-func (playbook Playbook) WritePlaybookHistoryResult(id, result, mode string, envType int, errIn error) (err error) {
+func (playbook Playbook) WritePlaybookHistoryResult(id, result, mode, userName string, envType int, errIn error) (err error) {
 	var dbScene DbSceneRecord
-	s, _ := strconv.Atoi(id)
-	models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
-	if len(dbScene.Name) == 0 {
-		return
+	if len(id) > 0 {
+		s, _ := strconv.Atoi(id)
+		models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
 	}
+
 	if len(result) == 0 {
 		dbScene.Result = " "
 	} else {
@@ -477,16 +477,19 @@ func (playbook Playbook) WritePlaybookHistoryResult(id, result, mode string, env
 		err = UpdateSceneRecord(dbScene)
 	} else {
 		var sceneRecode SceneRecord
-		sceneRecode.Name = dbScene.Name
-		sceneRecode.LastFile = dbScene.LastFile
-		sceneRecode.SceneType = dbScene.SceneType
-		sceneRecode.Result = dbScene.Result
+		sceneRecode.Name = playbook.Name
+		sceneRecode.LastFile = baseLastFile
+		sceneRecode.SceneType = playbook.SceneType
+		sceneRecode.Result = result
 		sceneRecode.FailReason = dbScene.FailReason
-		sceneRecode.Product = dbScene.Product
+		sceneRecode.Product = playbook.Product
 		sceneRecode.EnvType = envType
+		sceneRecode.UserName = userName
 		sceneRecode.ApiList = playbook.GetHistoryApiList()
-
 		err = WritePlaybookRecord(sceneRecode)
+		if err != nil {
+			Logger.Error("%s", err)
+		}
 	}
 
 	return

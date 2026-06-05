@@ -825,6 +825,7 @@ func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOu
 		if len(dbData.App) > 0 {
 			df.Api.App = dbData.App
 		}
+
 		_, _, _, _, _, result, dst, err = df.RunStandard(product, filePath, mode, source, dbData.Content, depOutVars)
 
 	}
@@ -1830,15 +1831,23 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 	baseName := path.Base(fileName)
 	if strings.HasPrefix(source, "ai") {
 		models.Orm.Table("ai_data").Where("file_name = ?", baseName).Find(&dbData)
-	} else if strings.HasPrefix(source, "history") {
+	} else if strings.HasPrefix(source, "history") && strings.Contains(fileName, "history") {
 		var dbHData HistoryDataDetail
-		models.Orm.Table("scene_data_test_history").Where("content = ?", baseName).Find(&dbHData)
+		macthBaseName := fmt.Sprintf("%%%s%%", baseName)
+		models.Orm.Table("scene_data_test_history").Where("content like ?", macthBaseName).Find(&dbHData)
 		dbData.Name = dbHData.Name
 		dbData.FileName = dbHData.Content
 		dbData.App = dbHData.App
 		dbData.RunTime = 1
 		dbData.FileType = dbHData.FileType
 		dbData.ApiId = dbHData.ApiId
+		content, errTmp := ioutil.ReadFile(fileName)
+		if errTmp != nil {
+			Logger.Error("err: %v", errTmp)
+			err = errTmp
+			return
+		}
+		dbData.Content = string(content)
 	} else {
 		models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&dbData)
 	}
