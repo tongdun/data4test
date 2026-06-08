@@ -24,7 +24,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	apps := biz.GetApps()
 	//info := sceneData.GetInfo().HideFilterArea()
 	info := sceneData.GetInfo()
-	products := biz.GetProducts()
+	//products := biz.GetProducts()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
@@ -203,6 +203,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		Width:  "900px",
 		Height: "300px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		products := biz.GetProducts()
 		ids := ctx.FormValue("ids")
 		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
 		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
@@ -216,8 +217,8 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	info.AddActionButton("测试", action.Ajax("scenedata_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			id := ctx.FormValue("id")
 			var status string
+			id := ctx.FormValue("id")
 			if err := biz.RepeatRunDataFile(userName, id, "", "data"); err == nil {
 				status = "测试完成，请刷新列表查看测试结果"
 			} else {
