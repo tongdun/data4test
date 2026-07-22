@@ -103,7 +103,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	}
 
 	if _, ok := header["Content-Type"]; !ok {
-		err = fmt.Errorf("header 未正常定义，请核对")
+		err = fmt.Errorf(T("error.header_not_defined"))
 		return
 	}
 
@@ -127,7 +127,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 					filePath = fmt.Sprintf("%s/%s", DownloadBasePath, strValue)
 					_, errTmp := os.Stat(filePath)
 					if errTmp != nil {
-						err = fmt.Errorf("[%s]在[文件-上传文件]和[文件-下载文件]目录下均不存在，请核对", filePath)
+						err = fmt.Errorf(T("error.file_not_in_paths"), filePath)
 						Logger.Error("%s", err)
 						return
 					}
@@ -221,7 +221,7 @@ func RunHttpFormData(method, url string, data map[string]interface{}, header map
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
+		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 		Logger.Error("%s", err)
 	}
 	return resBody, err
@@ -301,7 +301,7 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
+		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 	}
 
 	var downloadFileName, downloadFilePath string
@@ -436,7 +436,7 @@ func RunHttpUrlencodedWithRespHeader(method, url string, data map[string]interfa
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
+		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 	}
 
 	var downloadFileName, downloadFilePath string
@@ -503,7 +503,7 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 	}
 
 	if _, ok := header["Content-Type"]; !ok {
-		err = fmt.Errorf("header 未正常定义，请核对")
+		err = fmt.Errorf(T("error.header_not_defined"))
 		return
 	}
 
@@ -573,7 +573,7 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
+		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 		Logger.Error("%s", err)
 	}
 	return resBody, err
@@ -586,7 +586,7 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 	}
 
 	if _, ok := header["Content-Type"]; !ok {
-		err = fmt.Errorf("header 未正常定义，请核对")
+		err = fmt.Errorf(T("error.header_not_defined"))
 		return
 	}
 	methodUpper := strings.ToUpper(method)
@@ -632,7 +632,7 @@ func RunHttpJsonList(method, url string, data []interface{}, header map[string]i
 	// 返回500的是否需要拦截
 	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("请求失败，返回码: %d, 返回信息: %s", resp.StatusCode, string(resBody))
+		err = fmt.Errorf(T("error.request_failed_with_code"), resp.StatusCode, string(resBody))
 		Logger.Error("%s", err)
 	}
 	return resBody, err

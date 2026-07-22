@@ -10,9 +10,11 @@ import (
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
+	"html/template"
+
 	//"strings"
 	"github.com/GoAdminGroup/go-admin/context"
-	"html/template"
+	template2 "html/template"
 )
 
 func GetTestCaseTable(ctx *context.Context) table.Table {
@@ -24,99 +26,99 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	info := testCase.GetInfo().HideFilterArea().SetFilterFormLayout(form.LayoutThreeCol)
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
-	info.AddField("自动主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("用例编号", "case_number", db.Varchar).
+	info.AddField(biz.T("common.case_number"), "case_number", db.Varchar).
 		FieldWidth(150).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("用例名称", "case_name", db.Varchar).
+	info.AddField(biz.T("common.case_title"), "case_name", db.Varchar).
 		FieldWidth(150).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("用例模块", "module", db.Varchar).
+	info.AddField(biz.T("common.module"), "module", db.Varchar).
 		FieldWidth(120).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("用例类型", "case_type", db.Varchar).
+	info.AddField(biz.T("common.case_type"), "case_type", db.Varchar).
 		FieldWidth(120).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("优先级", "priority", db.Varchar).
+	info.AddField(biz.T("common.case_level"), "priority", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("预置条件", "pre_condition", db.Longtext).
+	info.AddField(biz.T("test_case.precondition"), "pre_condition", db.Longtext).
 		FieldWidth(120).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return template.HTMLEscapeString(model.Value)
 		})
-	info.AddField("测试范围", "test_range", db.Longtext).
+	info.AddField(biz.T("common.test_range"), "test_range", db.Longtext).
 		FieldWidth(120)
-	info.AddField("测试步骤", "test_steps", db.Longtext).
+	info.AddField(biz.T("common.test_step"), "test_steps", db.Longtext).
 		FieldWidth(250).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return template.HTMLEscapeString(model.Value)
 		})
-	info.AddField("预期结果", "expect_result", db.Longtext).
+	info.AddField(biz.T("common.expected_result"), "expect_result", db.Longtext).
 		FieldWidth(250)
-	info.AddField("自动化", "auto", db.Enum).
+	info.AddField(biz.T("common.auto_label"), "auto", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "0" {
-				return "否"
+				return biz.T("common.no")
 			} else if model.Value == "1" {
-				return "是"
+				return biz.T("common.yes")
 			} else if model.Value == "2" {
-				return "部分是"
+				return biz.T("common.part")
 			}
-			return "是"
+			return biz.T("common.yes")
 		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "0", Text: "否"},
-		{Value: "1", Text: "是"},
-		{Value: "2", Text: "部分是"},
+		{Value: "0", Text: biz.T("common.no")},
+		{Value: "1", Text: biz.T("common.yes")},
+		{Value: "2", Text: biz.T("common.part")},
 	})
-	info.AddField("功能开发者", "fun_developer", db.Varchar).
+	info.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar).
 		FieldHide().
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("用例设计者", "case_designer", db.Varchar).
+	info.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldHide()
-	info.AddField("用例执行者", "case_executor", db.Varchar).
+	info.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldHide()
-	info.AddField("测试结果", "test_result", db.Varchar).
+	info.AddField(biz.T("common.test_result"), "test_result", db.Varchar).
 		FieldWidth(120).
 		FieldFilterable(types.FilterType{FormType: form.Select}).
 		FieldFilterOptions(types.FieldOptions{
-			{Value: "pass", Text: "通过"},
-			{Value: "part", Text: "部分通过"},
-			{Value: "fail", Text: "失败"},
-			{Value: "untest", Text: "未测试"},
-			{Value: "deprecated", Text: "已废弃"},
+			{Value: "pass", Text: biz.T("common.pass")},
+			{Value: "part", Text: biz.T("test_case.result_part")},
+			{Value: "fail", Text: biz.T("common.fail")},
+			{Value: "untest", Text: biz.T("test_case.result_untest")},
+			{Value: "deprecated", Text: biz.T("common.status_discarded")},
 		}).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(types.FieldOptions{
-			{Value: "pass", Text: "通过"},
-			{Value: "part", Text: "部分通过"},
-			{Value: "fail", Text: "失败"},
-			{Value: "untest", Text: "未测试"},
-			{Value: "deprecated", Text: "已废弃"},
+			{Value: "pass", Text: biz.T("common.pass")},
+			{Value: "part", Text: biz.T("test_case.result_part")},
+			{Value: "fail", Text: biz.T("common.fail")},
+			{Value: "untest", Text: biz.T("test_case.result_untest")},
+			{Value: "deprecated", Text: biz.T("common.status_discarded")},
 		}).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "pass" {
-				return "通过"
+				return biz.T("common.pass")
 			} else if model.Value == "part" {
-				return "部分通过"
+				return biz.T("test_case.result_part")
 			} else if model.Value == "fail" {
-				return "失败"
+				return biz.T("common.fail")
 			} else if model.Value == "untest" {
-				return "未测试"
+				return biz.T("test_case.result_untest")
 			} else if model.Value == "deprecated" {
-				return "已废弃"
+				return biz.T("common.status_discarded")
 			}
-			return "未测试"
+			return biz.T("test_case.result_untest")
 		})
-	info.AddField("测试时间", "test_time", db.Varchar).
+	info.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar).
 		FieldWidth(120)
-	info.AddField("引入版本", "intro_version", db.Varchar)
-	info.AddField("关联场景", "scene", db.Varchar).
+	info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar)
+	info.AddField(biz.T("common.scene"), "scene", db.Varchar).
 		FieldWidth(120).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(sceneNames).
@@ -124,221 +126,199 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldFilterOptions(sceneNames).
 		FieldHide()
 
-	info.AddField("关联产品", "product", db.Varchar).
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products).FieldWidth(120)
-	info.AddField("备注", "remark", db.Varchar).
+	info.AddField(biz.T("common.remark"), "remark", db.Varchar).
 		FieldHide().FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建时间", "created_at", db.Timestamp).FieldWidth(120)
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).FieldWidth(120)
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.AddSelectBox("关联产品", products, action.FieldFilter("product"))
+	info.AddSelectBox(biz.T("common.product"), products, action.FieldFilter("product"))
 
-	info.AddSelectBox("测试结果", types.FieldOptions{
-		{Value: "pass", Text: "通过"},
-		{Value: "fail", Text: "失败"},
-		{Value: "untest", Text: "未测试"},
-		{Value: "deprecated", Text: "已废弃"},
+	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
+		{Value: "pass", Text: biz.T("common.pass")},
+		{Value: "fail", Text: biz.T("common.fail")},
+		{Value: "untest", Text: biz.T("test_case.result_untest")},
+		{Value: "deprecated", Text: biz.T("common.status_discarded")},
 	}, action.FieldFilter("test_result"))
 
-	info.AddButton("导出MD", icon.File, action.Ajax("test_case_export_markdown",
+	info.AddButton(template2.HTML(biz.T("common.btn_export_md")), icon.File, action.Ajax("test_case_export_markdown",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再导出"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
 			fileName, err := biz.ExportTestCase2Markdown(idStr, "test_case")
 			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
+				status = fmt.Sprintf(biz.T("error.export_fail"), err)
 				return false, status, ""
 			}
 			hostIp := ctx.Request.Host
 			//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
 			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
-			status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+			status = fmt.Sprintf(biz.T("common.operate_success"), downloadUrl)
 			return true, status, ""
 		}))
 
-	//info.AddButton("导出Xmind", icon.File, action.Ajax("test_case_export_xmind",
-	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
-	//		idStr := ctx.FormValue("ids")
-	//		var status string
-	//		if idStr == "," {
-	//			status = "请先选择数据再导出"
-	//			return false, status, ""
-	//		}
-	//
-	//		fileName, err := biz.ExportTestCase2XmindById(idStr, "test_case")
-	//		if err != nil {
-	//			status = fmt.Sprintf("导出失败: %s", err)
-	//			return false, status, ""
-	//		}
-	//		hostIp := ctx.Request.Host
-	//		//status = fmt.Sprintf("导出成功\n请至[文件-用例文件]下载\n文件名为: %s", fileName)
-	//		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
-	//		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
-	//
-	//		return true, status, ""
-	//	}))
-
-	info.AddButton("导出Xmind", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template2.HTML(biz.T("common.btn_export_xmind")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/test_case_export_xmind",
-		Title:  "导出Xmind用例",
+		Title:  biz.T("common.btn_export_xmind"),
 		Width:  "900px",
 		Height: "720px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
 		products := biz.GetProducts() // 子域
-		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate().
-			FieldHelpMsg("选择数据和过滤条件二选一，若选择了数据，以下过滤条件将失效")
-		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate().
+			FieldHelpMsg(template.HTML(biz.T("common.help_select_or_filter")))
+		panel.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products)
-		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
-			FieldHelpMsg("如需设置多个版本，请以英文逗号分隔")
-		panel.AddField("用例创建者", "case_designer", db.Varchar, form.Text)
-		panel.AddField("所属模块", "module", db.Varchar, form.Text).
-			FieldHelpMsg("如需设置多个模块，请以英文逗号分隔")
-		panel.AddField("创建时间", "created_at", db.Varchar, form.DatetimeRange)
-		panel.AddField("用例来源", "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
+		panel.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar, form.Text).
+			FieldHelpMsg(template.HTML(biz.T("common.help_version_multi")))
+		panel.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar, form.Text)
+		panel.AddField(biz.T("common.module"), "module", db.Varchar, form.Text).
+			FieldHelpMsg(template.HTML(biz.T("common.help_module_multi")))
+		panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
+		panel.AddField(biz.T("common.source"), "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
 
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
 		return panel
 	}, "/test_case_export_xmind"))
 
-	info.AddButton("Xmind2Excel", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template2.HTML(biz.T("test_case.btn_xmind2excel")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/testcase_xmind2excel",
-		Title:  "Xmind用例导出为EXCEL",
+		Title:  biz.T("test_case.btn_xmind2excel"),
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+		panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 1,
-		}).FieldHelpMsg("请上传标准的Xmind文档")
+		}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 		return panel
 	}, "/testcase_xmind2excel"))
 
-	info.AddButton("导入Xmind用例", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template2.HTML(biz.T("test_case.btn_import_xmind")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/testcase_xmind2excel",
-		Title:  "Xmind用例导出为EXCEL",
+		Title:  biz.T("test_case.btn_import_xmind"),
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-		info.AddField("关联产品", "product", db.Varchar).
+		info.AddField(biz.T("common.product"), "product", db.Varchar).
 			FieldFilterable(types.FilterType{FormType: form.Select}).
 			FieldFilterOptions(products)
-		info.AddField("引入版本", "intro_version", db.Varchar).
+		info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar).
 			FieldFilterable()
-		panel.AddField("上传文档", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+		panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 1,
-		}).FieldHelpMsg("请上传标准的Xmind文档")
+		}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 		return panel
 	}, "/testcase_xmind2import"))
 
-	info.SetTable("test_case").SetTitle("测试用例").SetDescription("测试用例")
+	info.SetTable("test_case").SetTitle(biz.T("test_case.title")).SetDescription(biz.T("test_case.description"))
 
 	formList := testCase.GetForm()
 
-	formList.AddField("自动主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("用例编号", "case_number", db.Varchar, form.Text)
-	formList.AddField("用例名称", "case_name", db.Varchar, form.Text)
-	formList.AddField("用例模块", "module", db.Varchar, form.Text)
-	formList.AddField("用例类型", "case_type", db.Varchar, form.Select).
+	formList.AddField(biz.T("common.case_number"), "case_number", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.case_title"), "case_name", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.module"), "module", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.case_type"), "case_type", db.Varchar, form.Select).
 		FieldOptions(caseTypes)
-	formList.AddField("优先级", "priority", db.Varchar, form.Text)
-	formList.AddField("预置条件", "pre_condition", db.Longtext, form.TextArea)
-	formList.AddField("测试范围", "test_range", db.Longtext, form.TextArea)
-	formList.AddField("测试步骤", "test_steps", db.Longtext, form.TextArea)
-	formList.AddField("预期结果", "expect_result", db.Longtext, form.TextArea)
-	formList.AddField("是否自动化", "auto", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.case_level"), "priority", db.Varchar, form.Text)
+	formList.AddField(biz.T("test_case.precondition"), "pre_condition", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.test_range"), "test_range", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.test_step"), "test_steps", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.expected_result"), "expect_result", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.is_auto"), "auto", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "0", Text: "否"},
-			{Value: "1", Text: "是"},
-			{Value: "2", Text: "部分是"},
+			{Value: "0", Text: biz.T("common.no")},
+			{Value: "1", Text: biz.T("common.yes")},
+			{Value: "2", Text: biz.T("common.part")},
 		}).FieldDefault("0")
-	formList.AddField("功能开发者", "fun_developer", db.Varchar, form.Text)
-	formList.AddField("用例设计者", "case_designer", db.Varchar, form.Text)
-	formList.AddField("用例执行者", "case_executor", db.Varchar, form.Text)
-	formList.AddField("测试结果", "test_result", db.Varchar, form.Radio).
+	formList.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar, form.Text)
+	formList.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.test_result"), "test_result", db.Varchar, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "pass", Text: "通过"},
-			{Value: "part", Text: "部分通过"},
-			{Value: "fail", Text: "失败"},
-			{Value: "untest", Text: "未测试"},
-			{Value: "deprecated", Text: "已废弃"},
+			{Value: "pass", Text: biz.T("common.pass")},
+			{Value: "part", Text: biz.T("test_case.result_part")},
+			{Value: "fail", Text: biz.T("common.fail")},
+			{Value: "untest", Text: biz.T("test_case.result_untest")},
+			{Value: "deprecated", Text: biz.T("common.status_discarded")},
 		}).FieldDefault("untest")
-	formList.AddField("测试时间", "test_time", db.Varchar, form.Datetime)
+	formList.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar, form.Datetime)
 
-	formList.AddField("引入版本", "intro_version", db.Varchar, form.Text)
-	formList.AddField("关联场景", "scene", db.Varchar, form.Select).
+	formList.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.scene"), "scene", db.Varchar, form.Select).
 		FieldOptions(sceneNames)
-	formList.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 		FieldOptions(products)
-	formList.AddField("备注", "remark", db.Varchar, form.Text)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.remark"), "remark", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("test_case").SetTitle("测试用例").SetDescription("测试用例")
+	formList.SetTable("test_case").SetTitle(biz.T("test_case.title")).SetDescription(biz.T("test_case.description"))
 
 	detail := testCase.GetDetail()
-	detail.AddField("自动主键", "id", db.Int)
-	detail.AddField("用例编号", "case_number", db.Varchar)
-	detail.AddField("用例名称", "case_name", db.Varchar)
-	detail.AddField("用例模块", "module", db.Varchar)
-	detail.AddField("用例类型", "case_type", db.Varchar)
-	detail.AddField("优先级", "priority", db.Varchar)
-	detail.AddField("预置条件", "pre_condition", db.Longtext)
-	detail.AddField("测试范围", "test_range", db.Longtext)
-	detail.AddField("测试步骤", "test_steps", db.Longtext)
-	detail.AddField("预期结果", "expect_result", db.Longtext)
-	detail.AddField("是否自动化", "auto", db.Enum).
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.case_number"), "case_number", db.Varchar)
+	detail.AddField(biz.T("common.case_title"), "case_name", db.Varchar)
+	detail.AddField(biz.T("common.module"), "module", db.Varchar)
+	detail.AddField(biz.T("common.case_type"), "case_type", db.Varchar)
+	detail.AddField(biz.T("common.case_level"), "priority", db.Varchar)
+	detail.AddField(biz.T("test_case.precondition"), "pre_condition", db.Longtext)
+	detail.AddField(biz.T("common.test_range"), "test_range", db.Longtext)
+	detail.AddField(biz.T("common.test_step"), "test_steps", db.Longtext)
+	detail.AddField(biz.T("common.expected_result"), "expect_result", db.Longtext)
+	detail.AddField(biz.T("common.auto_label"), "auto", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "0" {
-				return "否"
+				return biz.T("common.no")
 			} else if model.Value == "1" {
-				return "是"
+				return biz.T("common.yes")
 			} else if model.Value == "2" {
-				return "部分是"
+				return biz.T("common.part")
 			}
-			return "是"
+			return biz.T("common.yes")
 		})
-	detail.AddField("功能开发者", "fun_developer", db.Varchar)
-	detail.AddField("用例设计者", "case_designer", db.Varchar)
-	detail.AddField("用例执行者", "case_executor", db.Varchar)
-	detail.AddField("测试时间", "test_time", db.Varchar)
-	detail.AddField("测试结果", "test_result", db.Enum).
+	detail.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar)
+	detail.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar)
+	detail.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar)
+	detail.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar)
+	detail.AddField(biz.T("common.test_result"), "test_result", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "pass" {
-				return "通过"
+				return biz.T("common.pass")
 			} else if model.Value == "part" {
-				return "部分通过"
+				return biz.T("test_case.result_part")
 			} else if model.Value == "fail" {
-				return "失败"
+				return biz.T("common.fail")
 			} else if model.Value == "untest" {
-				return "未测试"
+				return biz.T("test_case.result_untest")
 			} else if model.Value == "deprecated" {
-				return "已废弃"
+				return biz.T("common.status_discarded")
 			}
-			return "是"
+			return biz.T("common.yes")
 		})
-	detail.AddField("引入版本", "intro_version", db.Varchar)
-	detail.AddField("关联场景", "scene", db.Varchar)
-	detail.AddField("关联产品", "product", db.Varchar)
-	detail.AddField("备注", "remark", db.Varchar)
+	detail.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar)
+	detail.AddField(biz.T("common.scene"), "scene", db.Varchar)
+	detail.AddField(biz.T("common.product"), "product", db.Varchar)
+	detail.AddField(biz.T("common.remark"), "remark", db.Varchar)
 
-	detail.SetTable("test_case").SetTitle("测试用例").SetDescription("测试用例")
+	detail.SetTable("test_case").SetTitle(biz.T("test_case.title")).SetDescription(biz.T("test_case.description"))
 
 	return testCase
 }

@@ -20,8 +20,8 @@ func UseAiData(ids, userName string) (err error) {
 	var aiDataList []AiData
 	models.Orm.Table("ai_data").Where("id in (?)", idList).Find(&aiDataList)
 	if len(aiDataList) == 0 {
-		Logger.Error("数据存在异常:%s，请核对~ ", ids)
-		err = fmt.Errorf("据存在异常，请核对~")
+		Logger.Error(T("error.data_abnormal"), ids)
+		err = fmt.Errorf(T("error.data_abnormal_simple"))
 		return
 	}
 
@@ -80,8 +80,8 @@ func UseAiDataByFileName(fielNameList, userName string) (err error) {
 	var aiDataList []AiData
 	models.Orm.Table("ai_data").Where("file_name in (?)", idList).Find(&aiDataList)
 	if len(aiDataList) == 0 {
-		Logger.Error("数据存在异常:%s，请核对~ ", fielNameList)
-		err = fmt.Errorf("据存在异常，请核对~")
+		Logger.Error(T("error.data_abnormal"), fielNameList)
+		err = fmt.Errorf(T("error.data_abnormal_simple"))
 		return
 	}
 
@@ -144,10 +144,10 @@ func (input InputData) AICreateDataAndPlaybookByApiDefine(ids string) (err error
 	var apiDefStr string
 	for index, apiDef := range apiDefs {
 		if index == 0 {
-			tmpStr := fmt.Sprintf("接口定义如下：\n接口ID: %s, 所属应用: %s, 所属模块: %s, 接口描述: %s, 请求方法: %s, 请求路径: %s, Header参数: %v, Path参数：%v, Query参数: %v, Body参数: %v, Resp参数: %v;\n", apiDef.ApiId, apiDef.App, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
+			tmpStr := fmt.Sprintf(T("ai.prompt.api_definition_first"), apiDef.ApiId, apiDef.App, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
 			apiDefStr = tmpStr
 		} else {
-			tmpStr := fmt.Sprintf("接口ID: %s, 所属应用: %s, 所属模块: %s, 接口描述: %v, 请求方法: %s, 请求路径: %s, Header参数: %v, Path参数：%v, Query参数: %v, Body参数: %v, Resp参数: %v;\n", apiDef.ApiId, apiDef.App, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
+			tmpStr := fmt.Sprintf(T("ai.prompt.api_definition_next"), apiDef.ApiId, apiDef.App, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
 			apiDefStr = apiDefStr + tmpStr
 		}
 
@@ -208,9 +208,9 @@ func GetDataAndPlaybookFromReplyList(replyList []string) (dataList, playbookList
 		if len(dataSubList) == 0 {
 			var errTmp error
 			if len(replyList) == 1 {
-				errTmp = fmt.Errorf("返回信息未匹配到数据，请核对~")
+				errTmp = fmt.Errorf(T("error.reply_no_data_match"))
 			} else {
-				errTmp = fmt.Errorf("第%d步返回信息未匹配到数据，请核对~", index+1)
+				errTmp = fmt.Errorf(T("error.reply_no_data_match_step"), index+1)
 			}
 			Logger.Error("%s", errTmp)
 			if err == nil {
@@ -225,9 +225,9 @@ func GetDataAndPlaybookFromReplyList(replyList []string) (dataList, playbookList
 		if len(playbookSubList) == 0 {
 			var errTmp error
 			if len(replyList) == 1 {
-				errTmp = fmt.Errorf("返回信息未匹配到场景，请核对~")
+				errTmp = fmt.Errorf(T("error.reply_no_playbook_match"))
 			} else {
-				errTmp = fmt.Errorf("第%d步返回信息未匹配到场景，请核对~", index+1)
+				errTmp = fmt.Errorf(T("error.reply_no_playbook_match_step"), index+1)
 			}
 			Logger.Error("%s", errTmp)
 			if err == nil {
@@ -245,7 +245,7 @@ func GetDataAndPlaybookFromReplyList(replyList []string) (dataList, playbookList
 
 func (input CommonExtend) SaveAIDataByDataListMap(dataList []map[string]interface{}) (err error) {
 	if len(dataList) == 0 {
-		return fmt.Errorf("无数据信息，请核对~")
+		return fmt.Errorf(T("error.no_data_info"))
 	}
 
 	for _, item := range dataList {
@@ -456,7 +456,7 @@ func GetDataFromReply(reply string) (dataList []map[string]interface{}, err erro
 			targetStr = dataMatch[0][1]
 		}
 		if len(dataMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("dataMatch: %s", dataMatch[0])
 		}
 	}
@@ -481,7 +481,7 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			targetStr = dataMatch[0][1]
 		}
 		if len(dataMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("match: %s", dataMatch[0])
 		}
 	}
@@ -501,7 +501,7 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			dataList = append(dataList, dataMap)
 		}
 	} else {
-		Logger.Info("未匹配到测试数据信息")
+		Logger.Info(T("info.no_test_data_matched"))
 	}
 
 	if v, ok := respMatch["测试场景"]; ok {
@@ -511,7 +511,7 @@ func GetDataAndPlaybookFromReply(reply string) (dataList, playbookList []map[str
 			playbookList = append(playbookList, dataMap)
 		}
 	} else {
-		Logger.Info("未匹配到测试场景信息")
+		Logger.Info(T("info.no_test_playbook_matched"))
 	}
 	Logger.Debug("respMatch: %v", respMatch)
 	Logger.Debug("respMatch: %v", respMatch["测试场景"])
@@ -540,7 +540,7 @@ func (input ImportCommon) AICreateDataAndPlaybookByImport() (err error) {
 		}
 
 		if len(replyList) == 0 {
-			return fmt.Errorf("未获取到回复信息，请核对")
+			return fmt.Errorf(T("error.no_reply_info"))
 		}
 
 		dataList, playbookList, err := GetDataAndPlaybookFromReplyList(replyList)
@@ -602,7 +602,7 @@ func (input CommonExtend) ConnectModel2GetMessage(conversationId string) (replyL
 
 	replyList, err = aiConnect.CallModel2GetMessage(input.CreateUser, conversationId)
 	if err != nil {
-		Logger.Error("调用%s失败: %v", input.CreatePlatform, err)
+		Logger.Error(T("error.call_api_failed"), input.CreatePlatform, err)
 		return
 	}
 
@@ -655,7 +655,7 @@ func BakOldAiDataVer(id, content, fileName string) (err error) {
 			var dbContents []string
 			models.Orm.Table("ai_data").Where("id = ?", id).Pluck("content", &dbContents)
 			if len(dbContents) == 0 {
-				err = fmt.Errorf("未找到[%v]数据，请核对", id)
+				err = fmt.Errorf(T("error.data_not_found"), id)
 				Logger.Error("%s", err)
 				return
 			}
@@ -799,7 +799,7 @@ func AIOptimizeData(ids, optimizeDesc, aiPlatform, createUser string) (err error
 	}
 	data, _ := json.MarshalIndent(rawCaseList, "", "  ")
 	aiCaseStr := string(data)
-	query := fmt.Sprintf("%s\n初始用例如上，%s，并严格按原格式返回", aiCaseStr, optimizeDesc)
+	query := fmt.Sprintf(T("ai.optimize.prompt"), aiCaseStr, optimizeDesc)
 	go func(ids, optimizeDesc, aiPlatform string) {
 		defer func() { // 如果遇到panic， 不影响主程序的运行
 			if e := recover(); e != nil {
@@ -816,7 +816,7 @@ func AIOptimizeData(ids, optimizeDesc, aiPlatform, createUser string) (err error
 		if len(rawCaseList) > 0 {
 			_ = UpdateAICaseByOptimize(ids, replyList[0])
 		} else {
-			Logger.Warning("未获取到回复信息，请核对~")
+			Logger.Warning(T("error.no_reply_info"))
 		}
 
 	}(ids, optimizeDesc, aiPlatform)
@@ -854,7 +854,7 @@ func AiDataTest(userName, ids string, analysisInput AnalysisDataInput) (err erro
 
 		errStr := fmt.Sprintf("%s", err)
 		// 如果接口请求直接失败，则不进行LLM分析
-		if err != nil && strings.Contains(errStr, "请求失败，返回码") {
+		if err != nil && strings.Contains(errStr, T("error.request_failed_return_code")) {
 			return
 		}
 
@@ -952,7 +952,7 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 
 	contentStr, errTmp := GetAfterContent(lang, string(contentByte), depOutVars)
 	if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
-		Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
+		Logger.Warning(T("warning.weak_param_check"), filePath)
 		errTmp = nil
 	}
 	if errTmp != nil {
@@ -1095,15 +1095,15 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 
 func (df DataFile) AnalysisWithLLM(userName, dst string, input AnalysisDataInput) (result string, err error) {
 	var analysisDesc string
-	analysisDesc = fmt.Sprintf("数据描述: %s,接口ID: %s, 所属应用: %s, 所属模块: %s, 接口描述: %s, 请求方法: %s, 请求路径: %s", df.Name, df.ApiId, df.Api.App, df.Api.Module, df.Api.Description, df.Api.Method, df.Api.Path)
+	analysisDesc = fmt.Sprintf(T("ai.analysis.data_desc"), df.Name, df.ApiId, df.Api.App, df.Api.Module, df.Api.Description, df.Api.Method, df.Api.Path)
 
 	for index, item := range df.Response {
 		if len(df.Request) == 0 {
-			analysisDesc = fmt.Sprintf("%s,\n请求数据%d: 空,\n返回数据%d: %s", analysisDesc, index+1, index+1, item)
+			analysisDesc = fmt.Sprintf(T("ai.analysis.request_empty"), analysisDesc, index+1, index+1, item)
 		} else if len(df.Request) > index {
-			analysisDesc = fmt.Sprintf("%s,\n请求数据%d: %s,\n返回数据%d: %s", analysisDesc, index+1, df.Request[index], index+1, item)
+			analysisDesc = fmt.Sprintf(T("ai.analysis.request_body"), analysisDesc, index+1, df.Request[index], index+1, item)
 		} else {
-			Logger.Warning("请求数据与返回数据数量不匹配，请核对~")
+			Logger.Warning(T("warning.request_response_mismatch"))
 		}
 	}
 
@@ -1141,7 +1141,7 @@ func (df DataFile) AnalysisWithLLM(userName, dst string, input AnalysisDataInput
 		df.UpdateAiDataFileResult(dst, dbData.FileName)
 		envType := GetEnvTypeByName(input.Product)
 
-		err = RecordDataHistory(userName, dst, input.Product, "ai", envType, dbData)
+		err = RecordDataHistory(userName, dst, input.Product, "ai", envType, dbData, "")
 	}(userName, query, appendContent, dst, input, df)
 
 	return
@@ -1168,7 +1168,7 @@ func (df DataFile) UpdateAiDataContent() (dbData DbSceneData, err error) {
 
 		var testResult string
 		for _, item := range df.TestResult {
-			if item == "fail" || item == "失败" {
+			if item == "fail" || item == T("test.fail") {
 				testResult = "fail"
 				break
 			}

@@ -20,7 +20,6 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 
 	playbookTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	//info := playbookTestHistory.GetInfo().HideFilterArea()
 	info := playbookTestHistory.GetInfo()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
@@ -28,17 +27,17 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	userName := user.Name
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField("唯一标识", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace().FieldWidth(60)
-	info.AddField("场景描述", "name", db.Varchar).FieldWidth(160).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar)
+	info.AddField(biz.T("common.name"), "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件列表", "data_file_list", db.Longtext).
+	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetHistoryDataLinkByDataStr(model.Value)
 		})
-	info.AddField("最近数据文件", "last_file", db.Longtext).
+	info.AddField(biz.T("common.last_file"), "last_file", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldDisplay(func(value types.FieldModel) interface{} {
 			b, num := biz.IsStrEndWithTimeFormat(value.Value)
@@ -50,7 +49,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 					SetURL("/admin/fm/history/preview?path=/" + dirName + "/" + value.Value).
 					SetContent(template2.HTML(value.Value)).
 					OpenInNewTab().
-					SetTabTitle(template.HTML("数据执行历史文件")).
+					SetTabTitle(template2.HTML(biz.T("scene_test_history.title"))).
 					GetContent()
 			} else {
 				return template.Default().
@@ -58,129 +57,129 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 					SetURL("/admin/fm/data/preview?path=/" + value.Value).
 					SetContent(template2.HTML(value.Value)).
 					OpenInNewTab().
-					SetTabTitle(template.HTML("数据文件")).
+					SetTabTitle(template2.HTML(biz.T("common.data_file"))).
 					GetContent()
 			}
 		}).FieldWidth(160)
-	info.AddField("场景类型", "scene_type", db.Enum).
+	info.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "串行中断"
+				return biz.T("scene_test_history.scene_type_1")
 			}
 			if model.Value == "2" {
-				return "串行比较"
+				return biz.T("scene_test_history.scene_type_2")
 			}
 			if model.Value == "3" {
-				return "串行继续"
+				return biz.T("scene_test_history.scene_type_3")
 			}
 			if model.Value == "4" {
-				return "普通并发"
+				return biz.T("scene_test_history.scene_type_4")
 			}
 			if model.Value == "5" {
-				return "并发比较"
+				return biz.T("scene_test_history.scene_type_5")
 			}
-			return "串行中断"
+			return biz.T("scene_test_history.scene_type_1")
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "串行中断"},
-		{Value: "2", Text: "串行比较"},
-		{Value: "3", Text: "串行继续"},
-		{Value: "4", Text: "普通并发"},
-		{Value: "5", Text: "并发比较"},
+		{Value: "1", Text: biz.T("scene_test_history.scene_type_1")},
+		{Value: "2", Text: biz.T("scene_test_history.scene_type_2")},
+		{Value: "3", Text: biz.T("scene_test_history.scene_type_3")},
+		{Value: "4", Text: biz.T("scene_test_history.scene_type_4")},
+		{Value: "5", Text: biz.T("scene_test_history.scene_type_5")},
 	}).FieldWidth(60)
-	info.AddField("测试结果", "result", db.Varchar).
+	info.AddField(biz.T("common.test_result"), "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}).FieldWidth(70)
-	info.AddField("失败原因", "fail_reason", db.Longtext).
+	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext).
 		FieldWidth(200).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("环境类型", "env_type", db.Int).
+	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "开发"
+				return biz.T("common.env_type._1")
 			} else if model.Value == "2" {
-				return "测试"
+				return biz.T("common.env_type._2")
 			} else if model.Value == "3" {
-				return "预发"
+				return biz.T("common.env_type._3")
 			} else if model.Value == "4" {
-				return "演示"
+				return biz.T("common.env_type._4")
 			} else if model.Value == "5" {
-				return "生产"
+				return biz.T("common.env_type._5")
 			}
 			return ""
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "开发"},
-		{Value: "2", Text: "测试"},
-		{Value: "3", Text: "预发"},
-		{Value: "4", Text: "演示"},
-		{Value: "5", Text: "生产"},
+		{Value: "1", Text: biz.T("common.env_type._1")},
+		{Value: "2", Text: biz.T("common.env_type._2")},
+		{Value: "3", Text: biz.T("common.env_type._3")},
+		{Value: "4", Text: biz.T("common.env_type._4")},
+		{Value: "5", Text: biz.T("common.env_type._5")},
 	}).FieldWidth(60)
-	info.AddField("备注", "remark", db.Longtext).
+	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(120)
-	info.AddField("所属产品", "product", db.Varchar).
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldWidth(60).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建人", "user_name", db.Varchar).
+	info.AddField(biz.T("common.user_name"), "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(100).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.AddButton("再来一次", icon.Android, action.Ajax("historyPlaybook_batch_again",
+	info.AddButton(template2.HTML(biz.T("common.btn_again")), icon.Android, action.Ajax("historyPlaybook_batch_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			user := auth.Auth(ctx)
 			userName := user.Name
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再执行"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 			ids := strings.Split(idStr, ",")
 			for _, id := range ids {
 				if len(id) == 0 {
-					status = "测试完成，请刷新列表查看"
+					status = biz.T("common.operate_success")
 					continue
 				}
 				if err := biz.RunHistoryPlaybook(id, "again", userName); err == nil {
-					status = "测试完成，请刷新列表查看"
+					status = biz.T("common.operate_success")
 				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("再来一次", action.Ajax("historyPlaybook_again",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_again")), action.Ajax("historyPlaybook_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			user := auth.Auth(ctx)
 			userName := user.Name
 			var status string
 			if err := biz.RunHistoryPlaybook(id, "again", userName); err == nil {
-				status = "测试完成，请刷新列表查看"
+				status = biz.T("common.operate_success")
 			} else {
-				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddButton("继续", icon.Android, action.Ajax("historyPlaybook_batch_continue",
+	info.AddButton(template2.HTML(biz.T("common.btn_continue")), icon.Android, action.Ajax("historyPlaybook_batch_continue",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			user := auth.Auth(ctx)
 			userName := user.Name
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再继续"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
@@ -191,130 +190,130 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 					continue
 				}
 				if err := biz.RunHistoryPlaybook(id, "continue", userName); err == nil {
-					status = "测试完成，请前往[结果详情]列表查看"
+					status = biz.T("common.operate_success")
 				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("继续", action.Ajax("historyPlaybook_continue",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_continue")), action.Ajax("historyPlaybook_continue",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userName := user.Name
 			if err := biz.RunHistoryPlaybook(id, "continue", userName); err == nil {
-				status = "测试完成，请前往[结果详情]列表查看"
+				status = biz.T("common.operate_success")
 			} else {
-				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 				return false, status, ""
 			}
 			return true, status, ""
 		}))
 
 	products := biz.GetProducts()
-	info.AddSelectBox("关联产品", products, action.FieldFilter("product"))
+	info.AddSelectBox(biz.T("common.product"), products, action.FieldFilter("product"))
 
-	info.AddSelectBox("测试结果", types.FieldOptions{
+	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
 
-	info.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
+	info.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
-	sceneTypeMsg := template.HTML("默认值为: 串行中断<br>串行中断: 场景内的数据用例若存在执行失败，失败后的数据用例不再执行<br>串行比较: 场景内的数据用例串行执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过<br>串行继续: 场景内的数据用例串行执行存在失败数据用例，失败后的数据用例继续执行<br>普通并发: 场景内的数据用例并发执行<br>并发比较: 场景内的数据用例并发执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过")
+	sceneTypeMsg := template2.HTML(biz.T("scene_test_history.scene_type_help"))
 	formList := playbookTestHistory.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("场景描述", "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("数据文件列表", "data_file_list", db.Longtext, form.RichText).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("最近数据文件", "last_file", db.Varchar, form.Text)
-	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext, form.RichText).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField(biz.T("common.last_file"), "last_file", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.scene_type"), "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "1", Text: "串行中断"},
-			{Value: "2", Text: "串行比较"},
-			{Value: "3", Text: "串行继续"},
-			{Value: "4", Text: "普通并发"},
-			{Value: "5", Text: "并发比较"},
+			{Value: "1", Text: biz.T("scene_test_history.scene_type_1")},
+			{Value: "2", Text: biz.T("scene_test_history.scene_type_2")},
+			{Value: "3", Text: biz.T("scene_test_history.scene_type_3")},
+			{Value: "4", Text: biz.T("scene_test_history.scene_type_4")},
+			{Value: "5", Text: biz.T("scene_test_history.scene_type_5")},
 		}).FieldDefault("1").FieldHelpMsg(sceneTypeMsg)
-	formList.AddField("测试结果", "result", db.Varchar, form.Text)
-	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
-	formList.AddField("环境类型", "env_type", db.Int, form.Radio).
+	formList.AddField(biz.T("common.test_result"), "result", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.env_type_label"), "env_type", db.Int, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "开发", Value: "1"},
-			{Text: "测试", Value: "2"},
-			{Text: "预发", Value: "3"},
-			{Text: "演示", Value: "4"},
-			{Text: "生产", Value: "5"},
+			{Text: biz.T("common.env_type._1"), Value: "1"},
+			{Text: biz.T("common.env_type._2"), Value: "2"},
+			{Text: biz.T("common.env_type._3"), Value: "3"},
+			{Text: biz.T("common.env_type._4"), Value: "4"},
+			{Text: biz.T("common.env_type._5"), Value: "5"},
 		}).FieldDefault("2")
-	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
-	formList.AddField("所属产品", "product", db.Varchar, form.Text)
-	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
+	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.user_name"), "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldNowWhenInsert().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldNowWhenUpdate().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
+	formList.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
 	detail := playbookTestHistory.GetDetail()
-	detail.AddField("唯一标识", "id", db.Int)
-	detail.AddField("场景描述", "name", db.Varchar)
-	detail.AddField("数据文件列表", "data_file_list", db.Longtext).
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return strings.Replace(model.Value, ",", ",<br>", -1)
 		})
-	detail.AddField("最近数据文件", "last_file", db.Varchar)
-	detail.AddField("场景类型", "scene_type", db.Enum).
+	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar)
+	detail.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "串行中断"
+				return biz.T("scene_test_history.scene_type_1")
 			}
 			if model.Value == "2" {
-				return "串行比较"
+				return biz.T("scene_test_history.scene_type_2")
 			}
 			if model.Value == "3" {
-				return "串行继续"
+				return biz.T("scene_test_history.scene_type_3")
 			}
 			if model.Value == "4" {
-				return "普通并发"
+				return biz.T("scene_test_history.scene_type_4")
 			}
 			if model.Value == "5" {
-				return "并发比较"
+				return biz.T("scene_test_history.scene_type_5")
 			}
-			return "串行中断"
+			return biz.T("scene_test_history.scene_type_1")
 		})
-	detail.AddField("测试结果", "result", db.Varchar)
-	detail.AddField("失败原因", "fail_reason", db.Longtext)
-	detail.AddField("环境类型", "env_type", db.Int).
+	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
+	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
+	detail.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "开发"
+				return biz.T("common.env_type._1")
 			} else if model.Value == "2" {
-				return "测试"
+				return biz.T("common.env_type._2")
 			} else if model.Value == "3" {
-				return "预发"
+				return biz.T("common.env_type._3")
 			} else if model.Value == "4" {
-				return "演示"
+				return biz.T("common.env_type._4")
 			} else if model.Value == "5" {
-				return "生产"
+				return biz.T("common.env_type._5")
 			}
 			return ""
 		})
-	detail.AddField("备注", "remark", db.Longtext)
-	detail.AddField("所属产品", "product", db.Varchar)
-	detail.AddField("创建人", "user_name", db.Varchar)
-	detail.AddField("创建时间", "created_at", db.Timestamp)
-	detail.AddField("更新时间", "updated_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.product"), "product", db.Varchar)
+	detail.AddField(biz.T("common.user_name"), "user_name", db.Varchar)
+	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)
+	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
+	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp)
 
-	detail.SetTable("scene_test_history").SetTitle("场景测试历史").SetDescription("场景测试历史")
+	detail.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
 	return playbookTestHistory
 }

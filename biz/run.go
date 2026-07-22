@@ -123,7 +123,7 @@ func GetStrFromHtml(rawStr string) (afterTxt string) {
 
 	afterTxt = doc.Text()
 	if len(afterTxt) == 0 {
-		Logger.Warning("未找到有效信息，请核对~")
+		Logger.Warning(T("warn.no_valid_info"))
 	}
 
 	return
@@ -467,7 +467,7 @@ func RunTestData(id string) (err error) {
 				for i := 0; i < testData.RunNum; i++ {
 					wg.Add(1)
 					go func(times int) {
-						Logger.Info("并发执行次数: %d", times)
+						Logger.Info(T("info.concurrent_run_count"), times)
 						response, err = api.Run(testData.UrlQuery, nil)
 						if err != nil {
 							Logger.Error("%s", err)
@@ -479,7 +479,7 @@ func RunTestData(id string) (err error) {
 				}
 			} else {
 				for i := 0; i < testData.RunNum; i++ {
-					Logger.Info("串行执行次数: %d", i+1)
+					Logger.Info(T("info.serial_run_count"), i+1)
 					response, err = api.Run(testData.UrlQuery, nil)
 					err = apiRelation.SaveTestResult(nil, response)
 					if err != nil {
@@ -498,7 +498,7 @@ func RunTestData(id string) (err error) {
 					afterData, _ := GetUniBody(data, testData.App)
 					wg.Add(1)
 					go func(times int, inBody map[string]interface{}) {
-						Logger.Info("串行执行次数: %d", times+1)
+						Logger.Info(T("info.serial_run_count"), times+1)
 						response, err = api.Run(testData.UrlQuery, inBody)
 						if err != nil {
 							Logger.Error("%s", err)
@@ -511,7 +511,7 @@ func RunTestData(id string) (err error) {
 			} else {
 				for i := 0; i < testData.RunNum; i++ {
 					afterData, err := GetUniBody(data, testData.App)
-					Logger.Info("串行执行次数: %d", i+1)
+					Logger.Info(T("info.serial_run_count"), i+1)
 					response, err = api.Run(testData.UrlQuery, afterData)
 					err = apiRelation.SaveTestResult(afterData, response)
 					if err != nil {

@@ -19,39 +19,39 @@ func GetApiTestResultTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("自增主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("接口ID", "api_id", db.Varchar).FieldWidth(200).
+	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).FieldWidth(200).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("提供变量", "out_vars", db.Longtext).FieldWidth(500)
-	info.AddField("关联应用", "app", db.Varchar).
+	info.AddField(biz.T("api_test_result.out_vars"), "out_vars", db.Longtext).FieldWidth(500)
+	info.AddField(biz.T("common.app"), "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable()
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldSortable()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
 	apps := biz.GetApps()
-	info.AddSelectBox("关联应用", apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
 
-	info.SetTable("api_test_result").SetTitle("变量提供").SetDescription("变量提供")
+	info.SetTable("api_test_result").SetTitle(biz.T("api_test_result.title")).SetDescription(biz.T("api_test_result.description"))
 
 	formList := apiTestResult.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("接口ID", "api_id", db.Varchar, form.Text)
-	formList.AddField("提供变量", "out_vars", db.Longtext, form.Text)
-	formList.AddField("关联应用", "app", db.Varchar, form.Text)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text)
+	formList.AddField(biz.T("api_test_result.out_vars"), "out_vars", db.Longtext, form.Text)
+	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("api_test_result").SetTitle("变量提供").SetDescription("变量提供")
+	formList.SetTable("api_test_result").SetTitle(biz.T("api_test_result.title")).SetDescription(biz.T("api_test_result.description"))
 
 	return apiTestResult
 }

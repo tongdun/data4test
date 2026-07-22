@@ -105,7 +105,7 @@ func (df DataFile) ChangeOutputValue(outputRaw map[string][]interface{}) (output
 					vlaueStr := item.Value.(string)
 					tmpList := strings.Split(vlaueStr, ":")
 					if len(tmpList) < 3 {
-						err = fmt.Errorf("change_output值定义有误，请确认~")
+						err = fmt.Errorf(T("error.change_output_invalid"))
 						Logger.Error("%v", err)
 						return
 					}
@@ -199,7 +199,7 @@ func (df DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error
 		var templateName, targetName string
 		tmpValue := Interface2Str(fileValue)
 		if len(tmpValue) == 0 {
-			err = fmt.Errorf("modify_file的值未定义，请先定义")
+			err = fmt.Errorf(T("error.modify_file_undefined"))
 			Logger.Error("%s", err)
 			return
 		}
@@ -223,16 +223,16 @@ func (df DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error
 						ret = Interface2Str(tmpBody[dataName])
 						targetName = strings.Replace(targetName, rawStrDef, ret, -1)
 					} else {
-						err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
+						err = fmt.Errorf(T("error.variable_not_found"), dataName)
 						Logger.Error("%s", err)
 						return
 					}
 				}
 			} else {
-				Logger.Warning("[%s] 没有需替换的数据，请核对~", targetName)
+				Logger.Warning(T("warning.no_data_to_replace"), targetName)
 			}
 		} else {
-			err = fmt.Errorf("modify_file的值未定义完整，请先定义， e.g: name.xml:name_{uniValueVarName}.xml")
+			err = fmt.Errorf(T("error.modify_file_incomplete"))
 			Logger.Error("%s", err)
 			return
 		}
@@ -260,7 +260,7 @@ func (df DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error
 				if _, ok := tmpBody[dataName]; ok {
 					ret = Interface2Str(tmpBody[dataName])
 				} else {
-					err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", dataName)
+					err = fmt.Errorf(T("error.variable_not_found"), dataName)
 					Logger.Error("%s", err)
 					return
 				}
@@ -274,7 +274,7 @@ func (df DataFile) ModifyFileWithData(bodys []map[string]interface{}) (err error
 				Logger.Error("%s", err)
 			}
 		} else {
-			Logger.Warning("[%s] 没有需要替换的数据，如有需要，请先进行占位符定义", templateFilePath)
+			Logger.Warning(T("warning.no_placeholder_data"), templateFilePath)
 		}
 	}
 	return
@@ -327,7 +327,7 @@ func CreateTargetFile(lang, dataFileName, createType string, target interface{},
 	tmpValue := Interface2Str(target)
 	strList := strings.Split(tmpValue, ":")
 	if len(strList) == 0 {
-		err = fmt.Errorf("%s的值未定义，请先定义", createType)
+		err = fmt.Errorf(T("error.value_undefined"), createType)
 		return
 	} else {
 		tmpFileName := strings.Split(strList[0], ".")
@@ -407,7 +407,7 @@ func (df DataFile) RecordTargetFile(createType string, target interface{}) (err 
 	tmpValue := Interface2Str(target)
 	strList := strings.Split(tmpValue, ":")
 	if len(strList) == 0 {
-		err = fmt.Errorf("%s的值未定义，请先定义", createType)
+		err = fmt.Errorf(T("error.value_undefined"), createType)
 		return
 	} else {
 		tmpFileName := strings.Split(strList[0], ".")
@@ -443,6 +443,7 @@ func (df DataFile) RecordTargetFile(createType string, target interface{}) (err 
 			splitTag = "|"
 		}
 	}
+
 	sort.Strings(keyList)
 
 	if createType == "sql" {

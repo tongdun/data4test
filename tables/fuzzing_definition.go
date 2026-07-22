@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"data4test/biz"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
@@ -18,37 +19,37 @@ func GetFuzzingDefinitionTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("自增主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("数据描述", "name", db.Varchar).
+	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("值", "value", db.Longtext)
-	info.AddField("值类型", "type", db.Enum).
+	info.AddField(biz.T("common.value"), "value", db.Longtext)
+	info.AddField(biz.T("common.value_type"), "type", db.Enum).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(160)
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.SetTable("fuzzing_definition").SetTitle("随机数据定义").SetDescription("随机数据定义")
+	info.SetTable("fuzzing_definition").SetTitle(biz.T("fuzzing_definition.title")).SetDescription(biz.T("fuzzing_definition.description"))
 
 	formList := fuzzingDefinition.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("数据描述", "name", db.Varchar, form.Text)
-	formList.AddField("值", "value", db.Longtext, form.Text)
-	formList.AddField("值类型", "type", db.Enum, form.Text)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.value"), "value", db.Longtext, form.Text)
+	formList.AddField(biz.T("common.value_type"), "type", db.Enum, form.Text)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("fuzzing_definition").SetTitle("随机数据定义").SetDescription("随机数据定义")
+	formList.SetTable("fuzzing_definition").SetTitle(biz.T("fuzzing_definition.title")).SetDescription(biz.T("fuzzing_definition.description"))
 
 	return fuzzingDefinition
 }

@@ -47,9 +47,9 @@ func ApiDetailCheck(method, path string, bodyList, pathList, queryList, respList
 			checkTag = true
 		} else {
 			if err != nil {
-				err = fmt.Errorf("%v,  GET请求定义了Body参数,与规范不符，请核对", err)
+				err = E("error.get_body_param_invalid", err)
 			} else {
-				err = fmt.Errorf("%s_%s GET请求定义了Body参数,与规范不符", method, path)
+				err = E("error.get_body_param", method, path)
 			}
 		}
 
@@ -62,9 +62,9 @@ func ApiDetailCheck(method, path string, bodyList, pathList, queryList, respList
 			if value == nil {
 				checkTag = false
 				if err != nil {
-					err = fmt.Errorf("%v,  GET请求未定义返回信息data字段,与规范不符", err)
+					err = E("error.get_missing_data_field_invalid", err)
 				} else {
-					err = fmt.Errorf("%s_%s GET请求未定义返回信息data字段,与规范不符", method, path)
+					err = E("error.get_missing_data_field", method, path)
 				}
 			}
 		}
@@ -86,9 +86,9 @@ func ApiDetailCheck(method, path string, bodyList, pathList, queryList, respList
 		if !respTag {
 			checkTag = false
 			if err != nil {
-				err = fmt.Errorf("%v, 返回信息未定义唯一标识", err)
+				err = E("error.missing_unique_id_invalid", err)
 			} else {
-				err = fmt.Errorf("%s_%s 返回信息未定义唯一标识", method, path)
+				err = E("error.missing_unique_id", method, path)
 			}
 		}
 	}
@@ -97,9 +97,9 @@ func ApiDetailCheck(method, path string, bodyList, pathList, queryList, respList
 		if len(pathList) == 0 {
 			checkTag = false
 			if err != nil {
-				err = fmt.Errorf("%v, 未定义Path变量", err)
+				err = E("error.missing_path_variable_invalid", err)
 			} else {
-				err = fmt.Errorf("%s_%s 未定义Path变量", method, path)
+				err = E("error.missing_path_variable", method, path)
 			}
 		} else {
 			checkTag = true
@@ -119,7 +119,7 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 	baseUrl := fmt.Sprintf("http://%s/aries/cicd/updateNodeStatus", CICD_HOST)
 	nodeId := apiCheck.NodeId
 	if len(apiCheck.DevEnvHost) == 0 {
-		err = fmt.Errorf("请配置接口文档路径")
+		err = E("error.config_api_doc_path")
 		go CallBack4Cicd(baseUrl, nodeId, status)
 		return status, err
 	}
@@ -182,7 +182,7 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 		UpdateApiChangeLog(appApiChange)
 
 		if failCount > 0 {
-			err = fmt.Errorf("导入完成，%d个接口不符合规范，请前往[接口定义]列表查看", failCount)
+			err = E("error.import_fail_count", failCount)
 			go CallBack4Cicd(baseUrl, nodeId, status)
 			return status, err
 		} else {
@@ -198,7 +198,7 @@ func GetApiChkResult(apiCheck ApiCheck) (status string, err error) {
 			return status, err
 		}
 	} else {
-		err = fmt.Errorf("导入失败：%s", err)
+		err = E("error.import_failed", err)
 		go CallBack4Cicd(baseUrl, nodeId, status)
 		return status, err
 	}
@@ -212,13 +212,13 @@ func GetChangedContent(infoType string, newList, deletedList, changedList, oldLi
 	if len(newList) > 0 {
 		newByte, _ := json.Marshal(newList)
 		newStr := string(newByte)
-		changedContent = fmt.Sprintf("%s\n新增:\n%s", changedContent, newStr)
+		changedContent = fmt.Sprintf(T("label.new"), changedContent, newStr)
 	}
 
 	if len(deletedList) > 0 {
 		deletedByte, _ := json.Marshal(deletedList)
 		deletedStr := string(deletedByte)
-		changedContent = fmt.Sprintf("%s\n被删除:\n%s", changedContent, deletedStr)
+		changedContent = fmt.Sprintf(T("label.deleted"), changedContent, deletedStr)
 	}
 	if len(changedList) > 0 {
 		changedByte, _ := json.Marshal(changedList)
@@ -227,8 +227,8 @@ func GetChangedContent(infoType string, newList, deletedList, changedList, oldLi
 		oldByte, _ := json.Marshal(oldList)
 		oldStr := string(oldByte)
 
-		changedContent = fmt.Sprintf("%s\n修改前:\n%s", changedContent, oldStr)
-		changedContent = fmt.Sprintf("%s\n修改后:\n%s", changedContent, changedStr)
+		changedContent = fmt.Sprintf(T("label.before_change"), changedContent, oldStr)
+		changedContent = fmt.Sprintf(T("label.after_change"), changedContent, changedStr)
 	}
 
 	return
@@ -296,7 +296,7 @@ func UpdateApiChangeLog(appApiChange AppApiChange) {
 
 	allCount := counts[0] + counts[1] + counts[2]
 	if appApiChange.CurApiSum > 0 || allCount > 0 {
-		appApiChange.ApiCheckResult = fmt.Sprintf("规范检查: 总数：%v, 成功: %v, 失败: %v, 未知: %v\n", allCount, counts[0], counts[1], counts[2])
+		appApiChange.ApiCheckResult = fmt.Sprintf(T("label.spec_check"), allCount, counts[0], counts[1], counts[2])
 	}
 
 	if appApiChange.NewApiSum > 0 || appApiChange.DeletedApiSum > 0 || appApiChange.ChangedApiSum > 0 || len(appApiChange.ApiCheckResult) > 0 {

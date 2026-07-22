@@ -12,7 +12,7 @@ func IsValueInSysParameter(sourceName, targetName string) (b bool, err error) {
 	models.Orm.Table("sys_parameter").Where("name = ?", sourceName).Find(&sysParameter)
 
 	if len(sysParameter.ValueList) == 0 {
-		err1 := fmt.Errorf("未找到系统参数[%s]，请先定义，再使用", sourceName)
+		err1 := fmt.Errorf(T("error.sys_param_not_found"), sourceName)
 		err = err1
 		Logger.Error("%s", err)
 		return
@@ -115,7 +115,7 @@ func GetRUID(keyName string) (isExist bool) {
 	models.Orm.Table("sys_parameter").Where("name = ?", "RUID").Find(&sysParameter)
 
 	if len(sysParameter.ValueList) == 0 {
-		err := fmt.Errorf("未找到系统参数[%s]，请先定义，再使用", "RUID")
+		err := fmt.Errorf(T("error.sys_param_not_found"), "RUID")
 		Logger.Error("%s", err)
 		return
 	}
@@ -136,7 +136,7 @@ func IsInRouter4Add(path string) (isIn bool) {
 	models.Orm.Table("sys_parameter").Where("name = ?", "Router4Add").Find(&sysParameter)
 
 	if len(sysParameter.ValueList) == 0 {
-		err := fmt.Errorf("未找到系统参数[%s]，请先定义，再使用", "Router4Add")
+		err := fmt.Errorf(T("error.sys_param_not_found"), "Router4Add")
 		Logger.Error("%s", err)
 		return
 	}
@@ -171,11 +171,11 @@ func GetValueFromMapDef(parameterName, keyName string) (value string, err error)
 		if v, ok := valueDefine[keyName]; ok {
 			value = v
 		} else {
-			err = fmt.Errorf("[%s]参数中未定义[%s]的值，请核对~", parameterName, keyName)
+			err = fmt.Errorf(T("error.param_value_not_defined"), parameterName, keyName)
 			Logger.Warning("%s", err)
 		}
 	} else {
-		err = fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		err = fmt.Errorf(T("error.sys_param_value_not_defined"), parameterName)
 		Logger.Warning("%s", err)
 	}
 

@@ -19,55 +19,55 @@ func GetApiIdCountTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("自增主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("接口ID", "api_id", db.Varchar).
+	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("接口描述", "api_desc", db.Varchar).
+	info.AddField(biz.T("common.api_desc"), "api_desc", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("执行次数", "run_times", db.Int)
-	info.AddField("测试次数", "test_times", db.Int)
-	info.AddField("通过次数", "pass_times", db.Int)
-	info.AddField("失败次数", "fail_times", db.Int)
-	info.AddField("未测试次数", "untest_times", db.Int)
-	info.AddField("测试结果", "test_result", db.Char).
+	info.AddField(biz.T("common.run_time"), "run_times", db.Int)
+	info.AddField(biz.T("api_id_count.test_times"), "test_times", db.Int)
+	info.AddField(biz.T("api_id_count.pass_times"), "pass_times", db.Int)
+	info.AddField(biz.T("api_id_count.fail_times"), "fail_times", db.Int)
+	info.AddField(biz.T("api_id_count.untest_times"), "untest_times", db.Int)
+	info.AddField(biz.T("api_id_count.test_result"), "test_result", db.Char).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("失败原因", "fail_reason", db.Longtext)
-	info.AddField("关联应用", "app", db.Varchar).
+	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
+	info.AddField(biz.T("common.app"), "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(160)
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
 	apps := biz.GetApps()
-	info.AddSelectBox("关联应用", apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
 
-	info.SetTable("api_id_count").SetTitle("接口统计").SetDescription("接口统计")
+	info.SetTable("api_id_count").SetTitle(biz.T("api_id_count.title")).SetDescription(biz.T("api_id_count.description"))
 
 	formList := apiIdCount.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("接口ID", "api_id", db.Varchar, form.Text)
-	formList.AddField("接口描述", "api_desc", db.Varchar, form.Text)
-	formList.AddField("执行次数", "run_times", db.Int, form.Number)
-	formList.AddField("测试次数", "test_times", db.Int, form.Number)
-	formList.AddField("通过次数", "pass_times", db.Int, form.Number)
-	formList.AddField("失败次数", "fail_times", db.Int, form.Number)
-	formList.AddField("未测试次数", "untest_times", db.Int, form.Number)
-	formList.AddField("测试结果", "test_result", db.Char, form.Text)
-	formList.AddField("失败原因", "fail_reason", db.Longtext, form.Text)
-	formList.AddField("关联应用", "app", db.Varchar, form.Text)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.api_desc"), "api_desc", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.run_time"), "run_times", db.Int, form.Number)
+	formList.AddField(biz.T("api_id_count.test_times"), "test_times", db.Int, form.Number)
+	formList.AddField(biz.T("api_id_count.pass_times"), "pass_times", db.Int, form.Number)
+	formList.AddField(biz.T("api_id_count.fail_times"), "fail_times", db.Int, form.Number)
+	formList.AddField(biz.T("api_id_count.untest_times"), "untest_times", db.Int, form.Number)
+	formList.AddField(biz.T("api_id_count.test_result"), "test_result", db.Char, form.Text)
+	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext, form.Text)
+	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("api_id_count").SetTitle("接口统计").SetDescription("接口统计")
+	formList.SetTable("api_id_count").SetTitle(biz.T("api_id_count.title")).SetDescription(biz.T("api_id_count.description"))
 
 	return apiIdCount
 }

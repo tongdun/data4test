@@ -41,7 +41,7 @@ func GetProducts() (products []types.FieldOption) {
 	}
 
 	if len(products) == 0 {
-		products = GetNoSelectOption("请先前往[环境-产品配置]定义产品信息")
+		products = GetNoSelectOption(T("info.define_product_first"))
 	}
 
 	return
@@ -64,7 +64,7 @@ func GetProductsByUpdateTime(yearNo int) (products []types.FieldOption) {
 	}
 
 	if len(products) == 0 {
-		products = GetNoSelectOption("请先前往[环境-产品配置]定义产品信息")
+		products = GetNoSelectOption(T("info.define_product_first"))
 	}
 
 	return
@@ -85,7 +85,7 @@ func GetTestcaseType() (caseTypes []types.FieldOption) {
 	}
 
 	if len(caseTypes) == 0 {
-		caseTypes = GetNoSelectOption("请先前往[环境-系统参数]定义参数[TestCaseType]cf")
+		caseTypes = GetNoSelectOption(T("info.define_sys_param"))
 	}
 
 	return
@@ -177,14 +177,14 @@ func GetAPISumUp() (sumUps []map[string]types.InfoItem) {
 	models.Orm.Table("product_count").Order("all_count DESC").Limit(10).Find(&allApi)
 	for _, item := range allApi {
 		sumup = make(map[string]types.InfoItem, 1)
-		sumup["关联项目"] = types.InfoItem{Content: item.Project}
-		sumup["API总数"] = types.InfoItem{Content: item.AllCount}
-		sumup["可自动化数"] = types.InfoItem{Content: item.AutomatableCount}
-		sumup["不可自动化数"] = types.InfoItem{Content: item.UnautomatableCount}
-		sumup["自动化测试总数"] = types.InfoItem{Content: item.AutoTestCount}
-		sumup["未测试总数"] = types.InfoItem{Content: item.UntestCount}
-		sumup["通过总数"] = types.InfoItem{Content: item.PassCount}
-		sumup["失败总数"] = types.InfoItem{Content: item.FailCount}
+		sumup[T("ui.related_project")] = types.InfoItem{Content: item.Project}
+		sumup[T("ui.api_total")] = types.InfoItem{Content: item.AllCount}
+		sumup[T("ui.automatable_count")] = types.InfoItem{Content: item.AutomatableCount}
+		sumup[T("ui.unautomatable_count")] = types.InfoItem{Content: item.UnautomatableCount}
+		sumup[T("ui.automated_test_total")] = types.InfoItem{Content: item.AutoTestCount}
+		sumup[T("ui.untested_total")] = types.InfoItem{Content: item.UntestCount}
+		sumup[T("ui.pass_total")] = types.InfoItem{Content: item.PassCount}
+		sumup[T("ui.fail_total")] = types.InfoItem{Content: item.FailCount}
 		sumUps = append(sumUps, sumup)
 	}
 	return
@@ -201,23 +201,23 @@ func GetBoxData() (boxPlural []Box) {
 	var projectCount, apiCaseCount, fuzzingCaseCount, dataCaseCount, testAll template.HTML
 
 	models.Orm.Table("env_config").Count(&projectCount)
-	box1 := Box{"环境总数", "white", projectCount, "ion-ios-gear-outline"}
+	box1 := Box{template.HTML(T("ui.env_total")), "white", projectCount, "ion-ios-gear-outline"}
 	boxPlural = append(boxPlural, box1)
 
 	models.Orm.Table("api_definition").Count(&apiCaseCount)
-	box2 := Box{"接口用例总数", "white", apiCaseCount, "ion-ios-gear-outline"}
+	box2 := Box{template.HTML(T("ui.api_case_total")), "white", apiCaseCount, "ion-ios-gear-outline"}
 	boxPlural = append(boxPlural, box2)
 
 	models.Orm.Table("api_test_data").Count(&dataCaseCount)
-	box3 := Box{"测试数据总数", "white", dataCaseCount, "ion-ios-gear-outline"}
+	box3 := Box{template.HTML(T("ui.test_data_total")), "white", dataCaseCount, "ion-ios-gear-outline"}
 	boxPlural = append(boxPlural, box3)
 
 	models.Orm.Table("api_fuzzing_data").Count(&fuzzingCaseCount)
-	box4 := Box{"模糊数据总数", "white", fuzzingCaseCount, "ion-ios-gear-outline"}
+	box4 := Box{template.HTML(T("ui.fuzz_data_total")), "white", fuzzingCaseCount, "ion-ios-gear-outline"}
 	boxPlural = append(boxPlural, box4)
 
 	models.Orm.Table("api_test_detail").Count(&testAll)
-	box5 := Box{"测试总次数", "white", testAll, "ion-ios-gear-outline"}
+	box5 := Box{template.HTML(T("ui.test_total_count")), "white", testAll, "ion-ios-gear-outline"}
 	boxPlural = append(boxPlural, box5)
 
 	return

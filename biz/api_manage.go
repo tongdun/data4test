@@ -723,7 +723,7 @@ func SavePlaybook(name string, apiList, product []string) (err error) {
 	scene.RunTime = 1
 	scene.SceneType = 1
 	scene.Priority = 999
-	scene.UserName = "控制台"
+		scene.UserName = T("label.console")
 
 	for _, item := range product {
 		scene.Product = item
@@ -761,7 +761,7 @@ func GetDataInfo(appName, method, path, dataDesc string) (apiModel ApiDataSaveMo
 	if tagNum >= 3 {
 		fullName = dataDesc
 	} else {
-		fullName = fmt.Sprintf("控制台-%s-%s-%s", apiDef.ApiModule, apiDef.ApiDesc, dataDesc)
+		fullName = fmt.Sprintf(T("format.console_prefix"), apiDef.ApiModule, apiDef.ApiDesc, dataDesc)
 	}
 	models.Orm.Table("scene_data").Where("app = ? and api_id = ? and name = ?", appName, apiId, fullName).Find(&sceneData)
 	apiModel.DataDesc = dataDesc
@@ -905,7 +905,7 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 	}
 
 	if len(sceneData.ApiId) == 0 {
-		fullName = fmt.Sprintf("控制台-%s-%s-%s", module, apiDesc, dataDesc)
+		fullName = fmt.Sprintf(T("format.console_prefix"), module, apiDesc, dataDesc)
 		models.Orm.Table("scene_data").Where("app = ? and name = ?  and file_type = 1", appName, fullName).Find(&sceneData)
 	}
 
@@ -948,7 +948,7 @@ func GetDataInfoByDataDesc(appName, module, apiDesc, dataDesc string) (apiModel 
 	}
 
 	if len(afterTxt) == 0 {
-		Logger.Error("数据文件内容为空，请校对~")
+		Logger.Error(T("error.data_file_empty"))
 		return
 	}
 
@@ -1375,7 +1375,7 @@ func GetHistoryByFileName(fileName string) (apiModel HistorySaveModel, err error
 func GetSceneHistory(name string) (sceneModel SceneHistorySaveModel, err error) {
 	tmpList := strings.Split(name, ":")
 	if len(tmpList) < 2 {
-		err = fmt.Errorf("数据有误，请核对， name: %v", name)
+		err = E("error.invalid_data_format", name)
 		return
 	}
 	var sceneRecord SceneRecord
@@ -1384,17 +1384,17 @@ func GetSceneHistory(name string) (sceneModel SceneHistorySaveModel, err error) 
 	sceneModel.Name = sceneRecord.Name
 	switch sceneRecord.SceneType {
 	case 1:
-		sceneModel.SceneType = "串行中断"
+		sceneModel.SceneType = T("scene_type.serial_break")
 	case 2:
-		sceneModel.SceneType = "串行比较"
+		sceneModel.SceneType = T("scene_type.serial_compare")
 	case 3:
-		sceneModel.SceneType = "串行继续"
+		sceneModel.SceneType = T("scene_type.serial_continue")
 	case 4:
-		sceneModel.SceneType = "普通并发"
+		sceneModel.SceneType = T("scene_type.parallel")
 	case 5:
-		sceneModel.SceneType = "并发比较"
+		sceneModel.SceneType = T("scene_type.parallel_compare")
 	default:
-		sceneModel.SceneType = "串行中断"
+		sceneModel.SceneType = T("scene_type.serial_break")
 	}
 
 	sceneModel.FailReason = sceneRecord.FailReason

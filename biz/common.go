@@ -137,7 +137,7 @@ func Interface2Str(value interface{}) (strValue string) {
 			readerNew, err1 := jsonNew.Marshal(&value)
 			if err1 != nil {
 				Logger.Error("%s", err1)
-				errTmp := fmt.Errorf("不支持类型: %v 的转换为字符串, 值: %v,  原样请求，如有需要，请联系管理员~", varType, value)
+				errTmp := E("error.unsupported_type_conversion", varType, value)
 				Logger.Warning("%s", errTmp)
 			} else {
 				strValue = string(readerNew)
@@ -688,7 +688,7 @@ func GetChData(rawStr string) (newStr string) {
 				value = chinaid.Mobile()
 			case "Gender", "Sex":
 				count := RandInt(0, 4)
-				value = [...]string{"男", "女", "未知"}[count]
+				value = [...]string{T("gender.male"), T("gender.female"), T("gender.unknown")}[count]
 			case "CardNo", "BankNo":
 				value = chinaid.BankNo()
 			case "Address":
@@ -698,11 +698,11 @@ func GetChData(rawStr string) (newStr string) {
 			case "Company":
 				count := RandInt(0, 10)
 				prefix := GetRandomRune(4)
-				suffix := [...]string{"集团", "控股有限公司", "科技有限公司", "出口公司", "进口公司", "证券公司", "保险公司", "投资公司", "证券公司", "银行"}[count]
+				suffix := [...]string{T("company.suffix_group"), T("company.suffix_holding"), T("company.suffix_tech"), T("company.suffix_export"), T("company.suffix_import"), T("company.suffix_securities"), T("company.suffix_insurance"), T("company.suffix_investment"), T("company.suffix_securities"), T("company.suffix_bank")}[count]
 				value = fmt.Sprintf("%s%s", prefix, suffix)
 			case "Country":
 				count := RandInt(0, 10)
-				value = [...]string{"中国", "美国", "英国", "俄罗斯", "日本", "韩国", "马来西亚", "新加坡", "菲律宾", "澳大利亚"}[count]
+				value = [...]string{T("country.china"), T("country.usa"), T("country.uk"), T("country.russia"), T("country.japan"), T("country.korea"), T("country.malaysia"), T("country.singapore"), T("country.philippines"), T("country.australia")}[count]
 			case "Province", "City", "State":
 				value = chinaid.ProvinceAndCity()
 
@@ -1061,7 +1061,7 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 		if value, ok := depOutVars[keyName]; ok {
 			afterStr = value[0]
 		} else {
-			err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", keyName)
+			err = E("error.variable_not_found", keyName)
 			Logger.Error("%s", err)
 			Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
 			return
@@ -1083,7 +1083,7 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 					tmpKey = Interface2Str(value[0])
 				}
 			} else {
-				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
+				err = E("error.variable_not_found", defKey)
 				Logger.Error("%s", err)
 				Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
 				return
@@ -1116,7 +1116,7 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 							}
 							tmpStr = strings.Replace(tmpStr, rawStrDef, tmpKey, -1)
 						} else {
-							err = fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), inValue, rawStrDef)
+							err = E("error.param_index_out_of_range", string(item[1]), inValue, rawStrDef)
 							Logger.Error("%s", err)
 							Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
 							return
@@ -1124,7 +1124,7 @@ func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[strin
 					}
 				}
 			} else {
-				err = fmt.Errorf("未找到变量[%s]定义，请先定义或关联", defKey)
+				err = E("error.variable_not_found", defKey)
 				Logger.Error("%s", err)
 				Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
 				return
@@ -1181,13 +1181,13 @@ func GetTreeDataValue(keyName string, deep int, first, second string) (after1, a
 	var sysPara SysParameter
 	models.Orm.Table("sys_parameter").Where("name = ?", keyName).Find(&sysPara)
 	if len(sysPara.ValueList) == 0 {
-		Logger.Error("未找到参数: %s的定义，请核对", keyName)
+		Logger.Error(T("error.parameter_not_found"), keyName)
 		return
 	}
 	err := json.Unmarshal([]byte((sysPara.ValueList)), &chinaData)
 	if err != nil {
 		Logger.Debug("%s:%v", keyName, sysPara.ValueList)
-		Logger.Error("层级参数定义有误，请核对: %v", err)
+		Logger.Error(T("error.hierarchy_param_invalid"), err)
 		return
 	}
 	if deep == 1 {
@@ -1280,7 +1280,7 @@ func GetScriptRunEngin(filePath string) (runEngine string, err error) {
 	}
 
 	if scanner.Err() != nil {
-		errTmp = fmt.Errorf("读取文件时发生错误")
+		errTmp = E("error.read_file_error")
 		Logger.Error("%s", errTmp)
 		err = errTmp
 		return
@@ -1289,7 +1289,7 @@ func GetScriptRunEngin(filePath string) (runEngine string, err error) {
 	if strings.Contains(firstLine, "#!") {
 		runEngine = strings.Trim(firstLine, "#!")
 	} else {
-		errTmp = fmt.Errorf("首行未找到执行引擎，请先定义执行引擎， e.g.: #!/bin/bash")
+		errTmp = E("error.missing_exec_engine")
 		Logger.Error("%s", errTmp)
 		err = errTmp
 		return

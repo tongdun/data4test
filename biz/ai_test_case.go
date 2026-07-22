@@ -82,7 +82,7 @@ func GetCaseFromReplyList(replyList []string) (caseList []map[string]string, err
 			}
 		}
 		if len(caseSubList) == 0 {
-			errTmp := fmt.Errorf("第%d步返回信息未匹配到用例，请核对~", index+1)
+			errTmp := fmt.Errorf(T("error.step_no_case_match"), index+1)
 			Logger.Error("%s", errTmp)
 			if err == nil {
 				err = errTmp
@@ -196,10 +196,10 @@ func (input InputCase) AICreateCaseByApiDefine(ids string) (err error) {
 	var apiDefStr string
 	for index, apiDef := range apiDefs {
 		if index == 0 {
-			tmpStr := fmt.Sprintf("接口定义如下：\n接口ID: %s, 所属模块: %s, 接口描述: %v, 请求方法: %s, 请求路径: %s, Header参数: %v, Path参数：%v, Query参数: %v, Body参数: %v, Resp参数: %v;\n", apiDef.ApiId, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
+			tmpStr := fmt.Sprintf(T("prompt.api_definition_first"), apiDef.ApiId, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
 			apiDefStr = tmpStr
 		} else {
-			tmpStr := fmt.Sprintf("接口ID: %s, 所属模块: %s, 接口描述: %v, 请求方法: %s, 请求路径: %s, Header参数: %v, Path参数：%v, Query参数: %v, Body参数: %v, Resp参数: %v;\n", apiDef.ApiId, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
+			tmpStr := fmt.Sprintf(T("prompt.api_definition"), apiDef.ApiId, apiDef.ApiModule, apiDef.ApiDesc, apiDef.HttpMethod, apiDef.Path, apiDef.Header, apiDef.Path, apiDef.QueryParameter, apiDef.Body, apiDef.Response)
 			apiDefStr = apiDefStr + tmpStr
 		}
 
@@ -299,7 +299,7 @@ func AIOptimizeCase(ids, optimizeDesc, aiPlatform, createUser string) (err error
 	}
 	data, _ := json.MarshalIndent(rawCaseList, "", "  ")
 	aiCaseStr := string(data)
-	query := fmt.Sprintf("%s\n初始用例如上，%s，并严格按原格式返回", aiCaseStr, optimizeDesc)
+	query := fmt.Sprintf(T("prompt.optimize_case"), aiCaseStr, optimizeDesc)
 	go func(ids, optimizeDesc, aiPlatform string) {
 		defer func() { // 如果遇到panic， 不影响主程序的运行
 			if e := recover(); e != nil {
@@ -316,7 +316,7 @@ func AIOptimizeCase(ids, optimizeDesc, aiPlatform, createUser string) (err error
 		if len(rawCaseList) > 0 {
 			_ = UpdateAICaseByOptimize(ids, replyList[0])
 		} else {
-			Logger.Warning("未获取到回复信息，请核对~")
+			Logger.Warning(T("warning.no_reply_info"))
 		}
 
 	}(ids, optimizeDesc, aiPlatform)
@@ -330,7 +330,7 @@ func UseAiCase(ids, userName string) (err error) {
 	var aiCaseList []AITestCase
 	models.Orm.Table("ai_case").Where("id in (?)", idList).Find(&aiCaseList)
 	if len(aiCaseList) == 0 {
-		err = fmt.Errorf("未找到相关的用例，请核对~")
+		err = fmt.Errorf(T("error.related_case_not_found"))
 		Logger.Error("%s", err)
 		return
 	}

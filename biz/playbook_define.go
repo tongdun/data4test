@@ -53,6 +53,7 @@ type SceneWithNoUpdateTime struct {
 }
 
 type SceneRecord struct {
+	TaskId     string `gorm:"column:task_id" json:"task_id"`
 	Name       string `gorm:"column:name" json:"name" yaml:"name"`
 	ApiList    string `gorm:"column:data_file_list" json:"data_file_list" yaml:"data_file_list"`
 	LastFile   string `gorm:"column:last_file" json:"last_file" yaml:"last_file"`

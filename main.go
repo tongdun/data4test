@@ -98,6 +98,25 @@ func startServer() {
 	var err error
 	r := gin.Default()
 	r.Use(cors.Default())
+	// 同步 GoAdmin 语种到项目 i18n
+	// 尝试从多个来源检测语种：URL参数 → Cookie → Header
+	//r.Use(func(c *gin.Context) {
+	//	lang := c.Query("__ga_lang")
+	//	if lang == "" {
+	//		if cookie, err := c.Cookie("lang"); err == nil && cookie != "" {
+	//			lang = cookie
+	//		}
+	//	}
+	//	if lang == "" {
+	//		if accept := c.GetHeader("Accept-Language"); len(accept) >= 2 {
+	//			lang = accept[:2]
+	//		}
+	//	}
+	//	if lang != "" {
+	//		biz.SetLocale(lang)
+	//	}
+	//	c.Next()
+	//})
 	//pprof.Register(r)  // 性能查看
 
 	eng := engine.Default()
@@ -162,14 +181,29 @@ func startServer() {
 
 	})
 
-	r.GET("/admin/dashboard", ada.Content(pages.GetDashBoardContent))
+	//r.GET("/admin/dashboard", ada.Content(pages.GetDashBoardContent))
+	r.GET("/admin/dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		user, _ := engine.User(ctx)
+		return pages.GetDashBoardContent(ctx, user.Name)
+	}))
 
 	r.GET("/admin/product_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
-		return pages.GetDashBoard2Content(ctx)
+		user, _ := engine.User(ctx)
+		return pages.GetDashBoard2Content(ctx, user.Name)
 	}))
 
 	r.GET("/admin/app_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
-		return pages.GetDashBoard3Content(ctx)
+		user, _ := engine.User(ctx)
+		//reportUser := user.Name
+		return pages.GetDashBoard3Content(ctx, user.Name)
+	}))
+
+	r.GET("/admin/task_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		return pages.GetScheduleReportContent(ctx)
+	}))
+
+	r.GET("/admin/report_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		return pages.GetDashboardByReportId(ctx)
 	}))
 
 	plug, _ := plugins.FindByName("filemanager")
@@ -186,7 +220,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": appList,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -198,24 +232,24 @@ func startServer() {
 			appList := biz.GetDataList()
 			if len(appList) == 0 {
 				data["code"] = 400
-				data["msg"] = "未关联到数据"
+				data["msg"] = biz.T("main.no_data_linked")
 			} else {
 				data["data"] = appList
 				data["code"] = 200
-				data["msg"] = "操作成功"
+				data["msg"] = biz.T("common.operate_success")
 			}
 		} else {
 			dataInfo := biz.GetDataInfoByDataDesc("", "", "", dataDesc)
 			if len(dataInfo.Path) == 0 {
 				data["code"] = 400
-				data["msg"] = "未关联到数据"
+				data["msg"] = biz.T("main.no_data_linked")
 			} else {
 				if dataInfo.BodyMode == "json" {
 					//dataStr
 				}
 				data["data"] = dataInfo
 				data["code"] = 200
-				data["msg"] = "操作成功"
+				data["msg"] = biz.T("common.operate_success")
 			}
 		}
 
@@ -227,7 +261,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": dataFileList,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -237,7 +271,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": assertTemplateList,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -247,7 +281,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": dataFileList,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -266,7 +300,7 @@ func startServer() {
 			data = map[string]interface{}{
 				"data": product,
 				"code": 200,
-				"msg":  "操作成功",
+				"msg":  biz.T("common.operate_success"),
 			}
 		}
 
@@ -279,7 +313,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": allMenus,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -290,7 +324,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": allMenus,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -301,7 +335,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": allMenus,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -312,7 +346,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": allMenus,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -323,7 +357,7 @@ func startServer() {
 		data := map[string]interface{}{
 			"data": allMenus,
 			"code": 200,
-			"msg":  "操作成功",
+			"msg":  biz.T("common.operate_success"),
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -393,7 +427,7 @@ func startServer() {
 		}
 
 		data["code"] = 200
-		data["msg"] = "操作成功"
+		data["msg"] = biz.T("common.operate_success")
 		c.JSON(http.StatusOK, data)
 	})
 
@@ -408,7 +442,7 @@ func startServer() {
 		} else {
 			data["data"] = apiModel
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -423,7 +457,7 @@ func startServer() {
 		} else {
 			data["data"] = sceneModel
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 		c.JSON(http.StatusOK, data)
 	})
@@ -433,10 +467,10 @@ func startServer() {
 		dataList, err := biz.GetAllPlaybook()
 		if err != nil {
 			data["code"] = 400
-			data["msg"] = "获取关联场景失败"
+			data["msg"] = biz.T("main.get_scene_failed")
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 			data["data"] = dataList
 		}
 
@@ -452,10 +486,10 @@ func startServer() {
 		dataList, err := biz.GetPlaybookByName(name, product)
 		if err != nil {
 			data["code"] = 400
-			data["msg"] = "获取场景关联数据失败"
+			data["msg"] = biz.T("main.get_scene_data_failed")
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 			data["data"] = dataList
 		}
 
@@ -489,7 +523,7 @@ func startServer() {
 			data["msg"] = err
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 
 		c.JSON(http.StatusOK, data)
@@ -540,7 +574,7 @@ func startServer() {
 					data["msg"] = err
 				} else {
 					data["code"] = 200
-					data["msg"] = "操作成功"
+					data["msg"] = biz.T("common.operate_success")
 				}
 
 				c.JSON(http.StatusOK, data)
@@ -553,7 +587,7 @@ func startServer() {
 				data["msg"] = err
 			} else {
 				data["code"] = 200
-				data["msg"] = "操作成功"
+				data["msg"] = biz.T("common.operate_success")
 			}
 
 			c.JSON(http.StatusOK, data)
@@ -579,15 +613,15 @@ func startServer() {
 		}
 
 		switch typeTag {
-		case "串行中断":
+		case biz.T("scene_test_history.scene_type_1"):
 			sceneSave.SceneType = 1
-		case "串行比较":
+		case biz.T("scene_test_history.scene_type_2"):
 			sceneSave.SceneType = 2
-		case "串行继续":
+		case biz.T("scene_test_history.scene_type_3"):
 			sceneSave.SceneType = 3
-		case "普通并发":
+		case biz.T("scene_test_history.scene_type_4"):
 			sceneSave.SceneType = 4
-		case "并发比较":
+		case biz.T("scene_test_history.scene_type_5"):
 			sceneSave.SceneType = 5
 		default:
 			sceneSave.SceneType = 1
@@ -598,7 +632,7 @@ func startServer() {
 
 		if len(sceneSave.Name) == 0 {
 			data["code"] = 400
-			data["msg"] = "场景名称不能为空"
+			data["msg"] = biz.T("main.scene_name_empty")
 		} else {
 			err := biz.SaveScene(sceneSave, userName)
 			if err != nil {
@@ -606,7 +640,7 @@ func startServer() {
 				data["msg"] = err
 			} else {
 				data["code"] = 200
-				data["msg"] = "操作成功"
+				data["msg"] = biz.T("common.operate_success")
 			}
 		}
 
@@ -648,7 +682,7 @@ func startServer() {
 			data["msg"] = err
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 
 		c.JSON(http.StatusOK, data)
@@ -662,7 +696,7 @@ func startServer() {
 		data := make(map[string]interface{})
 		if len(sceneSave.Product) == 0 {
 			data["code"] = 400
-			data["msg"] = "未配置环境信息，请先设置"
+			data["msg"] = biz.T("main.env_not_configured")
 			c.JSON(http.StatusOK, data)
 			return
 		}
@@ -683,15 +717,15 @@ func startServer() {
 		}
 
 		switch typeTag {
-		case "串行中断":
+		case biz.T("scene_test_history.scene_type_1"):
 			sceneSave.SceneType = 1
-		case "串行比较":
+		case biz.T("scene_test_history.scene_type_2"):
 			sceneSave.SceneType = 2
-		case "串行继续":
+		case biz.T("scene_test_history.scene_type_3"):
 			sceneSave.SceneType = 3
-		case "普通并发":
+		case biz.T("scene_test_history.scene_type_4"):
 			sceneSave.SceneType = 4
-		case "并发比较":
+		case biz.T("scene_test_history.scene_type_5"):
 			sceneSave.SceneType = 5
 		default:
 			sceneSave.SceneType = 1
@@ -703,10 +737,10 @@ func startServer() {
 
 		if err != nil {
 			data["code"] = 400
-			data["msg"] = "操作失败"
+			data["msg"] = biz.T("common.operate_fail")
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 
 		data["data"] = reqDataResps
@@ -741,10 +775,10 @@ func startServer() {
 		data := make(map[string]interface{})
 		if err != nil {
 			data["code"] = 400
-			data["msg"] = "操作失败"
+			data["msg"] = biz.T("common.operate_fail")
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 		data["data"] = reqDataResps
 		c.JSON(http.StatusOK, data)
@@ -779,10 +813,10 @@ func startServer() {
 		data := make(map[string]interface{})
 		if err != nil {
 			data["code"] = 400
-			data["msg"] = "操作失败"
+			data["msg"] = biz.T("common.operate_fail")
 		} else {
 			data["code"] = 200
-			data["msg"] = "操作成功"
+			data["msg"] = biz.T("common.operate_success")
 		}
 		data["data"] = reqDataResps
 		c.JSON(http.StatusOK, data)
@@ -810,12 +844,12 @@ func startServer() {
 		data := make(map[string]interface{})
 		if len(appName) == 0 {
 			data["code"] = 400
-			data["message"] = "操作失败"
+			data["message"] = biz.T("common.operate_fail")
 			data["data"] = fmt.Sprintf("应用名称为空")
 		} else {
 			resp := biz.GetApiCount4Cicd(appName, branch)
 			data["code"] = 200
-			data["message"] = "操作成功"
+			data["message"] = biz.T("common.operate_success")
 			data["data"] = resp
 		}
 
@@ -938,7 +972,7 @@ func startServer() {
 		var status string
 		var idList []string
 		if len(ids) == 0 || ids == "," {
-			status = "请先选择一个归属应用"
+			status = biz.T("main.select_app")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -951,9 +985,9 @@ func startServer() {
 
 		failCount, err := biz.GetSwaggerNew(idList[0], swagger_path, uploadFilePath)
 		if failCount > 0 {
-			status = fmt.Sprintf("导入完成，%d个接口不符合规范，请前往[接口定义]列表查看", failCount)
+			status = fmt.Sprintf(biz.T("main.import_done_with_fail"), failCount)
 		} else {
-			status = "导入完成，请前往[接口-接口定义]列表查看"
+			status = biz.T("main.import_done_api")
 		}
 
 		_ = biz.UpdateApiChangeByAppId(idList[0])
@@ -965,7 +999,7 @@ func startServer() {
 				"data": map[string]string{},
 			})
 		} else {
-			status = "导入完成，请前往[接口-接口定义]列表查看"
+			status = biz.T("main.import_done_api")
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
@@ -986,7 +1020,7 @@ func startServer() {
 		var status string
 
 		if len(uploadFilePath) == 0 {
-			status = "请先上传Xmind用例文档"
+			status = biz.T("main.upload_xmind")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -997,7 +1031,7 @@ func startServer() {
 
 		fileName, err := biz.Xmind2Excel(uploadFilePath)
 		if err != nil {
-			status = fmt.Sprintf("转换失败: %s", err)
+			status = fmt.Sprintf(biz.T("main.convert_failed"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1030,7 +1064,7 @@ func startServer() {
 		var status string
 
 		if len(uploadFilePath) == 0 {
-			status = "请先上传Xmind用例文档"
+			status = biz.T("main.upload_xmind")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1041,14 +1075,14 @@ func startServer() {
 
 		err := biz.Xmind2Import(product, introVersion, uploadFilePath)
 		if err != nil {
-			status = fmt.Sprintf("转换失败: %s", err)
+			status = fmt.Sprintf(biz.T("main.convert_failed"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
 				"data": map[string]string{},
 			})
 		} else {
-			status = fmt.Sprintf("导入完成, 请刷新列表查看~ ")
+			status = biz.T("main.import_done")
 			c.JSON(http.StatusOK, map[string]interface{}{
 				"code": 200,
 				"msg":  status,
@@ -1071,7 +1105,7 @@ func startServer() {
 		createPlatform := c.PostForm("create_platform")
 		var status, fileName string
 		if idStr == "," && len(product) == 0 && len(introVersion) == 0 && len(createPlatform) == 0 && len(createUser) == 0 && len(module) == 0 && len(createdAtStart) == 0 {
-			status = "请先选择数据或设置过滤条件再导出"
+			status = biz.T("main.select_data_export")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1083,7 +1117,7 @@ func startServer() {
 		if len(idStr) > 0 && idStr != "," {
 			fileName, err = biz.ExportTestCase2XmindById(idStr, source)
 			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
+				status = fmt.Sprintf(biz.T("error.export_fail"), err)
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
@@ -1094,7 +1128,7 @@ func startServer() {
 		} else {
 			fileName, err = biz.ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module, createUser, createdAtStart, createdAtEnd, source)
 			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
+				status = fmt.Sprintf(biz.T("error.export_fail"), err)
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
@@ -1128,7 +1162,7 @@ func startServer() {
 		createdAtEnd := c.PostForm("created_at_end__goadmin")
 		var status, fileName string
 		if idStr == "," && len(product) == 0 && len(introVersion) == 0 && len(caseDesigner) == 0 && len(module) == 0 && len(createdAtStart) == 0 {
-			status = "请先选择数据或设置过滤条件再导出"
+			status = biz.T("main.select_data_export")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1140,7 +1174,7 @@ func startServer() {
 		if len(idStr) > 0 && idStr != "," {
 			fileName, err = biz.ExportTestCase2XmindById(idStr, source)
 			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
+				status = fmt.Sprintf(biz.T("error.export_fail"), err)
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
@@ -1151,7 +1185,7 @@ func startServer() {
 		} else {
 			fileName, err = biz.ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner, createdAtStart, createdAtEnd, source)
 			if err != nil {
-				status = fmt.Sprintf("导出失败: %s", err)
+				status = fmt.Sprintf(biz.T("error.export_fail"), err)
 				c.JSON(http.StatusBadRequest, map[string]interface{}{
 					"code": 400,
 					"msg":  status,
@@ -1192,7 +1226,7 @@ func startServer() {
 		}
 		status := "生成任务已在后台运行,请稍后刷新列表查看生成用例"
 		if len(createDesc) == 0 {
-			status = "请先输入生成需求"
+			status = biz.T("main.input_create_desc")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1203,7 +1237,7 @@ func startServer() {
 
 		err := inputCase.AICreateCaseByCreateDesc(createDesc, uploadFilePath)
 		if err != nil {
-			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			status = fmt.Sprintf(biz.T("main.generate_failed"), createDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1225,10 +1259,10 @@ func startServer() {
 		ids := c.PostForm("ids")
 		createPlatform := c.PostForm("optimize_platform")
 		optimizeDesc := c.PostForm("optimize_desc")
-		status := "优化任务已在后台运行,请稍后刷新列表查看优化用例"
+		status := biz.T("main.optimize_task_running")
 
 		if len(optimizeDesc) == 0 || ids == "," {
-			status = "请先选择优化用例和输入优化指令"
+			status = biz.T("main.select_optimize_case")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1240,7 +1274,7 @@ func startServer() {
 		ids = strings.Trim(ids, ",")
 		err := biz.AIOptimizeCase(ids, optimizeDesc, createPlatform, createUser)
 		if err != nil {
-			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			status = fmt.Sprintf(biz.T("main.optimize_failed"), optimizeDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1265,9 +1299,9 @@ func startServer() {
 		inputCase.IntroVersion = c.PostForm("intro_version")
 		inputCase.Product = c.PostForm("product")
 		inputCase.CreatePlatform = c.PostForm("create_platform")
-		status := "生成任务已在后台运行,请稍后前往[助手-智能用例]列表查看生成用例"
+		status := biz.T("main.ai_task_running_ai_case")
 		if ids == "," {
-			status = "请先选择接口定义"
+			status = biz.T("main.select_api_def")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1278,7 +1312,7 @@ func startServer() {
 		ids = strings.Trim(ids, ",")
 		err = inputCase.AICreateCaseByApiDefine(ids)
 		if err != nil {
-			status = fmt.Sprintf("生成失败：%s: %s", ids, err)
+			status = fmt.Sprintf(biz.T("main.generate_failed"), ids, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1304,9 +1338,9 @@ func startServer() {
 		input.CreatePlatform = c.PostForm("create_platform")
 		input.ConversationId = c.PostForm("conversation_id")
 		input.RawReply = c.PostForm("raw_reply")
-		status := "导入完成,请刷新列表查看生成用例"
+		status := biz.T("main.import_done")
 		if len(input.ConversationId) == 0 && len(input.RawReply) == 0 {
-			status = "请先输入会话ID或原生回复"
+			status = biz.T("main.input_conversation_id")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1317,7 +1351,7 @@ func startServer() {
 
 		err := input.AICreateCaseByImport()
 		if err != nil {
-			status = fmt.Sprintf("导入失败：%s", err)
+			status = fmt.Sprintf(biz.T("error.import_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1349,9 +1383,9 @@ func startServer() {
 			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
 			c.SaveUploadedFile(uploadFile, uploadFilePath)
 		}
-		status := "生成任务已在后台运行,请稍后刷新列表查看生成数据"
+		status := biz.T("main.ai_task_running_data")
 		if len(createDesc) == 0 {
-			status = "请先输入生成需求"
+			status = biz.T("main.input_create_desc")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1361,7 +1395,7 @@ func startServer() {
 		}
 		err := input.AICreateDataAndPlaybookByCreateDesc(createDesc, uploadFilePath)
 		if err != nil {
-			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			status = fmt.Sprintf(biz.T("main.generate_failed"), createDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1383,10 +1417,10 @@ func startServer() {
 		ids := c.PostForm("ids")
 		createPlatform := c.PostForm("optimize_platform")
 		optimizeDesc := c.PostForm("optimize_desc")
-		status := "优化任务已在后台运行,请稍后刷新列表查看优化数据"
+		status := biz.T("main.optimize_task_running_data")
 
 		if len(optimizeDesc) == 0 || ids == "," {
-			status = "请先选择优化数据和输入优化指令"
+			status = biz.T("main.select_optimize_data")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1398,7 +1432,7 @@ func startServer() {
 		ids = strings.Trim(ids, ",")
 		err := biz.AIOptimizeData(ids, optimizeDesc, createPlatform, createUser)
 		if err != nil {
-			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			status = fmt.Sprintf(biz.T("main.optimize_failed"), optimizeDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1423,9 +1457,9 @@ func startServer() {
 		input.IntroVersion = c.PostForm("intro_version")
 		input.CreatePlatform = c.PostForm("create_platform")
 		input.Product = c.PostForm("product")
-		status := "生成任务已在后台运行,请稍后前往[助手-智能数据]列表查看生成数据"
+		status := biz.T("main.ai_task_running_ai_data")
 		if ids == "," {
-			status = "请先选择接口定义"
+			status = biz.T("main.select_api_def")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1436,7 +1470,7 @@ func startServer() {
 		ids = strings.Trim(ids, ",")
 		err = input.AICreateDataAndPlaybookByApiDefine(ids)
 		if err != nil {
-			status = fmt.Sprintf("生成失败：%s: %s", ids, err)
+			status = fmt.Sprintf(biz.T("main.generate_failed"), ids, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1462,9 +1496,9 @@ func startServer() {
 		importCommon.ConversationId = c.PostForm("conversation_id")
 		importCommon.RawReply = c.PostForm("raw_reply")
 		importCommon.Product = c.PostForm("product")
-		status := "导入完成,请刷新列表查看生成数据"
+		status := biz.T("main.import_done_data")
 		if len(importCommon.ConversationId) == 0 && len(importCommon.RawReply) == 0 {
-			status = "请先输入会话ID或原生回复"
+			status = biz.T("main.input_conversation_id")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1475,7 +1509,7 @@ func startServer() {
 
 		err := importCommon.AICreateDataAndPlaybookByImport()
 		if err != nil {
-			status = fmt.Sprintf("导入失败：%s", err)
+			status = fmt.Sprintf(biz.T("error.import_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1499,10 +1533,10 @@ func startServer() {
 		analysisInput.CreatePlatform = c.PostForm("analysis_platform")
 		analysisInput.AiTemplate = c.PostForm("ai_template")
 		analysisInput.Product = c.PostForm("product")
-		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
+		status := biz.T("main.analysis_task_running")
 		err = biz.AiDataTest(user.Name, ids, analysisInput)
 		if err != nil {
-			status = fmt.Sprintf("分析遇错：%s", err)
+			status = fmt.Sprintf(biz.T("main.analysis_error"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1526,7 +1560,7 @@ func startServer() {
 		user, _ := engine.User(c)
 		var status string
 		if idStr == "," {
-			status = "请先选择数据再测试"
+			status = biz.T("main.select_data_test")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1537,17 +1571,17 @@ func startServer() {
 			var errTag int
 			var status string
 			source := "ai_data"
-			status = "测试完成，请刷新列表查看测试结果"
+			status = biz.T("main.test_done")
 			for _, id := range ids {
 				if len(id) == 0 {
-					//status = "测试完成，请刷新列表查看测试结果"
+					//status = biz.T("main.test_done")
 					continue
 				}
 
-				err := biz.RepeatRunDataFile(user.Name, id, product, source)
+				err := biz.RepeatRunDataFile(user.Name, id, product, source, "")
 				if err != nil {
 					if errTag == 0 {
-						status = fmt.Sprintf("测试失败：%s: %s", id, err)
+						status = fmt.Sprintf(biz.T("main.test_failed"), id, err)
 					} else {
 						status = fmt.Sprintf("%s; %s: %s", status, id, err)
 					}
@@ -1581,7 +1615,7 @@ func startServer() {
 		user, _ := engine.User(c)
 		var status string
 		if idStr == "," {
-			status = "请先选择数据再测试"
+			status = biz.T("main.select_data_test")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1592,16 +1626,16 @@ func startServer() {
 			var errTag int
 			var status string
 			source := "data"
-			status = "测试完成，请刷新列表查看测试结果"
+			status = biz.T("main.test_done")
 			for _, id := range ids {
 				if len(id) == 0 {
-					//status = "测试完成，请刷新列表查看测试结果"
+					//status = biz.T("main.test_done")
 					continue
 				}
-				err := biz.RepeatRunDataFile(user.Name, id, product, source)
+				err := biz.RepeatRunDataFile(user.Name, id, product, source, "")
 				if err != nil {
 					if errTag == 0 {
-						status = fmt.Sprintf("测试失败：%s: %s", id, err)
+						status = fmt.Sprintf(biz.T("main.test_failed"), id, err)
 					} else {
 						status = fmt.Sprintf("%s; %s: %s", status, id, err)
 					}
@@ -1638,7 +1672,7 @@ func startServer() {
 		importCommon.Product = c.PostForm("product")
 		status := "导入完成,请刷新列表查看分析数据"
 		if len(importCommon.ConversationId) == 0 && len(importCommon.RawReply) == 0 {
-			status = "请先输入会话ID或原生回复"
+			status = biz.T("main.input_conversation_id")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1649,7 +1683,7 @@ func startServer() {
 
 		err := importCommon.AIAnalysisDataByImport()
 		if err != nil {
-			status = fmt.Sprintf("导入失败：%s", err)
+			status = fmt.Sprintf(biz.T("error.import_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1681,9 +1715,9 @@ func startServer() {
 			uploadFilePath = fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
 			c.SaveUploadedFile(uploadFile, uploadFilePath)
 		}
-		status := "生成任务已在后台运行,请稍后刷新列表查看生成场景"
+		status := biz.T("main.ai_task_running_playbook")
 		if len(createDesc) == 0 {
-			status = "请先输入生成需求"
+			status = biz.T("main.input_create_desc")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1693,7 +1727,7 @@ func startServer() {
 		}
 		err := input.AICreateDataAndPlaybookByCreateDesc(createDesc, uploadFilePath)
 		if err != nil {
-			status = fmt.Sprintf("生成失败：%s: %s", createDesc, err)
+			status = fmt.Sprintf(biz.T("main.generate_failed"), createDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1715,10 +1749,10 @@ func startServer() {
 		ids := c.PostForm("ids")
 		createPlatform := c.PostForm("optimize_platform")
 		optimizeDesc := c.PostForm("optimize_desc")
-		status := "优化任务已在后台运行,请稍后刷新列表查看优化场景"
+		status := biz.T("main.optimize_task_running_playbook")
 
 		if len(optimizeDesc) == 0 || ids == "," {
-			status = "请先选择优化场景和输入优化指令"
+			status = biz.T("main.select_optimize_playbook")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1730,7 +1764,7 @@ func startServer() {
 		ids = strings.Trim(ids, ",")
 		err := biz.AIOptimizeCase(ids, optimizeDesc, createPlatform, createUser)
 		if err != nil {
-			status = fmt.Sprintf("优化失败：%s: %s", optimizeDesc, err)
+			status = fmt.Sprintf(biz.T("main.optimize_failed"), optimizeDesc, err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1755,9 +1789,9 @@ func startServer() {
 		input.RawReply = c.PostForm("raw_reply")
 		input.Product = c.PostForm("product")
 		input.IntroVersion = c.PostForm("intro_version")
-		status := "导入完成,请刷新列表查看生成场景"
+		status := biz.T("main.import_done_playbook")
 		if len(input.ConversationId) == 0 && len(input.RawReply) == 0 {
-			status = "请先输入会话ID或原生回复"
+			status = biz.T("main.input_conversation_id")
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1767,7 +1801,7 @@ func startServer() {
 
 		err := input.AICreateDataAndPlaybookByImport()
 		if err != nil {
-			status = fmt.Sprintf("导入失败：%s", err)
+			status = fmt.Sprintf(biz.T("error.import_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1790,10 +1824,10 @@ func startServer() {
 		analysisInput.CreatePlatform = c.PostForm("analysis_platform")
 		analysisInput.AiTemplate = c.PostForm("ai_template")
 		analysisInput.Product = c.PostForm("product")
-		status := "分析任务已在后台运行,请稍后查看执行结果，前往[智能分析]列表查看分析结果"
+		status := biz.T("main.analysis_task_running")
 		err = biz.AiPlaybookTest(user.Name, ids, "ai_playbook", analysisInput)
 		if err != nil {
-			status = fmt.Sprintf("分析遇错：%s", err)
+			status = fmt.Sprintf(biz.T("main.analysis_error"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1818,11 +1852,11 @@ func startServer() {
 		syncUser := user.Name
 		kType := c.PostForm("k_type")
 
-		status := "同步任务已在后台运行,请稍后查看同步结果，前往[知识库]查看结果"
+		status := biz.T("main.sync_task_running")
 
 		err = biz.UpdateAssetKnowledge(kType, syncUser)
 		if err != nil {
-			status = fmt.Sprintf("同步遇错：%s", err)
+			status = fmt.Sprintf(biz.T("main.sync_error"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
 				"msg":  status,
@@ -1835,6 +1869,76 @@ func startServer() {
 				"data": map[string]string{},
 			})
 		}
+	})
+
+	// 生成任务报告（从任务列表批量选择）
+	r.POST("/generate_task_report", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		reportUser := user.Name
+		idStr := c.PostForm("ids")
+		reportProducts := c.PostForm("report_products")
+		tmps := strings.Split(idStr, ",")
+		var idList []string
+		for _, v := range tmps {
+			if len(strings.Trim(v, " ")) > 0 {
+				idList = append(idList, v)
+
+			}
+		}
+
+		if len(idStr) == 0 || idStr == "," || len(idList) == 1 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  "请先选择任务，至少选择2个任务，再生成报告",
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		// 异步生成报告
+		go func() {
+			err = biz.GenerateMultiTaskReports(idStr, reportProducts, reportUser)
+			if err != nil {
+				biz.Logger.Error("多任务报告生成失败: %s", err)
+			}
+		}()
+
+		status := "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看"
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  status,
+			"data": map[string]string{},
+		})
+	})
+
+	// 手动生成报告（从系统参数页面触发）
+	r.POST("/generate_report_manual", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		genUser := user.Name
+		reportType := c.PostForm("gen_report_type")
+		products := c.PostForm("gen_report_products")
+
+		go func() {
+			err = biz.GenerateManualReport(reportType, products, genUser)
+			if err != nil {
+				biz.Logger.Error("手动生成报告失败: %s", err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("schedule_report.generate_running"),
+			"data": map[string]string{},
+		})
+	})
+
+	// 手动刷新菜单翻译（新增菜单后调用，无需重启应用）
+	r.GET("/admin/refresh-menu-i18n", func(c *gin.Context) {
+		biz.RefreshMenuI18n()
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("common.operate_success"),
+		})
 	})
 
 	models.Init(eng.MysqlConnection())

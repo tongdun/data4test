@@ -21,6 +21,7 @@ import (
 var CronHandle = NewCrontab()
 
 func Init() {
+	InitMenuI18n()
 	ServiceRestart()
 }
 
@@ -48,7 +49,7 @@ func (c *Crontab) UpdateTime(id string) (err error) {
 		lastTime, nextTime := c.GetRunTime(value)
 		models.Orm.Table("schedule").Where("id = ?", id).Find(&dbSchedule)
 		if len(dbSchedule.TaskName) == 0 {
-			err = fmt.Errorf("未找到场景信息，请核对: %v", id)
+			err = fmt.Errorf(T("error.scene_not_found"), id)
 			Logger.Error("%s", err)
 			return
 		}
@@ -174,7 +175,7 @@ func OneTask(id, userName string) (err error) {
 	sceneList, _, _ := dbSchedule.GetSceneIds()
 	if dbSchedule.TaskType == "data" {
 		for _, dataId := range dataList {
-			err1 = RunSceneDataOnce(userName, dataId, dbSchedule.ProductList, "task")
+			err1 = RunSceneDataOnce(userName, dataId, dbSchedule.ProductList, "task", "")
 			if err1 != nil {
 				err = err1
 				Logger.Error("%s", err)
@@ -187,9 +188,9 @@ func OneTask(id, userName string) (err error) {
 			playbook := playbookInfo.GetPlaybook("task")
 			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
-				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productSceneInfo)
+				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productSceneInfo, "")
 			} else {
-				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productTaskInfo)
+				_, _, err1 = playbook.RunPlaybook(userName, playbookInfo.Id, "start", "task", productTaskInfo, "")
 			}
 
 			if err1 != nil {
@@ -226,13 +227,13 @@ func GetTaskCron(id, mode string) (cronStr string, dbSchedule DbSchedule, err er
 	idInt, _ := strconv.Atoi(id)
 	models.Orm.Table("schedule").Where("id = ?", idInt).Find(&dbSchedule)
 	if len(dbSchedule.TaskName) == 0 {
-		err = errors.Errorf("未对找对应任务信息，请核查: %s", dbSchedule.TaskName)
+		err = errors.Errorf(T("error.task_info_not_found"), dbSchedule.TaskName)
 		return
 	}
 
 	if mode != "init" {
 		if dbSchedule.TaskStatus == "running" {
-			err = fmt.Errorf("任务已在运行中")
+			err = fmt.Errorf(T("error.task_already_running"))
 			return
 		}
 	}
@@ -264,7 +265,7 @@ func (s DbSchedule) GetDataIds() (ids []string, err error) {
 		models.Orm.Table("scene_data").Where("file_name = ?", dataItem).Find(&dbSceneData)
 
 		if len(dbSceneData.Name) == 0 {
-			err1 := errors.Errorf("未找到名称[%s]的数据，请核对", dataItem)
+			err1 := errors.Errorf(T("error.data_name_not_found"), dataItem)
 			err = err1
 			Logger.Error("%s", err)
 			return
@@ -315,7 +316,7 @@ func StopTask(ids string) (err error) {
 			CronHandle.DelByID(id)
 		}
 		dbSchedule.UpdateTaskStatus("stopped")
-		Logger.Info("任务已暂停：%v", dbSchedule.TaskName)
+		Logger.Info(T("info.task_paused"), dbSchedule.TaskName)
 	}
 	return
 }
@@ -324,44 +325,85 @@ func RunOnceTask(id, userName string) (err error) {
 	var task DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&task)
 	if len(task.TaskName) == 0 {
-		err = errors.Errorf("未对找对应任务信息，请核查: %s", task.TaskName)
+		err = errors.Errorf(T("error.task_info_not_found"), task.TaskName)
 		return
 	}
+	startTime, err := time.Parse("2006-01-02 15:04:05", task.LastAt)
+	timeTag := startTime.Format("20060102150405")
+	taskTag := fmt.Sprintf("%s_%s", id, timeTag)
+
+	// 获取执行项列表
+	//var executeItems string
+	totalExpected := 0
+	switch task.TaskType {
+	case "data":
+		dataIds, _ := task.GetDataIds()
+		totalExpected = len(dataIds)
+	case "scene":
+		sceneIds, _, _ := task.GetSceneIds()
+		totalExpected = len(sceneIds)
+	}
+
+	// 创建执行历史
+	historyId, err := CreateDashboardRecord(task, taskTag, userName)
+	if err != nil {
+		Logger.Error("创建执行历史失败: %s", err)
+	}
+
+	successCount := 0
+	failCount := 0
+	executedCount := 0
+
 	switch task.TaskType {
 	case "data":
 		dataIds, _ := task.GetDataIds()
 		for _, dataId := range dataIds {
-			err1 := RepeatRunDataFile(userName, dataId, task.ProductList, "task")
+			err1 := RepeatRunDataFile(userName, dataId, task.ProductList, "task", taskTag)
+			executedCount++
 			if err1 != nil {
+				failCount++
 				err = err1
 				Logger.Error("%v", err)
-				break // 数据执行完后，后续数据不再执行，后续可以做错误精细化管理
+				break // 数据执行完后，后续数据不再执行
+			} else {
+				successCount++
 			}
 		}
 	case "scene":
 		sceneIds, _, _ := task.GetSceneIds()
 		for index, sceneId := range sceneIds {
 			var err1 error
-			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task", userName)
+			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task", userName, taskTag)
+			executedCount++
 			if err1 != nil {
+				failCount++
 				if err != nil {
 					err = fmt.Errorf("%v; %v", err, err1)
 				} else {
 					err = err1
 				}
-				if index == 0 && strings.Contains(err.Error(), "请求失败，返回码: 401, 返回信息:") {
-					Logger.Error("鉴权失败，执行至场景编号:%s, 后续场景不再执行", sceneId)
+				if index == 0 && strings.Contains(err.Error(), T("error.auth_fail_prefix")) {
+					Logger.Error(T("error.auth_fail_stop"), sceneId)
 					break
 				}
-				//break // 场景执行完后，后续场景不再执行，后续可以做错误精细化管理
+			} else {
+				successCount++
 			}
 		}
 	}
+
 	task.TaskStatus = "finished"
 	err = models.Orm.Table("schedule").Where("id = ?", task.Id).Update(&task).Error
 	if err != nil {
 		Logger.Error("%s", err)
 	}
+
+	endTime := time.Now()
+	durationSeconds := int(endTime.Sub(startTime).Seconds())
+	// 异步生成任务报告
+	go GenerateTaskReport(task, historyId, taskTag, userName,
+		totalExpected, successCount, failCount, durationSeconds, startTime.Format(baseFormat), endTime.Format(baseFormat))
+
 	return
 }
 
@@ -387,7 +429,7 @@ func RunTask(ids, mode, userName string) (err error) {
 		}
 
 		if cronStr == "once" {
-			Logger.Info("添加单次任务:[%s]", retSchedule.TaskName)
+			Logger.Info(T("info.add_once_task"), retSchedule.TaskName)
 			go func(id string) {
 				defer func() { // 如果遇到panic， 不影响主程序的运行
 					if e := recover(); e != nil {
@@ -401,14 +443,14 @@ func RunTask(ids, mode, userName string) (err error) {
 			task := &RunSchecdule{id, userName}
 			isExist := CronHandle.IsExists(id)
 			if isExist {
-				err1 := errors.Errorf("任务[%s]已添加", retSchedule.TaskName)
+				err1 := errors.Errorf(T("error.task_already_added"), retSchedule.TaskName)
 				err = err1
 				Logger.Warning("%s", err)
 			} else {
-				Logger.Info("添加定时任务:[%s]", retSchedule.TaskName)
+				Logger.Info(T("info.add_schedule_task"), retSchedule.TaskName)
 				err1 := CronHandle.AddByID(id, cronStr, task)
 				if err1 != nil {
-					err = errors.Errorf("添加任务[%s]失败: %s", retSchedule.TaskName, err1)
+					err = errors.Errorf(T("error.add_task_failed"), retSchedule.TaskName, err1)
 					Logger.Error("%s", err)
 				}
 			}
@@ -423,13 +465,13 @@ func CopySchedule(id, userName string) (err error) {
 	var dbSchedule DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&dbSchedule)
 	if len(dbSchedule.TaskName) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
 
 	var schedule Schedule4Copy
-	schedule.TaskName = fmt.Sprintf("%s_复制", dbSchedule.TaskName)
+	schedule.TaskName = fmt.Sprintf("%s%s", dbSchedule.TaskName, T("task.copy_suffix"))
 	schedule.TaskType = dbSchedule.TaskType
 	schedule.SceneList = dbSchedule.SceneList
 	schedule.DataList = dbSchedule.DataList
@@ -454,12 +496,12 @@ func CopySchedule(id, userName string) (err error) {
 }
 
 func ExportSchedule(id, userName string) (fileName string, err error) {
-	sqlRule1 := "# SQL生成规则: "
-	sqlRule2 := "# (1)产品配置/应用配置，存在则跳过; 其他不存在则插入，存在则更新"
-	sqlRule3 := "# (2)创建人统一为导出操作人的信息，所属产品或关联产品统一为导出任务第一个产品的信息"
+	sqlRule1 := T("sql.gen_rule")
+	sqlRule2 := T("sql.rule1")
+	sqlRule3 := T("sql.rule2")
 
 	curTime := time.Now().Format("20060102150405")
-	fileName = fmt.Sprintf("%s_%s.sql", "数据SQL", curTime)
+	fileName = fmt.Sprintf("%s_%s.sql", T("file.data_sql_prefix"), curTime)
 
 	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName)
 
@@ -468,7 +510,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 	_ = WriteDataInCommonFile(filePath, sqlRule3)
 	_ = WriteDataInCommonFile(filePath, "")
 
-	_ = WriteDataInCommonFile(filePath, "# 选择数据库, 默认data4test")
+	_ = WriteDataInCommonFile(filePath, T("sql.select_db"))
 	_ = WriteDataInCommonFile(filePath, "use data4test;")
 	_ = WriteDataInCommonFile(filePath, "set names utf8;")
 	_ = WriteDataInCommonFile(filePath, "")
@@ -519,14 +561,14 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
-	importFileName := fmt.Sprintf("%s_%s.tgz", "导入文件", curTime)
+	importFileName := fmt.Sprintf("%s_%s.tgz", T("file.import_file_prefix"), curTime)
 	importFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, importFileName)
 	isExist, err := GetImportFilePackage(importFilePath, fileNameImportMap)
 	if isExist {
 		fileName = fmt.Sprintf("%s,%s", fileName, importFileName)
 	}
 
-	exportDataFilePackageName := fmt.Sprintf("%s_%s.tgz", "数据文件包", curTime)
+	exportDataFilePackageName := fmt.Sprintf("%s_%s.tgz", T("file.data_file_package_prefix"), curTime)
 	exportDataFileAsPackagePath := fmt.Sprintf("%s/%s", DownloadBasePath, exportDataFilePackageName)
 	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, dataMap, playbookMap) // 导出数据文件包
 	if isExist {
@@ -537,7 +579,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 }
 
 func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error) {
-	appSQLDesc := "# 应用配置"
+	appSQLDesc := T("sql.app_config")
 	var appNames []string
 	for k, _ := range appMap {
 		if len(k) == 0 {
@@ -549,7 +591,7 @@ func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error)
 	var appList []EnvConfig
 	models.Orm.Table("env_config").Where("app in (?)", appNames).Find(&appList)
 	if len(appList) == 0 {
-		err = fmt.Errorf("未找到[%v]应用配置信息", appList)
+		err = fmt.Errorf(T("error.app_config_not_found"), appList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -561,7 +603,7 @@ func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error)
 		}
 		if index == 0 {
 			appValueStr = fmt.Sprintf("('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
-			appNameDesc = fmt.Sprintf("# 导出的应用为: %s", item.App)
+			appNameDesc = fmt.Sprintf(T("sql.export_app_desc"), item.App)
 		} else {
 			appValueStr = fmt.Sprintf("%s, ('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", appValueStr, productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
 			appNameDesc = fmt.Sprintf("%s / %s", appNameDesc, item.App)
@@ -578,7 +620,7 @@ func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error)
 }
 
 func GetProductSQL(filePath string, productMap map[string]bool) (productName string, appMap map[string]bool, err error) {
-	productSQLDesc := "# 产品配置"
+	productSQLDesc := T("sql.product_config")
 	var productNameList []string
 	for k, _ := range productMap {
 		if len(k) == 0 {
@@ -590,7 +632,7 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 	var productList []DbProduct
 	models.Orm.Table("product").Where("product in (?)", productNameList).Find(&productList)
 	if len(productList) == 0 {
-		err = fmt.Errorf("未找到: %v 环境信息，请核对", productNameList)
+		err = fmt.Errorf(T("error.env_not_found"), productNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -605,7 +647,7 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 			productName = item.Product.Name
 			productValueStr = fmt.Sprintf("('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s','%s')", item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateAppPrefix, item.PrivateParameter, item.Remark)
 			appNameList = strings.Split(item.Apps, ",")
-			productNameDesc = fmt.Sprintf("# 导出的产品为: %s", item.Name)
+			productNameDesc = fmt.Sprintf(T("sql.export_product_desc"), item.Name)
 		} else {
 			productValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s',%d,'%s','%s','%s',%d,'%s','%s','%s')", productValueStr, item.Product.Name, item.Ip, item.Protocol, item.Threading, item.ThreadNumber, item.Auth, item.Testmode, item.Apps, item.EnvType, item.PrivateParameter, item.PrivateParameter, item.Remark)
 			appTmp := strings.Split(item.Apps, ",")
@@ -632,12 +674,12 @@ func GetProductSQL(filePath string, productMap map[string]bool) (productName str
 }
 
 func GetTaskSQL(userName, taskId, filePath string) (dataMap, playbookMap, productMap map[string]bool, err error) {
-	taskSQLDesc := "# 任务信息"
+	taskSQLDesc := T("sql.task_info")
 	var taskList []DbSchedule
 	ids := strings.Split(taskId, ",")
 	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
 	if len(taskList) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", taskId)
+		err = fmt.Errorf(T("warning.data_definition_not_found"), taskId)
 		Logger.Error("%s", err)
 		return
 	}
@@ -651,7 +693,7 @@ func GetTaskSQL(userName, taskId, filePath string) (dataMap, playbookMap, produc
 		if index == 0 {
 			taskValueStr = fmt.Sprintf("('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')", item.TaskName, item.TaskMode, item.Threading, item.TaskType, item.DataNumber, item.DataList, item.SceneNumber, item.SceneList, item.ProductList, item.Time4week, item.Time4day, item.Week, item.Remark, userName)
 			productNames = strings.Split(item.ProductList, ",")
-			taskNameDesc = fmt.Sprintf("# 导出的任务为: %s", item.TaskName)
+			taskNameDesc = fmt.Sprintf(T("sql.export_task_desc"), item.TaskName)
 		} else {
 			taskValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')", taskValueStr, item.TaskName, item.TaskMode, item.Threading, item.TaskType, item.DataNumber, item.DataList, item.SceneNumber, item.SceneList, item.ProductList, item.Time4week, item.Time4day, item.Week, item.Remark, userName)
 			productTmp := strings.Split(item.ProductList, ",")
@@ -697,7 +739,7 @@ func GetTaskSQL(userName, taskId, filePath string) (dataMap, playbookMap, produc
 }
 
 func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[string]bool) (dataMap map[string]bool, err error) {
-	playbookSQLDesc := "# 场景信息"
+	playbookSQLDesc := T("sql.scene_info")
 	var playbookNameList []string
 	var playbookValueStr string
 	for k, _ := range playbookMap {
@@ -707,7 +749,7 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 	var playbookList []DbScene
 	models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
 	if len(playbookList) == 0 {
-		err = fmt.Errorf("未找到对应场景，请核对: %s", playbookNameList)
+		err = fmt.Errorf(T("error.scene_playbook_not_found"), playbookNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -731,7 +773,7 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 		}
 	}
 
-	playbookNoDesc := fmt.Sprintf("# 导出的场景数量为: %d", len(playbookList))
+	playbookNoDesc := fmt.Sprintf(T("sql.export_scene_count"), len(playbookList))
 
 	playbookSQL := fmt.Sprintf("REPLACE INTO `playbook`(name, data_number, data_file_list, scene_type, run_time, remark, user_name, product) VALUES %s;", playbookValueStr)
 	_ = WriteDataInCommonFile(filePath, playbookSQLDesc)
@@ -743,7 +785,7 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 }
 
 func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap, appMap, fileNameImportMap map[string]bool, err error) {
-	dataSQLDesc := "# 数据信息"
+	dataSQLDesc := T("sql.data_info")
 	var dataNameList []string
 	var dataValueStr string
 	for k, _ := range dataMap {
@@ -753,7 +795,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 	var dataList []DbSceneData
 	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Find(&dataList)
 	if len(dataList) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", dataNameList)
+		err = fmt.Errorf(T("error.data_not_found"), dataNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -765,7 +807,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Group("app").Select("app").Pluck("app", &appNames)
 
 	if len(appNames) == 0 {
-		err = fmt.Errorf("未找到[%v]应用信息，请核对", dataNameList)
+		err = fmt.Errorf(T("error.app_info_not_found"), dataNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -876,7 +918,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 		}
 	}
 
-	dataNoDesc := fmt.Sprintf("# 导出的数据数为: %d, 覆盖的接口数为: %d", len(dataList), apiNum)
+	dataNoDesc := fmt.Sprintf(T("sql.export_data_count"), len(dataList), apiNum)
 
 	dataSQL := fmt.Sprintf("REPLACE INTO `scene_data`(name, api_id, app, file_name, file_type, content, run_time, remark, user_name) VALUES %s;", dataValueStr)
 	_ = WriteDataInCommonFile(filePath, dataSQLDesc)
@@ -888,7 +930,7 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 }
 
 func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error) {
-	assertTemplateSQLDesc := "# 断言模板信息"
+	assertTemplateSQLDesc := T("sql.assert_template_info")
 	var assertNameList []string
 	var assertValueStr string
 
@@ -902,7 +944,7 @@ func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error
 	var assertList []AssertValueDefine
 	models.Orm.Table("assert_template").Where("name in (?)", assertNameList).Find(&assertList)
 	if len(assertList) == 0 {
-		err = fmt.Errorf("未关联到断言值定义:%v", assertNameList)
+		err = fmt.Errorf(T("error.assert_not_linked"), assertNameList)
 		Logger.Error("%s", err)
 		return
 	}
@@ -918,7 +960,7 @@ func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error
 		}
 	}
 
-	assertNoDesc := fmt.Sprintf("# 导出的断言模板数量为: %d", len(assertList))
+	assertNoDesc := fmt.Sprintf(T("sql.export_assert_count"), len(assertList))
 
 	assertTemplateSQL := fmt.Sprintf("REPLACE INTO `assert_template`(name, value, remark, user_name) VALUES %s;", assertValueStr)
 	_ = WriteDataInCommonFile(filePath, assertTemplateSQLDesc)
@@ -930,7 +972,7 @@ func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error
 }
 
 func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (err error) {
-	sysParameterSQLDesc := "# 系统参数信息"
+	sysParameterSQLDesc := T("sql.sys_parameter_info")
 	var sysParameterNameList []string
 	var sysParameterValueStr string
 
@@ -962,7 +1004,7 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 		}
 	}
 
-	sysParamterNoDesc := fmt.Sprintf("# 导出的系统参数数量为: %d", len(sysParameterList))
+	sysParamterNoDesc := fmt.Sprintf(T("sql.export_sys_param_count"), len(sysParameterList))
 
 	sysParameterSQL := fmt.Sprintf("REPLACE INTO `sys_parameter`(name, value_list, remark) VALUES %s;", sysParameterValueStr)
 	_ = WriteDataInCommonFile(filePath, sysParameterSQLDesc)
@@ -997,7 +1039,7 @@ func GetImportFilePackage(filePath string, fileNameImportMap map[string]bool) (i
 			srcDFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, item)
 			_, errDTmp := os.Stat(srcDFilePath)
 			if errDTmp != nil {
-				Logger.Warning("未找到文件：%s", item)
+				Logger.Warning(T("sql.file_not_found"), item)
 			}
 			continue // 不做强拦截
 		}
@@ -1120,7 +1162,7 @@ func AutoCreateSchedule(id, userName string, taskType string) (err error) {
 	if taskType == "data" {
 		models.Orm.Table("scene_data").Where("id in (?)", idList).Find(&dbSceneDatas)
 		if len(dbSceneDatas) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的场景数据，请核对", id)
+			err = fmt.Errorf(T("error.scene_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
 		}
@@ -1132,11 +1174,11 @@ func AutoCreateSchedule(id, userName string, taskType string) (err error) {
 			}
 		}
 		schedule.DataNumber = numStr
-		schedule.TaskName = fmt.Sprintf("数据任务_%s_%s", curTimeStr, GetRandomStr(4, ""))
+		schedule.TaskName = fmt.Sprintf(T("task.data_task_name_format"), curTimeStr, GetRandomStr(4, ""))
 	} else if taskType == "scene" {
 		models.Orm.Table("playbook").Where("id in (?)", idList).Find(&playbooks)
 		if len(playbooks) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的场景数据，请核对", id)
+			err = fmt.Errorf(T("error.scene_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
 		}
@@ -1148,7 +1190,7 @@ func AutoCreateSchedule(id, userName string, taskType string) (err error) {
 			}
 		}
 		schedule.SceneNumber = numStr
-		schedule.TaskName = fmt.Sprintf("场景任务_%s_%s", curTimeStr, GetRandomStr(4, ""))
+		schedule.TaskName = fmt.Sprintf(T("task.scene_task_name_format"), curTimeStr, GetRandomStr(4, ""))
 
 	}
 
@@ -1223,6 +1265,37 @@ func GetTaskEditTypeById(id string) (editType string) {
 	return
 }
 
+// GetScheduleProductListByIds 根据任务ID列表查询关联产品列表，去重后返回逗号分隔的字符串
+func GetScheduleProductListByIds(idStr string) string {
+	if len(idStr) == 0 || idStr == "," {
+		return ""
+	}
+	ids := strings.Split(idStr, ",")
+	productSet := make(map[string]bool)
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if len(id) == 0 {
+			continue
+		}
+		var task DbSchedule
+		models.Orm.Table("schedule").Select("product_list").Where("id = ?", id).Find(&task)
+		if len(task.ProductList) == 0 {
+			continue
+		}
+		for _, p := range strings.Split(task.ProductList, ",") {
+			p = strings.TrimSpace(p)
+			if len(p) > 0 {
+				productSet[p] = true
+			}
+		}
+	}
+	var products []string
+	for p := range productSet {
+		products = append(products, p)
+	}
+	return strings.Join(products, ",")
+}
+
 func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
 	pList := strings.Split(pStr, ",")
 	for _, item := range pList {
@@ -1232,7 +1305,7 @@ func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
 		var ids []int
 		models.Orm.Table("playbook").Where("name = ?", item).Pluck("id", &ids)
 		if len(ids) == 0 {
-			Logger.Warning("未找到场景[%s], 请核对", item)
+			Logger.Warning(T("warn.scene_playbook_not_found"), item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可点击编辑进行改写
 			} else {
@@ -1273,13 +1346,13 @@ func ExportDataFilePackage(filePath string, fileNameImportMap, playbookNameMap m
 	var dataList []DbSceneData
 	models.Orm.Table("scene_data").Where("file_name in (?)", dataNameList).Find(&dataList)
 	if len(dataList) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", dataNameList)
+		err = fmt.Errorf(T("error.data_not_found"), dataNameList)
 		Logger.Error("%s", err)
 		return
 	}
 
 	curTime := time.Now().Format("20060102150405")
-	exportDataFileDir := fmt.Sprintf("%s/%s_%s", DownloadBasePath, "数据文件", curTime)
+	exportDataFileDir := fmt.Sprintf("%s/%s_%s", DownloadBasePath, T("file.data_files_dir_prefix"), curTime)
 
 	if _, err := os.Stat(exportDataFileDir); os.IsNotExist(err) {
 		// 目录不存在，递归创建
@@ -1290,7 +1363,7 @@ func ExportDataFilePackage(filePath string, fileNameImportMap, playbookNameMap m
 
 	for _, item := range dataList {
 		if len(item.FileName) == 0 {
-			Logger.Warning("数据%s为空，不支持导出", item.FileName)
+			Logger.Warning(T("warn.data_empty_export"), item.FileName)
 			continue
 		}
 		count++
@@ -1384,4 +1457,48 @@ func WriteTarFile(tw *tar.Writer, filePath string) (err error) {
 	}
 
 	return
+}
+
+func GetTaskName(id string) (taskName, productName string, err error) {
+	var dbTask DbSchedule
+	models.Orm.Table("schedule").Where("id = ?", id).Find(&dbTask).Limit(1)
+	if len(dbTask.TaskName) == 0 {
+		err = fmt.Errorf(T("error.product_not_found"), id)
+		Logger.Error("%s", err)
+		return
+	}
+
+	taskName = dbTask.TaskName
+
+	productName = strings.Split(dbTask.ProductList, ",")[0]
+
+	return
+}
+
+// GetTaskNamesByIDs 根据逗号分隔的schedule ID获取任务名称列表
+func GetTaskNamesByIDs(idStr string) string {
+	if len(idStr) == 0 {
+		return "-"
+	}
+	ids := strings.Split(idStr, ",")
+	var names []string
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if len(id) == 0 {
+			continue
+		}
+		var name string
+		models.Orm.Table("schedule").Select("task_name").Where("id = ?", id).Limit(1).Pluck("task_name", &name)
+		//if len(name) > 0 {
+		//	names = append(names, name)
+		//} else {
+		//	names = append(names, id)
+		//}
+	}
+
+	return fmt.Sprintf("%s等%d个任务", names, len(names))
+	//if len(names) > 1 {
+	//	return fmt.Sprintf("%s等%d个任务", names[0], len(names))
+	//}
+	//return strings.Join(names, ", ")
 }

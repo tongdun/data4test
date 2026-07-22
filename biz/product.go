@@ -11,7 +11,7 @@ func GetProductName(id string) (name string, err error) {
 	models.Orm.Table("product").Where("id = ?", id).Pluck("product", &names)
 
 	if len(names) == 0 {
-		err = fmt.Errorf("未找到[%v]产品信息，请核对", id)
+		err = fmt.Errorf(T("error.product_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -26,7 +26,7 @@ func GetEnvTypeByName(product string) (envType int) {
 	models.Orm.Table("product").Where("product = ?", product).Pluck("env_type", &envTypes)
 
 	if len(envTypes) == 0 {
-		Logger.Warning("未找到[%s]产品信息，请核对", product)
+		Logger.Warning(T("warning.product_not_found"), product)
 		return
 	}
 
@@ -40,7 +40,7 @@ func GetProductEnv(name string) (envModel ProductEnvModel, err error) {
 	models.Orm.Table("product").Where("product = ?", name).Find(&product)
 
 	if len(product.Name) == 0 {
-		err = fmt.Errorf("未找到[%v]产品信息，请核对", name)
+		err = fmt.Errorf(T("error.product_not_found"), name)
 		Logger.Error("%s", err)
 		return
 	}
@@ -50,7 +50,7 @@ func GetProductEnv(name string) (envModel ProductEnvModel, err error) {
 	auth := make(map[string]string)
 
 	if len(product.Auth) == 0 {
-		err = fmt.Errorf("未配置鉴权信息，请先配置")
+		err = fmt.Errorf(T("error.auth_not_configured"))
 		Logger.Error("%s", err)
 		return
 	}
@@ -70,7 +70,7 @@ func GetProductApps(id string) (name string, err error) {
 	models.Orm.Table("product").Where("id = ?", id).Pluck("apps", &names)
 
 	if len(names) == 0 {
-		err = fmt.Errorf("未找到[%v]产品信息，请核对", id)
+		err = fmt.Errorf(T("error.product_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -84,14 +84,14 @@ func CopyProduct(id, userName string) (err error) {
 	var dbProduct DbProduct
 	models.Orm.Table("product").Where("id = ?", id).Find(&dbProduct)
 	if len(dbProduct.Name) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
 
 	var product Product
 	product = dbProduct.Product
-	product.Name = fmt.Sprintf("%s_复制", dbProduct.Name)
+	product.Name = fmt.Sprintf(T("common.copy_suffix"), dbProduct.Name)
 
 	err = models.Orm.Table("product").Create(product).Error
 	if err != nil {

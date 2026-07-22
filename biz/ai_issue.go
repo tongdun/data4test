@@ -19,7 +19,7 @@ func GetAnalysisFromReplyList(replyList []string) (dataDesc string, issueList, t
 
 		afterTxt := doc.Text()
 		if len(afterTxt) == 0 {
-			Logger.Warning("未找到有效信息，请核对~")
+			Logger.Warning(T("warning.no_valid_info"))
 		}
 
 		dataTmpDesc, issueSubList, testResultSubList, asserSubList, _ := GetAnalysisFromReply(reply)
@@ -68,7 +68,7 @@ func GetIssueFromReply(reply string) (issueList []map[string]interface{}, err er
 		}
 
 		if len(issueMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("issueMatch: %s", issueMatch[0])
 		}
 	}
@@ -95,7 +95,7 @@ func GetTestResultFromReply(reply string) (testResultList []map[string]interface
 			targetStr = testResultMatch[0][1]
 		}
 		if len(testResultMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("testResultMatch: %s", testResultMatch[0])
 		}
 	}
@@ -122,7 +122,7 @@ func GetAssertFromReply(reply string) (assertList []map[string]interface{}, err 
 			targetStr = assertMatch[0][1]
 		}
 		if len(assertMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("assertMatch: %s", assertMatch[0])
 		}
 	}
@@ -149,7 +149,7 @@ func GetDataDescFromReply(reply string) (dataDesc string, err error) {
 			targetStr = assertMatch[0][1]
 		}
 		if len(assertMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multi_data_matched"))
 			Logger.Debug("assertMatch: %s", assertMatch[0])
 		}
 	}
@@ -194,7 +194,7 @@ func (input AnalysisDataInput) SaveAIIssueByRepyList(dataDesc string, replyList 
 			}
 			failReason = append(failReason, tmpStr)
 		} else {
-			Logger.Warning("值类型为: %s, 不支持", vType)
+			Logger.Warning(T("warning.value_type_not_supported"), vType)
 		}
 	}
 
@@ -231,7 +231,7 @@ func (input AnalysisDataInput) SaveAIIssueByRepyList(dataDesc string, replyList 
 //				}
 //				aiTmpIssue[tKeyList[index]] = tmpStr
 //			} else {
-//				Logger.Warning("值类型为: %s, 不支持", vType)
+//				Logger.Warning(T("warning.value_type_not_supported"), vType)
 //			}
 //
 //		}
@@ -295,7 +295,7 @@ func (input AnalysisDataInput) AssembleAIIssue(dataDesc string, issue map[string
 				}
 				aiTmpIssue[tKeyList[index]] = tmpStr
 			} else {
-				Logger.Warning("值类型为: %s, 不支持", vType)
+				Logger.Warning(T("warning.value_type_not_supported"), vType)
 			}
 
 		}
@@ -373,7 +373,7 @@ func (input ImportCommon) AIAnalysisDataByImport() (err error) {
 		}
 
 		if len(replyList) == 0 {
-			return fmt.Errorf("未获取到回复信息，请核对")
+			return fmt.Errorf(T("error.no_reply_info"))
 		}
 		dataDesc, issueList, _, _, _ := GetAnalysisFromReplyList(replyList)
 
@@ -385,7 +385,7 @@ func (input ImportCommon) AIAnalysisDataByImport() (err error) {
 
 func (input ImportCommon) SaveAIIssueByIssueListMap(dataDesc string, issueList []map[string]interface{}) (err error) {
 	if len(issueList) == 0 {
-		return fmt.Errorf("无数据信息，请核对~")
+		return fmt.Errorf(T("error.no_data_info"))
 	}
 	var inputA AnalysisDataInput
 	inputA.Product = input.Product
@@ -486,7 +486,7 @@ func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
 			}
 			failReason = append(failReason, tmpStr)
 		} else {
-			Logger.Warning("值类型为: %s, 不支持", vType)
+			Logger.Warning(T("warning.value_type_not_supported"), vType)
 		}
 	}
 
@@ -532,7 +532,7 @@ func (input ImportCommon) SaveAIIssueByRawRepy() (err error) {
 	df.UpdateAiDataFileResult(dst, dbData.FileName)
 	envType := GetEnvTypeByName(input.Product)
 
-	err = RecordDataHistory(input.CreateUser, dst, input.Product, "ai", envType, dbData)
+	err = RecordDataHistory(input.CreateUser, dst, input.Product, "ai", envType, dbData, "")
 
 	return
 }
@@ -543,7 +543,7 @@ func AiDataTestAgain(userName string, aiIssue DbAIIssue) (err error) {
 	Logger.Debug("item.SourceName: %v", aiIssue.SourceName)
 	models.Orm.Table("ai_data").Where("file_name = (?)", aiIssue.SourceName).Find(&dbData)
 	if len(dbData.Name) == 0 {
-		newErr := fmt.Errorf("在[智能数据]列表未找到数据: %s，请核对", aiIssue.SourceName)
+		newErr := fmt.Errorf(T("error.data_not_found_in_ai_list"), aiIssue.SourceName)
 		if err == nil {
 			err = newErr
 		} else {
@@ -559,7 +559,7 @@ func AiDataTestAgain(userName string, aiIssue DbAIIssue) (err error) {
 	}
 
 	envType := GetEnvTypeByName(aiIssue.ProductList)
-	err2 := WriteSceneDataResult(userName, dbData.Id, result, dst, aiIssue.ProductList, "ai_data", envType, err1)
+	err2 := WriteSceneDataResult(userName, dbData.Id, result, dst, aiIssue.ProductList, "ai_data", envType, err1, "")
 	if err2 != nil {
 		Logger.Error("%s", err2)
 		if err != nil {

@@ -19,59 +19,59 @@ func GetProductCountTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("唯一标识", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("接口总数", "all_count", db.Int)
-	info.AddField("可自动化数", "automatable_count", db.Int)
-	info.AddField("不可自动化数", "unautomatable_count", db.Int)
-	info.AddField("自动化测试总数", "auto_test_count", db.Int)
-	info.AddField("未测试总数", "untest_count", db.Int)
-	info.AddField("通过总数", "pass_count", db.Int)
-	info.AddField("失败总数", "fail_count", db.Int)
-	info.AddField("自动化率", "auto_per", db.Double)
-	info.AddField("通过率", "pass_per", db.Double)
-	info.AddField("失败率", "fail_per", db.Double)
-	info.AddField("关联产品", "product", db.Varchar).
+	info.AddField(biz.T("product_count.all_count"), "all_count", db.Int)
+	info.AddField(biz.T("product_count.automatable_count"), "automatable_count", db.Int)
+	info.AddField(biz.T("product_count.unautomatable_count"), "unautomatable_count", db.Int)
+	info.AddField(biz.T("product_count.auto_test_count"), "auto_test_count", db.Int)
+	info.AddField(biz.T("product_count.untest_count"), "untest_count", db.Int)
+	info.AddField(biz.T("product_count.pass_count"), "pass_count", db.Int)
+	info.AddField(biz.T("common.fail_count"), "fail_count", db.Int)
+	info.AddField(biz.T("product_count.auto_per"), "auto_per", db.Double)
+	info.AddField(biz.T("product_count.pass_per"), "pass_per", db.Double)
+	info.AddField(biz.T("product_count.fail_per"), "fail_per", db.Double)
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("关联应用", " app", db.Varchar).
+	info.AddField(biz.T("common.app"), " app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(160)
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
 	products := biz.GetProducts()
-	info.AddSelectBox("关联产品", products, action.FieldFilter("product"))
+	info.AddSelectBox(biz.T("common.product"), products, action.FieldFilter("product"))
 	apps := biz.GetApps()
-	info.AddSelectBox("关联应用", apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
 
-	info.SetTable("product_count").SetTitle("产品统计").SetDescription("产品统计")
+	info.SetTable("product_count").SetTitle(biz.T("product_count.title")).SetDescription(biz.T("product_count.description"))
 
 	formList := productCount.GetForm()
-	formList.AddField("唯一标识", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("接口总数", "all_count", db.Int, form.Number)
-	formList.AddField("可自动化数", "automatable_count", db.Int, form.Number)
-	formList.AddField("不可自动化数", "unautomatable_count", db.Int, form.Number)
-	formList.AddField("自动化测试总数", "auto_test_count", db.Int, form.Number)
-	formList.AddField("未测试总数", "untest_count", db.Int, form.Number)
-	formList.AddField("通过总数", "pass_count", db.Int, form.Number)
-	formList.AddField("失败总数", "fail_count", db.Int, form.Number)
-	formList.AddField("自动化率", "auto_per", db.Double, form.Text)
-	formList.AddField("通过率", "pass_per", db.Double, form.Text)
-	formList.AddField("失败率", "fail_per", db.Double, form.Text)
-	formList.AddField("关联产品", "product", db.Varchar, form.Text)
-	formList.AddField("关联应用", " app", db.Varchar, form.Text)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("product_count.all_count"), "all_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.automatable_count"), "automatable_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.unautomatable_count"), "unautomatable_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.auto_test_count"), "auto_test_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.untest_count"), "untest_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.pass_count"), "pass_count", db.Int, form.Number)
+	formList.AddField(biz.T("common.fail_count"), "fail_count", db.Int, form.Number)
+	formList.AddField(biz.T("product_count.auto_per"), "auto_per", db.Double, form.Text)
+	formList.AddField(biz.T("product_count.pass_per"), "pass_per", db.Double, form.Text)
+	formList.AddField(biz.T("product_count.fail_per"), "fail_per", db.Double, form.Text)
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.app"), " app", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("product_count").SetTitle("产品统计").SetDescription("产品统计")
+	formList.SetTable("product_count").SetTitle(biz.T("product_count.title")).SetDescription(biz.T("product_count.description"))
 
 	return productCount
 }

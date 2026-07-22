@@ -8,6 +8,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	form2 "github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	template2 "github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
@@ -30,131 +31,132 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField("自增主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField("任务名称", "task_name", db.Varchar).
+	info.AddField(biz.T("common.task_name"), "task_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(160)
-	info.AddField("任务模式", "task_mode", db.Enum).
+	info.AddField(biz.T("common.task_mode"), "task_mode", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "cron" {
-				return "自定义"
+				return biz.T("schedule.task_mode_cron")
 			}
 			if model.Value == "once" {
-				return "一次"
+				return biz.T("schedule.task_mode_once")
 			}
 			if model.Value == "day" {
-				return "每天"
+				return biz.T("schedule.task_mode_day")
 			}
 			if model.Value == "week" {
-				return "每周"
+				return biz.T("schedule.task_mode_week")
 			}
-			return "一次"
+			return biz.T("schedule.task_mode_once")
 		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "cron", Text: "自定义"},
-		{Value: "once", Text: "一次"},
-		{Value: "day", Text: "每天"},
-		{Value: "week", Text: "每周"},
+		{Value: "cron", Text: biz.T("schedule.task_mode_cron")},
+		{Value: "once", Text: biz.T("schedule.task_mode_once")},
+		{Value: "day", Text: biz.T("schedule.task_mode_day")},
+		{Value: "week", Text: biz.T("schedule.task_mode_week")},
 	}).FieldWidth(100)
-	info.AddField("选择星期", "week", db.Varchar).
+	info.AddField(biz.T("schedule.week"), "week", db.Varchar).
 		FieldHide()
-	info.AddField("选择时刻", "time4week", db.Varchar).
+	info.AddField(biz.T("schedule.time4week"), "time4week", db.Varchar).
 		FieldHide()
-	info.AddField("选择时刻", "time4day", db.Varchar).
+	info.AddField(biz.T("schedule.time4day"), "time4day", db.Varchar).
 		FieldHide()
-	info.AddField("Cron表达式", "crontab", db.Varchar).
+	info.AddField(biz.T("schedule.crontab"), "crontab", db.Varchar).
 		FieldHide()
 
-	info.AddField("是否并发", "threading", db.Enum).
+	info.AddField(biz.T("common.threading"), "threading", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "yes" {
-				return "是"
+				return biz.T("common.yes")
 			}
 			if model.Value == "no" {
-				return "否"
+				return biz.T("common.no")
 			}
-			return "否"
+			return biz.T("common.no")
 		}).FieldEditAble(editType.Switch).FieldEditOptions(types.FieldOptions{
-		{Value: "yes", Text: "是"},
-		{Value: "no", Text: "否"},
+		{Value: "yes", Text: biz.T("common.yes")},
+		{Value: "no", Text: biz.T("common.no")},
 	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "yes", Text: "是"},
-		{Value: "no", Text: "否"},
+		{Value: "yes", Text: biz.T("common.yes")},
+		{Value: "no", Text: biz.T("common.no")},
 	})
 
-	info.AddField("任务类型", "task_type", db.Enum).
+	info.AddField(biz.T("common.task_type"), "task_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "data" {
-				return "数据"
+				return biz.T("common.data")
 			}
 			if model.Value == "scene" {
-				return "场景"
+				return biz.T("common.scene")
 			}
-			return "场景"
+			return biz.T("common.scene")
 		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "data", Text: "数据"},
-		{Value: "scene", Text: "场景"},
+		{Value: "data", Text: biz.T("common.data")},
+		{Value: "scene", Text: biz.T("common.scene")},
 	}).FieldWidth(60)
 
-	info.AddField("关联数据", "data_list", db.Longtext).
+	info.AddField(biz.T("common.data_list"), "data_list", db.Longtext).
 		FieldHide()
-	info.AddField("关联场景", "scene_list", db.Longtext).
+	info.AddField(biz.T("schedule.scene_list"), "scene_list", db.Longtext).
 		FieldHide()
-	info.AddField("关联产品", "product_list", db.Varchar).
+	info.AddField(biz.T("common.product_list"), "product_list", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(partProducts).
 		FieldWidth(220)
 
-	info.AddField("任务状态", "task_status", db.Enum).
+	info.AddField(biz.T("common.task_status"), "task_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "running" {
-				return "运行中"
+				return biz.T("common.running")
 			}
 			if model.Value == "stopped" {
-				return "已暂停"
+				return biz.T("common.stopped")
 			}
 			if model.Value == "finished" {
-				return "已结束"
+				return biz.T("common.finished")
 			}
 			if model.Value == "not_started" {
-				return "未开始"
+				return biz.T("common.not_started")
 			}
-			return "未开始"
+			return biz.T("common.not_started")
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "running", Text: "运行中"},
-		{Value: "stopped", Text: "已暂停"},
-		{Value: "finished", Text: "已结束"},
-		{Value: "not_started", Text: "未开始"},
+		{Value: "running", Text: biz.T("common.running")},
+		{Value: "stopped", Text: biz.T("common.stopped")},
+		{Value: "finished", Text: biz.T("common.finished")},
+		{Value: "not_started", Text: biz.T("common.not_started")},
 	}).FieldWidth(100)
 
-	info.AddField("备注", "remark", db.Longtext).
+	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldHide()
-	info.AddField("上次执行时间", "last_at", db.Timestamp).FieldWidth(100).FieldSortable()
-	info.AddField("下次执行时间", "next_at", db.Timestamp).FieldWidth(100).FieldSortable()
-	info.AddField("创建人", "user_name", db.Varchar).
+	info.AddField(biz.T("schedule.last_at"), "last_at", db.Timestamp).FieldWidth(100).FieldSortable()
+	info.AddField(biz.T("schedule.next_at"), "next_at", db.Timestamp).FieldWidth(100).FieldSortable()
+	info.AddField(biz.T("common.user_name"), "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 	//dataNames := biz.GetDatas()
 	//sceneNames := biz.GetScenes()
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
-	info.AddButton("一键导出", icon.Android, action.Ajax("schedule_batch_export",
+	sBtnBatchExport := template2.HTML(biz.T("common.btn_export"))
+	info.AddButton(sBtnBatchExport, icon.Android, action.Ajax("schedule_batch_export",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再一键导出"
+				status = biz.T("schedule.export_select_first")
 				return false, status, ""
 			}
 			user := auth.Auth(ctx)
@@ -173,16 +175,16 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 					}
 				}
 
-				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+				status = fmt.Sprintf("%s\n%s:\n%s", biz.T("schedule.export_success"), biz.T("common.copy_download_link"), downloadUrl)
 
 			} else {
-				status = fmt.Sprintf("一键导出失败：%s: %s", idStr, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("schedule.export_fail"), idStr, err)
 				return false, status, ""
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("一键导出", action.Ajax("schedule_export",
+	info.AddActionButton(template.HTML(biz.T("common.btn_export")), action.Ajax("schedule_export",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
@@ -202,19 +204,19 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 					}
 				}
 
-				status = fmt.Sprintf("一键导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+				status = fmt.Sprintf("%s\n%s:\n%s", biz.T("schedule.export_success"), biz.T("schedule.copy_download_link"), downloadUrl)
 			} else {
-				status = fmt.Sprintf("一键导出失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("schedule.export_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddButton("复制", icon.Android, action.Ajax("schedule_batch_copy",
+	info.AddButton(template.HTML(biz.T("common.btn_copy")), icon.Android, action.Ajax("schedule_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再复制"
+				status = biz.T("schedule.copy_select_first")
 				return false, status, ""
 			}
 			user := auth.Auth(ctx)
@@ -225,95 +227,116 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 					continue
 				}
 				if err := biz.CopySchedule(id, userNameSub); err == nil {
-					status = "复制成功，请刷新列表查看"
+					status = biz.T("schedule.copy_success")
 				} else {
-					status = fmt.Sprintf("复制失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("复制", action.Ajax("schedule_copy",
+	info.AddActionButton(template.HTML(biz.T("common.btn_copy")), action.Ajax("schedule_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if err := biz.CopySchedule(id, userNameSub); err == nil {
-				status = "复制成功，请刷新列表查看"
+				status = biz.T("schedule.copy_success")
 			} else {
-				status = fmt.Sprintf("复制失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddButton("执行", icon.Android, action.Ajax("run_batch_task",
+	info.AddButton(template.HTML(biz.T("common.btn_run")), icon.Android, action.Ajax("run_batch_task",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再执行"
+				status = biz.T("schedule.run_select_first")
 				return false, status, ""
 			}
 			if err := biz.RunTask(idStr, "", userNameSub); err == nil {
-				status = "任务已在后台执行"
+				status = biz.T("schedule.task_running_background")
 			} else {
-				status = fmt.Sprintf("任务执行失败：%s", err)
+				status = fmt.Sprintf("%s: %s", biz.T("schedule.task_exec_fail"), err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("执行", action.Ajax("run_task",
+	info.AddActionButton(template.HTML(biz.T("common.btn_run")), action.Ajax("run_task",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if err := biz.RunTask(id, "", userNameSub); err == nil {
-				status = "任务已在后台执行"
+				status = biz.T("schedule.task_running_background")
 			} else {
-				status = fmt.Sprintf("任务执行失败：%s", err)
+				status = fmt.Sprintf("%s: %s", biz.T("schedule.task_exec_fail"), err)
 			}
 
 			return true, status, ""
 		}))
 
-	info.AddButton("暂停", icon.Android, action.Ajax("task_batch_stop",
+	info.AddButton(template.HTML(biz.T("common.btn_stop")), icon.Android, action.Ajax("task_batch_stop",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再暂停"
+				status = biz.T("schedule.stop_select_first")
 				return false, status, ""
 			}
 			if err := biz.StopTask(idStr); err == nil {
-				status = "任务已暂停"
+				status = biz.T("schedule.task_stopped_msg")
 			} else {
-				status = fmt.Sprintf("任务暂停失败：%s", err)
+				status = fmt.Sprintf("%s: %s", biz.T("schedule.task_pause_fail"), err)
 				return false, status, ""
 			}
 
 			return true, status, ""
 		}))
 
-	info.AddActionButton("暂停", action.Ajax("task_stop",
+	info.AddActionButton(template.HTML(biz.T("common.btn_stop")), action.Ajax("task_stop",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.StopTask(id); err == nil {
-				status = "任务已暂停"
+				status = biz.T("schedule.task_stopped_msg")
 			} else {
-				status = fmt.Sprintf("任务暂停失败：%s", err)
+				status = fmt.Sprintf("%s: %s", biz.T("schedule.task_pause_fail"), err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddSelectBox("关联产品", products, action.FieldFilter("product_list"))
+	info.AddActionButton(template.HTML(biz.T("common.btn_report")), action.Jump("/admin/task_dashboard?id={{.Id}}"))
 
-	info.SetTable("schedule").SetTitle("定时任务").SetDescription("定时任务")
+	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/generate_task_report",
+		Title:  biz.T("schedule_report.generate_report"),
+		Width:  "900px",
+		Height: "540px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
+		// 根据选中的任务ID自动关联产品信息作为默认值
+		defaultProducts := biz.GetScheduleProductListByIds(ids)
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate()
+		panel.AddField(biz.T("schedule_report.select_products"), "report_products", db.Varchar, form.Select).
+			FieldOptions(products).
+			FieldDefault(defaultProducts).
+			FieldHelpMsg(template2.HTML(biz.T("schedule_report.select_report_type")))
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/generate_task_report"))
+
+	info.AddSelectBox(biz.T("common.product_list"), products, action.FieldFilter("product_list"))
+
+	info.SetTable("schedule").SetTitle(biz.T("schedule.title")).SetDescription(biz.T("schedule.description"))
 	cronHelp := template.HTML("<br>" +
 		"*&emsp;*&emsp;*&emsp;*&emsp;*" +
 		"<br>" +
@@ -332,16 +355,16 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		"+------------------------- 分钟 (0 - 59)")
 
 	formList := schedule.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("任务名称", "task_name", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.task_name"), "task_name", db.Varchar, form.Text)
 
-	formList.AddField("任务模式", "task_mode", db.Enum, form.SelectSingle).
+	formList.AddField(biz.T("common.task_mode"), "task_mode", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
-			{Value: "cron", Text: "自定义"},
-			{Value: "once", Text: "一次"},
-			{Value: "day", Text: "每天"},
-			{Value: "week", Text: "每周"},
+			{Value: "cron", Text: biz.T("schedule.task_mode_cron")},
+			{Value: "once", Text: biz.T("schedule.task_mode_once")},
+			{Value: "day", Text: biz.T("schedule.task_mode_day")},
+			{Value: "week", Text: biz.T("schedule.task_mode_week")},
 		}).
 		FieldOnChooseHide("once", "crontab", "week", "time4week", "time4day").
 		FieldOnChooseHide("cron", "week", "time4week", "time4day").
@@ -352,26 +375,26 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldOnChooseShow("day", "time4day").
 		FieldDefault("once")
 
-	formList.AddField("选择星期", "week", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.week"), "week", db.Varchar, form.Select).
 		FieldOptions(weekNos)
-	formList.AddField("选择时刻", "time4day", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.time4day"), "time4day", db.Varchar, form.Select).
 		FieldOptions(timeNos)
-	formList.AddField("选择时刻", "time4week", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.time4week"), "time4week", db.Varchar, form.Select).
 		FieldOptions(timeNos)
-	formList.AddField("Cron表达式", "crontab", db.Varchar, form.Text).
+	formList.AddField(biz.T("schedule.crontab"), "crontab", db.Varchar, form.Text).
 		FieldHelpMsg(cronHelp)
-	formList.AddField("是否并发", "threading", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.threading"), "threading", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "是", Value: "yes"},
-			{Text: "否", Value: "no"},
+			{Text: biz.T("common.yes"), Value: "yes"},
+			{Text: biz.T("common.no"), Value: "no"},
 		}).FieldDefault("no")
 
-	formList.AddField("编辑模式", "edit_type", db.Enum, form.SelectSingle).
+	formList.AddField(biz.T("common.edit_type"), "edit_type", db.Enum, form.SelectSingle).
 		FieldOptions(types.FieldOptions{
 			//{Value: "select_scene", Text: "选择场景"},
-			{Value: "input_scene", Text: "输入场景"},
+			{Value: "input_scene", Text: biz.T("schedule.input_scene")},
 			//{Value: "select_data", Text: "选择数据"},
-			{Value: "input_data", Text: "输入数据"},
+			{Value: "input_data", Text: biz.T("schedule.input_data")},
 		}).
 		FieldOnChooseHide("input_scene", "scene_table", "data_table", "input_data").
 		//FieldOnChooseHide("select_scene", "input_data", "data_table", "input_scene").
@@ -386,8 +409,8 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			return biz.GetTaskEditTypeById(model.ID)
 		})
 
-	dataHelp := template.HTML("关联数据必填")
-	formList.AddField("输入数据", "input_data", db.Varchar, form.TextArea).
+	dataHelp := template2.HTML(biz.T("common.help_data_required"))
+	formList.AddField(biz.T("schedule.input_data"), "input_data", db.Varchar, form.TextArea).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(dataHelp)
@@ -407,8 +430,8 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	//	panel.SetInputWidth(10)
 	//}).FieldHelpMsg(dataHelp)
 
-	sceneHelp := template.HTML("关联场景必填")
-	formList.AddField("输入场景", "input_scene", db.Varchar, form.TextArea).
+	sceneHelp := template2.HTML(biz.T("schedule.scene_help"))
+	formList.AddField(biz.T("schedule.input_scene"), "input_scene", db.Varchar, form.TextArea).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(sceneHelp)
@@ -429,26 +452,26 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	//	panel.SetInputWidth(10)
 	//}).FieldHelpMsg(sceneHelp)
 
-	formList.AddField("关联产品", "product_list", db.Varchar, form.Select).
+	formList.AddField(biz.T("common.product_list"), "product_list", db.Varchar, form.Select).
 		FieldOptions(products)
 
-	formList.AddField("任务状态", "task_status", db.Enum, form.Text).
+	formList.AddField(biz.T("common.task_status"), "task_status", db.Enum, form.Text).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
-	formList.AddField("上次执行时间", "last_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("schedule.last_at"), "last_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-	formList.AddField("下次执行时间", "next_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("schedule.next_at"), "next_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate().FieldDisableWhenUpdate()
-	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
+	formList.AddField(biz.T("common.user_name"), "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("schedule").SetTitle("定时任务").SetDescription("定时任务")
+	formList.SetTable("schedule").SetTitle(biz.T("schedule.title")).SetDescription(biz.T("schedule.description"))
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		if _, ok := values["edit_type"]; !ok {
@@ -481,83 +504,87 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	})
 
 	detail := schedule.GetDetail()
-	detail.AddField("自增主键", "id", db.Int)
-	detail.AddField("任务名称", "task_name", db.Varchar)
-	detail.AddField("任务模式", "task_mode", db.Enum).
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.task_name"), "task_name", db.Varchar)
+	detail.AddField(biz.T("common.task_mode"), "task_mode", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "cron" {
-				return "自定义"
+				return biz.T("schedule.task_mode_cron")
 			}
 			if model.Value == "once" {
-				return "一次"
+				return biz.T("schedule.task_mode_once")
 			}
 			if model.Value == "day" {
-				return "每天"
+				return biz.T("schedule.task_mode_day")
 			}
 			if model.Value == "week" {
-				return "每周"
+				return biz.T("schedule.task_mode_week")
 			}
-			return "一次"
+			return biz.T("schedule.task_mode_once")
 		})
-	detail.AddField("每周", "week", db.Varchar)
-	detail.AddField("每天时刻", "time4day", db.Varchar)
-	detail.AddField("每周时刻", "time4week", db.Varchar)
-	detail.AddField("Cron表达式", "crontab", db.Varchar)
-	detail.AddField("是否并发", "threading", db.Enum).
+	detail.AddField(biz.T("schedule.week"), "week", db.Varchar)
+	detail.AddField(biz.T("schedule.time4day"), "time4day", db.Varchar)
+	detail.AddField(biz.T("schedule.time4week"), "time4week", db.Varchar)
+	detail.AddField(biz.T("schedule.crontab"), "crontab", db.Varchar)
+	detail.AddField(biz.T("common.threading"), "threading", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "yes" {
-				return "是"
+				return biz.T("common.yes")
 			}
 			if model.Value == "no" {
-				return "否"
+				return biz.T("common.no")
 			}
-			return "否"
+			return biz.T("common.no")
 		})
-	detail.AddField("任务类型", "task_type", db.Enum).
+	detail.AddField(biz.T("common.task_type"), "task_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "data" {
-				return "数据"
+				return biz.T("common.data")
 			}
 			if model.Value == "scene" {
-				return "场景"
+				return biz.T("common.scene")
 			}
-			return "场景"
+			return biz.T("common.scene")
 		})
-	detail.AddField("关联数据", "data_list", db.Longtext).
+	detail.AddField(biz.T("common.data_list"), "data_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetDataDetailLinkByDataStr(model.Value)
 		})
-	detail.AddField("关联场景", "scene_list", db.Longtext).
+	detail.AddField(biz.T("schedule.scene_list"), "scene_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookLinkByPlaybookStr(model.Value)
 
 		})
-	detail.AddField("关联产品", "product_list", db.Varchar)
-	detail.AddField("任务状态", "task_status", db.Enum).
+	detail.AddField(biz.T("common.product_list"), "product_list", db.Varchar)
+	detail.AddField(biz.T("common.task_status"), "task_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "running" {
-				return "运行中"
+				return biz.T("common.running")
 			}
 			if model.Value == "stopped" {
-				return "已暂停"
+				return biz.T("common.stopped")
 			}
 			if model.Value == "finished" {
-				return "已结束"
+				return biz.T("common.finished")
 			}
 			if model.Value == "not_started" {
-				return "未开始"
+				return biz.T("common.not_started")
 			}
 
-			return "未开始"
+			return biz.T("common.not_started")
 		})
-	detail.AddField("备注", "remark", db.Longtext)
-	detail.AddField("上次执行时间", "last_at", db.Timestamp)
-	detail.AddField("下次执行时间", "next_at", db.Timestamp)
-	detail.AddField("创建人", "user_name", db.Text)
-	detail.AddField("创建时间", "created_at", db.Timestamp)
-	detail.AddField("更新时间", "updated_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp).FieldHide()
-	detail.SetTable("schedule").SetTitle("定时任务").SetDescription("定时详情")
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("schedule.last_at"), "last_at", db.Timestamp)
+	detail.AddField(biz.T("schedule.next_at"), "next_at", db.Timestamp)
+	detail.AddField(biz.T("common.user_name"), "user_name", db.Text)
+	//detail.AddField(biz.T("common.btn_report"), "id", db.Int).
+	//	FieldDisplay(func(model types.FieldModel) interface{} {
+	//		return biz.GetScheduleExecutionHistoryLink(model.Value, biz.T("common.btn_report")+" >")
+	//	})
+	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)
+	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
+	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).FieldHide()
+	detail.SetTable("schedule").SetTitle(biz.T("schedule.title")).SetDescription(biz.T("schedule.detail_title"))
 
 	return schedule
 }

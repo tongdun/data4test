@@ -12,7 +12,7 @@ func GetAiTemplateByName(name, tType string) (content, appendContent string, err
 	var aiTemplate AiTemplateDefine
 	models.Orm.Table("ai_template").Where("use_status = ? and template_name = ? and template_type = ?", templateStatus, name, tType).Find(&aiTemplate)
 	if len(aiTemplate.TemplateContent) == 0 {
-		err = fmt.Errorf("未找到[%s]类型可用的模板内容，请核对~", tType)
+		err = fmt.Errorf(T("error.template_not_found"), tType)
 		Logger.Error("%s", err)
 		return
 	}
@@ -27,9 +27,9 @@ func GetAiPlatform() (platformList []types.FieldOption) {
 	parameterName := "aiPlatform"
 	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
 	if len(sysParameter.ValueList) == 0 {
-		err := fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		err := fmt.Errorf(T("error.sys_param_not_defined"), parameterName)
 		Logger.Error("%s", err)
-		platformList = GetNoSelectOption("请先前往[环境-系统参数]定义参数[aiRunEngine]")
+		platformList = GetNoSelectOption(T("info.define_ai_run_engine"))
 		return
 	}
 
@@ -43,7 +43,7 @@ func GetAiPlatform() (platformList []types.FieldOption) {
 	}
 
 	if len(platformList) == 0 {
-		platformList = GetNoSelectOption("请先前往[环境-系统参数]定义参数[aiRunEngine]")
+		platformList = GetNoSelectOption(T("info.define_ai_run_engine"))
 	}
 
 	return
@@ -55,16 +55,16 @@ func GetAiCreatePlatform() (platformList []types.FieldOption) {
 	parameterName := "aiRunEngine"
 	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
 	if len(sysParameter.ValueList) == 0 {
-		err := fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		err := fmt.Errorf(T("error.sys_param_not_defined"), parameterName)
 		Logger.Error("%s", err)
-		platformList = GetNoSelectOption("请先前往[环境-系统参数]定义参数[aiRunEngine]")
+		platformList = GetNoSelectOption(T("info.define_ai_run_engine"))
 		return
 	}
 
 	aiConnect := make(map[string]AIConnect)
 	err := json.Unmarshal([]byte(sysParameter.ValueList), &aiConnect)
 	if err != nil {
-		Logger.Error("[%s]参数定义有误，请核对: %v", parameterName, err)
+		Logger.Error(T("error.param_definition_error"), parameterName, err)
 		return
 	}
 
@@ -76,7 +76,7 @@ func GetAiCreatePlatform() (platformList []types.FieldOption) {
 	}
 
 	if len(platformList) == 0 {
-		platformList = GetNoSelectOption("请先前往[环境-系统参数]定义参数[aiRunEngine]")
+		platformList = GetNoSelectOption(T("info.define_ai_run_engine"))
 	}
 
 	return
@@ -86,10 +86,10 @@ func GetAiCreatePlatform() (platformList []types.FieldOption) {
 func GetAiTemplateOptions(tType string) (aiTemplates []types.FieldOption) {
 	var templateNames []string
 	templateStatus := "apply"
-	aiTypeDefine := map[string]string{"1": "用例", "2": "数据", "3": "场景", "4": "任务", "5": "Issue", "6": "报告", "7": "分析"}
+	aiTypeDefine := map[string]string{"1": T("type.test_case"), "2": T("type.data"), "3": T("type.scene"), "4": T("type.task"), "5": "Issue", "6": T("type.report"), "7": T("type.analysis")}
 	models.Orm.Table("ai_template").Where("use_status = ? and template_type = ?", templateStatus, tType).Order("updated_at DESC").Pluck("template_name", &templateNames)
 	if len(templateNames) == 0 {
-		err := fmt.Errorf("未找到[%s]类型可用的模板内容，请核对~", aiTypeDefine[tType])
+		err := fmt.Errorf(T("error.template_not_found"), aiTypeDefine[tType])
 		Logger.Error("%s", err)
 		//return //不进行退出
 	}
@@ -103,7 +103,7 @@ func GetAiTemplateOptions(tType string) (aiTemplates []types.FieldOption) {
 
 	if len(aiTemplates) == 0 {
 		var aiTemplate types.FieldOption
-		desc := fmt.Sprintf("请先前往[助手-智能模板]定义智能[%s]模板", aiTypeDefine[tType])
+		desc := fmt.Sprintf(T("info.define_template"), aiTypeDefine[tType])
 		aiTemplate.Value = desc
 		aiTemplate.Text = desc
 		aiTemplates = append(aiTemplates, aiTemplate)
@@ -139,14 +139,14 @@ func CopyAiTemplate(id, userName string) (err error) {
 	var dbTemplate DbAiTemplateDefine
 	models.Orm.Table("ai_template").Where("id = ?", id).Find(&dbTemplate)
 	if len(dbTemplate.TemplateName) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
 
 	var aiTemplate AiTemplateDefine
 	aiTemplate = dbTemplate.AiTemplateDefine
-	aiTemplate.TemplateName = fmt.Sprintf("%s_复制", dbTemplate.TemplateName)
+	aiTemplate.TemplateName = fmt.Sprintf(T("template.copy_suffix"), dbTemplate.TemplateName)
 	aiTemplate.CreateUser = userName
 	aiTemplate.UseStatus = "edit"
 

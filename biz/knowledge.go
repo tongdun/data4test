@@ -211,7 +211,7 @@ func WriteApiDefineKnowledge() {
 		}
 
 		if len(content) == 0 {
-			Logger.Warning("未获取到[%s]的接口信息，请核对 ~", app.App)
+			Logger.Warning(T("warning.api_info_not_found"), app.App)
 			continue // 没有获取到数据，继续下一个应用的接口获取
 		}
 
@@ -230,7 +230,7 @@ func WriteApiDefineKnowledge() {
 
 func GetAllKnowledge(kType, syncUser string) (err error) {
 	if syncUser != "admin" {
-		err = fmt.Errorf("当前用户无[知识库同步]权限, 请联系管理员处理 ~")
+		err = fmt.Errorf(T("error.no_knowledge_sync_permission"))
 		return
 	}
 
@@ -254,7 +254,7 @@ func GetAllKnowledge(kType, syncUser string) (err error) {
 		WriteTestCaseKnowledge()
 		WriteApiDefineKnowledge()
 	default:
-		err = fmt.Errorf("知识库类型[%s]未知，请核对~ ", kType)
+		err = fmt.Errorf(T("error.unknown_knowledge_type"), kType)
 	}
 
 	return
@@ -265,7 +265,7 @@ func GetAIRAGConnectInfo() (aiConnect DataSetConnect, err error) {
 	parameterName := "aiRAGEngine"
 	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
 	if len(sysParameter.ValueList) == 0 {
-		err = fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		err = fmt.Errorf(T("error.undefined_system_parameter"), parameterName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -273,7 +273,7 @@ func GetAIRAGConnectInfo() (aiConnect DataSetConnect, err error) {
 	json.Unmarshal([]byte(sysParameter.ValueList), &aiConnect)
 
 	if len(aiConnect.BaseUrl) == 0 || len(aiConnect.ApiKey) == 0 {
-		err = fmt.Errorf("[%s]参数定义连接信息不全: %v，请核对~", parameterName, aiConnect)
+		err = fmt.Errorf(T("error.incomplete_connection_info"), parameterName, aiConnect)
 		Logger.Error("%s", err)
 	}
 
@@ -362,7 +362,7 @@ func UpdateAssetKnowledge(kType, syncUser string) (err error) {
 		fileDocPathList := GetDocFilePathList()
 		filePathList = append(filePathList, fileDocPathList...)
 	default:
-		err = fmt.Errorf("知识库类型[%s]未知，请核对~ ", kType)
+		err = fmt.Errorf(T("error.unknown_knowledge_type"), kType)
 	}
 
 	aiConnect, err := GetAIRAGConnectInfo()
@@ -372,7 +372,7 @@ func UpdateAssetKnowledge(kType, syncUser string) (err error) {
 
 	var kName string
 	if len(aiConnect.DataSetName) == 0 {
-		kName = "Data4Test知识库"
+		kName = T("knowledge.default_dataset_name")
 	} else {
 		kName = aiConnect.DataSetName
 	}

@@ -41,6 +41,7 @@ type Config struct {
 	SwaggerPath  string `json:"swagger_path"`
 	HostIp       string `json:"host_ip"`
 	RedirectPath string `json:"redirect_path"`
+	Language     string `json:"language"`
 }
 
 func init() {
@@ -89,33 +90,16 @@ func init() {
 		panic(err)
 	}
 
-	//_, err = os.Stat(BASEPATH)
-	//if err != nil {
-	//	if os.IsNotExist(err) {
-	//		subErr := os.MkdirAll(BASEPATH, os.ModePerm)
-	//		if subErr != nil {
-	//			LogHandle.Printf("Error: %s", subErr)
-	//		}
-	//	}
-	//}
-	//
-	//subPaths := [4]string{
-	//	BASEPATH + "/" + "api",
-	//	BASEPATH + "/" + "file",
-	//	BASEPATH + "/" + "test",
-	//	BASEPATH + "/" + "log",
-	//}
-	//
-	//for _, item := range subPaths {
-	//	_, subErr := os.Stat(item)
-	//	if subErr != nil {
-	//		if os.IsNotExist(err) {
-	//			subSubErr := os.MkdirAll(item, os.ModePerm)
-	//			if subSubErr != nil {
-	//				LogHandle.Printf("Error: %s", subSubErr)
-	//			}
-	//		}
-	//	}
-	//}
-
+	// 初始化 i18n
+	locale := config.Language
+	if locale == "cn" {
+		locale = "zh-CN"
+	} else if locale == "en" {
+		locale = "en-US"
+	}
+	if locale == "" {
+		locale = "zh-CN"
+	}
+	fmt.Printf("当前 go-admin 语言设置: %s, 初始化项目翻译器为: %s\n", config.Language, locale)
+	InitI18n(locale)
 }

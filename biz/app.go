@@ -21,17 +21,17 @@ import (
 //				//privateAppPrefix := make(map[string]interface{})
 //				err = json.Unmarshal([]byte(dbProduct.PrivateAppPrefix), &privateAppPrefix)
 //				if err != nil {
-//					Logger.Error("解析专用应用前缀异常: %s", err)
+//					Logger.Error(T("error.parse_private_app_prefix"), err)
 //					return
 //				}
 //			}
 //		} else {
-//			Logger.Warning("未找到[%s]产品配置信息", name)
+//			Logger.Warning(T("warning.product_config_not_found"), name)
 //		}
 //	case "app":
 //		models.Orm.Table("env_config").Where("app = ?", name).Find(&envConfig)
 //		if len(envConfig.App) == 0 {
-//			Logger.Warning("未找到[%s]应用配置信息", name)
+//			Logger.Warning(T("warning.app_config_not_found"), name)
 //		}
 //	}
 //
@@ -40,7 +40,7 @@ import (
 
 func GetEnvConfig(productName, appName string) (envConfig EnvConfig, err error) {
 	if len(productName) == 0 && len(appName) == 0 {
-		err = fmt.Errorf("产品名称和应用名称不能同时为空")
+		err = fmt.Errorf(T("error.product_app_both_empty"))
 		Logger.Error("%s", err)
 		return
 	}
@@ -48,7 +48,7 @@ func GetEnvConfig(productName, appName string) (envConfig EnvConfig, err error) 
 	if len(appName) > 0 {
 		models.Orm.Table("env_config").Where("app = ?", appName).Find(&envConfig)
 		if len(envConfig.App) == 0 {
-			Logger.Warning("未找到[%s]应用配置信息", appName)
+			Logger.Warning(T("warning.app_config_not_found"), appName)
 		}
 	}
 
@@ -65,7 +65,7 @@ func GetEnvConfig(productName, appName string) (envConfig EnvConfig, err error) 
 				privateAppPrefix := make(map[string]interface{})
 				err = json.Unmarshal([]byte(dbProduct.PrivateAppPrefix), &privateAppPrefix)
 				if err != nil {
-					Logger.Error("解析专用应用前缀异常: %s", err)
+					Logger.Error(T("error.parse_private_app_prefix"), err)
 					return
 				}
 
@@ -76,7 +76,7 @@ func GetEnvConfig(productName, appName string) (envConfig EnvConfig, err error) 
 				}
 			}
 		} else {
-			Logger.Warning("未找到[%s]产品配置信息", productName)
+			Logger.Warning(T("warning.product_config_not_found"), productName)
 		}
 	}
 
@@ -88,7 +88,7 @@ func GetAppName(id string) (name string, err error) {
 	models.Orm.Table("env_config").Where("id = ?", id).Select("app").Pluck("app", &appNames)
 
 	if len(appNames) == 0 {
-		err = fmt.Errorf("未找到[%v]应用信息，请核对", id)
+		err = fmt.Errorf(T("error.app_info_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -101,7 +101,7 @@ func GetSwaggerPath(id string) (swaggerPath string) {
 	models.Orm.Table("env_config").Where("id = ?", id).Select("swagger_path").Pluck("swagger_path", &pathList)
 
 	if len(pathList) == 0 {
-		err := fmt.Errorf("未找到[%v]应用信息，请核对", id)
+		err := fmt.Errorf(T("error.app_info_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -115,7 +115,7 @@ func GetAppId(app string) (id int, err error) {
 
 	models.Orm.Table("env_config").Where("app = ?", app).Pluck("id", &ids)
 	if len(ids) == 0 {
-		err = fmt.Errorf("未找到[%v]应用信息，请核对", app)
+		err = fmt.Errorf(T("error.app_info_not_found"), app)
 		Logger.Error("%s", err)
 		return
 	}

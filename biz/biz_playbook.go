@@ -16,22 +16,22 @@ import (
 	"time"
 )
 
-func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId, userName string) (result, lastFile string, err error) {
+func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId, userName, taskId string) (result, lastFile string, err error) {
 	if productInfo.Threading == "yes" && runNum > 1 && productInfo.ThreadNumber > 1 {
 		if runNum > productInfo.ThreadNumber {
 			loopNum := runNum/productInfo.ThreadNumber + 1
 			count := 1
 			for i := 0; i < loopNum; i++ {
-				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", productInfo.ThreadNumber, loopNum, i+1)
+				Logger.Info(T("info.concurrent_mode_stats"), productInfo.ThreadNumber, loopNum, i+1)
 				wg := sync.WaitGroup{}
 				for j := 0; j < productInfo.ThreadNumber; j++ {
 					if count > runNum {
 						break
 					}
-					Logger.Info("并发模式-执行次数:%d", count)
+					Logger.Info(T("info.concurrent_mode_count"), count)
 					wg.Add(1)
 					go func(playbook Playbook, dbId string) {
-						subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
+						subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
 						result = subResult
 						lastFile = subLastFile
 						if err1 != nil {
@@ -48,10 +48,10 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 		} else {
 			wg := sync.WaitGroup{}
 			for i := 0; i < runNum; i++ {
-				Logger.Info("并发模式-执行次数:%d", i+1)
+				Logger.Info(T("info.concurrent_mode_count"), i+1)
 				wg.Add(1)
 				go func(playbook Playbook, dbId string) {
-					subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
+					subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
 					result = subResult
 					lastFile = subLastFile
 					if err1 != nil {
@@ -67,9 +67,9 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 	} else {
 		for i := 0; i < runNum; i++ {
 			if runNum > 1 {
-				Logger.Info("串行模式-执行次数:%d", i+1)
+				Logger.Info(T("info.serial_mode_count"), i+1)
 			}
-			subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo)
+			subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
 			result = subResult
 			lastFile = subLastFile
 			if err1 != nil {
@@ -79,7 +79,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 					err = err1
 				}
 				if runNum > 1 {
-					Logger.Warning("退出循环多次测试执行")
+					Logger.Warning(T("warning.exit_loop_test_execution"))
 				}
 				break // 循环进行多次测试，如果遇错即退出
 			}
@@ -89,7 +89,7 @@ func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mod
 	return
 }
 
-func RunPlaybookFromMgmt(id, mode, product, source, userName string) (err error) {
+func RunPlaybookFromMgmt(id, mode, product, source, userName, taskId string) (err error) {
 	var productList []DbProduct
 	playbookInfo, productSceneInfo, err := GetPlRunInfo(source, id)
 
@@ -106,7 +106,7 @@ func RunPlaybookFromMgmt(id, mode, product, source, userName string) (err error)
 	}
 
 	for _, productInfo := range productList {
-		_, _, errTmp := RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id, userName)
+		_, _, errTmp := RepeatRunPlaybook(productInfo, playbook, playbookInfo.RunTime, mode, source, playbookInfo.Id, userName, taskId)
 		if errTmp != nil {
 			if err != nil {
 				err = fmt.Errorf("%s;%s", err, errTmp)
@@ -128,7 +128,7 @@ func RunPlaybookFromConsole(userName string, sceneModel SceneSaveModel) (runResp
 	playbook.Product = sceneModel.Product
 	if len(sceneModel.Name) == 0 {
 		tmpStr := GetRandomStr(4, "")
-		playbook.Name = fmt.Sprintf("临时测试场景-%s", tmpStr)
+		playbook.Name = fmt.Sprintf(T("scene.temp_test_scene_name"), tmpStr)
 	} else {
 		playbook.Name = sceneModel.Name
 	}
@@ -151,7 +151,7 @@ func RunPlaybookFromConsole(userName string, sceneModel SceneSaveModel) (runResp
 	runResp.TestResult = "pass"
 	var lastFilePath string
 
-	runResp.TestResult, lastFilePath, err = RepeatRunPlaybook(productInfo, playbook, sceneModel.RunNum, "start", "consolePlaybook", "", userName)
+	runResp.TestResult, lastFilePath, err = RepeatRunPlaybook(productInfo, playbook, sceneModel.RunNum, "start", "consolePlaybook", "", userName, "")
 	if runResp.TestResult != "pass" {
 		if err != nil {
 			runResp.FailReason = fmt.Sprintf("%s", err)
@@ -214,10 +214,10 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 						str1 := fmt.Sprintf("%v", baseV[i])
 						str2 := fmt.Sprintf("%v", baseChk[baseK][i])
 						if str1 == str2 {
-							Logger.Info(" 数据对比%s: [%v]=[%v] 结果:pass", baseK, baseV[i], baseChk[baseK][i])
+							Logger.Info(T("info.data_compare_pass"), baseK, baseV[i], baseChk[baseK][i])
 						} else {
 							isPass++
-							errTmp := fmt.Errorf("数据对比%s: [%v]=[%v] 结果:fail", baseK, baseV[i], baseChk[baseK][i])
+							errTmp := fmt.Errorf(T("error.data_compare_fail"), baseK, baseV[i], baseChk[baseK][i])
 							Logger.Error("%s", errTmp)
 							if err != nil {
 								err = fmt.Errorf("%s; %s", err, errTmp)
@@ -231,10 +231,10 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 				str1 := fmt.Sprintf("%v", baseV[0])
 				str2 := fmt.Sprintf("%v", baseChk[baseK][0])
 				if str1 == str2 {
-					Logger.Info(" 数据对比%s: [%v]=[%v] 结果:pass", baseK, baseV[0], baseChk[baseK][0])
+					Logger.Info(T("info.data_compare_pass"), baseK, baseV[0], baseChk[baseK][0])
 				} else {
 					isPass++
-					errTmp := fmt.Errorf("数据对比%s: [%v]=[%v] 结果:fail", baseK, baseV[0], baseChk[baseK][0])
+					errTmp := fmt.Errorf(T("error.data_compare_fail"), baseK, baseV[0], baseChk[baseK][0])
 					Logger.Error("%s", errTmp)
 					if err != nil {
 						err = fmt.Errorf("%s; %s", err, errTmp)
@@ -255,7 +255,7 @@ func CompareResult(apis []string, mode string) (result string, err error) {
 	return
 }
 
-func (playbook Playbook) RunPlaybookContent(envType int, source, userName string) (result, historyApi string, err error) {
+func (playbook Playbook) RunPlaybookContent(envType int, source, userName, taskId string) (result, historyApi string, err error) {
 	filePath := playbook.Apis[playbook.Tag]
 	depOutVars, err := playbook.GetPlaybookDepParams()
 	if err != nil {
@@ -295,7 +295,7 @@ func (playbook Playbook) RunPlaybookContent(envType int, source, userName string
 		}
 	}
 
-	err = WriteDataResultByFile(userName, filePath, result, dst, playbook.Product, source, envType, errTmp)
+	err = WriteDataResultByFile(userName, filePath, result, dst, playbook.Product, source, envType, errTmp, taskId)
 
 	if errTmp != nil {
 		if err != nil {
@@ -360,7 +360,7 @@ func (playbook Playbook) GetHistoryApiList() (apiStr string) {
 	return
 }
 
-func (playbook Playbook) WritePlaybookResult(userName, id, result, source string, envType int, errIn error) (err error) {
+func (playbook Playbook) WritePlaybookResult(userName, id, result, source string, envType int, errIn error, taskId string) (err error) {
 	var sceneRecode SceneRecord
 	apiStr := playbook.GetHistoryApiList()
 	lastFile := playbook.LastFile
@@ -382,6 +382,7 @@ func (playbook Playbook) WritePlaybookResult(userName, id, result, source string
 	sceneRecode.Product = playbook.Product
 	sceneRecode.EnvType = envType
 	sceneRecode.UserName = userName
+	sceneRecode.TaskId = taskId
 
 	errTmp := WritePlaybookRecord(sceneRecode)
 	if errTmp != nil {
@@ -522,7 +523,7 @@ func GetHistoryPlaybook(id string) (playbook Playbook, err error) {
 	s, _ := strconv.Atoi(id)
 	models.Orm.Table("scene_test_history").Where("id = ?", s).Find(&dbScene)
 	if len(dbScene.DataFileList) == 0 {
-		err = fmt.Errorf("未找到[%v]场景，请核对", s)
+		err = fmt.Errorf(T("error.scene_not_found"), s)
 		Logger.Error("%s", err)
 		return
 	}
@@ -582,7 +583,7 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, er
 	}
 
 	if len(dbScene.DataFileList) == 0 {
-		err = fmt.Errorf("未找到对应场景，请核对: %s", id)
+		err = fmt.Errorf(T("error.corresponding_scene_not_found"), id)
 		return
 	}
 
@@ -595,7 +596,7 @@ func GetProductInfo(product string) (productList []DbProduct, err error) {
 	productTmp := strings.Split(product, ",")
 	models.Orm.Table("product").Where("product in (?)", productTmp).Find(&productList)
 	if len(productList) == 0 {
-		err = fmt.Errorf("未找到: %v 环境信息，请核对", product)
+		err = fmt.Errorf(T("error.env_info_not_found"), product)
 	}
 	return
 }
@@ -611,7 +612,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 		if len(tmpStr[0]) > 2 {
 			err = json.Unmarshal([]byte(tmpStr[0]), &privateParameter)
 			if err != nil {
-				Logger.Error("解析专用参数异常: %s", err)
+				Logger.Error(T("error.private_parameter_parse"), err)
 				return
 			}
 		}
@@ -677,7 +678,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				tmpMap := make(map[string][]interface{})
 				err = json.Unmarshal([]byte(tmpList[1]), &tmpMap)
 				if err != nil {
-					Logger.Error("解析output参数异常: %s", err)
+					Logger.Error(T("error.output_parameter_parse"), err)
 					return
 				}
 				for k, v := range tmpMap {
@@ -760,7 +761,7 @@ func (playbook Playbook) GetPlaybookDepParams() (outputDict map[string][]interfa
 				tmpMap := make(map[string][]interface{})
 				err = json.Unmarshal([]byte(tmpList[1]), &tmpMap)
 				if err != nil {
-					Logger.Error("解析output参数异常: %s", err)
+					Logger.Error(T("error.output_parameter_parse"), err)
 					return
 				}
 				for k, v := range tmpMap {
@@ -843,7 +844,7 @@ func GetPriority(ids string) (idList []string, err error) {
 
 	models.Orm.Table("playbook").Where("id in (?)", idsTmp).Order("priority").Pluck("id", &idList)
 	if len(idList) == 0 {
-		err = fmt.Errorf("未找到对应数据，请核对: %s", ids)
+		err = fmt.Errorf(T("error.corresponding_data_not_found"), ids)
 		Logger.Error("%s", err)
 		return
 	}
@@ -854,14 +855,14 @@ func CopyPlaybook(id, userName string) (err error) {
 	var dbScene DbScene
 	models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
 	if len(dbScene.DataFileList) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
 
 	var scene SceneWithNoUpdateTime
 	scene.Product = dbScene.Product
-	scene.Name = fmt.Sprintf("%s_复制", dbScene.Name)
+	scene.Name = fmt.Sprintf(T("template.copy_suffix"), dbScene.Name)
 	scene.DataFileList = dbScene.DataFileList
 	scene.RunTime = dbScene.RunTime
 	scene.SceneType = dbScene.SceneType
@@ -898,7 +899,7 @@ func ImportPlaybookFromExcel(id string) (newCount, oldCount int, err error) {
 			newCount++
 		} else {
 			oldCount++
-			Logger.Info("产品:[%v]下场景:[%s]已存在，如有需要，请手动更新", item.Product, item.Name)
+			Logger.Info(T("info.scene_already_exists"), item.Product, item.Name)
 		}
 	}
 
@@ -915,7 +916,7 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 	if len(dbScene.Name) == 0 {
 		models.Orm.Table("playbook").Where("name = ?", name).Find(&dbScene)
 		if len(dbScene.Name) == 0 {
-			err = fmt.Errorf("未找到[%v]场景，请核对", name)
+			err = fmt.Errorf(T("error.scene_not_found"), name)
 			Logger.Warning("%s", err)
 			return
 		}
@@ -926,17 +927,17 @@ func GetPlaybookByName(name, product string) (sceneInfo SceneInfoModel, err erro
 
 	switch dbScene.SceneType {
 	case 1:
-		sceneInfo.SceneType = "串行中断"
+		sceneInfo.SceneType = T("scene_type.serial_interrupt")
 	case 2:
-		sceneInfo.SceneType = "串行比较"
+		sceneInfo.SceneType = T("scene_type.serial_compare")
 	case 3:
-		sceneInfo.SceneType = "串行继续"
+		sceneInfo.SceneType = T("scene_type.serial_continue")
 	case 4:
-		sceneInfo.SceneType = "普通并发"
+		sceneInfo.SceneType = T("scene_type.normal_concurrent")
 	case 5:
-		sceneInfo.SceneType = "并发比较"
+		sceneInfo.SceneType = T("scene_type.concurrent_compare")
 	default:
-		sceneInfo.SceneType = "串行中断"
+		sceneInfo.SceneType = T("scene_type.serial_interrupt")
 	}
 
 	dataList := strings.Split(dbScene.DataFileList, ",")
@@ -956,7 +957,7 @@ func GetAllPlaybook() (names []string, err error) {
 	//models.Orm.Table("playbook").Order("created_at desc").Group("name").Pluck("name", &names)  //去重再优化
 	models.Orm.Table("playbook").Order("created_at desc").Pluck("name", &names)
 	if len(names) == 0 {
-		Logger.Warning("暂无场景数据")
+		Logger.Warning(T("warning.no_scene_data"))
 		return
 	}
 	return
@@ -1156,7 +1157,7 @@ func ModifyPlaybookContent() (err error) {
 
 		var apiStr, numStr string
 		if len(dbScene.Name) == 0 {
-			Logger.Debug("未找到id: %v场景数据，请核对", id)
+			Logger.Debug(T("error.scene_data_not_found"), id)
 			return
 		} else {
 			for index, value := range apiList {
@@ -1195,25 +1196,25 @@ func ModifyPlaybookContent() (err error) {
 // ModifyPlaybookApiList 场景数据升级函数, 关联数据去链超链存储
 func ModifyPlaybookApiList() (err error) {
 	var ids []int
-	Logger.Info("开始更新")
+	Logger.Info(T("info.update_start"))
 	models.Orm.Table("playbook").Order("id ASC").Pluck("id", &ids)
 	for _, id := range ids {
 		var dbScene DbScene
 		models.Orm.Table("playbook").Where("id = ?", id).Find(&dbScene)
 		if len(dbScene.Name) == 0 {
-			Logger.Error("未找到id: %v场景数据，请核对", id)
+			Logger.Error(T("error.scene_data_not_found"), id)
 			return
 		}
 
 		if !strings.Contains(dbScene.DataFileList, "</a>") {
-			Logger.Info("%d:%s场景无需更新", id, dbScene.Name)
+			Logger.Info(T("info.scene_no_update_needed"), id, dbScene.Name)
 			continue
 		}
 
 		doc, errTmp := goquery.NewDocumentFromReader(strings.NewReader(dbScene.DataFileList))
 		if errTmp != nil {
 			Logger.Debug("dbScene.ApiList:%s", dbScene.DataFileList)
-			Logger.Error("%d:%s场景信息获取异常，%s", id, dbScene.Name, errTmp)
+			Logger.Error(T("error.scene_info_exception"), id, dbScene.Name, errTmp)
 			err = errTmp
 			continue
 		}
@@ -1230,7 +1231,7 @@ func ModifyPlaybookApiList() (err error) {
 		}
 
 	}
-	Logger.Info("结束更新")
+	Logger.Info(T("info.update_end"))
 	return
 }
 
@@ -1239,7 +1240,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 	var apiDef ApiDefinition
 	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDef)
 	if len(apiDef.ApiId) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -1247,7 +1248,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 	var dfNames []string
 	models.Orm.Table("scene_data").Where("api_id = ?", apiDef.ApiId).Group("file_name").Pluck("file_name", &dfNames)
 	if len(dfNames) == 0 {
-		err = fmt.Errorf("未找到[%v]接口关联的数据，请核对", apiDef.ApiId)
+		err = fmt.Errorf(T("error.api_related_data_not_found"), apiDef.ApiId)
 		Logger.Error("%s", err)
 		return
 	}
@@ -1256,7 +1257,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 	var scene SceneWithNoUpdateTime
 	var apiStr, numStr string
 	scene.Product = ""
-	scene.Name = fmt.Sprintf("全量-%s-%s-集合-%s", apiDef.ApiModule, apiDef.ApiDesc, GetRandomStr(4, ""))
+	scene.Name = fmt.Sprintf(T("scene.full_collection_name"), apiDef.ApiModule, apiDef.ApiDesc, GetRandomStr(4, ""))
 	for index, value := range dfNames {
 		if index == 0 {
 			apiStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", value, value)
@@ -1271,7 +1272,7 @@ func CreatePlaybookByAPIId(id, userName string) (err error) {
 	scene.DataNumber = numStr
 	scene.RunTime = 1
 	scene.SceneType = 1
-	scene.Remark = "自动生成"
+	scene.Remark = T("remark.auto_generated")
 	scene.Priority = 999
 	scene.UserName = userName
 
@@ -1348,7 +1349,7 @@ func GetApiDetailLinkByApiStr(appNameRaw interface{}, apiStr string) (linkStr st
 		var ids []int
 		models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, item).Pluck("id", &ids)
 		if len(ids) == 0 {
-			Logger.Warning("未找到接口[%s], 请核对", item)
+			Logger.Warning(T("warning.api_not_found"), item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写
 			} else {
@@ -1383,7 +1384,7 @@ func GetApiDetailLinkByApiRaw(appNameRaw interface{}, apiStr string) (linkStr st
 
 		models.Orm.Table("api_definition").Where("app = ? and api_id = ?", appName, apiId).Pluck("id", &ids)
 		if len(ids) == 0 {
-			Logger.Warning("未找到接口[%s], 请核对", apiId)
+			Logger.Warning(T("warning.api_not_found"), apiId)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写
 			} else {
@@ -1404,7 +1405,7 @@ func GetApiAutoDataList(apiId, pkId string) (linkStr string) {
 	var apiDef ApiDefDB
 	models.Orm.Table("api_definition").Where("id = ?", pkId).Find(&apiDef)
 	if len(apiDef.ApiId) == 0 {
-		Logger.Warning("未找到%s:%s接口定义, 请核对", pkId, apiId)
+		Logger.Warning(T("warning.api_definition_not_found"), pkId, apiId)
 		return apiId
 	}
 
@@ -1425,7 +1426,7 @@ func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
 	var dataDef DbSceneData
 	models.Orm.Table("scene_data").Where("id = ?", pkId).Find(&dataDef)
 	if len(dataDef.Name) == 0 {
-		Logger.Warning("未找到%s:%s数据定义, 请核对", pkId, dataName)
+		Logger.Warning(T("warning.data_definition_not_found"), pkId, dataName)
 		return dataName
 	}
 
@@ -1455,7 +1456,7 @@ func GetPlaybookUsedInTaskList(playbookName, pkId string) (linkStr string) {
 	var playbookDef DbScene
 	models.Orm.Table("playbook").Where("id = ?", pkId).Find(&playbookDef)
 	if len(playbookDef.Name) == 0 {
-		Logger.Warning("未找到%s:%s场景定义, 请核对", pkId, playbookName)
+		Logger.Warning(T("warning.scene_definition_not_found"), pkId, playbookName)
 		return playbookName
 	}
 
@@ -1519,7 +1520,7 @@ func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
 		var ids []int
 		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
 		if len(ids) == 0 {
-			Logger.Warning("未找到数据文件[%s], 请核对", item)
+			Logger.Warning(T("warning.data_file_not_found"), item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写
 			} else {
@@ -1554,7 +1555,7 @@ func AutoCreatePlaybook(dataIds, userName string) (err error) {
 	var dbSceneDatas []DbSceneData
 	models.Orm.Table("scene_data").Where("id in (?)", idList).Find(&dbSceneDatas)
 	if len(dbSceneDatas) == 0 {
-		err = fmt.Errorf("未找到对应[%v]的数据，请核对", dataIds)
+		err = fmt.Errorf(T("error.corresponding_data_not_found_by_ids"), dataIds)
 		Logger.Error("%s", err)
 		return
 	}
@@ -1568,7 +1569,7 @@ func AutoCreatePlaybook(dataIds, userName string) (err error) {
 		}
 	}
 
-	playbookName := fmt.Sprintf("自动场景_%s_%s", curTimeStr, GetRandomStr(4, ""))
+	playbookName := fmt.Sprintf(T("scene.auto_scene_name"), curTimeStr, GetRandomStr(4, ""))
 	var tmpPlaybook SceneWithNoUpdateTime
 	tmpPlaybook.SceneType = 1
 	tmpPlaybook.RunTime = 1

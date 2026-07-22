@@ -18,7 +18,7 @@ func GetRunTimeData(id, source string) (dataInfo DbSceneData, appInfo EnvConfig,
 	if source == "ai_data" {
 		models.Orm.Table("ai_data").Where("id = ?", id).Find(&dataInfo)
 		if len(dataInfo.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应的智能数据，请核对:%s", id)
+			err = fmt.Errorf(T("error.ai_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
 		}
@@ -27,7 +27,7 @@ func GetRunTimeData(id, source string) (dataInfo DbSceneData, appInfo EnvConfig,
 	} else {
 		models.Orm.Table("scene_data").Where("id = ?", id).Find(&dataInfo)
 		if len(dataInfo.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应的测试数据，请核对:%s", id)
+			err = fmt.Errorf(T("error.test_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
 		}
@@ -45,7 +45,7 @@ func GetFilePath(id, source string) (filePath string, err error) {
 	if source == "ai_data" {
 		models.Orm.Table("ai_data").Where("id = ?", s).Find(&dbSceneData)
 		if len(dbSceneData.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的智能数据，请核对", s)
+			err = fmt.Errorf(T("error.ai_data_id_not_found"), s)
 			Logger.Error("%s", err)
 			return
 		}
@@ -53,7 +53,7 @@ func GetFilePath(id, source string) (filePath string, err error) {
 	} else {
 		models.Orm.Table("scene_data").Where("id = ?", s).Find(&dbSceneData)
 		if len(dbSceneData.ApiId) == 0 {
-			err = fmt.Errorf("未找到对应[%v]的测试数据，请核对", s)
+			err = fmt.Errorf(T("error.test_data_id_not_found"), s)
 			Logger.Error("%s", err)
 			return
 		}
@@ -66,7 +66,7 @@ func CreateSceneDataFromRaw(id, mode string) (err error) {
 	var apiDefinition ApiDefinition
 	models.Orm.Table("api_definition").Where("id = ?", id).Find(&apiDefinition)
 	if len(apiDefinition.ApiId) == 0 {
-		err = fmt.Errorf("未找到API的定义信息，请核对~")
+		err = fmt.Errorf(T("error.api_def_not_found"))
 		Logger.Error("%s", err)
 		return
 	}
@@ -87,7 +87,7 @@ func CreateSceneDataFromRaw(id, mode string) (err error) {
 	sceneData.App = apiDefinition.App
 	sceneData.Name = apiDefinition.ApiDesc
 	sceneData.ApiId = apiDefinition.ApiId
-	sceneData.Name = fmt.Sprintf("通用-%s-%s-%s", apiDefinition.ApiModule, apiDefinition.ApiDesc, GetRandomStr(4, ""))
+	sceneData.Name = fmt.Sprintf(T("data.general_name_format"), apiDefinition.ApiModule, apiDefinition.ApiDesc, GetRandomStr(4, ""))
 	if mode == "json" {
 		sceneData.FileName = fmt.Sprintf("%s.json", sceneData.Name)
 	} else {
@@ -205,12 +205,12 @@ func CreateSingleSceneDataFromData(apiId string, id int, source, mode string) (e
 		models.Orm.Table("api_test_data").Where("id = ? and api_id = ?", id, apiId).Find(&apiTestData)
 
 		if len(apiTestData.ApiId) == 0 {
-			err1 := fmt.Errorf("未找到接口[%s]测试数据", apiId)
+			err1 := fmt.Errorf(T("error.api_test_data_not_found"), apiId)
 			err = err1
 			Logger.Error("%s", err)
 			return
 		}
-		sceneData.Name = fmt.Sprintf("通用-%s-%s-%s", apiTestData.ApiModule, apiTestData.ApiDesc, GetRandomStr(4, ""))
+		sceneData.Name = fmt.Sprintf(T("data.general_name_format"), apiTestData.ApiModule, apiTestData.ApiDesc, GetRandomStr(4, ""))
 		if strings.Contains(apiTestData.UrlQuery, "?") {
 			var queryParam map[string]interface{}
 			queryParam = make(map[string]interface{})
@@ -243,13 +243,13 @@ func CreateSingleSceneDataFromData(apiId string, id int, source, mode string) (e
 		models.Orm.Table("api_fuzzing_data").Where("id = ? and api_id = ?", id, apiId).Find(&apiFuzzingData)
 
 		if len(apiFuzzingData.ApiId) == 0 {
-			err1 := fmt.Errorf("未找到接口[%s]的模糊数据", apiId)
+			err1 := fmt.Errorf(T("error.api_fuzz_data_not_found"), apiId)
 			Logger.Error("%s", err)
 			err = err1
 			return
 		}
 
-		sceneData.Name = fmt.Sprintf("模糊-%s-%s-%s", apiFuzzingData.ApiModule, apiFuzzingData.ApiDesc, GetRandomStr(4, ""))
+		sceneData.Name = fmt.Sprintf(T("data.fuzz_name_format"), apiFuzzingData.ApiModule, apiFuzzingData.ApiDesc, GetRandomStr(4, ""))
 		if strings.Contains(apiFuzzingData.UrlQuery, "?") {
 			var queryParam map[string]interface{}
 			queryParam = make(map[string]interface{})
@@ -324,7 +324,7 @@ func CreateSingleSceneDataFromData(apiId string, id int, source, mode string) (e
 		dataFile.Api.Method = tmps[0]
 		dataFile.Api.Path = tmps[1]
 	} else {
-		err = fmt.Errorf("关联接口信息不符合标准格式httpMethod_/path, 实际：%s", apiDefinition.ApiId)
+		err = fmt.Errorf(T("error.api_id_format"), apiDefinition.ApiId)
 		Logger.Error("%s", err)
 		return
 	}
@@ -408,7 +408,7 @@ func CreateMultiSceneDataFromData(apiId string, ids []int, source, mode string) 
 
 		for index, apiTestData := range apiTestDatas {
 			if index == 0 {
-				sceneData.Name = fmt.Sprintf("通用-%s-%s-%s", apiTestData.ApiModule, apiTestData.ApiDesc, GetRandomStr(4, ""))
+				sceneData.Name = fmt.Sprintf(T("data.general_name_format"), apiTestData.ApiModule, apiTestData.ApiDesc, GetRandomStr(4, ""))
 			}
 			if strings.Contains(apiTestData.UrlQuery, "?") {
 				queryStrs := strings.Split(apiTestData.UrlQuery, "?")
@@ -441,7 +441,7 @@ func CreateMultiSceneDataFromData(apiId string, ids []int, source, mode string) 
 		models.Orm.Table("api_fuzzing_data").Where("id in (?)", ids).Find(&apiFuzzingDatas)
 		for index, apiFuzzingData := range apiFuzzingDatas {
 			if index == 0 {
-				sceneData.Name = fmt.Sprintf("模糊-%s-%s-%s", apiFuzzingData.ApiModule, apiFuzzingData.ApiDesc, GetRandomStr(4, ""))
+				sceneData.Name = fmt.Sprintf(T("data.fuzz_name_format"), apiFuzzingData.ApiModule, apiFuzzingData.ApiDesc, GetRandomStr(4, ""))
 			}
 			if strings.Contains(apiFuzzingData.UrlQuery, "?") {
 				queryStrs := strings.Split(apiFuzzingData.UrlQuery, "?")
@@ -512,7 +512,7 @@ func CreateMultiSceneDataFromData(apiId string, ids []int, source, mode string) 
 		dataFile.Api.Method = tmps[0]
 		dataFile.Api.Path = tmps[1]
 	} else {
-		err = fmt.Errorf("关联接口信息不符合标准格式httpMethod_/path, 实际：%s", apiId)
+		err = fmt.Errorf(T("error.api_id_format"), apiId)
 		Logger.Error("%s", err)
 		return
 	}
@@ -720,7 +720,7 @@ func BakOldVer(id, content, fileName string) (err error) {
 			var dbContents []string
 			models.Orm.Table("scene_data").Where("id = ?", id).Pluck("content", &dbContents)
 			if len(dbContents) == 0 {
-				err = fmt.Errorf("未找到[%v]数据，请核对", id)
+				err = fmt.Errorf(T("error.data_not_found_by_id"), id)
 				Logger.Error("%s", err)
 				return
 			}
@@ -787,9 +787,9 @@ func SyncSceneData() (newTag, modTag int, err error) {
 		dataFile, err1 := GetSceneContent(fileName)
 		if err1 != nil {
 			if len(errInfo) == 0 {
-				errInfo = fmt.Sprintf("%s, 请核对文件: %s", err, fileName)
+				errInfo = fmt.Sprintf(T("error.check_file"), err, fileName)
 			} else {
-				err = fmt.Errorf("%s, 请核对文件: %s", err, fileName)
+				err = fmt.Errorf(T("error.check_file"), err, fileName)
 				errInfo = fmt.Sprintf("%s\n%s", errInfo, err)
 			}
 			continue
@@ -810,9 +810,9 @@ func SyncSceneData() (newTag, modTag int, err error) {
 		dataYAML, err := yaml.Marshal(editScene)
 		if err != nil {
 			if len(errInfo) == 0 {
-				errInfo = fmt.Sprintf("%s, 请核对文件: %s", err, fileName)
+				errInfo = fmt.Sprintf(T("error.check_file"), err, fileName)
 			} else {
-				err = fmt.Errorf("%s, 请核对文件: %s", err, fileName)
+				err = fmt.Errorf(T("error.check_file"), err, fileName)
 				errInfo = fmt.Sprintf("%s\n%s", errInfo, err)
 			}
 			continue
@@ -857,7 +857,7 @@ func CopySceneData(id, userName string) (err error) {
 	var dbSceneData DbSceneData
 	models.Orm.Table("scene_data").Where("id = ?", id).Find(&dbSceneData)
 	if len(dbSceneData.Name) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", id)
+		err = fmt.Errorf(T("error.data_not_found_by_id"), id)
 		Logger.Error("%s", err)
 		return
 	}
@@ -865,13 +865,13 @@ func CopySceneData(id, userName string) (err error) {
 	var sceneData SceneData
 	var copyName string
 	sceneData.App = dbSceneData.App
-	sceneData.Name = fmt.Sprintf("%s_复制", dbSceneData.Name)
+	sceneData.Name = fmt.Sprintf(T("data.copy_name"), dbSceneData.Name)
 	sceneData.RunTime = dbSceneData.RunTime
 	tmpList := strings.SplitN(dbSceneData.FileName, ".", 2)
 	if len(tmpList) == 2 {
-		copyName = fmt.Sprintf("%s_复制.%s", tmpList[0], tmpList[1])
+		copyName = fmt.Sprintf(T("data.copy_name_ext"), tmpList[0], tmpList[1])
 	} else {
-		copyName = fmt.Sprintf("%s_复制.yml", dbSceneData.Name)
+		copyName = fmt.Sprintf(T("data.copy_name_yml"), dbSceneData.Name)
 	}
 
 	sceneData.FileName = copyName
@@ -973,7 +973,7 @@ func InitDataFileByName(filePath, source string) (rawFilePath string, fileType i
 			models.Orm.Table("ai_data").Where("file_name = ?", fileName).Find(&sceneData)
 		}
 		if len(sceneData.FileName) == 0 {
-			err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
+			err = fmt.Errorf(T("error.data_not_found_by_id"), fileName)
 			Logger.Error("%s", err)
 			return
 		} else {
@@ -988,7 +988,7 @@ func InitDataFileByName(filePath, source string) (rawFilePath string, fileType i
 			models.Orm.Table("scene_data").Where("file_name = ?", fileName).Find(&sceneData)
 		}
 		if len(sceneData.FileName) == 0 {
-			err = fmt.Errorf("未找到[%v]数据，请核对", fileName)
+			err = fmt.Errorf(T("error.data_not_found_by_id"), fileName)
 			Logger.Error("%s", err)
 			return
 		} else {
@@ -1085,7 +1085,7 @@ func (ds DbScene) GetHistoryApiList(lastFile, batchTag string) (apiStr, lastFile
 	return
 }
 
-func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, dbProduct DbProduct) (result, lastFile string, err error) {
+func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, dbProduct DbProduct, taskId string) (result, lastFile string, err error) {
 	if len(dbProduct.Name) > 0 {
 		playbook.Product = dbProduct.Name
 	}
@@ -1116,7 +1116,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName, taskId)
 			if errTmp != nil {
 				if err != nil {
 					err = fmt.Errorf("%s; %s", err, errTmp)
@@ -1128,7 +1128,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
 			playbook.LastFile = historyApi
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(userName, playbookId, subResult, source, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(userName, playbookId, subResult, source, envType, errTmp, taskId)
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -1144,7 +1144,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName, taskId)
 			if errTmp != nil {
 				Logger.Error("%v", errTmp)
 				if err != nil {
@@ -1161,7 +1161,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err, taskId) // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1179,7 +1179,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName)
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName, taskId)
 				if errTmp != nil {
 					Logger.Error("%v", errTmp)
 					if errIn != nil {
@@ -1201,7 +1201,7 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, playbookId, tmpResult, source, envType, err, taskId) // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -1225,14 +1225,14 @@ func (playbook Playbook) RunPlaybook(userName, playbookId, mode, source string, 
 		result, err = CompareResult(playbook.HistoryApis, mode)
 	}
 	playbook.LastFile = lastFile
-	err = playbook.WritePlaybookResult(userName, playbookId, result, source, envType, err)
+	err = playbook.WritePlaybookResult(userName, playbookId, result, source, envType, err, taskId)
 	if err != nil {
 		Logger.Error("%v", err)
 		return
 	}
 
 	if result != "pass" {
-		err = fmt.Errorf("测试 %v", result)
+		err = fmt.Errorf(T("error.test_result"), result)
 	}
 	return
 }
@@ -1324,11 +1324,11 @@ func GetAfterContent(lang, in string, depOutVars map[string][]interface{}) (out 
 	if allFalseCount > 0 {
 		if err != nil {
 			if len(notDefVars) > 0 {
-				err = fmt.Errorf("%s; 存在未定义参数: %v，请先定义或关联", err, notDefVars)
+				err = fmt.Errorf(T("error.undefined_params_with_err"), err, notDefVars)
 			}
 		} else {
 			if len(notDefVars) > 0 {
-				err = fmt.Errorf("存在未定义参数: %v，请先定义或关联", notDefVars)
+				err = fmt.Errorf(T("error.undefined_params_v"), notDefVars)
 			}
 			Logger.Error("%s", err)
 		}
@@ -1353,7 +1353,7 @@ func GetStrByIndex(rawStr, startStr, endStr string) (indexStr, targetStr string,
 		} else if startIndex > endIndex {
 			Logger.Debug("rawStr: %s", rawStr)
 			Logger.Debug("startStr: %s，endStr: %s", startStr, endStr)
-			Logger.Error("rawStr[%d:%d], 索引有问题，请校对", startIndex, endIndex)
+			Logger.Error(T("error.index_error"), startIndex, endIndex)
 		} else {
 			indexStr = rawStr[startIndex:endIndex]
 		}
@@ -1368,7 +1368,7 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 	var startIndex, endIndex int
 	indexStr, targetStr, startIndex, endIndex = GetStrByIndex(rawStr, startStr, endStr)
 	if startIndex == -1 { //开始为-1说明没找到开始的信息，应该原样返回
-		Logger.Warning("未找到开始值: %s, 结束值: %s", startStr, endStr)
+		Logger.Warning(T("warn.start_end_not_found"), startStr, endStr)
 	}
 
 	strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
@@ -1412,7 +1412,7 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 					}
 					indexStr = strings.Replace(indexStr, rawStrDef, tmpKey, -1)
 				} else {
-					errTmp := fmt.Errorf("参数: %s定义参数不足%v，%s取值超出索引，请核对~", string(item[1]), value, rawStrDef)
+					errTmp := fmt.Errorf(T("error.param_index_out_of_range"), string(item[1]), value, rawStrDef)
 					Logger.Error("%s", errTmp)
 					if err != nil {
 						err = fmt.Errorf("%s;%s", err, errTmp)
@@ -1590,7 +1590,7 @@ func UpdateDataAssertContent() {
 	for _, dataInfo := range dataList {
 		isChange := 0
 		if len(dataInfo.Content) == 0 {
-			err := fmt.Errorf("无断言信息%s", dataInfo.Name)
+			err := fmt.Errorf(T("error.no_assert_info"), dataInfo.Name)
 			Logger.Error("%s", err)
 			continue
 		}
@@ -1640,7 +1640,7 @@ func UpdateDataAssertContent() {
 							isChange++
 						}
 					} else {
-						Logger.Debug("%d, 双list断言变更数据描述: %v", doubleCount, dataInfo.Name)
+						Logger.Debug(T("info.double_list_assert_change"), doubleCount, dataInfo.Name)
 						Logger.Debug("rawSource: %v", item.Source)
 						if isChange == 0 {
 							isChange++
@@ -1703,8 +1703,8 @@ func UpdateDataAssertContent() {
 		}
 
 	}
-	Logger.Debug("单数组数量：%d", count)
-	Logger.Debug("多数组数量：%d", doubleCount)
+	Logger.Debug(T("info.single_array_count"), count)
+	Logger.Debug(T("info.multi_array_count"), doubleCount)
 	return
 }
 
@@ -1715,7 +1715,7 @@ func ModifyDataContent() {
 	for _, dataInfo := range dataList {
 
 		if len(dataInfo.Content) == 0 {
-			err := fmt.Errorf("无内容信息%s", dataInfo.Name)
+			err := fmt.Errorf(T("error.no_content_info"), dataInfo.Name)
 			Logger.Error("%s", err)
 			continue
 		}
@@ -1740,6 +1740,6 @@ func ModifyDataContent() {
 			models.Orm.Table("scene_data").Where("id = ?", dataInfo.Id).Update(&dataInfo)
 		}
 	}
-	Logger.Debug("更新数据条数: %d", count)
+	Logger.Debug(T("info.update_count"), count)
 	return
 }

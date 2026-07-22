@@ -54,14 +54,14 @@ func CallDifyChat(aiConnect AIConnect, query string, userId, cId, fileId, fileTy
 	if err != nil {
 		Logger.Error("err: %s", err)
 		// 如果请求遇错，直接退出，不再进行后续会话
-		return "", "", fmt.Errorf("响应解析失败: %v, 原始响应: %s", err, string(respBody))
+		return "", "", fmt.Errorf(T("error.response_parse_failed"), err, string(respBody))
 
 	}
 
 	// 解析 JSON
 	var chatResp ChatResponse
 	if err = json.Unmarshal(respBody, &chatResp); err != nil {
-		return "", "", fmt.Errorf("响应解析失败: %v, 原始响应: %s", err, string(respBody))
+		return "", "", fmt.Errorf(T("error.response_parse_failed"), err, string(respBody))
 	}
 
 	if len(cId) == 0 {
@@ -117,7 +117,7 @@ func CallDify2UploadFile(aiConnect AIConnect, filePath, userCode string) (fileID
 	}
 
 	if len(fileType) == 0 {
-		err = fmt.Errorf("当前文件类型[%s]不支持解析，请更换文档载体~", tFileType)
+		err = fmt.Errorf(T("error.file_type_not_supported"), tFileType)
 		return
 	}
 
@@ -152,7 +152,7 @@ func CallDify2UploadFile(aiConnect AIConnect, filePath, userCode string) (fileID
 	if fileID, ok := result["id"].(string); ok {
 		return fileID, fileType, nil
 	}
-	return fileID, fileType, fmt.Errorf("获取fileID失败")
+	return fileID, fileType, fmt.Errorf(T("error.get_fileid_failed"))
 }
 
 func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode string) (replyList []string, err error) {
@@ -165,14 +165,14 @@ func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode stri
 	if len(uploadFilePath) > 0 {
 		fileId, fileType, err = CallDify2UploadFile(aiConnect, uploadFilePath, userCode)
 		if err != nil {
-			Logger.Error("上传文件到大模型失败: %s", err)
+			Logger.Error(T("error.upload_file_failed"), err)
 			return
 		}
 	}
 
 	reply1, cId, err := CallDifyChat(aiConnect, query, userCode, "", fileId, fileType)
 	if err != nil {
-		Logger.Error("调用%s失败: %v", aiPlatform, err)
+		Logger.Error(T("error.call_model_failed"), aiPlatform, err)
 		return
 	}
 	replyList = append(replyList, reply1)
@@ -184,7 +184,7 @@ func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode stri
 		}
 		answer, _, errTmp := CallDifyChat(aiConnect, item, userCode, cId, fileId, fileType)
 		if errTmp != nil {
-			Logger.Error("调用%s失败: %v", aiPlatform, err)
+			Logger.Error(T("error.call_model_failed"), aiPlatform, err)
 			err = errTmp
 			return
 		}
@@ -202,7 +202,7 @@ func (input ImportCommon) ConnectModel2GetMessage() (replyList []string, err err
 
 	replyList, err = aiConnect.CallModel2GetMessage(input.CreateUser, input.ConversationId)
 	if err != nil {
-		Logger.Error("调用%s失败: %v", input.CreatePlatform, err)
+		Logger.Error(T("error.call_model_failed"), input.CreatePlatform, err)
 		return
 	}
 

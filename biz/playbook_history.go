@@ -11,7 +11,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 	switch playbook.SceneType {
 	case 3, 4, 5:
 		if mode == "continue" {
-			err = fmt.Errorf("当前模式不支持继续运行, 支持继续运行模式: 串行继续/串行比较")
+			err = fmt.Errorf(T("error.mode_not_supported_continue"))
 			return
 		}
 	}
@@ -55,7 +55,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 	case 1, 2:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName, "")
 			if errTmp != nil {
 				if err != nil {
 					err = errTmp
@@ -82,13 +82,13 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 	case 3:
 		for k := range runApis {
 			playbook.Tag = tag + k
-			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName)
+			subResult, historyApi, errTmp := playbook.RunPlaybookContent(envType, source, userName, "")
 			if errTmp != nil {
 				Logger.Error("%s", errTmp)
 				if err != nil {
-					err = fmt.Errorf("%s执行失败: %s", playbook.Apis[playbook.Tag], errTmp)
+					err = fmt.Errorf(T("error.execution_failed"), playbook.Apis[playbook.Tag], errTmp)
 				} else {
-					err = fmt.Errorf("%s; %s执行失败：%s", err, playbook.Apis[playbook.Tag], errTmp)
+					err = fmt.Errorf(T("error.execution_failed_with_prev"), err, playbook.Apis[playbook.Tag], errTmp)
 				}
 			}
 			playbook.HistoryApis = append(playbook.HistoryApis, historyApi)
@@ -112,13 +112,13 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 			wg.Add(1)
 			go func(inPlaybook Playbook, id string, startIndex, index, envType int, errIn error) {
 				inPlaybook.Tag = startIndex + index
-				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName)
+				subResult, historyApi, errTmp := inPlaybook.RunPlaybookContent(envType, source, userName, "")
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
-						err = fmt.Errorf("%s执行失败: %s", inPlaybook.Apis[playbook.Tag], errTmp)
+						err = fmt.Errorf(T("error.execution_failed"), inPlaybook.Apis[playbook.Tag], errTmp)
 					} else {
-						err = fmt.Errorf("%s; %s执行失败：%s", err, inPlaybook.Apis[playbook.Tag], errTmp)
+						err = fmt.Errorf(T("error.execution_failed_with_prev"), err, inPlaybook.Apis[playbook.Tag], errTmp)
 					}
 				}
 
@@ -160,7 +160,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 
 	var errTmp error
 	if playbook.SceneType == 2 || playbook.SceneType == 5 {
-		Logger.Debug("开始比较")
+		Logger.Debug(T("debug.start_comparison"))
 		result, errTmp = CompareResult(playbook.HistoryApis, mode)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
@@ -179,7 +179,7 @@ func RunHistoryPlaybook(id, mode, userName string) (err error) {
 	}
 
 	if result != "pass" {
-		err = fmt.Errorf("测试 %v", result)
+		err = fmt.Errorf(T("error.test_result"), result)
 	}
 
 	return

@@ -14,7 +14,7 @@ func HistoryDataRunAgain(id, userName string) (err error) {
 	models.Orm.Table("scene_data_test_history").Where("id = ?", id).Find(&hData)
 
 	if len(hData.Content) == 0 {
-		err = fmt.Errorf("未找到历史数据的详情信息")
+		err = fmt.Errorf(T("error.history_data_not_found"))
 		Logger.Error("Error: %s, ID: %s", err, id)
 		return
 	}
@@ -38,7 +38,7 @@ func HistoryDataRunAgain(id, userName string) (err error) {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", err)
 	}
 
-	err = WriteDataResultByFile(userName, filePath, result, dst, hData.Product, "historyAgain", hData.EnvType, err)
+	err = WriteDataResultByFile(userName, filePath, result, dst, hData.Product, "historyAgain", hData.EnvType, err, "")
 
 	if err != nil {
 		Logger.Error("%s", err)
@@ -46,7 +46,7 @@ func HistoryDataRunAgain(id, userName string) (err error) {
 	return
 }
 
-func RecordDataHistory(userName, dst, product, source string, envType int, dbData DbSceneData) (err error) {
+func RecordDataHistory(userName, dst, product, source string, envType int, dbData DbSceneData, taskId string) (err error) {
 	var sceneDataRecord SceneDataRecord
 
 	if len(dst) > 0 {
@@ -72,9 +72,10 @@ func RecordDataHistory(userName, dst, product, source string, envType int, dbDat
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
 	sceneDataRecord.UserName = userName
+	sceneDataRecord.TaskId = taskId
 
 	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
-
+	Logger.Debug("sceneDataRecord: %+v", sceneDataRecord)
 	if err != nil {
 		Logger.Error("%s", err)
 	}

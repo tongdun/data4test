@@ -15,7 +15,7 @@ func GetAIModelConnectInfo(aiType string) (aiConnect AIConnect, err error) {
 	parameterName := "aiRunEngine"
 	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
 	if len(sysParameter.ValueList) == 0 {
-		err = fmt.Errorf("系统参数中未定义[%s]参数的值，请核对~", parameterName)
+		err = fmt.Errorf(T("error.sys_param_undefined"), parameterName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -26,13 +26,13 @@ func GetAIModelConnectInfo(aiType string) (aiConnect AIConnect, err error) {
 	if v, ok := valueDefine[aiType]; ok {
 		aiConnect = v
 	} else {
-		err = fmt.Errorf("[%s]参数中未定义[%s]的值，请核对~", parameterName, aiType)
+		err = fmt.Errorf(T("error.param_value_undefined"), parameterName, aiType)
 		Logger.Error("%s", err)
 		return
 	}
 
 	if len(aiConnect.BaseUrl) == 0 || len(aiConnect.ApiKey) == 0 {
-		err = fmt.Errorf("[%s]连接信息不全: %v，请核对~", aiType, aiConnect)
+		err = fmt.Errorf(T("error.connect_info_incomplete"), aiType, aiConnect)
 		Logger.Error("%s", err)
 	}
 

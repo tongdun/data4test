@@ -25,7 +25,7 @@ func GetPlaybookFromReply(reply string) (playbookList []map[string]interface{}, 
 			targetStr = playbookMatch[0][1]
 		}
 		if len(playbookMatch[0]) > 2 {
-			Logger.Warning("匹配到了多笔数据，请核对 ~")
+			Logger.Warning(T("warning.multiple_matches"))
 			Logger.Debug("dataMatch: %s", playbookMatch[0])
 		}
 	}
@@ -53,9 +53,9 @@ func GetPlaybookFromReplyList(replyList []string) (playbookList []map[string]int
 		if len(playbookSubList) == 0 {
 			var errTmp error
 			if len(replyList) == 1 {
-				errTmp = fmt.Errorf("返回信息未匹配到场景，请核对~")
+				errTmp = fmt.Errorf(T("error.no_scene_match"))
 			} else {
-				errTmp = fmt.Errorf("第%d步返回信息未匹配到场景，请核对~", index+1)
+				errTmp = fmt.Errorf(T("error.step_no_scene_match"), index+1)
 			}
 			Logger.Error("%s", errTmp)
 			if err == nil {
@@ -93,7 +93,7 @@ func (input CommonExtend) SaveAIPlaybookByRepyList(replyList []string) (err erro
 
 func (input CommonExtend) SaveAIPlaybookByPlaybookListMap(playbookList []map[string]interface{}) (err error) {
 	if len(playbookList) == 0 {
-		return fmt.Errorf("未匹配到场景信息，请核对~")
+		return fmt.Errorf(T("error.no_scene_info"))
 	}
 
 	for _, item := range playbookList {
@@ -308,7 +308,7 @@ func (playbook Playbook) RunAiPlaybook(userName, dbId, source string, analysisIn
 			playbook.LastFile = historyApi
 
 			if subResult == "fail" {
-				errTmp = playbook.WritePlaybookResult(userName, dbId, subResult, source, envType, errTmp)
+				errTmp = playbook.WritePlaybookResult(userName, dbId, subResult, source, envType, errTmp, "")
 				if errTmp != nil {
 					Logger.Error("%s", errTmp)
 					if err != nil {
@@ -341,7 +341,7 @@ func (playbook Playbook) RunAiPlaybook(userName, dbId, source string, analysisIn
 
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err) // 串行继续时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err, "") // 串行继续时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -381,7 +381,7 @@ func (playbook Playbook) RunAiPlaybook(userName, dbId, source string, analysisIn
 		wg.Wait()
 		if isFail > 0 {
 			tmpResult := "fail"
-			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err) // 并发模式时，无最近执行的文件
+			errTmp := playbook.WritePlaybookResult(userName, dbId, tmpResult, source, envType, err, "") // 并发模式时，无最近执行的文件
 			if errTmp != nil {
 				Logger.Error("%v", err)
 				if err != nil {
@@ -404,14 +404,14 @@ func (playbook Playbook) RunAiPlaybook(userName, dbId, source string, analysisIn
 		result, err = CompareResult(playbook.HistoryApis, "yaml")
 	}
 	playbook.LastFile = lastFile
-	err = playbook.WritePlaybookResult(userName, dbId, result, source, envType, err)
+	err = playbook.WritePlaybookResult(userName, dbId, result, source, envType, err, "")
 	if err != nil {
 		Logger.Error("%v", err)
 		return
 	}
 
 	if result != "pass" {
-		err = fmt.Errorf("测试 %v", result)
+		err = fmt.Errorf(T("error.test_result"), result)
 	}
 	return
 }
@@ -466,7 +466,7 @@ func (playbook Playbook) RunAiPlaybookContent(userName, source string, analysisI
 	errStr := fmt.Sprintf("%s", err)
 
 	// 如果接口请求直接失败，则不进行LLM分析
-	if err != nil && strings.Contains(errStr, "请求失败，返回码") {
+	if err != nil && strings.Contains(errStr, T("error.request_failed_status_code")) {
 		return
 	}
 
@@ -488,7 +488,7 @@ func GetAiDataDetailLinkByDataStr(dStr string) (linkStr string) {
 			models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
 
 			if len(ids) == 0 {
-				Logger.Warning("未找到数据文件[%s], 请核对", item)
+				Logger.Warning(T("warning.data_file_not_found"), item)
 				if len(linkStr) == 0 {
 					linkStr = item //跳详情，可自动点击编辑进行改写
 				} else {
@@ -508,7 +508,7 @@ func GetAiDataDetailLinkByDataStr(dStr string) (linkStr string) {
 				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/%s/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, source, ids[0], item)
 			}
 		} else {
-			Logger.Warning("未找到数据文件[%s], 请核对", item)
+			Logger.Warning(T("warning.data_file_not_found"), item)
 			if len(linkStr) == 0 {
 				linkStr = item //跳详情，可自动点击编辑进行改写
 			} else {
@@ -523,7 +523,7 @@ func GetAiDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
 	var dataDef DbSceneData
 	models.Orm.Table("ai_data").Where("id = ?", pkId).Find(&dataDef)
 	if len(dataDef.Name) == 0 {
-		Logger.Warning("未找到%s:%s数据定义, 请核对", pkId, dataName)
+		Logger.Warning(T("warning.data_definition_not_found"), pkId, dataName)
 		return dataName
 	}
 
@@ -554,7 +554,7 @@ func UseAiPlaybook(ids, userName string) (err error) {
 	var aiPlaybookList []AiPlaybook
 	models.Orm.Table("ai_playbook").Where("id in (?)", idList).Find(&aiPlaybookList)
 	if len(aiPlaybookList) == 0 {
-		err = fmt.Errorf("场景存在异常: [%s], 请核对~", ids)
+		err = fmt.Errorf(T("error.scene_abnormal"), ids)
 		Logger.Error("%s", err)
 		return
 	}

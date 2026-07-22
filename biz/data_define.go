@@ -81,6 +81,7 @@ type SceneMulti struct {
 }
 
 type SceneDataRecord struct {
+	TaskId     string `gorm:"column:task_id" json:"task_id"`
 	Name       string `gorm:"column:name" json:"name"`
 	ApiId      string `gorm:"column:api_id" json:"api_id"`
 	App        string `gorm:"column:app" json:"app"`

@@ -34,7 +34,7 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 			models.Orm.Table("assert_template").Where("name = ?", name).Find(&assertValueDefine)
 			valueRaw := assertValueDefine.Value
 			if len(valueRaw) == 0 {
-				err := fmt.Errorf("未关联到断言值定义:%s", name)
+				err := fmt.Errorf(T("error.assert_value_not_found"), name)
 				Logger.Warning("%s", err)
 				//return
 			}
@@ -67,7 +67,7 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 				}
 
 			} else {
-				err := fmt.Errorf("未关联到断言值定义 :%s", name)
+				err := fmt.Errorf(T("error.assert_value_not_found_space"), name)
 				Logger.Warning("%s", err)
 			}
 
@@ -84,7 +84,7 @@ func (assert SceneAssert) GetAssertValue(lang string) (out string) {
 func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, values []interface{}, err error) {
 	// 如果返回的数据为空，则直接返回
 	if data == nil {
-		err = fmt.Errorf("无返回信息，无法解析输出参数")
+		err = fmt.Errorf(T("error.no_response_data"))
 		Logger.Error("%s", err)
 		return
 	}
@@ -121,7 +121,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					if listIndex == 0 {
 						json.Unmarshal([]byte(tmpStr), &listInterface)
 					} else {
-						err = fmt.Errorf("断言定义与实际返回结构不一致，请核对~")
+						err = fmt.Errorf(T("error.assert_struct_mismatch"))
 						Logger.Error("%s", err)
 						return keyName, values, err
 					}
@@ -129,7 +129,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					listInterface = tmpInterface.([]interface{})
 				}
 			} else {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail"), keyRawName)
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
@@ -144,7 +144,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 							strValue := Interface2Str(value)
 							if propertyValue != strValue {
 								if index == len(listInterface)-1 {
-									err = fmt.Errorf("未找到%s=%s的值，请核对", propertyName, propertyValue)
+									err = fmt.Errorf(T("error.property_value_not_found"), propertyName, propertyValue)
 									Logger.Error("%s", err)
 									return keyName, values, err
 								}
@@ -166,7 +166,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 						if value, ok := subMap[propertyName]; ok {
 							if propertyValue != value {
 								if index == len(listInterface)-1 && subIndex == len(properties)-1 {
-									err = fmt.Errorf("未找到%s=%s的值，请核对", propertyName, propertyValue)
+									err = fmt.Errorf(T("error.property_value_not_found"), propertyName, propertyValue)
 									Logger.Error("%s", err)
 									return keyName, values, err
 								}
@@ -181,7 +181,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			keyTmpName, index := GetSlicesIndex(keyRawName)
 			varMapType := fmt.Sprintf("%T", data)
 			if varMapType != "map[string]interface {}" {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varMapType)
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), keyRawName, varMapType)
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
@@ -204,7 +204,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			var targetInterface interface{}
 
 			if varType != "[]interface {}" {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", sceneAssert.Source, varType)
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), sceneAssert.Source, varType)
 				Logger.Error("%s", err)
 				return keyName, values, err
 			}
@@ -222,10 +222,10 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 				}
 			} else {
 				if len(listInterface) > 0 {
-					Logger.Warning("索引:%d超出数据范围，自动取第0个数据", index)
+					Logger.Warning(T("warning.index_out_of_range"), index)
 					targetInterface = listInterface[0]
 				} else {
-					err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+					err = fmt.Errorf(T("error.response_data_empty"), keyRawName)
 					Logger.Error("%s", err)
 					return keyName, values, err
 				}
@@ -247,7 +247,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					for _, data := range tmpMap {
 						subVarType := fmt.Sprintf("%T", data)
 						if subVarType != "map[string]interface {}" {
-							err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, subVarType)
+							err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), keyRawName, subVarType)
 							Logger.Error("%s", err)
 							return
 						}
@@ -264,7 +264,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		}
 
 		if varType != "[]interface {}" {
-			err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varType)
+			err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), keyRawName, varType)
 			Logger.Error("%s", err)
 			return keyName, values, err
 		}
@@ -274,7 +274,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			for _, data := range dataList {
 				subVarType := fmt.Sprintf("%T", data)
 				if subVarType != "map[string]interface {}" {
-					err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, subVarType)
+					err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), keyRawName, subVarType)
 					Logger.Error("%s", err)
 					return
 				}
@@ -314,12 +314,12 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					return
 				}
 
-				err = fmt.Errorf("断言定义[%s]与实际返回结构[%s]不一致，请核对~", keyRawName, varType) // 如果都不行，即定义与实际返回不一致
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail2"), keyRawName, varType) // 如果都不行，即定义与实际返回不一致
 				Logger.Error("%s", err)
 				return
 
 			} else if varType != "map[string]interface {}" {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail"), keyRawName)
 				Logger.Error("%s", err)
 				return
 			}
@@ -333,7 +333,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					values = append(values, strValue)
 				}
 			} else {
-				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", keyRawName, sceneAssert.Value)
+				err1 := fmt.Errorf(T("error.field_value_not_found"), keyRawName, sceneAssert.Value)
 				Logger.Debug("response: %v", data)
 				err = err1
 				Logger.Error("%s", err)
@@ -342,7 +342,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 		} else {
 			if varType == "[]interface {}" {
 				if len(data.([]interface{})) == 0 {
-					err = fmt.Errorf("实际返回数据为空，取[%s]失败，请核对~", keyRawName)
+					err = fmt.Errorf(T("error.response_data_empty"), keyRawName)
 					Logger.Error("%s", err)
 					return
 				}
@@ -368,7 +368,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 					return sceneAssert.GetOutput(tmpMap[index].(map[string]interface{})[keyTmpName])
 				}
 			} else if tmpType != "map[string]interface {}" {
-				err = fmt.Errorf("断言定义[%s]与实际返回结构不一致，请核对~", keyRawName)
+				err = fmt.Errorf(T("error.assert_struct_mismatch_detail"), keyRawName)
 				Logger.Error("%s", err)
 				return
 			}
@@ -376,7 +376,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 			if value, ok := data.(map[string]interface{})[keyRawName]; ok {
 				return sceneAssert.GetOutput(value)
 			} else {
-				err1 := fmt.Errorf("未获取到字段[%s]即[%v]的值, 请核对~", keyRawName, sceneAssert.Value)
+				err1 := fmt.Errorf(T("error.field_value_not_found"), keyRawName, sceneAssert.Value)
 				err = err1
 				Logger.Error("%s", err)
 				return
@@ -396,7 +396,7 @@ func (sceneAssert SceneAssert) GetOutputRe(raw []byte) (keyName string, values [
 
 	// 如果返回的数据为空，则直接返回
 	if len(raw) == 0 {
-		err = fmt.Errorf("无返回信息，无法解析输出参数")
+		err = fmt.Errorf(T("error.no_response_data"))
 		Logger.Error("%s", err)
 		return
 	}
@@ -410,7 +410,7 @@ func (sceneAssert SceneAssert) GetOutputRe(raw []byte) (keyName string, values [
 	if len(comMatch) > 0 {
 		for i := range comMatch {
 			if len(comMatch[i]) <= 1 {
-				err = fmt.Errorf("source: %s, value: %s, 正则取值定义有误，请核对~", sourceStr, keyName)
+				err = fmt.Errorf(T("error.regex_definition_invalid"), sourceStr, keyName)
 				Logger.Error("%s", err)
 				return
 			}
@@ -418,7 +418,7 @@ func (sceneAssert SceneAssert) GetOutputRe(raw []byte) (keyName string, values [
 			values = append(values, value)
 		}
 	} else {
-		err = fmt.Errorf("source: %s, value: %s, 正则取值定义与实际返回信息未匹配上，请核对~", sourceStr, keyName)
+		err = fmt.Errorf(T("error.regex_no_match"), sourceStr, keyName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -436,9 +436,9 @@ func (sceneAssert SceneAssert) AssertResult(data map[string]interface{}, inOutPu
 	targetValueStr, notDefVars, falseCount, errTmp := GetIndexStr("", targetValueStr, "", "", inOutPutDict)
 	if falseCount > 0 {
 		if errTmp != nil {
-			err = fmt.Errorf("%s; 存在未定义参数: %s，请先定义或关联", errTmp, notDefVars)
+			err = fmt.Errorf(T("error.undefined_parameters"), errTmp, notDefVars)
 		} else {
-			err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+			err = fmt.Errorf(T("error.undefined_parameters_only"), notDefVars)
 		}
 		Logger.Error("%s", err)
 		return
@@ -475,7 +475,7 @@ func GetAssertTemplateValue(lang, key string) (value string, err error) {
 	models.Orm.Table("assert_template").Where("name = ?", key).Find(&assertValueDefine)
 	valueRaw := assertValueDefine.Value
 	if len(valueRaw) == 0 {
-		errTmp := fmt.Errorf("未关联到断言值定义:%s", key)
+		errTmp := fmt.Errorf(T("error.assert_not_linked"), key)
 		Logger.Warning("%s", errTmp)
 		err = errTmp
 		return
@@ -642,7 +642,7 @@ func GetMathResult(content string) (afterContent string) {
 		valueList := strings.Split(valueStrDef, ",")
 		var resultF float64
 		if len(valueList) != 2 {
-			Logger.Error("%s公式有误，请核对", rawStrDef)
+			Logger.Error(T("error.formula_invalid"), rawStrDef)
 			continue
 		}
 		xValue, _ := strconv.ParseFloat(valueList[0], 2)
@@ -695,7 +695,7 @@ func GetMathResult(content string) (afterContent string) {
 		rawStrDef := string(item[0])
 		valueList := strings.Split(valueStrDef, ",")
 		if len(valueList) != 2 {
-			Logger.Error("%s公式有误，请核对", rawStrDef)
+			Logger.Error(T("error.formula_invalid"), rawStrDef)
 			continue
 		}
 		var resultF float64
@@ -823,7 +823,7 @@ var numericOps = map[string]bool{
 //	toFloat := func(s string) (float64, error) {
 //		f, err := strconv.ParseFloat(s, 64)
 //		if err != nil {
-//			return 0, fmt.Errorf("无法将 %q 转换为数字", s)
+//			return 0, fmt.Errorf(T("error.cannot_convert_to_number"), s)
 //		}
 //		return f, nil
 //	}
@@ -880,7 +880,7 @@ var numericOps = map[string]bool{
 //		curF, err1 := toFloat(curStr)
 //		tarF, err2 := toFloat(targetStr)
 //		if err1 != nil || err2 != nil {
-//			return fmt.Errorf("数值比较失败: %v, %v", err1, err2)
+//			return fmt.Errorf(T("error.numeric_comparison_failed"), err1, err2)
 //		}
 //		switch assert.Type {
 //		case ">", "larger_than", "greater_than":
@@ -893,7 +893,7 @@ var numericOps = map[string]bool{
 //			b = curF <= tarF
 //		}
 //	default:
-//		err = fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", assert.Type)
+//		err = fmt.Errorf(T("error.unsupported_comparison_type"), assert.Type)
 //	}
 //
 //	if !b {
@@ -901,20 +901,20 @@ var numericOps = map[string]bool{
 //		switch assert.Source {
 //		case "raw", "ResponseBody", "Response":
 //			if len(rawTargetStr) > 0 {
-//				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, rawTargetStr)
+//				expectPrompt = fmt.Sprintf(T("error.expect_responsebody_format"), assert.Type, rawTargetStr)
 //			} else {
-//				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, targetStr)
+//				expectPrompt = fmt.Sprintf(T("error.expect_responsebody_format"), assert.Type, targetStr)
 //			}
-//			actualPrompt := fmt.Sprintf("实际: ResponseBody = %s", curStr)
-//			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
+//			actualPrompt := fmt.Sprintf(T("error.actual_responsebody_format"), curStr)
+//			err = fmt.Errorf(T("error.assert_responsebody_fail"), expectPrompt, actualPrompt, assert.Type, targetStr)
 //		default:
 //			if len(rawTargetStr) > 0 {
-//				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
+//				expectPrompt = fmt.Sprintf(T("error.expect_format"), assert.Source, assert.Type, rawTargetStr)
 //			} else {
-//				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
+//				expectPrompt = fmt.Sprintf(T("error.expect_format"), assert.Source, assert.Type, targetStr)
 //			}
-//			actualPrompt := fmt.Sprintf("实际: %s = %s", assert.Source, curStr)
-//			err = fmt.Errorf("%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
+//			actualPrompt := fmt.Sprintf(T("error.actual_format"), assert.Source, curStr)
+//			err = fmt.Errorf(T("error.assert_fail"), expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
 //		}
 //	}
 //
@@ -942,7 +942,7 @@ func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 	toFloat := func(s string) (float64, error) {
 		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return 0, fmt.Errorf("无法将 %q 转换为数字", s)
+			return 0, fmt.Errorf(T("error.cannot_convert_to_number"), s)
 		}
 		return f, nil
 	}
@@ -972,7 +972,7 @@ func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 	case "re", "regex", "regexp":
 		re, err := regexp.Compile(targetStr)
 		if err != nil {
-			return fmt.Errorf("无效的正则表达式 %q: %v", targetStr, err)
+			return fmt.Errorf(T("error.invalid_regex"), targetStr, err)
 		}
 		b = re.MatchString(curStr)
 	case "null", "empty":
@@ -986,7 +986,7 @@ func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 		curF, err1 := toFloat(curStr)
 		tarF, err2 := toFloat(targetStr)
 		if err1 != nil || err2 != nil {
-			return fmt.Errorf("数值比较失败: %v, %v", err1, err2)
+			return fmt.Errorf(T("error.numeric_comparison_failed"), err1, err2)
 		}
 		switch assert.Type {
 		case ">", "larger_than", "greater_than":
@@ -999,7 +999,7 @@ func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 			b = curF <= tarF
 		}
 	default:
-		return fmt.Errorf("不支持%s类型的比较，如有需要请反馈致相关人员", assert.Type)
+		return fmt.Errorf(T("error.unsupported_comparison_type"), assert.Type)
 	}
 
 	if !b {
@@ -1007,20 +1007,20 @@ func (assert SceneAssert) AssertValueCompare(curStr string) (err error) {
 		switch assert.Source {
 		case "raw", "ResponseBody", "Response":
 			if len(rawTargetStr) > 0 {
-				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, rawTargetStr)
+				expectPrompt = fmt.Sprintf(T("error.expect_responseBody_format"), assert.Type, rawTargetStr)
 			} else {
-				expectPrompt = fmt.Sprintf("预期: ResponseBody %s %s", assert.Type, targetStr)
+				expectPrompt = fmt.Sprintf(T("error.expect_responseBody_format"), assert.Type, targetStr)
 			}
-			actualPrompt := fmt.Sprintf("实际: ResponseBody = %s", curStr)
-			err = fmt.Errorf("%s\n%s\n断言: ResponseBody %s %s 结果:fail", expectPrompt, actualPrompt, assert.Type, targetStr)
+			actualPrompt := fmt.Sprintf(T("error.actual_responseBody_format"), curStr)
+			err = fmt.Errorf(T("error.assert_responseBody_fail"), expectPrompt, actualPrompt, assert.Type, targetStr)
 		default:
 			if len(rawTargetStr) > 0 {
-				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, rawTargetStr)
+				expectPrompt = fmt.Sprintf(T("error.expect_format"), assert.Source, assert.Type, rawTargetStr)
 			} else {
-				expectPrompt = fmt.Sprintf("预期: %s %s %s", assert.Source, assert.Type, targetStr)
+				expectPrompt = fmt.Sprintf(T("error.expect_format"), assert.Source, assert.Type, targetStr)
 			}
-			actualPrompt := fmt.Sprintf("实际: %s = %s", assert.Source, curStr)
-			err = fmt.Errorf("%s\n%s\n断言: %s %s %s 结果:fail", expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
+			actualPrompt := fmt.Sprintf(T("error.actual_format"), assert.Source, curStr)
+			err = fmt.Errorf(T("error.assert_fail"), expectPrompt, actualPrompt, curStr, assert.Type, targetStr)
 		}
 	}
 
@@ -1031,13 +1031,13 @@ func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string
 	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName) // 下载文件统一保存至下载文件路径
 	_, err = os.Stat(filePath)
 	if os.IsNotExist(err) {
-		err = fmt.Errorf("%s不存在，请核对", filePath)
+		err = fmt.Errorf(T("error.file_not_found"), filePath)
 		return
 	}
 
 	dataAnchor := strings.Split(assert.Source, ":")
 	if len(dataAnchor) <= 1 {
-		err = fmt.Errorf("source: %s, 未定义正常的文件取数信息，请核对", assert.Source)
+		err = fmt.Errorf(T("error.file_source_invalid"), assert.Source)
 		return
 	}
 
@@ -1054,7 +1054,7 @@ func (assert SceneAssert) GetValueFromFile(fileName string) (targetList []string
 		targetList, err = assert.GetTargetValueFromNoStructFile("yml", filePath)
 	//case "XML":    // 待实现
 	default:
-		err = fmt.Errorf("不支持[%s]文件类型的取数校对，如有需要，请联系管理员~", fileType)
+		err = fmt.Errorf(T("error.unsupported_file_type"), fileType)
 		return
 	}
 
@@ -1117,7 +1117,7 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 
 			if curLine == lineNo {
 				if len(record) < columnNo && len(columnName) == 0 {
-					err = fmt.Errorf("列号: %d超出索引范围，请核对", columnNo)
+					err = fmt.Errorf(T("error.column_index_out_of_range"), columnNo)
 					return
 				}
 				if columnNo > 0 {
@@ -1145,7 +1145,7 @@ func GetTargetValueFromCSV(filePath, columnName, splitTag string, lineNo, column
 			}
 
 			if len(record) < columnNo {
-				err = fmt.Errorf("列号: %d超出索引范围，请核对")
+				err = fmt.Errorf(T("error.column_index_out_of_range"))
 				return
 			}
 
@@ -1183,12 +1183,12 @@ func GetTargetValueFromXLSX(filePath, columnName string, lineNo, columnNo int) (
 	maxColNo := sheet.MaxCol
 
 	if lineNo > maxRowNo {
-		err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
+		err = fmt.Errorf(T("error.column_index_out_of_range"), lineNo)
 		return
 	}
 
 	if columnNo > maxColNo {
-		err = fmt.Errorf("行号: %d超出索引范围，请核对", columnNo)
+		err = fmt.Errorf(T("error.row_index_out_of_range"), columnNo)
 		return
 	}
 
@@ -1232,12 +1232,12 @@ func GetTargetValueFromXLS(filePath, columnName string, lineNo, columnNo int) (t
 	maxRowNo := int(sheet.MaxRow)
 	maxColNo := len(titles)
 	if lineNo > maxRowNo {
-		err = fmt.Errorf("列号: %d超出索引范围，请核对", lineNo)
+		err = fmt.Errorf(T("error.column_index_out_of_range"), lineNo)
 		return
 	}
 
 	if columnNo > maxColNo {
-		err = fmt.Errorf("行号: %d超出索引范围，请核对", columnNo)
+		err = fmt.Errorf(T("error.row_index_out_of_range"), columnNo)
 		return
 	}
 
@@ -1268,7 +1268,7 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 	dataAnchor := strings.Split(source, ":")
 
 	if len(dataAnchor) < 4 {
-		err = fmt.Errorf("source: %s, 取数信息定义不全，请核对", source)
+		err = fmt.Errorf(T("error.source_definition_incomplete"), source)
 		return
 	}
 
@@ -1278,7 +1278,7 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 		lineNo, errTmp = strconv.Atoi(dataAnchor[2])
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
-			err = fmt.Errorf("行号: %v, 无法转换为整数，请核对", dataAnchor[2])
+			err = fmt.Errorf(T("error.line_number_not_integer"), dataAnchor[2])
 			return
 		}
 	}
@@ -1300,7 +1300,7 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 		} else if strings.HasSuffix(filePath, ".xls") {
 			target, err = GetTargetValueFromXLS(filePath, columnName, lineNo, columnNo)
 		} else {
-			Logger.Warning("%s文件格式不支持，请核对", filePath)
+			Logger.Warning(T("warning.file_format_unsupported"), filePath)
 			return
 		}
 	} else if fileType == "csv" {
@@ -1318,7 +1318,7 @@ func GetTargetValueFromStructFile(fileType, source, filePath string) (target []s
 func (assert SceneAssert) GetTargetValueFromNoStructFile(fileType, filePath string) (target []string, err error) {
 	dataAnchor := strings.Split(assert.Source, ":")
 	if len(dataAnchor) < 3 {
-		err = fmt.Errorf("source: %s, 取数信息定义不全，请核对", assert.Source)
+		err = fmt.Errorf(T("error.source_definition_incomplete"), assert.Source)
 		return
 	}
 

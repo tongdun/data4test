@@ -83,7 +83,7 @@ func (swagger Swagger) GetAllDefinition() (defAllDict VarMapList) {
 							}
 						} else {
 							if i == 2 {
-								Logger.Warning("不存在: %s", resDef)
+								Logger.Warning(T("warn.not_exist"), resDef)
 							}
 						}
 					}
@@ -150,7 +150,7 @@ func (apiDetail ApiDetail) GetRequestData(allDefini VarMapList) (headerList, bod
 			varHeaderDefModel.Name = "Content-Type"
 			varHeaderDefModel.ValueType = "string"
 			varHeaderDefModel.EgValue = apiDetail.Consumes[0]
-			varHeaderDefModel.Desc = "请求类型"
+			varHeaderDefModel.Desc = T("swagger.request_type")
 			headerList = append(headerList, varHeaderDefModel)
 		}
 
@@ -291,7 +291,7 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 			return
 		}
 
-		Logger.Info("从%s文件获取接口文档信息", fileName)
+		Logger.Info(T("info.get_swagger_from_file"), fileName)
 		content, errTmp = ioutil.ReadFile(fileName)
 		if errTmp != nil {
 			Logger.Error("%s", errTmp)
@@ -299,10 +299,10 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 			return
 		}
 	} else {
-		Logger.Info("从Swagger路径获取接口文档信息: %s", envConfig.SwaggerPath)
+		Logger.Info(T("info.get_swagger_from_url"), envConfig.SwaggerPath)
 		for i := 1; i < 30; i++ {
 			resp, errTemp := http.Get(envConfig.SwaggerPath)
-			Logger.Info("第%d次获取Swagger接口信息", i)
+			Logger.Info(T("info.fetch_swagger_attempt"), i)
 			if errTemp != nil {
 				if i == 29 {
 					Logger.Error("%s", errTemp)
@@ -335,7 +335,7 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 		errTmp := WriteJson(content, fileNameNew)
 
 		if errTmp != nil {
-			Logger.Error("记录最新接口文档信息异常")
+			Logger.Error(T("warn.save_swagger_failed"))
 			goto nextHere
 		}
 
@@ -343,12 +343,12 @@ func GetSwagger(id string) (checkFailCount int, err error) {
 			cmdStr = fmt.Sprintf("diff %s %s", fileNameOld, fileNameNew)
 			diffContent, errTmp := ExecCommand(cmdStr)
 			if errTmp != nil {
-				Logger.Error("查看差异内容异常")
+				Logger.Error(T("warn.diff_content_failed"))
 				goto nextHere
 			}
 			if len(diffContent) > 0 {
-				Logger.Info("差异查看命令: %s", cmdStr)
-				Logger.Warning("接口差异内容: %s", diffContent)
+				Logger.Info(T("info.diff_command"), cmdStr)
+				Logger.Warning(T("warn.api_diff_content"), diffContent)
 			} else { // 新旧文件无差异，对新文件进行实时删除
 				cmdStr := fmt.Sprintf("rm -f %s", fileNameNew)
 				_, _ = ExecCommand(cmdStr)
@@ -640,9 +640,9 @@ func (pathDef PathDef) GetApiDetail(method, path, desc, app string, allDefini Va
 			apiStrDef.Version = dbApiStrDef.Version + 1 // 被修改时，接口版本自动+1
 			curTime := time.Now().Format("2006/01/02 15:04:05")
 			if len(dbApiStrDef.ChangeContent) > 0 {
-				apiStrDef.ChangeContent = fmt.Sprintf("%s\n%s变更记录:\n%s", dbApiStrDef.ChangeContent, curTime, allChanged)
+				apiStrDef.ChangeContent = fmt.Sprintf(T("swagger.change_content_with_newline"), dbApiStrDef.ChangeContent, curTime, allChanged)
 			} else {
-				apiStrDef.ChangeContent = fmt.Sprintf("%s变更记录:\n%s", curTime, allChanged)
+				apiStrDef.ChangeContent = fmt.Sprintf(T("swagger.change_content"), curTime, allChanged)
 			}
 		} else {
 			apiStrDef.ApiStatus = "4"
@@ -691,14 +691,14 @@ func GetSwaggerNew(id, swaggerPath, swaggerFilePath string) (checkFailCount int,
 
 	var content []byte
 	if len(swaggerFilePath) > 0 {
-		Logger.Info("从上传文件[%s]获取接口文档信息", path.Base(swaggerFilePath))
+		Logger.Info(T("info.get_swagger_from_upload_file"), path.Base(swaggerFilePath))
 		content, err = ioutil.ReadFile(swaggerFilePath)
 		if err != nil {
 			Logger.Error("%s", err)
 			return
 		}
 	} else if len(swaggerPath) > 0 {
-		Logger.Info("从接口路径[%s]获取接口文档信息", swaggerPath)
+		Logger.Info(T("info.get_swagger_from_path"), swaggerPath)
 		resp, errTemp := http.Get(swaggerPath)
 		// 一次性读取
 		content, errTemp = ioutil.ReadAll(resp.Body)

@@ -63,7 +63,7 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 	} else if strings.HasSuffix(fileName, ".json") {
 		mode = "json"
 	} else {
-		err = fmt.Errorf("当前只支持.yml和.json尾缀文件，请核对文件名称: %s", fileName)
+		err = fmt.Errorf(T("error.unsupported_file_type"), fileName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -71,7 +71,7 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		err = fmt.Errorf("%s, 请核对文件: %s", err, fileName)
+		err = fmt.Errorf(T("error.check_file"), err, fileName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -82,14 +82,14 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 	}
 
 	if err != nil {
-		err = fmt.Errorf("%s, 请核对文件: %s", err, fileName)
+		err = fmt.Errorf(T("error.check_file"), err, fileName)
 		Logger.Error("%s", err)
 		return
 	}
 	return
 }
 
-func WriteDataResultByFile(userName, src, result, dst, product, source string, envType int, errIn error) (err error) {
+func WriteDataResultByFile(userName, src, result, dst, product, source string, envType int, errIn error, taskId string) (err error) {
 	var df DataFile
 	var content []byte
 
@@ -153,6 +153,7 @@ func WriteDataResultByFile(userName, src, result, dst, product, source string, e
 	sceneDataRecord.EnvType = envType
 	sceneDataRecord.Product = product
 	sceneDataRecord.UserName = userName
+	sceneDataRecord.TaskId = taskId
 
 	if errIn != nil {
 		sceneDataRecord.FailReason = fmt.Sprintf("%s", errIn)
@@ -225,7 +226,7 @@ func (apiModel HistorySaveModel) WriteDataFileHistoryResult(result, dst string, 
 	return
 }
 
-func WriteSceneDataResult(userName, id string, result, dst, product, source string, envType int, errIn error) (err error) {
+func WriteSceneDataResult(userName, id string, result, dst, product, source string, envType int, errIn error, taskId string) (err error) {
 	var dbSceneData DbSceneData
 	s, _ := strconv.Atoi(id)
 	if source == "ai_data" {
@@ -260,7 +261,7 @@ func WriteSceneDataResult(userName, id string, result, dst, product, source stri
 		return
 	}
 
-	err = RecordDataHistory(userName, dst, product, source, envType, dbSceneData)
+	err = RecordDataHistory(userName, dst, product, source, envType, dbSceneData, taskId)
 
 	return
 }
@@ -332,9 +333,9 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 	contentStr, notDefVars, falseCount, errTmp := GetIndexStr(lang, content, "", "", depOutVars)
 	if falseCount > 0 {
 		if errTmp != nil {
-			err = fmt.Errorf("%s; 存在未定义参数: %s，请先定义或关联", errTmp, notDefVars)
+			err = fmt.Errorf(T("error.undefined_params_with_err_s"), errTmp, notDefVars)
 		} else {
-			err = fmt.Errorf("存在未定义参数: %s，请先定义或关联", notDefVars)
+			err = fmt.Errorf(T("error.undefined_params_s"), notDefVars)
 		}
 
 		Logger.Error("%s", err)
@@ -558,7 +559,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		}
 		contentStr, errTmp := GetAfterContent(lang, dataContent, depOutVars)
 		if strings.Contains(contentStr, "is_var_strong_check: \"no\"") {
-			Logger.Warning("%s数据开启参数弱校验，请自行保证所需依赖参数的定义", filePath)
+			Logger.Warning(T("warn.weak_param_check"), filePath)
 			errTmp = nil
 		}
 		if errTmp != nil {
@@ -833,7 +834,7 @@ func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOu
 	return
 }
 
-func RepeatRunDataFile(userName, id, product, source string) (err error) {
+func RepeatRunDataFile(userName, id, product, source, taskId string) (err error) {
 	dataInfo, appInfo, filePath, err := GetRunTimeData(id, source)
 	var envType, maxThreadNum int
 	var isThread string
@@ -861,7 +862,7 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 	//}
 
 	if dataInfo.RunTime == 0 {
-		err = fmt.Errorf("执行次数为: %d, 如需运行，请把执行次数置为大于0的数", dataInfo.RunTime)
+		err = fmt.Errorf(T("error.run_time_zero"), dataInfo.RunTime)
 		Logger.Warning("%s", err)
 		return
 	}
@@ -870,9 +871,9 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 		if dataInfo.RunTime > maxThreadNum {
 			loopNum := dataInfo.RunTime/maxThreadNum + 1
 			count := 1
-			Logger.Info("共执行次数：%v", dataInfo.RunTime)
+			Logger.Info(T("info.total_run_count"), dataInfo.RunTime)
 			for i := 0; i < loopNum; i++ {
-				Logger.Info("并发模式-最大执行数:%d,总循环次数:%d,当前循环第%d次", maxThreadNum, loopNum, i+1)
+				Logger.Info(T("info.concurrent_mode"), maxThreadNum, loopNum, i+1)
 				wg := sync.WaitGroup{}
 				for j := 0; j < maxThreadNum; j++ {
 					if count > dataInfo.RunTime {
@@ -880,32 +881,32 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 					}
 					wg.Add(1)
 
-					go func(dbData DbSceneData) {
+					go func(dbData DbSceneData, taskId string) {
 						result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 						if err1 != nil {
 							err = err1
-							err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+							err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 							return
 						}
-						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 						wg.Done()
-					}(dataInfo)
+					}(dataInfo, taskId)
 					count++
 				}
 				wg.Wait()
 			}
 		} else {
 			wg := sync.WaitGroup{}
-			Logger.Info("共执行次数：%v", dataInfo.RunTime)
+			Logger.Info(T("info.total_run_count"), dataInfo.RunTime)
 			for i := 0; i < dataInfo.RunTime; i++ {
 				wg.Add(1)
 				go func(dbData DbSceneData) {
 					result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 					if err1 != nil {
-						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 						return
 					}
-					err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+					err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 					wg.Done()
 				}(dataInfo)
 			}
@@ -914,7 +915,7 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 	} else {
 		for i := 0; i < dataInfo.RunTime; i++ {
 			if i > 0 {
-				Logger.Info("串行模式-执行次数:%d", i+1)
+				Logger.Info(T("info.serial_mode"), i+1)
 			}
 
 			result, dst, err1 := dataInfo.RunDataFile(filePath, product, source, nil)
@@ -923,7 +924,7 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 				err = err1
 			}
 
-			err2 := WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+			err2 := WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 			if err2 != nil {
 				Logger.Error("%s", err2)
 				if err != nil {
@@ -945,7 +946,7 @@ func RepeatRunDataFile(userName, id, product, source string) (err error) {
 	return
 }
 
-func RunSceneDataOnce(userName, id, product, source string) (err error) {
+func RunSceneDataOnce(userName, id, product, source, taskId string) (err error) {
 	dataInfo, _, filePath, err := GetRunTimeData(id, source)
 	var envType int
 	if len(product) > 0 {
@@ -961,7 +962,7 @@ func RunSceneDataOnce(userName, id, product, source string) (err error) {
 	}
 
 	if dataInfo.RunTime == 0 {
-		err = fmt.Errorf("执行次数为: %d, 如需运行，请把执行次数置为大于0的数", dataInfo.RunTime)
+		err = fmt.Errorf(T("error.run_time_zero"), dataInfo.RunTime)
 		Logger.Warning("%s", err)
 		return
 	}
@@ -977,7 +978,7 @@ func RunSceneDataOnce(userName, id, product, source string) (err error) {
 		Logger.Error("\n%s", err1)
 		err = err1
 	}
-	err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1)
+	err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
 	if err != nil {
 		Logger.Error("%s", err)
 		return
@@ -1024,7 +1025,7 @@ func GetCommonHeader(envConfig EnvConfig) (header map[string]interface{}, err er
 		strTmp := GetStrFromHtml(envConfig.Auth)
 		err = json.Unmarshal([]byte(strTmp), &header)
 		if err != nil {
-			Logger.Error("解析header异常: %s", err)
+			Logger.Error(T("error.parse_header_error"), err)
 			return
 		}
 	}
@@ -1091,7 +1092,7 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 	}
 
 	if tag != 0 {
-		err1 := fmt.Errorf("环境信息不完善,请检查, URL: %s", rawUrl)
+		err1 := fmt.Errorf(T("error.env_info_incomplete"), rawUrl)
 		Logger.Debug("appEnvWithDataEnv: %v", envInfo)
 		Logger.Debug("playbookEnvWithDataEnv: %v", sceneInfo)
 		err = err1
@@ -1100,7 +1101,7 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 
 	if strings.Contains(rawUrl, "{") {
 		if df.Single.Path == nil && df.Multi.Path == nil {
-			err = fmt.Errorf("未进行Path变量定义，请先定义")
+			err = fmt.Errorf(T("error.path_var_undefined"))
 			return
 		}
 		pathVarsReg := regexp.MustCompile(`{[[:alpha:]]+}`)
@@ -1125,7 +1126,7 @@ func (df DataFile) GetUrl(envConfig EnvConfig) (rawUrls []string, err error) {
 			}
 
 			if tag == 0 {
-				err = fmt.Errorf("未找到Path:%s变量的定义值，请先进行定义", v)
+				err = fmt.Errorf(T("error.path_var_not_found"), v)
 				return
 			}
 		}
@@ -1206,7 +1207,7 @@ func (df DataFile) CreateActionData() (err error) {
 				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
-					err = fmt.Errorf("creat_csv的值未定义，请先定义")
+					err = fmt.Errorf(T("error.create_csv_undefined"))
 					return
 				}
 				if !strings.Contains(strList[0], ".csv") {
@@ -1278,7 +1279,7 @@ func (df DataFile) CreateActionData() (err error) {
 				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
-					err = fmt.Errorf("creat_excel的值未定义，请先定义")
+					err = fmt.Errorf(T("error.create_excel_undefined"))
 					return
 				}
 				if !strings.Contains(strList[0], ".xlsx") {
@@ -1336,7 +1337,7 @@ func (df DataFile) CreateActionData() (err error) {
 				tmpValue := Interface2Str(item.Value)
 				strList := strings.Split(tmpValue, ":")
 				if len(strList) == 0 {
-					err = fmt.Errorf("creat_excel的值未定义，请先定义")
+					err = fmt.Errorf(T("error.create_excel_undefined"))
 					return
 				}
 				if !strings.Contains(strList[0], ".xlsx") {
@@ -1422,7 +1423,7 @@ func (df DataFile) GetResult(source, filePath string, respHeaderList []map[strin
 	isPass := 0
 	dst, err = GetResultFilePath(filePath)
 	if err != nil {
-		Logger.Error("获取目标文件目录: %s", err)
+		Logger.Error(T("error.get_target_dir"), err)
 		return
 	}
 
@@ -1595,7 +1596,7 @@ func (df DataFile) GetResult(source, filePath string, respHeaderList []map[strin
 						keyName = Interface2Str(assert.Value)
 						outputDict[keyName] = append(outputDict[keyName], respHeaderList[i][headerKeyName])
 					} else {
-						Logger.Warning("暂不支持ResponseHeader的%s断言比较，仅支持output和output_re类型", assert.Type)
+						Logger.Warning(T("warn.unsupported_assert_type"), assert.Type)
 					}
 				}
 
@@ -1612,7 +1613,7 @@ func (df DataFile) GetResult(source, filePath string, respHeaderList []map[strin
 					//resDict = make(map[string]interface{})
 
 					if len(res[i]) == 0 {
-						errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+						errTmp = fmt.Errorf(T("error.response_empty"))
 					} else {
 						errTmp = json.Unmarshal(res[i], &resDict)
 					}
@@ -1687,7 +1688,7 @@ func (df DataFile) GetResult(source, filePath string, respHeaderList []map[strin
 					outputDict[keyName] = append(outputDict[keyName], values...)
 				default:
 					if len(res[i]) == 0 {
-						errTmp = fmt.Errorf("Response为空，无法做数据校验，请核对")
+						errTmp = fmt.Errorf(T("error.response_empty"))
 					} else {
 						errTmp = json.Unmarshal(res[i], &resDict)
 					}
@@ -1739,7 +1740,7 @@ func (df DataFile) GetResult(source, filePath string, respHeaderList []map[strin
 		if inIsPass > 0 {
 			df.TestResult[i] = "fail"
 			if len(df.TestResult) < i+1 {
-				df.FailReason = append(df.FailReason, "测试失败")
+				df.FailReason = append(df.FailReason, T("info.test_failed"))
 			}
 		} else {
 			if len(df.TestResult) < i+1 {
@@ -1853,7 +1854,7 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 	}
 
 	if len(dbData.FileName) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", baseName)
+		err = fmt.Errorf(T("error.data_not_found_by_id"), baseName)
 		Logger.Error("%s", err)
 		return
 	}
@@ -1866,7 +1867,7 @@ func GetDataFileRawContent(fileName string) (content string, err error) {
 	baseName := path.Base(fileName)
 	models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&sceneData)
 	if len(sceneData.FileName) == 0 {
-		err = fmt.Errorf("未找到[%v]数据，请核对", baseName)
+		err = fmt.Errorf(T("error.data_not_found_by_id"), baseName)
 		Logger.Error("%s", err)
 		return
 	}

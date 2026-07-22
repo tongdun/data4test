@@ -21,7 +21,6 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 
 	dataTestHistory := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 
-	//info := dataTestHistory.GetInfo().HideFilterArea()
 	info := dataTestHistory.GetInfo()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
@@ -29,152 +28,153 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 	userName := user.Name
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField("唯一标识", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace()
-	info.AddField("数据描述", "name", db.Varchar).
+	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
+		FieldWidth(150)
+	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("接口ID", "api_id", db.Varchar).
+	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("所属应用", "app", db.Varchar).
+	info.AddField(biz.T("common.app"), "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("数据文件", "content", db.Longtext).
-		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).  // 样式不友好，暂时屏蔽
+	info.AddField(biz.T("common.data_content"), "content", db.Longtext).
 		FieldDisplay(func(value types.FieldModel) interface{} {
 			return template.Default().
 				Link().
 				SetURL("/admin/fm/history/preview?path=" + value.Value).
 				SetContent(template2.HTML(value.Value)).
 				OpenInNewTab().
-				SetTabTitle(template.HTML("历史记录")).
+				SetTabTitle(template2.HTML(biz.T("scene_data_test_history.title"))).
 				GetContent()
 		})
-	info.AddField("测试结果", "result", db.Varchar).
+	info.AddField(biz.T("common.test_result"), "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).
 		FieldFilterOptions(types.FieldOptions{
 			{Value: "pass", Text: "pass"},
 			{Value: "fail", Text: "fail"},
 		})
-	info.AddField("失败原因", "fail_reason", db.Longtext).
+	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("环境类型", "env_type", db.Int).
+	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "开发"
+				return biz.T("common.env_type._1")
 			} else if model.Value == "2" {
-				return "测试"
+				return biz.T("common.env_type._2")
 			} else if model.Value == "3" {
-				return "预发"
+				return biz.T("common.env_type._3")
 			} else if model.Value == "4" {
-				return "演示"
+				return biz.T("common.env_type._4")
 			} else if model.Value == "5" {
-				return "生产"
+				return biz.T("common.env_type._5")
 			}
 			return ""
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "开发"},
-		{Value: "2", Text: "测试"},
-		{Value: "3", Text: "预发"},
-		{Value: "4", Text: "演示"},
-		{Value: "5", Text: "生产"},
+		{Value: "1", Text: biz.T("common.env_type._1")},
+		{Value: "2", Text: biz.T("common.env_type._2")},
+		{Value: "3", Text: biz.T("common.env_type._3")},
+		{Value: "4", Text: biz.T("common.env_type._4")},
+		{Value: "5", Text: biz.T("common.env_type._5")},
 	})
-	info.AddField("所属产品", "product", db.Varchar).
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace()
-	info.AddField("创建人", "user_name", db.Varchar).
+	info.AddField(biz.T("common.user_name"), "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
-	info.AddField("备注", "remark", db.Longtext).
+	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace()
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(160).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.AddButton("再来一次", icon.Android, action.Ajax("historyData_batch_again",
+	info.AddButton(template2.HTML(biz.T("common.btn_again")), icon.Android, action.Ajax("historyData_batch_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			user := auth.Auth(ctx)
 			userName := user.Name
 			var status string
 			if idStr == "," {
-				status = "请先选择数据再执行"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 			ids := strings.Split(idStr, ",")
 			for _, id := range ids {
 				if len(id) == 0 {
-					status = "测试完成，请刷新列表查看"
+					status = biz.T("common.operate_success")
 					continue
 				}
 				if err := biz.HistoryDataRunAgain(id, userName); err == nil {
-					status = "测试完成，请刷新列表查看"
+					status = biz.T("common.operate_success")
 				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("再来一次", action.Ajax("historyData_again",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_again")), action.Ajax("historyData_again",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			user := auth.Auth(ctx)
 			userName := user.Name
 			var status string
 			if err := biz.HistoryDataRunAgain(id, userName); err == nil {
-				status = "测试完成，请刷新列表查看"
+				status = biz.T("common.operate_success")
 			} else {
-				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
 	apps := biz.GetApps()
 	products := biz.GetProducts()
-	info.AddSelectBox("所属产品", products, action.FieldFilter("product"))
-	info.AddSelectBox("所属应用", apps, action.FieldFilter("app"))
-	info.AddSelectBox("测试结果", types.FieldOptions{
+	info.AddSelectBox(biz.T("common.product"), products, action.FieldFilter("product"))
+	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
 
-	info.SetTable("scene_data_test_history").SetTitle("数据测试历史").SetDescription("场景数据测试历史")
+	info.SetTable("scene_data_test_history").SetTitle(biz.T("scene_data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
 
 	formList := dataTestHistory.GetForm()
-	formList.AddField("唯一标识", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("数据描述", "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("接口ID", "api_id", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("所属应用", "app", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("数据文件", "content", db.Longtext, form.Text)
-	formList.AddField("测试结果", "result", db.Varchar, form.Text)
-	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
-	formList.AddField("环境类型", "env_type", db.Int, form.Radio).
+	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
+	formList.AddField(biz.T("common.data_content"), "content", db.Longtext, form.Text)
+	formList.AddField(biz.T("common.test_result"), "result", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.env_type_label"), "env_type", db.Int, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "开发", Value: "1"},
-			{Text: "测试", Value: "2"},
-			{Text: "预发", Value: "3"},
-			{Text: "演示", Value: "4"},
-			{Text: "生产", Value: "5"},
+			{Text: biz.T("common.env_type._1"), Value: "1"},
+			{Text: biz.T("common.env_type._2"), Value: "2"},
+			{Text: biz.T("common.env_type._3"), Value: "3"},
+			{Text: biz.T("common.env_type._4"), Value: "4"},
+			{Text: biz.T("common.env_type._5"), Value: "5"},
 		}).FieldDefault("2")
-	formList.AddField("所属产品", "product", db.Varchar, form.Text)
-	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.user_name"), "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()
-	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("scene_data_test_history").SetTitle("数据测试历史").SetDescription("场景数据测试历史")
+	formList.SetTable("scene_data_test_history").SetTitle(biz.T("scene_data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		fileName := values["content"][0]

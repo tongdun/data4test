@@ -22,9 +22,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	sceneData := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
 	apps := biz.GetApps()
-	//info := sceneData.GetInfo().HideFilterArea()
 	info := sceneData.GetInfo()
-	//products := biz.GetProducts()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
 
@@ -32,98 +30,85 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	userName := user.Name
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
-	info.AddField("唯一标识", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable()
-	info.AddField("数据描述", "name", db.Varchar).
+	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetDataUsedInPlaybookList(model.Value, model.ID)
 		})
-	info.AddField("接口ID", "api_id", db.Varchar).
+	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("所属应用", "app", db.Varchar).
+	info.AddField(biz.T("common.app"), "app", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(apps)
-	info.AddField("文件名", "file_name", db.Longtext).FieldDisplay(func(value types.FieldModel) interface{} {
+	info.AddField(biz.T("common.file_name"), "file_name", db.Longtext).FieldDisplay(func(value types.FieldModel) interface{} {
 		return template.Default().
 			Link().
 			SetURL("/admin/fm/data/preview?path=/" + value.Value).
 			SetContent(template2.HTML(value.Value)).
 			OpenInNewTab().
-			SetTabTitle(template.HTML("数据文件")).
+			SetTabTitle(template2.HTML(biz.T("common.data_file"))).
 			GetContent()
 	}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("文件类型", "file_type", db.Varchar).
+	info.AddField(biz.T("common.file_type"), "file_type", db.Varchar).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "标准"
+				return biz.T("scene_data.file_type_1")
 			} else if model.Value == "2" {
-				return "Python"
+				return biz.T("scene_data.file_type_2")
 			} else if model.Value == "3" {
-				return "Shell"
+				return biz.T("scene_data.file_type_3")
 			} else if model.Value == "4" {
-				return "Bat"
+				return biz.T("scene_data.file_type_4")
 			} else if model.Value == "5" {
-				return "Jmeter"
+				return biz.T("scene_data.file_type_5")
 			} else if model.Value == "99" {
-				return "其他"
+				return biz.T("scene_data.file_type_99")
 			}
-			return "标准"
+			return biz.T("scene_data.file_type_1")
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "标准"},
-		{Value: "2", Text: "Python"},
-		{Value: "3", Text: "Shell"},
-		{Value: "4", Text: "Bat"},
-		{Value: "5", Text: "Jmeter"},
-		{Value: "99", Text: "其他"},
+		{Value: "1", Text: biz.T("scene_data.file_type_1")},
+		{Value: "2", Text: biz.T("scene_data.file_type_2")},
+		{Value: "3", Text: biz.T("scene_data.file_type_3")},
+		{Value: "4", Text: biz.T("scene_data.file_type_4")},
+		{Value: "5", Text: biz.T("scene_data.file_type_5")},
+		{Value: "99", Text: biz.T("scene_data.file_type_99")},
 	})
-	info.AddField("文件内容", "content", db.Longtext).FieldHide()
-	info.AddField("执行次数", "run_time", db.Int).
+	info.AddField(biz.T("common.data_content"), "content", db.Longtext).FieldHide()
+	info.AddField(biz.T("common.run_time"), "run_time", db.Int).
 		FieldFilterable(types.FilterType{FormType: form.Number}).FieldSortable().
 		FieldEditAble(editType.Text)
-	info.AddField("测试结果", "result", db.Varchar).
+	info.AddField(biz.T("common.test_result"), "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	})
-	info.AddField("失败原因", "fail_reason", db.Longtext).
+	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext).
 		FieldWidth(120)
-	info.AddField("备注", "remark", db.Longtext).
+	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldHide()
-	info.AddField("创建人", "user_name", db.Varchar).
+	info.AddField(biz.T("common.user_name"), "user_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	// 功能先屏蔽
-	//info.AddButton("同步", icon.Android, action.Ajax("scenedata_sync",
-	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
-	//		var status string
-	//		if newTag, modTag, err := biz.SyncSceneData(); err == nil {
-	//			status = fmt.Sprintf("同步完成, 新增: %d条，修改: %d条", newTag, modTag)
-	//		} else {
-	//			status = fmt.Sprintf("同步失败: %s, 新增: %d条，修改: %d条", err, newTag, modTag)
-	//			return false, status, ""
-	//		}
-	//		return true, status, ""
-	//	}))
-
-	info.AddButton("复制", icon.Android, action.Ajax("scenedata_batch_copy",
+	info.AddButton(template2.HTML(biz.T("common.btn_copy")), icon.Android, action.Ajax("scenedata_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再复制"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
@@ -134,189 +119,149 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 					continue
 				}
 				if err := biz.CopySceneData(id, userNameSub); err == nil {
-					status = "复制成功，请刷新列表查看"
+					status = biz.T("common.operate_success")
 				} else {
-					status = fmt.Sprintf("复制失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
-	info.AddActionButton("复制", action.Ajax("data_copy",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_copy")), action.Ajax("data_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if err := biz.CopySceneData(id, userNameSub); err == nil {
-				status = "复制成功，请刷新列表查看"
+				status = biz.T("common.operate_success")
 			} else {
-				status = fmt.Sprintf("复制失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 			}
 			return true, status, ""
 		}))
-	info.AddButton("创建任务", icon.Android, action.Ajax("data_batch_task_create_run",
+	info.AddButton(template2.HTML(biz.T("common.btn_create_task")), icon.Android, action.Ajax("data_batch_task_create_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再创建"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
 			err := biz.AutoCreateSchedule(idStr, userNameSub, "data")
 			if err != nil {
-				status = "发起创建任务失败"
+				status = biz.T("error.create_fail")
 				return false, status, fmt.Sprintf("%s", err)
 			}
 
-			status = "已创建任务，请前往任务列表查看，确认后再发起任务执行"
+			status = biz.T("schedule.task_added")
 			return true, status, ""
 		}))
 
-	info.AddButton("创建场景", icon.Android, action.Ajax("data_batch_playbook_create_run",
+	info.AddButton(template2.HTML(biz.T("common.btn_create_scene")), icon.Android, action.Ajax("data_batch_playbook_create_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再创建"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
 			err := biz.AutoCreatePlaybook(idStr, userNameSub)
 			if err != nil {
-				status = "发起创建场景失败"
+				status = biz.T("error.create_fail")
 				return false, status, fmt.Sprintf("%s", err)
 			}
 
-			status = "已创建场景，请前往场景列表查看，确认后再发起场景执行"
+			status = biz.T("common.operate_success")
 			return true, status, ""
 		}))
 
-	info.AddButton("测试", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template2.HTML(biz.T("common.btn_run")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/data_batch_run",
-		Title:  "数据测试",
+		Title:  biz.T("scene_data.test_title"),
 		Width:  "900px",
-		Height: "300px", // TextArea
+		Height: "300px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		products := biz.GetProducts()
 		ids := ctx.FormValue("ids")
-		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
-		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.id"), "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
+		panel.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products).
 			FieldDefault(products[0].Value).
-			FieldHelpMsg("选择执行环境")
+			FieldHelpMsg(template.HTML(biz.T("scene_data.env_help")))
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
 		return panel
 	}, "/data_batch_run"))
 
-	info.AddActionButton("测试", action.Ajax("scenedata_run",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_run")), action.Ajax("scenedata_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			var status string
 			id := ctx.FormValue("id")
-			if err := biz.RepeatRunDataFile(userName, id, "", "data"); err == nil {
-				status = "测试完成，请刷新列表查看测试结果"
+			if err := biz.RepeatRunDataFile(userName, id, "", "data", ""); err == nil {
+				status = biz.T("common.operate_success")
 			} else {
-				status = fmt.Sprintf("测试失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddSelectBox("所属应用", apps, action.FieldFilter("app"))
-	info.AddSelectBox("测试结果", types.FieldOptions{
+	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
-	info.SetTable("scene_data").SetTitle("数据列表").SetDescription("数据列表")
+	info.SetTable("scene_data").SetTitle(biz.T("common.data_file")).SetDescription(biz.T("common.data_file"))
 
-	fileNameHelp := template.HTML("e.g.: 类型-模块-功能描述.yml / 类型-模块-功能描述.json / 类型-模块-功能描述.py / 类型-模块-功能描述.sh / 类型-模块-功能描述.jmx")
-	fileTypeMsg := template.HTML("默认值: 标准数据<br>标准数据: 推荐优先使用，结构化编写，简单高效<br>Python脚本: 标准数据无法支持的场景<br>Shell脚本: 标准数据无法支持的场景<br>Bat脚本: 适用于windows系统,.bat文件<br>Jmeter脚本: 适用于性能测试，.jmt文件，系统参数JmeterRunConfig可控制执行参数(待合入)<br>其他脚本: 根据文件后缀从系统参数中获取执行引擎或脚本中自定义有执行引擎<br>脚本执行引擎优先级: 系统参数scriptRunEngine定义 > 脚本中首行定义<br>执行引擎以文件名后缀为key可任意扩展，执行引擎需自行配置环境")
+	fileNameHelp := template2.HTML(biz.T("scene_data.help_file_name"))
+	fileTypeMsg := template2.HTML(biz.T("scene_data.help_file_type"))
 
 	formList := sceneData.GetForm()
-	formList.AddField("唯一标识", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("数据描述", "name", db.Varchar, form.Text)
-	formList.AddField("接口ID", "api_id", db.Varchar, form.Text)
-	formList.AddField("所属应用", "app", db.Varchar, form.SelectSingle).
+	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.SelectSingle).
 		FieldOptions(apps)
-	formList.AddField("文件名", "file_name", db.Longtext, form.Url).
+	formList.AddField(biz.T("common.file_name"), "file_name", db.Longtext, form.Url).
 		FieldHelpMsg(fileNameHelp)
-	formList.AddField("文件类型", "file_type", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.file_type"), "file_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "1", Text: "标准"},
-			{Value: "2", Text: "Python"},
-			{Value: "3", Text: "Shell"},
-			{Value: "4", Text: "Bat"},
-			{Value: "5", Text: "Jmeter"},
-			{Value: "99", Text: "其他"},
+			{Value: "1", Text: biz.T("scene_data.file_type_1")},
+			{Value: "2", Text: biz.T("scene_data.file_type_2")},
+			{Value: "3", Text: biz.T("scene_data.file_type_3")},
+			{Value: "4", Text: biz.T("scene_data.file_type_4")},
+			{Value: "5", Text: biz.T("scene_data.file_type_5")},
+			{Value: "99", Text: biz.T("scene_data.file_type_99")},
 		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
-
-	//formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
-	//	FieldDefault("name: \"\"\nversion: 1\napi_id: \"\"\nis_run_pre_apis: \"no\"\nis_run_post_apis: \"no\"\nis_parallel: \"no\"\nis_use_env_config: \"yes\"\nenv:\n  protocol: http\n  host: \"\"\n  prepath: \"\"\napi:\n  description: \"\"\n  module: \"\"\n  app: \"\"\n  method: \"\"\n  path: \"\"\n  pre_apis: []\n  param_apis: []\n  post_apis: []\nsingle:\n  header: {}\n  query: {}\n  path: {}\n  body: {}\nmulti:\n  query: {}\n  path: {}\n  body: {}\nassert: []\noutput: {}\ntest_result: []\nurls: []\nrequest: []\nresponse: []")
-	formList.AddField("文件内容", "content", db.Longtext, form.TextArea).
-		FieldDefault(`name: "数据描述"
-version: 1
-api_id: "method_/path"
-is_run_pre_apis: "no"
-is_run_post_apis: "no"
-is_parallel: "no"
-is_use_env_config: "yes"
-env:
-  protocol: "http"
-  host: ""
-  prepath: "/prePath"
-api:
-  description: "描述"
-  module: ""  
-  app: "appName"
-  method: "get"
-  path: "/path"
-  pre_apis: []
-  param_apis: []
-  post_apis: []
-single:
-  header: {}
-  query: {}
-  path: {}
-  body: {}
-multi:
-  query: {}
-  path: {}
-  body: {}
-action: []
-assert: []
-output: {}
-test_result: []
-urls: []
-request: []
-response: []`)
-	formList.AddField("执行次数", "run_time", db.Int, form.Number).
+	formList.AddField(biz.T("common.data_content"), "content", db.Longtext, form.TextArea).FieldDefault(biz.T("data_content.sample"))
+	formList.AddField(biz.T("common.run_time"), "run_time", db.Int, form.Number).
 		FieldDefault("1")
-	formList.AddField("测试结果", "result", db.Varchar, form.Text)
-	formList.AddField("失败原因", "fail_reason", db.Longtext, form.TextArea)
-	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
-	formList.AddField("创建人", "user_name", db.Varchar, form.Text).
+	formList.AddField(biz.T("common.test_result"), "result", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.user_name"), "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).
 		FieldDisplayButCanNotEditWhenCreate().
 		FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().
 		FieldDisableWhenCreate().
 		FieldDisableWhenUpdate()
-	formList.SetTable("scene_data").SetTitle("数据列表").SetDescription("数据列表")
+	formList.SetTable("scene_data").SetTitle(biz.T("common.data_file")).SetDescription(biz.T("common.data_file"))
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		content := values["content"][0]
-		//content, _ = url.QueryUnescape(content) // 转译一下, Code模式需要转义，功能先屏蔽
 		fileName := values["file_name"][0]
 		id := values["id"][0]
 		err = biz.BakOldVer(id, content, fileName)
@@ -324,48 +269,47 @@ response: []`)
 	})
 
 	detail := sceneData.GetDetail()
-	detail.AddField("唯一标识", "id", db.Int)
-	detail.AddField("数据描述", "name", db.Varchar)
-	detail.AddField("接口ID", "api_id", db.Varchar)
-	detail.AddField("所属应用", "app", db.Varchar)
-	detail.AddField("文件名", "file_name", db.Longtext).
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.api_id"), "api_id", db.Varchar)
+	detail.AddField(biz.T("common.app"), "app", db.Varchar)
+	detail.AddField(biz.T("common.file_name"), "file_name", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			linkStr := fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", model.Value, model.Value)
 			return linkStr
 		})
-	detail.AddField("文件类型", "file_type", db.Enum).
+	detail.AddField(biz.T("common.file_type"), "file_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "标准"
+				return biz.T("scene_data.file_type_1")
 			}
 			if model.Value == "2" {
-				return "Python"
+				return biz.T("scene_data.file_type_2")
 			}
 			if model.Value == "3" {
-				return "Shell"
+				return biz.T("scene_data.file_type_3")
 			}
 			if model.Value == "4" {
-				return "Bat"
+				return biz.T("scene_data.file_type_4")
 			}
 			if model.Value == "5" {
-				return "Jmeter"
+				return biz.T("scene_data.file_type_5")
 			}
 			if model.Value == "99" {
-				return "其他"
+				return biz.T("scene_data.file_type_99")
 			}
-			return "标准"
+			return biz.T("scene_data.file_type_1")
 		})
-	//detail.AddField("文件内容", "content", db.Longtext)// 格式没有换行，可读性差
-	detail.AddField("执行次数", "run_time", db.Int)
-	detail.AddField("测试结果", "result", db.Varchar)
-	detail.AddField("失败原因", "fail_reason", db.Longtext)
-	detail.AddField("备注", "remark", db.Longtext)
-	detail.AddField("创建人", "user_name", db.Varchar)
-	detail.AddField("更新时间", "updated_at", db.Timestamp)
-	detail.AddField("创建时间", "created_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp)
+	detail.AddField(biz.T("common.run_time"), "run_time", db.Int)
+	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
+	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.user_name"), "user_name", db.Varchar)
+	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
+	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)
+	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp)
 
-	detail.SetTable("scene_data").SetTitle("数据详情").SetDescription("数据详情")
+	detail.SetTable("scene_data").SetTitle(biz.T("common.detail_title")).SetDescription(biz.T("common.detail_description"))
 
 	return sceneData
 }

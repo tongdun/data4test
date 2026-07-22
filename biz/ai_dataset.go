@@ -10,7 +10,7 @@ func (aiConnect DataSetConnect) CreateDataset(name string) (string, error) {
 	data := make(map[string]interface{})
 	data["name"] = name
 	data["permission"] = "all_team_members"
-	data["description"] = "盾测线上环境使用"
+	data["description"] = T("dataset.online_env_desc")
 	data["indexing_technique"] = "high_quality"
 
 	header := make(map[string]interface{})
@@ -29,7 +29,7 @@ func (aiConnect DataSetConnect) CreateDataset(name string) (string, error) {
 	if id, ok := result["id"].(string); ok {
 		return id, nil
 	}
-	return "", fmt.Errorf("获取数据集ID失败")
+	return "", fmt.Errorf(T("error.failed_to_get_dataset_id"))
 }
 
 // DeleteDataset 删除一个已有知识库
@@ -119,7 +119,7 @@ func (aiConnect DataSetConnect) GetDatasetByName(name string) (dataSet Dataset, 
 	}
 
 	if len(result.Data) == 0 {
-		err = fmt.Errorf("未获取到知识库[%s], 请核对 ~", name)
+		err = fmt.Errorf(T("error.knowledge_base_not_found"), name)
 		return
 	}
 
@@ -130,7 +130,7 @@ func (aiConnect DataSetConnect) GetDatasetByName(name string) (dataSet Dataset, 
 		}
 
 		if index == len(result.Data)-1 {
-			err = fmt.Errorf("未获取到知识库[%s], 请核对 ~", name)
+			err = fmt.Errorf(T("error.knowledge_base_not_found"), name)
 		}
 	}
 
@@ -156,7 +156,7 @@ func (aiConnect DataSetConnect) GetDocumentByName(datasetID, fileName string) (d
 	}
 
 	if len(result.Data) == 0 {
-		err = fmt.Errorf("未获取到文档[%s], 请核对 ~", fileName)
+		err = fmt.Errorf(T("error.document_not_found"), fileName)
 		return
 	}
 

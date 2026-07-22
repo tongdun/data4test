@@ -29,211 +29,173 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 	products := biz.GetProducts()
 	partProducts := biz.GetProductsByUpdateTime(1)
 	pTypes := types.FieldOptions{
-		{Value: "1", Text: "串行中断"},
-		{Value: "2", Text: "串行比较"},
-		{Value: "3", Text: "串行继续"},
-		{Value: "4", Text: "普通并发"},
-		{Value: "5", Text: "并发比较"},
+		{Value: "1", Text: biz.T("ai_playbook.type_serial_stop")},
+		{Value: "2", Text: biz.T("ai_playbook.type_serial_compare")},
+		{Value: "3", Text: biz.T("ai_playbook.type_serial_continue")},
+		{Value: "4", Text: biz.T("ai_playbook.type_concurrent_normal")},
+		{Value: "5", Text: biz.T("ai_playbook.type_concurrent_compare")},
 	}
 
 	aiAnalysisTemplates := biz.GetAiTemplateOptions("7")
-	//aiPlatforms := biz.GetAiCreatePlatform()
 
-	info.AddField("自增主键", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldWidth(80)
-	info.AddField("场景描述", "name", db.Varchar).
+	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldWidth(220)
-	info.AddField("数据文件列表", "data_file_list", db.Text).
+	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Text).
 		FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetAiDataFileLinkByDataStr(model.Value)
 		})
-	info.AddField("最近数据文件", "last_file", db.Varchar).
+	info.AddField(biz.T("common.last_file"), "last_file", db.Varchar).
 		FieldDisplay(func(value types.FieldModel) interface{} {
 			return template.Default().
 				Link().
 				SetURL("/admin/fm/ai_data/preview?path=/" + value.Value).
 				SetContent(template2.HTML(value.Value)).
 				OpenInNewTab().
-				SetTabTitle(template.HTML("数据文件")).
+				SetTabTitle(template.HTML(biz.T("common.data_file"))).
 				GetContent()
 		}).FieldWidth(160)
-	info.AddField("场景类型", "scene_type", db.Enum).
+	info.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "串行中断"
+				return biz.T("ai_playbook.type_serial_stop")
 			} else if model.Value == "2" {
-				return "串行比较"
+				return biz.T("ai_playbook.type_serial_compare")
 			} else if model.Value == "3" {
-				return "串行继续"
+				return biz.T("ai_playbook.type_serial_continue")
 			} else if model.Value == "4" {
-				return "普通并发"
+				return biz.T("ai_playbook.type_concurrent_normal")
 			} else if model.Value == "5" {
-				return "并发比较"
+				return biz.T("ai_playbook.type_concurrent_compare")
 			}
-			return "串行中断"
+			return biz.T("ai_playbook.type_serial_stop")
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(pTypes).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(pTypes).
 		FieldWidth(80)
-	info.AddField("优先级", "priority", db.Int).
+	info.AddField(biz.T("common.priority"), "priority", db.Int).
 		FieldFilterable(types.FilterType{FormType: form.Number}).
 		FieldSortable().FieldWidth(80).
 		FieldEditAble(editType.Text)
-	info.AddField("生成来源", "source", db.Varchar).
+	info.AddField(biz.T("common.source"), "source", db.Varchar).
 		FieldFilterable().
 		FieldWidth(80)
-	info.AddField("取用状态", "use_status", db.Enum).
+	info.AddField(biz.T("common.use_status"), "use_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "初始"
+				return biz.T("common.status_initial")
 			} else if model.Value == "2" {
-				return "取用"
+				return biz.T("common.status_in_use")
 			} else if model.Value == "3" {
-				return "废弃"
+				return biz.T("common.status_discarded")
 			}
-			return "初始"
+			return biz.T("common.status_initial")
 		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "初始"},
-		{Value: "2", Text: "取用"},
-		{Value: "3", Text: "废弃"},
+		{Value: "1", Text: biz.T("common.status_initial")},
+		{Value: "2", Text: biz.T("common.status_in_use")},
+		{Value: "3", Text: biz.T("common.status_discarded")},
 	})
-	info.AddField("改造状态", "modify_status", db.Enum).
+	info.AddField(biz.T("common.modify_status"), "modify_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "初始"
+				return biz.T("ai_playbook.modify_initial")
 			} else if model.Value == "2" {
-				return "人工改造"
+				return biz.T("common.modify_manual")
 			} else if model.Value == "3" {
-				return "自动改造"
+				return biz.T("common.modify_auto")
 			}
-			return "初始"
+			return biz.T("ai_playbook.modify_initial")
 		}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "初始"},
-		{Value: "2", Text: "人工改造"},
-		{Value: "3", Text: "自动改造"},
+		{Value: "1", Text: biz.T("ai_playbook.modify_initial")},
+		{Value: "2", Text: biz.T("common.modify_manual")},
+		{Value: "3", Text: biz.T("common.modify_auto")},
 	})
-	info.AddField("测试结果", "result", db.Varchar).
+	info.AddField(biz.T("common.test_result"), "result", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "pass", Text: "pass"},
-		{Value: "fail", Text: "fail"},
+		{Value: "pass", Text: biz.T("common.pass")},
+		{Value: "fail", Text: biz.T("common.fail")},
 	})
-	info.AddField("失败原因", "fail_reason", db.Text)
-	info.AddField("所属产品", "product", db.Varchar).
+	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Text)
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{FormType: form.Select}).
 		FieldFilterOptions(products).
 		FieldEditAble(editType.Select).
 		FieldEditOptions(partProducts).
 		FieldWidth(220)
-	info.AddField("创建人", "create_user", db.Varchar).
+	info.AddField(biz.T("common.user_name"), "create_user", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(80)
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange}).
 		FieldHide()
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
-	info.AddButton("AI导入", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template.HTML(biz.T("common.btn_import")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/ai_playbook_import",
-		Title:  "AI导入数据",
+		Title:  biz.T("common.btn_import"),
 		Width:  "900px",
-		Height: "680px", // TextArea
+		Height: "680px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		aiPlatforms := biz.GetAiCreatePlatform()
 		products := biz.GetProducts()
-		panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.create_platform"), "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
-		panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
-			FieldHelpMsg("若提供，则相关描述带版本后缀信息")
-		panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar, form.Text).
+			FieldHelpMsg(template.HTML(biz.T("common.help_version_suffix")))
+		panel.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products).FieldDefault(products[0].Value)
-		panel.AddField("会话ID", "conversation_id", db.Varchar, form.Text).
-			FieldHelpMsg("生成平台的会话ID，会话ID和原生回复二选一")
-		panel.AddField("原生回复", "raw_reply", db.Varchar, form.TextArea).
-			FieldHelpMsg("生成平台的回复原文")
+		panel.AddField(biz.T("common.conversation_id"), "conversation_id", db.Varchar, form.Text).
+			FieldHelpMsg(template.HTML(biz.T("common.help_conversation_or_raw")))
+		panel.AddField(biz.T("common.raw_reply"), "raw_reply", db.Varchar, form.TextArea).
+			FieldHelpMsg(template.HTML(biz.T("common.help_raw_reply")))
 
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
 		return panel
 	}, "/ai_playbook_import"))
 
-	//info.AddButton("AI生成", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
-	//	Id:     "/ai_playbook_create_by_create_desc",
-	//	Title:  "AI生成数据",
-	//	Width:  "900px",
-	//	Height: "680px", // TextArea
-	//}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-	//	panel.AddField("智能模板", "ai_template", db.Varchar, form.SelectSingle).
-	//		FieldOptions(aiDataTemplates).FieldDefault(aiDataTemplates[0].Value)
-	//	panel.AddField("生成平台", "create_platform", db.Varchar, form.SelectSingle).
-	//		FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
-	//	panel.AddField("引入版本", "intro_version", db.Varchar, form.Text).
-	//		FieldHelpMsg("若提供，则相关描述带版本后缀信息")
-	//	panel.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
-	//		FieldOptions(products).FieldDefault(products[0].Value)
-	//	panel.AddField("生成指令", "create_desc", db.Varchar, form.TextArea)
-	//	panel.AddField("上传文件", "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
-	//		"maxFileCount": 10,
-	//	}).FieldHelpMsg("需生成的平台支持文档图片等的解析")
-	//	panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-	//	return panel
-	//}, "/ai_playbook_create_by_create_desc"))
-
-	//info.AddButton("AI优化", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
-	//	Id:     "/ai_playbook_optimize",
-	//	Title:  "AI优化数据",
-	//	Width:  "900px",
-	//	Height: "480px", // TextArea
-	//}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-	//	ids := ctx.FormValue("ids")
-	//	panel.AddField("已选择编号", "ids", db.Varchar, form.Text).FieldDefault(ids).FieldHide()
-	//	panel.AddField("优化平台", "optimize_platform", db.Varchar, form.SelectSingle).
-	//		FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
-	//	panel.AddField("优化指令", "optimize_desc", db.Varchar, form.TextArea)
-	//	panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-	//	return panel
-	//}, "/ai_playbook_optimize"))
-
-	info.AddButton("AI分析", icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+	info.AddButton(template.HTML(biz.T("ai_playbook.btn_test_analysis")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/ai_playbook_test_and_analysis",
-		Title:  "测试执行后进行AI结果分析",
+		Title:  biz.T("ai_playbook.btn_test_analysis"),
 		Width:  "900px",
-		Height: "680px", // TextArea
+		Height: "680px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
 		aiPlatforms := biz.GetAiCreatePlatform()
 		products := biz.GetProducts()
-		panel.AddField("已选择编号", "ids", db.Varchar, form.Text).
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()
-		panel.AddField("分析模板", "ai_template", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.ai_template"), "ai_template", db.Varchar, form.SelectSingle).
 			FieldOptions(aiAnalysisTemplates).
 			FieldDefault(aiAnalysisTemplates[0].Value)
-		panel.AddField("分析平台", "analysis_platform", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.analysis_platform"), "analysis_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).
 			FieldDefault(aiPlatforms[0].Value)
-		panel.AddField("关联产品", "product", db.Varchar, form.SelectSingle).
+		panel.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 			FieldOptions(products).
 			FieldDefault(products[0].Value).
-			FieldHelpMsg("用于执行智能数据")
+			FieldHelpMsg(template.HTML(biz.T("common.help_execute_data")))
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
 		return panel
 	}, "/ai_playbook_test_and_analysis"))
 
-	info.AddButton("测试", icon.Android, action.Ajax("ai_playbook_batch_run",
+	info.AddButton(template.HTML(biz.T("common.btn_test")), icon.Android, action.Ajax("ai_playbook_batch_run",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择场景再测试"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 			idList := strings.Split(idStr, ",")
@@ -242,146 +204,146 @@ func GetAiPlaybookTable(ctx *context.Context) table.Table {
 					continue
 				}
 
-				if err := biz.RunPlaybookFromMgmt(id, "start", "", "ai_playbook", userName); err == nil {
-					status = "测试完成，请前往[结果详情]列表查看"
+				if err := biz.RunPlaybookFromMgmt(id, "start", "", "ai_playbook", userName, ""); err == nil {
+					status = biz.T("common.msg_test_completed")
 				} else {
-					status = fmt.Sprintf("测试失败：%s: %s", id, err)
+					status = fmt.Sprintf(biz.T("common.msg_test_failed"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddButton("取用", icon.Android, action.Ajax("ai_playbook_batch_use",
+	info.AddButton(template.HTML(biz.T("common.btn_use")), icon.Android, action.Ajax("ai_playbook_batch_use",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再取用"
+				status = biz.T("common.msg_select_first_for_use")
 				return false, status, ""
 			}
 			ids := strings.Trim(idStr, ",")
 			if err := biz.UseAiPlaybook(ids, userNameSub); err == nil {
-				status = "取用成功，请前往[场景-场景列表]查看"
+				status = biz.T("common.msg_use_success")
 			} else {
-				status = fmt.Sprintf("取用失败：%s: %s", ids, err)
+				status = fmt.Sprintf(biz.T("common.msg_use_failed"), ids, err)
 				return false, status, ""
 			}
 
 			return true, status, ""
 		}))
 
-	info.AddActionButton("取用", action.Ajax("ai_data_use",
+	info.AddActionButton(template.HTML(biz.T("common.btn_use")), action.Ajax("ai_data_use",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if err := biz.UseAiData(id, userNameSub); err == nil {
-				status = "取用成功，请前往[场景-场景列表]查看"
+				status = biz.T("common.msg_use_success")
 			} else {
-				status = fmt.Sprintf("取用失败：%s: %s", id, err)
+				status = fmt.Sprintf(biz.T("common.msg_use_failed"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.SetTable("ai_playbook").SetTitle("智能场景").SetDescription("智能场景")
-	playbookTypeMsg := template.HTML("默认值为: 串行中断<br>串行中断: 场景内的数据用例若存在执行失败，失败后的数据用例不再执行<br>串行比较: 场景内的数据用例串行执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过<br>串行继续: 场景内的数据用例串行执行存在失败数据用例，失败后的数据用例继续执行<br>普通并发: 场景内的数据用例并发执行<br>并发比较: 场景内的数据用例并发执行完成后，对各数据用例中输出的同名变量进行值比较，相等则通过")
-	dataHelp := template.HTML("关联数据必填")
+	info.SetTable("ai_playbook").SetTitle(biz.T("ai_playbook.title")).SetDescription(biz.T("ai_playbook.description"))
+	sceneTypeMsg := template2.HTML(biz.T("scene_test_history.scene_type_help"))
+	dataHelp := template.HTML(biz.T("common.help_data_required"))
 
 	formList := aiPlaybook.GetForm()
-	formList.AddField("自增主键", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("场景描述", "name", db.Varchar, form.Text)
-	formList.AddField("数据文件列表", "data_file_list", db.Text, form.TextArea).
+	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.data_file_list"), "data_file_list", db.Text, form.TextArea).
 		FieldHelpMsg(dataHelp)
-	formList.AddField("场景类型", "scene_type", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.scene_type"), "scene_type", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "1", Text: "串行中断"},
-			{Value: "2", Text: "串行比较"},
-			{Value: "3", Text: "串行继续"},
-			{Value: "4", Text: "普通并发"},
-			{Value: "5", Text: "并发比较"},
-		}).FieldDefault("1").FieldHelpMsg(playbookTypeMsg)
-	formList.AddField("优先级", "priority", db.Int, form.Number)
-	formList.AddField("生成来源", "source", db.Varchar, form.Text).
+			{Value: "1", Text: biz.T("ai_playbook.type_serial_stop")},
+			{Value: "2", Text: biz.T("ai_playbook.type_serial_compare")},
+			{Value: "3", Text: biz.T("ai_playbook.type_serial_continue")},
+			{Value: "4", Text: biz.T("ai_playbook.type_concurrent_normal")},
+			{Value: "5", Text: biz.T("ai_playbook.type_concurrent_compare")},
+		}).FieldDefault("1").FieldHelpMsg(sceneTypeMsg)
+	formList.AddField(biz.T("common.priority"), "priority", db.Int, form.Number)
+	formList.AddField(biz.T("common.source"), "source", db.Varchar, form.Text).
 		FieldDisplayButCanNotEditWhenUpdate()
-	formList.AddField("取用状态", "use_status", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.use_status"), "use_status", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "1", Text: "初始"},
-			{Value: "2", Text: "取用"},
-			{Value: "3", Text: "废弃"},
+			{Value: "1", Text: biz.T("common.status_initial")},
+			{Value: "2", Text: biz.T("common.status_in_use")},
+			{Value: "3", Text: biz.T("common.status_discarded")},
 		}).
 		FieldDefault("1").
 		FieldHideWhenCreate().
 		FieldHideWhenUpdate().
 		FieldDisableWhenUpdate()
-	formList.AddField("改造状态", "modify_status", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.modify_status"), "modify_status", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Value: "1", Text: "初始"},
-			{Value: "2", Text: "人工改造"},
-			{Value: "3", Text: "自动改造"},
+			{Value: "1", Text: biz.T("ai_playbook.modify_initial")},
+			{Value: "2", Text: biz.T("common.modify_manual")},
+			{Value: "3", Text: biz.T("common.modify_auto")},
 		}).
 		FieldDefault("1").
 		FieldHideWhenCreate().
 		FieldHideWhenUpdate().
 		FieldDisableWhenUpdate()
-	formList.AddField("测试结果", "result", db.Varchar, form.Text)
-	formList.AddField("失败原因", "fail_reason", db.Text, form.RichText)
-	formList.AddField("所属产品", "product", db.Varchar, form.SelectSingle).
+	formList.AddField(biz.T("common.test_result"), "result", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Text, form.RichText)
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
 		FieldOptions(products)
-	formList.AddField("创建人", "create_user", db.Varchar, form.Text).
+	formList.AddField(biz.T("common.user_name"), "create_user", db.Varchar, form.Text).
 		FieldDefault(userName).FieldHide()
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("ai_playbook").SetTitle("智能场景").SetDescription("智能场景")
+	formList.SetTable("ai_playbook").SetTitle(biz.T("ai_playbook.title")).SetDescription(biz.T("ai_playbook.description"))
 
 	detail := aiPlaybook.GetDetail()
-	detail.AddField("唯一标识", "id", db.Int)
-	detail.AddField("场景描述", "name", db.Varchar)
-	detail.AddField("数据文件列表", "data_file_list", db.Longtext).
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetAiDataDetailLinkByDataStr(model.Value)
 		})
-	detail.AddField("最近数据文件", "last_file", db.Varchar)
-	detail.AddField("场景类型", "scene_type", db.Enum).
+	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar)
+	detail.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "串行中断"
+				return biz.T("ai_playbook.type_serial_stop")
 			}
 			if model.Value == "2" {
-				return "串行比较"
+				return biz.T("ai_playbook.type_serial_compare")
 			}
 			if model.Value == "3" {
-				return "串行继续"
+				return biz.T("ai_playbook.type_serial_continue")
 			}
 			if model.Value == "4" {
-				return "普通并发"
+				return biz.T("ai_playbook.type_concurrent_normal")
 			}
 			if model.Value == "5" {
-				return "并发比较"
+				return biz.T("ai_playbook.type_concurrent_compare")
 			}
-			return "串行中断"
+			return biz.T("ai_playbook.type_serial_stop")
 		})
-	detail.AddField("优先级", "priority", db.Int)
-	detail.AddField("执行次数", "run_time", db.Int)
-	detail.AddField("测试结果", "result", db.Varchar)
-	detail.AddField("失败原因", "fail_reason", db.Text)
-	detail.AddField("备注", "remark", db.Longtext)
-	detail.AddField("所属产品", "product", db.Varchar)
-	detail.AddField("创建人", "create_user", db.Varchar)
-	detail.AddField("创建时间", "created_at", db.Timestamp)
-	detail.AddField("更新时间", "updated_at", db.Timestamp)
-	detail.AddField("删除时间", "deleted_at", db.Timestamp).FieldHide()
+	detail.AddField(biz.T("common.priority"), "priority", db.Int)
+	detail.AddField(biz.T("common.run_time"), "run_time", db.Int)
+	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
+	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Text)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.product"), "product", db.Varchar)
+	detail.AddField(biz.T("common.user_name"), "create_user", db.Varchar)
+	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)
+	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
+	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).FieldHide()
 
-	detail.SetTable("ai_playbook").SetTitle("智能场景详情").SetDescription("智能场景详情")
+	detail.SetTable("ai_playbook").SetTitle(biz.T("common.detail_title")).SetDescription(biz.T("common.detail_description"))
 
 	return aiPlaybook
 }

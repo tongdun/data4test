@@ -13,10 +13,10 @@ func ExportTestCase2Markdown(ids, source string) (fileName string, err error) {
 	var productNames, modules []string
 	models.Orm.Table(source).Where("id in (?)", idList).Group("product").Pluck("product", &productNames)
 	if len(productNames) == 0 {
-		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		errTmp := fmt.Errorf(T("error.product_count_invalid"), len(productNames))
 		return "", errTmp
 	} else if len(productNames) > 1 {
-		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+		Logger.Warning(T("warn.product_count_default"), len(productNames))
 	}
 
 	timeFormat := "20060102150405"
@@ -36,10 +36,10 @@ func ExportTestCase2Markdown(ids, source string) (fileName string, err error) {
 			for _, itemCase := range testCases {
 				thirdTitle := fmt.Sprintf("### %s", itemCase.CaseName)
 				WriteDataInCommonFile(filePath, thirdTitle)
-				WriteDataInCommonFile(filePath, fmt.Sprintf("#### 优先级: %s", itemCase.Priority))
-				WriteDataInCommonFile(filePath, fmt.Sprintf("#### 前置条件: %s", itemCase.PreCondition))
-				WriteDataInCommonFile(filePath, fmt.Sprintf("#### 测试范围: %s", itemCase.TestRange))
-				WriteDataInCommonFile(filePath, fmt.Sprintf("#### 测试步骤"))
+				WriteDataInCommonFile(filePath, fmt.Sprintf(T("md.priority"), itemCase.Priority))
+				WriteDataInCommonFile(filePath, fmt.Sprintf(T("md.precondition"), itemCase.PreCondition))
+				WriteDataInCommonFile(filePath, fmt.Sprintf(T("md.test_range"), itemCase.TestRange))
+				WriteDataInCommonFile(filePath, fmt.Sprintf(T("md.test_steps")))
 
 				var testSteps, expectResults []string
 				if strings.Contains(itemCase.TestSteps, ";") {
@@ -81,10 +81,10 @@ func ExportTestCase2XmindById(ids, source string) (fileName string, err error) {
 	var productNames, modules []string
 	models.Orm.Table(source).Where("id in (?)", idList).Group("product").Pluck("product", &productNames)
 	if len(productNames) == 0 {
-		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		errTmp := fmt.Errorf(T("error.product_count_invalid"), len(productNames))
 		return "", errTmp
 	} else if len(productNames) > 1 {
-		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+		Logger.Warning(T("warn.product_count_default"), len(productNames))
 	}
 
 	timeFormat := "20060102150405"
@@ -106,11 +106,11 @@ func ExportTestCase2XmindById(ids, source string) (fileName string, err error) {
 				switch itemCase.Priority {
 				case "P0":
 					priorityMark = goxmind.Priority1
-				case "P1", "高":
+				case "P1", T("priority.high"):
 					priorityMark = goxmind.Priority1
-				case "P2", "中":
+				case "P2", T("priority.medium"):
 					priorityMark = goxmind.Priority2
-				case "P3", "低":
+				case "P3", T("priority.low"):
 					priorityMark = goxmind.Priority3
 				case "P4":
 					priorityMark = goxmind.Priority4
@@ -118,16 +118,16 @@ func ExportTestCase2XmindById(ids, source string) (fileName string, err error) {
 					priorityMark = goxmind.Priority2
 				}
 				thirdNode.AddMaker(priorityMark)
-				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
-				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
-				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.case_number"), itemCase.CaseNumber))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.precondition"), itemCase.PreCondition))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.test_range"), itemCase.TestRange))
 				if itemCase.Auto == "1" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 是"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_yes")))
 				} else if itemCase.Auto == "0" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 否"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_no")))
 				}
 
-				fourthNode := thirdNode.AddNode(fmt.Sprintf("测试步骤"))
+				fourthNode := thirdNode.AddNode(fmt.Sprintf(T("xmind.test_steps")))
 				var testSteps, expectResults []string
 				if strings.Contains(itemCase.TestSteps, ";") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")
@@ -220,10 +220,10 @@ func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module
 	}
 
 	if len(productNames) == 0 {
-		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		errTmp := fmt.Errorf(T("error.product_count_invalid"), len(productNames))
 		return "", errTmp
 	} else if len(productNames) > 1 {
-		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+		Logger.Warning(T("warn.product_count_default"), len(productNames))
 	}
 
 	if len(module) == 0 {
@@ -251,11 +251,11 @@ func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module
 				switch itemCase.Priority {
 				case "P0":
 					priorityMark = goxmind.Priority1
-				case "P1", "高":
+				case "P1", T("priority.high"):
 					priorityMark = goxmind.Priority1
-				case "P2", "中":
+				case "P2", T("priority.medium"):
 					priorityMark = goxmind.Priority2
-				case "P3", "低":
+				case "P3", T("priority.low"):
 					priorityMark = goxmind.Priority3
 				case "P4":
 					priorityMark = goxmind.Priority4
@@ -263,16 +263,16 @@ func ExportAiCase2XmindByCondition(product, introVersion, createPlatform, module
 					priorityMark = goxmind.Priority2
 				}
 				thirdNode.AddMaker(priorityMark)
-				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
-				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
-				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.case_number"), itemCase.CaseNumber))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.precondition"), itemCase.PreCondition))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.test_range"), itemCase.TestRange))
 				if itemCase.Auto == "1" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 是"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_yes")))
 				} else if itemCase.Auto == "0" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 否"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_no")))
 				}
 
-				fourthNode := thirdNode.AddNode(fmt.Sprintf("测试步骤"))
+				fourthNode := thirdNode.AddNode(fmt.Sprintf(T("xmind.test_steps")))
 				var testSteps, expectResults []string
 				if strings.Contains(itemCase.TestSteps, ";") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")
@@ -363,10 +363,10 @@ func ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner
 	}
 
 	if len(productNames) == 0 {
-		errTmp := fmt.Errorf("关联产品数为: %d, 不支持导出", len(productNames))
+		errTmp := fmt.Errorf(T("error.product_count_invalid"), len(productNames))
 		return "", errTmp
 	} else if len(productNames) > 1 {
-		Logger.Warning("关联产品数为: %d, 默认导出第一个作为产品", len(productNames))
+		Logger.Warning(T("warn.product_count_default"), len(productNames))
 	}
 
 	if len(module) == 0 {
@@ -394,11 +394,11 @@ func ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner
 				switch itemCase.Priority {
 				case "P0":
 					priorityMark = goxmind.Priority1
-				case "P1", "高":
+				case "P1", T("priority.high"):
 					priorityMark = goxmind.Priority1
-				case "P2", "中":
+				case "P2", T("priority.medium"):
 					priorityMark = goxmind.Priority2
-				case "P3", "低":
+				case "P3", T("priority.low"):
 					priorityMark = goxmind.Priority3
 				case "P4":
 					priorityMark = goxmind.Priority4
@@ -406,16 +406,16 @@ func ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner
 					priorityMark = goxmind.Priority2
 				}
 				thirdNode.AddMaker(priorityMark)
-				thirdNode.AddNode(fmt.Sprintf("用例编号: %s", itemCase.CaseNumber))
-				thirdNode.AddNode(fmt.Sprintf("前置条件: %s", itemCase.PreCondition))
-				thirdNode.AddNode(fmt.Sprintf("测试范围: %s", itemCase.TestRange))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.case_number"), itemCase.CaseNumber))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.precondition"), itemCase.PreCondition))
+				thirdNode.AddNode(fmt.Sprintf(T("xmind.test_range"), itemCase.TestRange))
 				if itemCase.Auto == "1" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 是"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_yes")))
 				} else if itemCase.Auto == "0" {
-					thirdNode.AddNode(fmt.Sprintf("是否支持自动化: 否"))
+					thirdNode.AddNode(fmt.Sprintf(T("xmind.auto_no")))
 				}
 
-				fourthNode := thirdNode.AddNode(fmt.Sprintf("测试步骤"))
+				fourthNode := thirdNode.AddNode(fmt.Sprintf(T("xmind.test_steps")))
 				var testSteps, expectResults []string
 				if strings.Contains(itemCase.TestSteps, ";") {
 					testSteps = strings.Split(strings.Replace(itemCase.TestSteps, "\n", "", -1), ";")

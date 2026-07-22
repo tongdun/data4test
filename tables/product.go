@@ -2,11 +2,13 @@ package tables
 
 import (
 	"data4test/biz"
+	"data4test/pages"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	template2 "github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
@@ -26,17 +28,17 @@ func GetProductTable(ctx *context.Context) table.Table {
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField("唯一标识", "id", db.Int).
+	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable()
-	info.AddField("产品名称", "product", db.Varchar).
+	info.AddField(biz.T("common.product"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("环境IP/域名", "ip", db.Char).
+	info.AddField(biz.T("common.ip"), "ip", db.Char).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
-	info.AddField("请求协议", "protocol", db.Enum).
+	info.AddField(biz.T("common.protocol"), "protocol", db.Enum).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField("是否并发", "threading", db.Enum).
+	info.AddField(biz.T("common.threading"), "threading", db.Enum).
 		FieldFilterable().FieldDisplay(func(model types.FieldModel) interface{} {
 		if model.Value == "yes" {
 			return "yes"
@@ -46,65 +48,65 @@ func GetProductTable(ctx *context.Context) table.Table {
 		}
 		return "unknown"
 	}).FieldEditAble(editType.Switch).FieldEditOptions(types.FieldOptions{
-		{Value: "yes", Text: "是"},
-		{Value: "no", Text: "否"},
+		{Value: "yes", Text: biz.T("common.yes")},
+		{Value: "no", Text: biz.T("common.no")},
 	}).FieldFilterable(types.FilterType{FormType: form.SelectSingle}).FieldFilterOptions(types.FieldOptions{
-		{Value: "yes", Text: "是"},
-		{Value: "no", Text: "否"},
+		{Value: "yes", Text: biz.T("common.yes")},
+		{Value: "no", Text: biz.T("common.no")},
 	})
-	info.AddField("并发数", "thread_number", db.Int)
-	info.AddField("鉴权信息", "auth", db.Longtext).FieldWidth(300).
+	info.AddField(biz.T("common.thread_number"), "thread_number", db.Int)
+	info.AddField(biz.T("common.auth"), "auth", db.Longtext).FieldWidth(300).
 		FieldHide()
-	info.AddField("测试模式", "testmode", db.Enum)
-	info.AddField("关联应用", "apps", db.Longtext).FieldWidth(250)
-	info.AddField("环境类型", "env_type", db.Int).
+	info.AddField(biz.T("common.testmode"), "testmode", db.Enum)
+	info.AddField(biz.T("product.apps"), "apps", db.Longtext).FieldWidth(250)
+	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
-				return "开发"
+				return biz.T("common.env_type._1")
 			} else if model.Value == "2" {
-				return "测试"
+				return biz.T("common.env_type._2")
 			} else if model.Value == "3" {
-				return "预发"
+				return biz.T("common.env_type._3")
 			} else if model.Value == "4" {
-				return "演示"
+				return biz.T("common.env_type._4")
 			} else if model.Value == "5" {
-				return "生产"
+				return biz.T("common.env_type._5")
 			}
 			return ""
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
-		{Value: "1", Text: "开发"},
-		{Value: "2", Text: "测试"},
-		{Value: "3", Text: "预发"},
-		{Value: "4", Text: "演示"},
-		{Value: "5", Text: "生产"},
+		{Value: "1", Text: biz.T("common.env_type._1")},
+		{Value: "2", Text: biz.T("common.env_type._2")},
+		{Value: "3", Text: biz.T("common.env_type._3")},
+		{Value: "4", Text: biz.T("common.env_type._4")},
+		{Value: "5", Text: biz.T("common.env_type._5")},
 	})
-	info.AddField("专用应用前缀", "private_app_prefix", db.Longtext).
+	info.AddField(biz.T("product.private_app_prefix"), "private_app_prefix", db.Longtext).
 		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().
 		FieldHide()
-	info.AddField("专用参数", "private_parameter", db.Longtext).
+	info.AddField(biz.T("product.private_parameter"), "private_parameter", db.Longtext).
 		//FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().
 		FieldHide()
-	info.AddField("备注", "remark", db.Longtext).
+	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldHide()
-	info.AddField("创建时间", "created_at", db.Timestamp).
+	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("更新时间", "updated_at", db.Timestamp).
+	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
-	info.AddField("删除时间", "deleted_at", db.Timestamp).
+	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
-	info.AddButton("复制", icon.Android, action.Ajax("product_batch_copy",
+	info.AddButton(template2.HTML(biz.T("common.btn_copy")), icon.Android, action.Ajax("product_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if idStr == "," {
-				status = "请先选择数据再复制"
+				status = biz.T("common.btn_select_first")
 				return false, status, ""
 			}
 
@@ -115,37 +117,72 @@ func GetProductTable(ctx *context.Context) table.Table {
 					continue
 				}
 				if err := biz.CopyProduct(id, userNameSub); err == nil {
-					status = "复制成功，请刷新列表查看"
+					status = biz.T("product.copy_success")
 				} else {
-					status = fmt.Sprintf("复制失败：%s: %s", id, err)
+					status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("复制", action.Ajax("product_copy",
+	info.AddActionButton(template2.HTML(biz.T("common.btn_copy")), action.Ajax("product_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 			user := auth.Auth(ctx)
 			userNameSub := user.Name
 			if err := biz.CopyProduct(id, userNameSub); err == nil {
-				status = "复制成功，请刷新列表查看"
+				status = biz.T("product.copy_success")
 			} else {
-				status = fmt.Sprintf("复制失败：%s: %s", id, err)
+				status = fmt.Sprintf("%s: %s: %s", biz.T("common.copy_fail"), id, err)
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("查看报告", action.Jump("/admin/product_dashboard?id={{.Id}}"))
+	info.AddActionButton(template2.HTML(biz.T("common.btn_report")), action.Jump("/admin/product_dashboard?id={{.Id}}"))
 
-	info.AddButton("导入场景", icon.Android, action.Ajax("import_batch_scene",
+	info.AddButton(template2.HTML(biz.T("product.btn_refresh_report")), icon.Refresh, action.Ajax("product_batch_refresh_report",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
 			var status string
 			if idStr == "," {
-				status = "请先选择产品再导入"
+				status = biz.T("common.btn_select_first")
+				return false, status, ""
+			}
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			ids := strings.Split(idStr, ",")
+			go func() {
+				for _, id := range ids {
+					if len(id) == 0 {
+						continue
+					}
+					productName, err := biz.GetProductName(id)
+					if err != nil {
+						biz.Logger.Error("刷新产品报告失败[%s]: %s", id, err)
+						continue
+					}
+					appName, err := biz.GetProductApps(id)
+					if err != nil {
+						biz.Logger.Error("获取产品应用失败[%s]: %s", id, err)
+						continue
+					}
+					if err := pages.GetProductReportData(productName, appName, userNameSub); err != nil {
+						biz.Logger.Error("刷新产品报告失败[%s]: %s", productName, err)
+					}
+				}
+			}()
+			status = biz.T("product.report_refreshing")
+			return true, status, ""
+		}))
+
+	info.AddButton(template2.HTML(biz.T("product.btn_import_scene")), icon.Android, action.Ajax("import_batch_scene",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = biz.T("product.import_select_first")
 				return false, status, ""
 			}
 			ids := strings.Split(idStr, ",")
@@ -155,115 +192,78 @@ func GetProductTable(ctx *context.Context) table.Table {
 				}
 
 				if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
-					status = fmt.Sprintf("导入完成, 新增: %d条，已存在: %d条", newCount, oldCount)
+					status = fmt.Sprintf(biz.T("product.import_done")+": %d "+biz.T("product.added")+", %d "+biz.T("product.existing"), newCount, oldCount)
 				} else {
-					status = fmt.Sprintf("同步失败: %s, 新增: %d条，已存在: %d条", err, newCount, oldCount)
+					status = fmt.Sprintf(biz.T("product.sync_failed")+": %s, "+biz.T("product.added")+": %d, "+biz.T("product.existing")+": %d", err, newCount, oldCount)
 					return false, status, ""
 				}
 			}
 			return true, status, ""
 		}))
 
-	info.AddActionButton("导入场景", action.Ajax("import_scene",
+	info.AddActionButton(template2.HTML(biz.T("product.btn_import_scene")), action.Ajax("import_scene",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			id := ctx.FormValue("id")
 			var status string
 
 			if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
-				status = fmt.Sprintf("导入完成, 新增: %d条，已存在: %d条", newCount, oldCount)
+				status = fmt.Sprintf(biz.T("product.import_done")+": %d "+biz.T("product.added")+", %d "+biz.T("product.existing"), newCount, oldCount)
 			} else {
-				status = fmt.Sprintf("同步失败: %s, 新增: %d条，已存在: %d条", err, newCount, oldCount)
+				status = fmt.Sprintf(biz.T("product.sync_failed")+": %s, "+biz.T("product.added")+": %d, "+biz.T("product.existing")+": %d", err, newCount, oldCount)
 				return false, status, ""
 			}
 
 			return true, status, ""
 		}))
 
-	//info.AddButton("XMind导入测试用例", icon.Android, action.Ajax("testcase_xmind_batch_import",
-	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
-	//		idStr := ctx.FormValue("ids")
-	//		var status string
-	//		ids := strings.Split(idStr, ",")
-	//		for _, id := range ids {
-	//			if len(id) == 0 {
-	//				continue
-	//			}
-	//			if err := biz.GetJSON(id); err == nil {
-	//				status = "导入完成"
-	//			} else {
-	//				status = fmt.Sprintf("导入失败：%s: %s", id, err)
-	//				return false, status, ""
-	//			}
-	//		}
-	//		return true, status, ""
-	//	}))
-	//
-	//info.AddActionButton("XMind导入测试用例", action.Ajax("testcase_xmind_import",
-	//	func(ctx *context.Context) (success bool, msg string, data interface{}) {
-	//		id := ctx.FormValue("id")
-	//		var status string
-	//		if err := biz.GetJSON(id); err == nil {
-	//			status = "导入完成"
-	//		} else {
-	//			status = fmt.Sprintf("导入失败：%s: %s", id, err)
-	//		}
-	//		return true, status, ""
-	//	}))
-
-	info.SetTable("product").SetTitle("产品配置").SetDescription("产品配置")
-	helpMsg := template.HTML("JSON格式，e.g.: {\"name1\": \"value1\", \"name2\": \"value2\"}")
-	helpPrefixMsg := template.HTML("JSON格式，e.g.: {\"app1\": \"/prefix1\", \"app2\": \"/prefix2\"}")
+	info.SetTable("product").SetTitle(biz.T("product.title")).SetDescription(biz.T("product.description"))
+	helpMsg := template.HTML(biz.T("product.help_private_parameter"))
+	helpPrefixMsg := template.HTML(biz.T("product.help_private_prefix"))
 
 	formList := product.GetForm()
-	formList.AddField("唯一标识", "id", db.Int, form.Default).
+	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField("产品名称", "product", db.Varchar, form.Text)
-	formList.AddField("环境IP/域名", "ip", db.Char, form.Ip)
-	formList.AddField("请求协议", "protocol", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.ip"), "ip", db.Char, form.Ip)
+	formList.AddField(biz.T("common.protocol"), "protocol", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
 			{Text: "http", Value: "http"},
 			{Text: "https", Value: "https"},
 		}).FieldDefault("http")
-	formList.AddField("是否并发", "threading", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.threading"), "threading", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "是", Value: "yes"},
-			{Text: "否", Value: "no"},
+			{Text: biz.T("common.yes"), Value: "yes"},
+			{Text: biz.T("common.no"), Value: "no"},
 		}).FieldDefault("no")
-	formList.AddField("并发数", "thread_number", db.Int, form.Number).FieldDefault("1")
-	formList.AddField("鉴权信息", "auth", db.Longtext, form.TextArea)
-	formList.AddField("测试模式", "testmode", db.Enum, form.Radio).FieldOptions(types.FieldOptions{
-		{Text: "自定义", Value: "custom"},
-		{Text: "模糊", Value: "fuzzing"},
-		{Text: "全部", Value: "all"},
+	formList.AddField(biz.T("common.thread_number"), "thread_number", db.Int, form.Number).FieldDefault("1")
+	formList.AddField(biz.T("common.auth"), "auth", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.testmode"), "testmode", db.Enum, form.Radio).FieldOptions(types.FieldOptions{
+		{Text: biz.T("product.testmode_custom"), Value: "custom"},
+		{Text: biz.T("product.testmode_fuzzing"), Value: "fuzzing"},
+		{Text: biz.T("product.testmode_all"), Value: "all"},
 	}).FieldDefault("custom")
-	formList.AddField("关联应用", "apps", db.Longtext, form.Select).
+	formList.AddField(biz.T("product.apps"), "apps", db.Longtext, form.Select).
 		FieldOptions(apps)
-	formList.AddField("环境类型", "env_type", db.Int, form.Radio).
+	formList.AddField(biz.T("common.env_type_label"), "env_type", db.Int, form.Radio).
 		FieldOptions(types.FieldOptions{
-			{Text: "开发", Value: "1"},
-			{Text: "测试", Value: "2"},
-			{Text: "预发", Value: "3"},
-			{Text: "演示", Value: "4"},
-			{Text: "生产", Value: "5"},
+			{Text: biz.T("common.env_type._1"), Value: "1"},
+			{Text: biz.T("common.env_type._2"), Value: "2"},
+			{Text: biz.T("common.env_type._3"), Value: "3"},
+			{Text: biz.T("common.env_type._4"), Value: "4"},
+			{Text: biz.T("common.env_type._5"), Value: "5"},
 		}).FieldDefault("2")
-	formList.AddField("专用应用前缀", "private_app_prefix", db.Longtext, form.TextArea).FieldHelpMsg(helpPrefixMsg)
+	formList.AddField(biz.T("product.private_app_prefix"), "private_app_prefix", db.Longtext, form.TextArea).FieldHelpMsg(helpPrefixMsg)
 
-	formList.AddField("专用参数", "private_parameter", db.Longtext, form.TextArea).FieldHelpMsg(helpMsg)
-	formList.AddField("备注", "remark", db.Longtext, form.TextArea)
-	formList.AddField("创建时间", "created_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("product.private_parameter"), "private_parameter", db.Longtext, form.TextArea).FieldHelpMsg(helpMsg)
+	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()
-	formList.AddField("更新时间", "updated_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenUpdate().FieldDisableWhenCreate()
-	formList.AddField("删除时间", "deleted_at", db.Timestamp, form.Datetime).
+	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("product").SetTitle("产品配置").SetDescription("产品配置")
-
-	//formList.SetPostHook(func(values form2.Values) (err error) { // 存量数据升级函数
-	//biz.ModifyDataContent()
-	//err = biz.ModifyPlaybookContent()
-	//return
-	//})
+	formList.SetTable("product").SetTitle(biz.T("product.title")).SetDescription(biz.T("product.description"))
 
 	return product
 }
