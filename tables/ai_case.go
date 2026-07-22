@@ -45,7 +45,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		FieldFilterOptions(caseTypes)
 	info.AddField(biz.T("common.case_level"), "priority", db.Varchar).
 		FieldFilterable()
-	info.AddField(biz.T("common.test_step"), "pre_condition", db.Varchar).
+	info.AddField(biz.T("test_case.precondition"), "pre_condition", db.Varchar).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return template.HTMLEscapeString(model.Value)
 		})
@@ -138,13 +138,13 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 			}
 			hostIp := ctx.Request.Host
 			downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
-			status = fmt.Sprintf(biz.T("common.operate_success"), downloadUrl)
+			status = fmt.Sprintf(biz.T("testcase.export_case_success"), downloadUrl)
 			return true, status, ""
 		}))
 
 	info.AddButton(template.HTML(biz.T("common.btn_export_xmind")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/ai_case_export_xmind",
-		Title:  biz.T("common.btn_export_xmind"),
+		Title:  biz.T("common.tilte_export_xmind"),
 		Width:  "900px",
 		Height: "720px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
@@ -163,7 +163,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.module"), "module", db.Varchar, form.Text).
 			FieldHelpMsg(template.HTML(biz.T("common.help_module_multi")))
 		panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
-		panel.AddField(biz.T("common.source"), "source", db.Varchar, form.Text).FieldDefault("ai_case").FieldHide()
+		panel.AddField(biz.T("common.case_source"), "source", db.Varchar, form.Text).FieldDefault("ai_case").FieldHide()
 
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
@@ -297,7 +297,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.case_type"), "case_type", db.Varchar, form.Select).
 		FieldOptions(caseTypes)
 	formList.AddField(biz.T("common.case_level"), "priority", db.Varchar, form.Text)
-	formList.AddField(biz.T("common.test_step"), "pre_condition", db.Varchar, form.TextArea)
+	formList.AddField(biz.T("test_case.precondition"), "pre_condition", db.Varchar, form.TextArea)
 	formList.AddField(biz.T("common.test_range"), "test_range", db.Varchar, form.TextArea)
 	formList.AddField(biz.T("common.test_step"), "test_steps", db.Varchar, form.TextArea)
 	formList.AddField(biz.T("common.expected_result"), "expect_result", db.Varchar, form.TextArea)
@@ -356,7 +356,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.module"), "module", db.Varchar)
 	detail.AddField(biz.T("common.case_type"), "case_type", db.Varchar)
 	detail.AddField(biz.T("common.case_level"), "priority", db.Varchar)
-	detail.AddField(biz.T("common.test_step"), "pre_condition", db.Text)
+	detail.AddField(biz.T("test_case.precondition"), "pre_condition", db.Text)
 	detail.AddField(biz.T("common.test_range"), "test_range", db.Text)
 	detail.AddField(biz.T("common.test_step"), "test_steps", db.Text)
 	detail.AddField(biz.T("common.expected_result"), "expect_result", db.Text)

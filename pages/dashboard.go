@@ -1695,6 +1695,6 @@ func renderGlobalReport(report biz.DashboardReport) (types.Panel, error) {
 	return types.Panel{
 		Content:     row1 + row2 + row3 + row6 + row5 + row4,
 		Title:       dashboardTitle,
-		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">生成时间: %s</span></div>`, dashboardDesc, report.CreatedAt)),
+		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, dashboardDesc, biz.T("schedule_report.generated_at"), report.CreatedAt)),
 	}, nil
 }

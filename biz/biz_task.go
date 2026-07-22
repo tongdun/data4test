@@ -679,7 +679,7 @@ func GetTaskSQL(userName, taskId, filePath string) (dataMap, playbookMap, produc
 	ids := strings.Split(taskId, ",")
 	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
 	if len(taskList) == 0 {
-		err = fmt.Errorf(T("warning.data_definition_not_found"), taskId)
+		err = fmt.Errorf(T("warning.data_define_not_found"), taskId)
 		Logger.Error("%s", err)
 		return
 	}
@@ -944,7 +944,7 @@ func GetAssertTemplateSQL(filePath string, assertMap map[string]bool) (err error
 	var assertList []AssertValueDefine
 	models.Orm.Table("assert_template").Where("name in (?)", assertNameList).Find(&assertList)
 	if len(assertList) == 0 {
-		err = fmt.Errorf(T("error.assert_not_linked"), assertNameList)
+		err = fmt.Errorf(T("error.assert_list_not_linked"), assertNameList)
 		Logger.Error("%s", err)
 		return
 	}

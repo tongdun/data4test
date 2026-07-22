@@ -265,3 +265,46 @@ alter table scene_test_history
 alter table product
     add private_app_prefix longtext null comment '专用应用前缀' after env_type;
 
+# 2026年7月9日 兼容英文输入，放宽字段长度
+alter table schedule modify task_name varchar(255) not null comment '任务名称';
+alter table playbook modify name varchar(255) not null comment '场景描述';
+alter table scene_data modify name varchar(255) not null comment '数据描述';
+alter table scene_data_test_history modify name varchar(255) not null comment '数据描述';
+alter table scene_test_history modify name varchar(255) not null comment '场景描述';
+
+# 2026年7月15日 执行报告管理 - 任务ID关联 & 报告汇总表
+
+# scene_test_history 增加 task_id 字段，关联到定时任务的某次执行
+alter table scene_test_history
+    add task_id varchar(100) null comment '任务执行ID: scheduleId_执行时间' after id;
+
+# scene_data_test_history 增加 task_id 字段
+alter table scene_data_test_history
+    add task_id varchar(100) null comment '任务执行ID: scheduleId_执行时间' after id;
+
+# 创建索引便于按task_id查询
+alter table scene_test_history
+    add index idx_task_id (task_id);
+alter table scene_data_test_history
+    add index idx_task_id (task_id);
+
+# 执行报告汇总表
+CREATE TABLE IF NOT EXISTS `dashboard` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    `report_name` VARCHAR(255) NOT NULL COMMENT '报告名称',
+    `report_type` VARCHAR(20) NOT NULL COMMENT '报告类型: global/product/app/task',
+    `related_task_ids` TEXT COMMENT '关联任务ID列表(逗号分隔)',
+    `related_products` TEXT COMMENT '关联产品名称列表(逗号分隔)',
+    `related_apps` TEXT COMMENT '关联应用名称列表(逗号分隔)',
+    `time_range_start` DATETIME COMMENT '统计时间范围开始',
+    `time_range_end` DATETIME COMMENT '统计时间范围结束',
+    `status` VARCHAR(20) DEFAULT 'generating' COMMENT '生成状态: generating/finished/failed',
+    `creator` VARCHAR(100) COMMENT '创建人',
+    `remark` TEXT COMMENT '备注',
+    `report_data` LONGTEXT COMMENT '统计数据JSON',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME,
+    INDEX idx_report_type (report_type),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='执行报告汇总表';

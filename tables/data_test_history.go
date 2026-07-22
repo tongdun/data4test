@@ -46,7 +46,7 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 				SetURL("/admin/fm/history/preview?path=" + value.Value).
 				SetContent(template2.HTML(value.Value)).
 				OpenInNewTab().
-				SetTabTitle(template2.HTML(biz.T("scene_data_test_history.title"))).
+				SetTabTitle(template2.HTML(biz.T("data_test_history.history_record"))).
 				GetContent()
 		})
 	info.AddField(biz.T("common.test_result"), "result", db.Varchar).
@@ -144,7 +144,7 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
 
-	info.SetTable("scene_data_test_history").SetTitle(biz.T("scene_data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
+	info.SetTable("scene_data_test_history").SetTitle(biz.T("data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
 
 	formList := dataTestHistory.GetForm()
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
@@ -174,7 +174,7 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("scene_data_test_history").SetTitle(biz.T("scene_data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
+	formList.SetTable("scene_data_test_history").SetTitle(biz.T("data_test_history.title")).SetDescription(biz.T("scene_data_test_history.description"))
 
 	formList.SetPostHook(func(values form2.Values) (err error) {
 		fileName := values["content"][0]

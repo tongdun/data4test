@@ -49,7 +49,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 					SetURL("/admin/fm/history/preview?path=/" + dirName + "/" + value.Value).
 					SetContent(template2.HTML(value.Value)).
 					OpenInNewTab().
-					SetTabTitle(template2.HTML(biz.T("scene_test_history.title"))).
+					SetTabTitle(template2.HTML(biz.T("test_execute_history_file.title"))).
 					GetContent()
 			} else {
 				return template.Default().
@@ -222,7 +222,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
 
-	info.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
+	info.SetTable("scene_test_history").SetTitle(biz.T("playbook_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
 	sceneTypeMsg := template2.HTML(biz.T("scene_test_history.scene_type_help"))
 	formList := playbookTestHistory.GetForm()
@@ -260,7 +260,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldDisableWhenCreate().FieldDisableWhenUpdate()
 
-	formList.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
+	formList.SetTable("scene_test_history").SetTitle(biz.T("playbook_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
 	detail := playbookTestHistory.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
@@ -313,7 +313,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
 	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp)
 
-	detail.SetTable("scene_test_history").SetTitle(biz.T("scene_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
+	detail.SetTable("scene_test_history").SetTitle(biz.T("playbook_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
 	return playbookTestHistory
 }

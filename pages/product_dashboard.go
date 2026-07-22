@@ -101,7 +101,7 @@ func GetDashBoard2Content(ctx *gin.Context, userName string) (types.Panel, error
 		}
 	}
 	return renderProductReport(productName, dr)
-	
+
 }
 
 func renderProductReport(productName string, report biz.DashboardReport) (types.Panel, error) {
@@ -351,6 +351,6 @@ func renderProductReport(productName string, report biz.DashboardReport) (types.
 	return types.Panel{
 		Content:     row1 + row2 + row3 + row4,
 		Title:       productDashboardTitle,
-		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s - %s</span><span style="color:#888">生成时间: %s</span></div>`, productDashboardDesc, productName, report.CreatedAt)),
+		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s - %s</span><span style="color:#888">%s: %s</span></div>`, productDashboardDesc, productName, biz.T("schedule_report.generated_at"), report.CreatedAt)),
 	}, nil
 }

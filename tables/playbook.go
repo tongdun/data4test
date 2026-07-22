@@ -179,7 +179,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 			err := biz.AutoCreateSchedule(idStr, userNameSub, "scene")
 			if err != nil {
-				status = biz.T("error.create_fail")
+				status = biz.T("error.create_task_fail")
 				return false, status, fmt.Sprintf("%s", err)
 			}
 			status = biz.T("schedule.task_added")

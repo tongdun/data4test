@@ -35,7 +35,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.case_title"), "case_name", db.Varchar).
 		FieldWidth(150).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField(biz.T("common.module"), "module", db.Varchar).
+	info.AddField(biz.T("common.case_module"), "module", db.Varchar).
 		FieldWidth(120).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.case_type"), "case_type", db.Varchar).
@@ -74,7 +74,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		{Value: "1", Text: biz.T("common.yes")},
 		{Value: "2", Text: biz.T("common.part")},
 	})
-	info.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar).
+	info.AddField(biz.T("case.func_devleoper"), "fun_developer", db.Varchar).
 		FieldHide().
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar).
@@ -168,7 +168,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 
 	info.AddButton(template2.HTML(biz.T("common.btn_export_xmind")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/test_case_export_xmind",
-		Title:  biz.T("common.btn_export_xmind"),
+		Title:  biz.T("common.tilte_export_xmind"),
 		Width:  "900px",
 		Height: "720px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
@@ -181,10 +181,10 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar, form.Text).
 			FieldHelpMsg(template.HTML(biz.T("common.help_version_multi")))
 		panel.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar, form.Text)
-		panel.AddField(biz.T("common.module"), "module", db.Varchar, form.Text).
+		panel.AddField(biz.T("common.case_module"), "module", db.Varchar, form.Text).
 			FieldHelpMsg(template.HTML(biz.T("common.help_module_multi")))
 		panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
-		panel.AddField(biz.T("common.source"), "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
+		panel.AddField(biz.T("common.case_source"), "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
 
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 
@@ -193,7 +193,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 
 	info.AddButton(template2.HTML(biz.T("test_case.btn_xmind2excel")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/testcase_xmind2excel",
-		Title:  biz.T("test_case.btn_xmind2excel"),
+		Title:  biz.T("test_case.title_xmind2excel"),
 		Width:  "900px",
 		Height: "680px", // TextArea
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
@@ -205,7 +205,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	}, "/testcase_xmind2excel"))
 
 	info.AddButton(template2.HTML(biz.T("test_case.btn_import_xmind")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
-		Id:     "/testcase_xmind2excel",
+		Id:     "/testcase_xmind2import",
 		Title:  biz.T("test_case.btn_import_xmind"),
 		Width:  "900px",
 		Height: "680px", // TextArea
@@ -230,7 +230,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldDisableWhenCreate()
 	formList.AddField(biz.T("common.case_number"), "case_number", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.case_title"), "case_name", db.Varchar, form.Text)
-	formList.AddField(biz.T("common.module"), "module", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.case_module"), "module", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.case_type"), "case_type", db.Varchar, form.Select).
 		FieldOptions(caseTypes)
 	formList.AddField(biz.T("common.case_level"), "priority", db.Varchar, form.Text)
@@ -244,7 +244,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			{Value: "1", Text: biz.T("common.yes")},
 			{Value: "2", Text: biz.T("common.part")},
 		}).FieldDefault("0")
-	formList.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar, form.Text)
+	formList.AddField(biz.T("case.func_devleoper"), "fun_developer", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar, form.Text)
 	formList.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.test_result"), "test_result", db.Varchar, form.Radio).
@@ -276,7 +276,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.id"), "id", db.Int)
 	detail.AddField(biz.T("common.case_number"), "case_number", db.Varchar)
 	detail.AddField(biz.T("common.case_title"), "case_name", db.Varchar)
-	detail.AddField(biz.T("common.module"), "module", db.Varchar)
+	detail.AddField(biz.T("common.case_module"), "module", db.Varchar)
 	detail.AddField(biz.T("common.case_type"), "case_type", db.Varchar)
 	detail.AddField(biz.T("common.case_level"), "priority", db.Varchar)
 	detail.AddField(biz.T("test_case.precondition"), "pre_condition", db.Longtext)
@@ -294,7 +294,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			}
 			return biz.T("common.yes")
 		})
-	detail.AddField(biz.T("common.case_designer"), "fun_developer", db.Varchar)
+	detail.AddField(biz.T("case.func_devleoper"), "fun_developer", db.Varchar)
 	detail.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar)
 	detail.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar)
 	detail.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar)

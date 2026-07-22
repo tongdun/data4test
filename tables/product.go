@@ -30,7 +30,7 @@ func GetProductTable(ctx *context.Context) table.Table {
 
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable()
-	info.AddField(biz.T("common.product"), "product", db.Varchar).
+	info.AddField(biz.T("common.product_name"), "product", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
 	info.AddField(biz.T("common.ip"), "ip", db.Char).
@@ -223,7 +223,7 @@ func GetProductTable(ctx *context.Context) table.Table {
 	formList := product.GetForm()
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
-	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.Text)
+	formList.AddField(biz.T("common.product_name"), "product", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.ip"), "ip", db.Char, form.Ip)
 	formList.AddField(biz.T("common.protocol"), "protocol", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{

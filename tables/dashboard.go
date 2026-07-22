@@ -21,7 +21,7 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField(biz.T("common.id"), "id", db.Int)
+	info.AddField(biz.T("common.id"), "id", db.Int).FieldFilterable()
 
 	info.AddField(biz.T("schedule_report.report_name"), "report_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
@@ -111,7 +111,8 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("schedule_report.time_range_start"), "time_range_start", db.Datetime, form.Datetime)
 	formList.AddField(biz.T("schedule_report.time_range_end"), "time_range_end", db.Datetime, form.Datetime)
 	formList.AddField(biz.T("common.status"), "status", db.Varchar, form.Text)
-	formList.AddField(biz.T("schedule_report.report_data"), "report_data", db.Longtext, form.TextArea)
+	formList.AddField(biz.T("schedule_report.report_data"), "report_data", db.Longtext, form.TextArea).
+		FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField(biz.T("common.remark"), "remark", db.Longtext, form.TextArea)
 	formList.AddField(biz.T("common.created_at"), "created_at", db.Timestamp, form.Datetime).
 		FieldHide().FieldNowWhenInsert().FieldDisableWhenCreate()

@@ -34,7 +34,7 @@ func GetApiTestDataTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.api_module"), "api_module", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).FieldWidth(120)
 	info.AddField(biz.T("api_test_detail.header"), "header", db.Longtext)
-	info.AddField(biz.T("common.url"), "url_query", db.Longtext).FieldWidth(150)
+	info.AddField("UrlQuery", "url_query", db.Longtext).FieldWidth(150)
 	info.AddField(biz.T("api_test_detail.body"), "body", db.Longtext).FieldWidth(300)
 	info.AddField(biz.T("api_test_data.run_num"), "run_num", db.Int).FieldEditAble().
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
@@ -164,7 +164,7 @@ func GetApiTestDataTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.api_module"), "api_module", db.Varchar, form.Text)
 	formList.AddField(biz.T("api_test_detail.header"), "header", db.Longtext, form.Text)
-	formList.AddField(biz.T("common.url"), "url_query", db.Longtext, form.Text)
+	formList.AddField("UrlQuery", "url_query", db.Longtext, form.Text)
 	formList.AddField(biz.T("api_test_detail.body"), "body", db.Longtext, form.Text)
 	formList.AddField(biz.T("api_test_data.run_num"), "run_num", db.Int, form.Number)
 	formList.AddField(biz.T("common.expected_result"), "expected_result", db.Varchar, form.Text)

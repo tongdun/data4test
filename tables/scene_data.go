@@ -153,7 +153,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 			err := biz.AutoCreateSchedule(idStr, userNameSub, "data")
 			if err != nil {
-				status = biz.T("error.create_fail")
+				status = biz.T("error.create_playbook_fail")
 				return false, status, fmt.Sprintf("%s", err)
 			}
 
@@ -174,7 +174,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 			err := biz.AutoCreatePlaybook(idStr, userNameSub)
 			if err != nil {
-				status = biz.T("error.create_fail")
+				status = biz.T("error.create_playbook_fail")
 				return false, status, fmt.Sprintf("%s", err)
 			}
 

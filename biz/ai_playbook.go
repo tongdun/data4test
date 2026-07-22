@@ -466,7 +466,7 @@ func (playbook Playbook) RunAiPlaybookContent(userName, source string, analysisI
 	errStr := fmt.Sprintf("%s", err)
 
 	// 如果接口请求直接失败，则不进行LLM分析
-	if err != nil && strings.Contains(errStr, T("error.request_failed_status_code")) {
+	if err != nil && strings.Contains(errStr, T("error.request_failed_simple")) {
 		return
 	}
 

@@ -57,11 +57,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		{Value: "day", Text: biz.T("schedule.task_mode_day")},
 		{Value: "week", Text: biz.T("schedule.task_mode_week")},
 	}).FieldWidth(100)
-	info.AddField(biz.T("schedule.week"), "week", db.Varchar).
+	info.AddField(biz.T("schedule.select_week"), "week", db.Varchar).
 		FieldHide()
-	info.AddField(biz.T("schedule.time4week"), "time4week", db.Varchar).
+	info.AddField(biz.T("schedule.select_time4week"), "time4week", db.Varchar).
 		FieldHide()
-	info.AddField(biz.T("schedule.time4day"), "time4day", db.Varchar).
+	info.AddField(biz.T("schedule.select_time4day"), "time4day", db.Varchar).
 		FieldHide()
 	info.AddField(biz.T("schedule.crontab"), "crontab", db.Varchar).
 		FieldHide()
@@ -375,11 +375,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldOnChooseShow("day", "time4day").
 		FieldDefault("once")
 
-	formList.AddField(biz.T("schedule.week"), "week", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.select_week"), "week", db.Varchar, form.Select).
 		FieldOptions(weekNos)
-	formList.AddField(biz.T("schedule.time4day"), "time4day", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.select_time4day"), "time4day", db.Varchar, form.Select).
 		FieldOptions(timeNos)
-	formList.AddField(biz.T("schedule.time4week"), "time4week", db.Varchar, form.Select).
+	formList.AddField(biz.T("schedule.time4day"), "time4week", db.Varchar, form.Select).
 		FieldOptions(timeNos)
 	formList.AddField(biz.T("schedule.crontab"), "crontab", db.Varchar, form.Text).
 		FieldHelpMsg(cronHelp)

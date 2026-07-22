@@ -33,7 +33,7 @@ func GetApiTestDetailTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("api_test_detail.header"), "header", db.Longtext).FieldWidth(500).
 		FieldHide()
-	info.AddField(biz.T("common.url"), "url", db.Varchar).FieldWidth(300)
+	info.AddField("URL", "url", db.Varchar).FieldWidth(300)
 	info.AddField(biz.T("api_test_detail.body"), "body", db.Longtext).FieldWidth(300)
 	info.AddField(biz.T("common.response_data"), "response", db.Longtext).FieldWidth(300)
 	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
@@ -101,7 +101,7 @@ func GetApiTestDetailTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.api_desc"), "api_desc", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.data_desc"), "data_desc", db.Varchar, form.Text)
 	formList.AddField(biz.T("api_test_detail.header"), "header", db.Longtext, form.Text)
-	formList.AddField(biz.T("common.url"), "url", db.Varchar, form.Text)
+	formList.AddField("URL", "url", db.Varchar, form.Text)
 	formList.AddField(biz.T("api_test_detail.body"), "body", db.Longtext, form.Text)
 	formList.AddField(biz.T("common.response_data"), "response", db.Longtext, form.Text)
 	formList.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext, form.Text)

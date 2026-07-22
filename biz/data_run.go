@@ -63,7 +63,7 @@ func GetSceneContent(fileName string) (sceneContent DataFile, err error) {
 	} else if strings.HasSuffix(fileName, ".json") {
 		mode = "json"
 	} else {
-		err = fmt.Errorf(T("error.unsupported_file_type"), fileName)
+		err = fmt.Errorf(T("error.unsupported_given_file_type"), fileName)
 		Logger.Error("%s", err)
 		return
 	}

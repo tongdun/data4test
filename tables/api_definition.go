@@ -106,7 +106,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		}
 		return biz.T("common.yes")
 	})
-	info.AddField(biz.T("common.is_auto"), "is_auto", db.Enum).
+	info.AddField(biz.T("common.is_already_auto"), "is_auto", db.Enum).
 		FieldEditAble(editType.Select).FieldEditOptions(types.FieldOptions{
 		{Value: "-1", Text: biz.T("common.no")},
 		{Value: "1", Text: biz.T("common.yes")},
@@ -140,7 +140,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.CreateSceneDataFromRaw(id, ""); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.create_data_file_success")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -152,7 +152,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.CreateSceneDataFromRaw(id, "json"); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.create_data_file_success")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -164,7 +164,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.CreateTestData(id); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.create_test_data_success")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -176,7 +176,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.CreateFuzzingData(id); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.create_fuzz_data_success")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -188,7 +188,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.RunTestData(id); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.test_complete")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -200,7 +200,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.RunTestData(id); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.test_complete")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.operate_fail"), id, err)
 			}
@@ -212,7 +212,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			id := ctx.FormValue("id")
 			var status string
 			if err := biz.CreatePlaybookByAPIId(id, userName); err == nil {
-				status = biz.T("common.operate_success")
+				status = biz.T("common.create_playbook_success")
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("error.exec_fail"), id, err)
 			}
@@ -229,7 +229,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		products := biz.GetProducts()
 		aiCaseTemplates := biz.GetAiTemplateOptions("1")
 		aiPlatforms := biz.GetAiCreatePlatform()
-		panel.AddField(biz.T("common.id"), "ids", db.Varchar, form.Text).
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()
 		panel.AddField(biz.T("common.name"), "ai_template", db.Varchar, form.SelectSingle).
@@ -253,7 +253,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		products := biz.GetProducts()
 		aiDataTemplates := biz.GetAiTemplateOptions("2")
 		aiPlatforms := biz.GetAiCreatePlatform()
-		panel.AddField(biz.T("common.id"), "ids", db.Varchar, form.Text).
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
 			FieldDefault(ids).
 			FieldHide()
 		panel.AddField(biz.T("common.name"), "ai_template", db.Varchar, form.SelectSingle).
@@ -327,7 +327,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			{Text: biz.T("common.no"), Value: "-1"},
 			{Text: biz.T("common.yes"), Value: "1"},
 		}).FieldDefault("1")
-	formList.AddField(biz.T("common.is_auto"), "is_auto", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.is_already_auto"), "is_auto", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
 			{Text: biz.T("common.no"), Value: "-1"},
 			{Text: biz.T("common.yes"), Value: "1"},
@@ -405,7 +405,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 		}
 		return biz.T("common.yes")
 	})
-	detail.AddField(biz.T("common.is_auto"), "is_auto", db.Enum).
+	detail.AddField(biz.T("common.is_already_auto"), "is_auto", db.Enum).
 		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
 		{Value: "-1", Text: biz.T("common.no")},
 		{Value: "1", Text: biz.T("common.yes")},

@@ -23,7 +23,7 @@ func GetAssertTemplateTable(ctx *context.Context) table.Table {
 		FieldSortable()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
-	info.AddField(biz.T("common.value"), "value", db.Longtext)
+	info.AddField(biz.T("common.define_info"), "value", db.Longtext)
 	info.AddField(biz.T("common.remark"), "remark", db.Varchar)
 	info.AddField(biz.T("common.user_name"), "user_name", db.Varchar).
 		FieldFilterable()
@@ -43,7 +43,7 @@ func GetAssertTemplateTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
 	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text)
-	formList.AddField(biz.T("common.value"), "value", db.Longtext, form.TextArea).FieldHelpMsg(helpMsg)
+	formList.AddField(biz.T("common.define_info"), "value", db.Longtext, form.TextArea).FieldHelpMsg(helpMsg)
 	formList.AddField(biz.T("common.remark"), "remark", db.Varchar, form.Text)
 	formList.AddField(biz.T("common.user_name"), "user_name", db.Varchar, form.Text).
 		FieldDefault(userName).FieldDisplayButCanNotEditWhenUpdate().FieldDisplayButCanNotEditWhenCreate()

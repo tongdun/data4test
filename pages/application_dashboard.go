@@ -288,7 +288,7 @@ func renderApplicationReport(appName string, report biz.DashboardReport) (types.
 		SetHeadColor("#f7f7f7").
 		SetBody(table).
 		GetContent()
-	desc := template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s - %s</span><span style="color:#888">生成时间: %s</span></div>`, string(appDashboardDesc), appName, renderGenTime))
+	desc := template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s - %s</span><span style="color:#888">%s: %s</span></div>`, string(appDashboardDesc), appName, biz.T("schedule_report.generated_at"), renderGenTime))
 
 	return types.Panel{
 		Content:     row1 + row2 + row4,

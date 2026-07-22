@@ -830,9 +830,9 @@ func buildMultiTaskFailTable(data biz.MultiTaskReportData) template.HTML {
 	}
 	rows := ""
 	for _, f := range data.FailItems {
-		typeStr := biz.T("schedule_report.task_type_scene")
+		typeStr := biz.T("common.scene")
 		if f.Type == "data" {
-			typeStr = biz.T("schedule_report.task_type_data")
+			typeStr = biz.T("common.data")
 		}
 		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`, f.Name, typeStr, f.APIId, f.Reason, f.Reason)
 	}

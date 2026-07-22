@@ -62,7 +62,7 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 		FieldWidth(80)
 
 	info.AddField(biz.T("common.data_content"), "template_content", db.Text).FieldHide()
-	info.AddField(biz.T("common.use_status"), "use_status", db.Enum).
+	info.AddField(biz.T("common.apply_status"), "use_status", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "apply" {
 				return biz.T("ai_template.status_apply")
@@ -161,7 +161,7 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 		}).FieldHelpMsg(appendConversionHelp)
 	formList.AddField(biz.T("ai_template.platform"), "applicable_platform", db.Varchar, form.Radio).
 		FieldOptions(aiPlatform)
-	formList.AddField(biz.T("common.use_status"), "use_status", db.Enum, form.Radio).
+	formList.AddField(biz.T("common.apply_status"), "use_status", db.Enum, form.Radio).
 		FieldOptions(types.FieldOptions{
 			{Value: "apply", Text: biz.T("ai_template.status_apply")},
 			{Value: "edit", Text: biz.T("ai_template.status_edit")},
