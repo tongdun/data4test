@@ -2,7 +2,9 @@ package tables
 
 import (
 	"data4test/biz"
+	"data4test/pages"
 	"github.com/GoAdminGroup/go-admin/context"
+	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template/icon"
@@ -41,6 +43,20 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
+
+	info.AddButton(template2.HTML(biz.T("product.btn_refresh_report")), icon.Refresh, action.Ajax("global_batch_refresh_report",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			go func(userName string) {
+				if err := pages.GetGlobalReportData(userName); err != nil {
+					biz.Logger.Error("刷新全局报告失败[%s]: %s", err)
+				}
+			}(userNameSub)
+			status = biz.T("product.report_refreshing")
+			return true, status, ""
+		}))
 
 	info.AddButton(template2.HTML(biz.T("sys_parameter.btn_sync_knowledge")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/sync_knowledge",

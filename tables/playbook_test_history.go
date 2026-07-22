@@ -30,7 +30,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace().FieldWidth(60)
-	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar)
+	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
+		FieldHide()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
@@ -228,6 +229,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	formList := playbookTestHistory.GetForm()
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
+	formList.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar, form.Default).
+		FieldDisableWhenCreate().FieldDisableWhenUpdate()
 	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext, form.RichText).FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField(biz.T("common.last_file"), "last_file", db.Varchar, form.Text)

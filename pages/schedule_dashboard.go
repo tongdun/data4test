@@ -435,9 +435,9 @@ func buildTaskFailTable(data biz.TaskReportData) template.HTML {
 
 	rows := ""
 	for _, f := range data.FailItems {
-		typeStr := biz.T("schedule_report.task_type_scene")
+		typeStr := biz.T("type.scene")
 		if f.Type == "data" {
-			typeStr = biz.T("schedule_report.task_type_data")
+			typeStr = biz.T("type.data")
 		}
 		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`,
 			f.Name, typeStr, f.APIId, f.Reason, f.Reason)
@@ -477,9 +477,9 @@ func resultColor(result string) string {
 func taskTypeLabel(t string) string {
 	switch t {
 	case "scene":
-		return biz.T("schedule_report.task_type_scene")
+		return biz.T("type.scene")
 	case "data":
-		return biz.T("schedule_report.task_type_data")
+		return biz.T("type.data")
 	}
 	return t
 }

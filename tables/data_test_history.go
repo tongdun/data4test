@@ -32,7 +32,7 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable().
 		FieldTrimSpace()
 	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
-		FieldWidth(150)
+		FieldHide()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
@@ -149,6 +149,8 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 	formList := dataTestHistory.GetForm()
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate()
+	formList.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar, form.Default).
+		FieldDisableWhenCreate().FieldDisableWhenUpdate()
 	formList.AddField(biz.T("common.name"), "name", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField(biz.T("common.api_id"), "api_id", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
 	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.Text).FieldDisplayButCanNotEditWhenUpdate()
