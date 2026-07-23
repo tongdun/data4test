@@ -1129,5 +1129,6 @@
   "common.status_generating": "Generating",
   "common.status_finished": "Finished",
   "common.status_failed": "Failed",
-  "common.create_time":"Created At"
+  "common.create_time":"Created At",
+  "dashboard.task_report_name": "[%s] Task Report %s"
 }

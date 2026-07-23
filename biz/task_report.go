@@ -42,8 +42,7 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 			pRate = float64(pPass) / float64(total) * 100
 		}
 		productStats = append(productStats, ProductReportItem{
-			Product: product,
-
+			Product:  product,
 			Total:    total,
 			Pass:     pPass,
 			Fail:     pFail,
@@ -58,6 +57,18 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	trendItems := queryExecutionTrend(taskDB.Id, historyId)
 
 	// 组装report_data
+
+	// 从关联场景数据执行历史中获取实际最后执行时间作为结束时间
+	if len(taskTag) > 0 {
+		var lastDataTimeStr string
+		models.Orm.Table("scene_data_test_history").
+			Where("task_id = ?", taskTag).
+			Select("MAX(created_at)").
+			Row().Scan(&lastDataTimeStr)
+		if len(lastDataTimeStr) > 0 {
+			endTime = lastDataTimeStr
+		}
+	}
 
 	t1, _ := time.Parse(baseFormat, startTime)
 	t2, _ := time.Parse(baseFormat, endTime)
@@ -136,34 +147,18 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 		return
 	}
 
+	var dRecord DashboardReport
+	models.Orm.Table("dashboard").Where("id = ?", historyId).Find(&dRecord)
 	// 写入schedule_report表
-	now := time.Now().Format(baseFormat)
-	report := DashboardReport{
-		ReportName:      fmt.Sprintf("%s_%s", taskDB.TaskName, startTime),
-		ReportType:      "task",
-		RelatedTaskIds:  taskDB.Id,
-		RelatedProducts: taskDB.ProductList,
-		TimeRangeStart:  startTime,
-		TimeRangeEnd:    endTime,
-		Status:          "finished",
-		Creator:         userName,
-		ReportData:      string(jsonBytes),
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
-
-	// 更新已存在的 dashboard 记录（由 CreateDashboardRecord 创建）
-	if len(historyId) > 0 {
-		err = models.Orm.Table("dashboard").Where("id = ?", historyId).Update(map[string]interface{}{
-			"report_type": "task",
-			"report_name": report.ReportName,
-			"report_data": string(jsonBytes),
-			"status":      "finished",
-			"updated_at":  now,
-		}).Error
-		if err != nil {
-			Logger.Error("更新任务报告失败: %s", err)
-		}
+	dRecord.Status = "finished"
+	dRecord.ReportData = string(jsonBytes)
+	dRecord.TimeRangeStart = startTime
+	dRecord.TimeRangeEnd = endTime
+	dRecord.RelatedTaskIds = taskTag
+	dRecord.RelatedProducts = taskDB.ProductList
+	err = models.Orm.Table("dashboard").Where("id = ?", historyId).Update(dRecord).Error
+	if err != nil {
+		Logger.Error("更新任务报告失败: %s", err)
 	}
 }
 
@@ -347,12 +342,13 @@ func parseProductList(productList string) (products []string) {
 }
 
 // CreateScheduleExecutionHistory 创建执行报告
-func CreateDashboardRecord(task DbSchedule, taskTag, userName string) (id string, err error) {
-
+func CreateDashboardRecord(taskTag, userName string, taskDb DbSchedule) (id string, err error) {
 	curTime := time.Now().Format(baseFormat)
+	curTimeStr := time.Now().Format("20060102150405")
 	var dr DashboardReport
-	dr.ReportName = fmt.Sprintf("任务报告_%s_%s", taskTag[len(taskTag)-8], GetRandomStr(4, ""))
-	dr.RelatedProducts = task.ProductList
+	dr.ReportName = fmt.Sprintf(T("dashboard.task_report_name"), taskDb.TaskName, curTimeStr)
+	dr.RelatedProducts = taskDb.ProductList
+	dr.ReportType = "task"
 	dr.ReportData = ""
 	dr.Status = "running"
 	dr.RelatedTaskIds = taskTag

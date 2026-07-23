@@ -322,30 +322,31 @@ func StopTask(ids string) (err error) {
 }
 
 func RunOnceTask(id, userName string) (err error) {
-	var task DbSchedule
-	models.Orm.Table("schedule").Where("id = ?", id).Find(&task)
-	if len(task.TaskName) == 0 {
-		err = errors.Errorf(T("error.task_info_not_found"), task.TaskName)
+	var taskDb DbSchedule
+	models.Orm.Table("schedule").Where("id = ?", id).Find(&taskDb)
+	if len(taskDb.TaskName) == 0 {
+		err = errors.Errorf(T("error.task_info_not_found"), taskDb.TaskName)
 		return
 	}
-	startTime, err := time.Parse("2006-01-02 15:04:05", task.LastAt)
-	timeTag := startTime.Format("20060102150405")
-	taskTag := fmt.Sprintf("%s_%s", id, timeTag)
 
 	// 获取执行项列表
 	//var executeItems string
 	totalExpected := 0
-	switch task.TaskType {
+	switch taskDb.TaskType {
 	case "data":
-		dataIds, _ := task.GetDataIds()
+		dataIds, _ := taskDb.GetDataIds()
 		totalExpected = len(dataIds)
 	case "scene":
-		sceneIds, _, _ := task.GetSceneIds()
+		sceneIds, _, _ := taskDb.GetSceneIds()
 		totalExpected = len(sceneIds)
 	}
+	startTime, err := time.Parse("2006-01-02 15:04:05", taskDb.LastAt)
 
+	timeTag := startTime.Format("20060102150405")
+	taskTag := fmt.Sprintf("%s_%s", id, timeTag)
 	// 创建执行历史
-	historyId, err := CreateDashboardRecord(task, taskTag, userName)
+
+	historyId, err := CreateDashboardRecord(taskTag, userName, taskDb)
 	if err != nil {
 		Logger.Error("创建执行历史失败: %s", err)
 	}
@@ -354,11 +355,11 @@ func RunOnceTask(id, userName string) (err error) {
 	failCount := 0
 	executedCount := 0
 
-	switch task.TaskType {
+	switch taskDb.TaskType {
 	case "data":
-		dataIds, _ := task.GetDataIds()
+		dataIds, _ := taskDb.GetDataIds()
 		for _, dataId := range dataIds {
-			err1 := RepeatRunDataFile(userName, dataId, task.ProductList, "task", taskTag)
+			err1 := RepeatRunDataFile(userName, dataId, taskDb.ProductList, "task", taskTag)
 			executedCount++
 			if err1 != nil {
 				failCount++
@@ -370,10 +371,10 @@ func RunOnceTask(id, userName string) (err error) {
 			}
 		}
 	case "scene":
-		sceneIds, _, _ := task.GetSceneIds()
+		sceneIds, _, _ := taskDb.GetSceneIds()
 		for index, sceneId := range sceneIds {
 			var err1 error
-			err1 = RunPlaybookFromMgmt(sceneId, "start", task.ProductList, "task", userName, taskTag)
+			err1 = RunPlaybookFromMgmt(sceneId, "start", taskDb.ProductList, "task", userName, taskTag)
 			executedCount++
 			if err1 != nil {
 				failCount++
@@ -392,8 +393,8 @@ func RunOnceTask(id, userName string) (err error) {
 		}
 	}
 
-	task.TaskStatus = "finished"
-	err = models.Orm.Table("schedule").Where("id = ?", task.Id).Update(&task).Error
+	taskDb.TaskStatus = "finished"
+	err = models.Orm.Table("schedule").Where("id = ?", taskDb.Id).Update(&taskDb).Error
 	if err != nil {
 		Logger.Error("%s", err)
 	}
@@ -401,7 +402,7 @@ func RunOnceTask(id, userName string) (err error) {
 	endTime := time.Now()
 	durationSeconds := int(endTime.Sub(startTime).Seconds())
 	// 异步生成任务报告
-	go GenerateTaskReport(task, historyId, taskTag, userName,
+	go GenerateTaskReport(taskDb, historyId, taskTag, userName,
 		totalExpected, successCount, failCount, durationSeconds, startTime.Format(baseFormat), endTime.Format(baseFormat))
 
 	return

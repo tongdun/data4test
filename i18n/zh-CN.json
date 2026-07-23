@@ -1133,6 +1133,6 @@
   "common.status_generating": "生成中",
   "common.status_finished": "已完成",
   "common.status_failed": "失败",
-  "common.create_time":"生成时间"
-
+  "common.create_time":"生成时间",
+  "dashboard.task_report_name": "[%s]任务报告_%s"
 }
