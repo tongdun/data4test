@@ -99,6 +99,42 @@ func GetProductTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
 	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
+
+	info.AddButton(template2.HTML(biz.T("product.btn_refresh_report")), icon.Refresh, action.Ajax("product_batch_refresh_report",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = biz.T("common.btn_select_first")
+				return false, status, ""
+			}
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			ids := strings.Split(idStr, ",")
+			go func() {
+				for _, id := range ids {
+					if len(id) == 0 {
+						continue
+					}
+					productName, err := biz.GetProductName(id)
+					if err != nil {
+						biz.Logger.Error("刷新产品报告失败[%s]: %s", id, err)
+						continue
+					}
+					appName, err := biz.GetProductApps(id)
+					if err != nil {
+						biz.Logger.Error("获取产品应用失败[%s]: %s", id, err)
+						continue
+					}
+					if err := pages.GetProductReportData(productName, appName, userNameSub); err != nil {
+						biz.Logger.Error("刷新产品报告失败[%s]: %s", productName, err)
+					}
+				}
+			}()
+			status = biz.T("product.report_refreshing")
+			return true, status, ""
+		}))
+
 	info.AddButton(template2.HTML(biz.T("common.btn_copy")), icon.Android, action.Ajax("product_batch_copy",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
@@ -141,41 +177,6 @@ func GetProductTable(ctx *context.Context) table.Table {
 		}))
 
 	info.AddActionButton(template2.HTML(biz.T("common.btn_report")), action.Jump("/admin/product_dashboard?id={{.Id}}"))
-
-	info.AddButton(template2.HTML(biz.T("product.btn_refresh_report")), icon.Refresh, action.Ajax("product_batch_refresh_report",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			var status string
-			if idStr == "," {
-				status = biz.T("common.btn_select_first")
-				return false, status, ""
-			}
-			user := auth.Auth(ctx)
-			userNameSub := user.Name
-			ids := strings.Split(idStr, ",")
-			go func() {
-				for _, id := range ids {
-					if len(id) == 0 {
-						continue
-					}
-					productName, err := biz.GetProductName(id)
-					if err != nil {
-						biz.Logger.Error("刷新产品报告失败[%s]: %s", id, err)
-						continue
-					}
-					appName, err := biz.GetProductApps(id)
-					if err != nil {
-						biz.Logger.Error("获取产品应用失败[%s]: %s", id, err)
-						continue
-					}
-					if err := pages.GetProductReportData(productName, appName, userNameSub); err != nil {
-						biz.Logger.Error("刷新产品报告失败[%s]: %s", productName, err)
-					}
-				}
-			}()
-			status = biz.T("product.report_refreshing")
-			return true, status, ""
-		}))
 
 	info.AddButton(template2.HTML(biz.T("product.btn_import_scene")), icon.Android, action.Ajax("import_batch_scene",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {

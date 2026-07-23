@@ -150,6 +150,25 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
+	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/generate_task_report",
+		Title:  biz.T("schedule_report.generate_report"),
+		Width:  "900px",
+		Height: "540px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		products := biz.GetProducts()
+		// 根据选中的任务ID自动关联产品信息作为默认值
+		defaultProducts := biz.GetScheduleProductListByIds(ids)
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate()
+		panel.AddField(biz.T("schedule_report.select_products"), "report_products", db.Varchar, form.Select).
+			FieldOptions(products).
+			FieldDefault(defaultProducts).
+			FieldHelpMsg(template2.HTML(biz.T("schedule_report.select_report_type")))
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/generate_task_report"))
+
 	sBtnBatchExport := template2.HTML(biz.T("common.btn_export"))
 	info.AddButton(sBtnBatchExport, icon.Android, action.Ajax("schedule_batch_export",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
@@ -314,25 +333,6 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		}))
 
 	info.AddActionButton(template.HTML(biz.T("common.btn_report")), action.Jump("/admin/task_dashboard?id={{.Id}}"))
-
-	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
-		Id:     "/generate_task_report",
-		Title:  biz.T("schedule_report.generate_report"),
-		Width:  "900px",
-		Height: "540px",
-	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-		ids := ctx.FormValue("ids")
-		products := biz.GetProducts()
-		// 根据选中的任务ID自动关联产品信息作为默认值
-		defaultProducts := biz.GetScheduleProductListByIds(ids)
-		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate()
-		panel.AddField(biz.T("schedule_report.select_products"), "report_products", db.Varchar, form.Select).
-			FieldOptions(products).
-			FieldDefault(defaultProducts).
-			FieldHelpMsg(template2.HTML(biz.T("schedule_report.select_report_type")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-		return panel
-	}, "/generate_task_report"))
 
 	info.AddSelectBox(biz.T("common.product_list"), products, action.FieldFilter("product_list"))
 
