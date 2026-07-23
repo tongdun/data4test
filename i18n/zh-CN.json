@@ -1134,5 +1134,6 @@
   "common.status_finished": "已完成",
   "common.status_failed": "失败",
   "common.create_time":"生成时间",
-  "dashboard.task_report_name": "[%s]任务报告_%s"
+  "dashboard.task_report_name": "[%s]任务报告_%s",
+  "task_report.generate_running": "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看"
 }

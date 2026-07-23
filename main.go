@@ -1903,7 +1903,7 @@ func startServer() {
 			}
 		}()
 
-		status := "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看"
+		status := biz.T("task_report.generate_running")
 		c.JSON(http.StatusOK, map[string]interface{}{
 			"code": 200,
 			"msg":  status,

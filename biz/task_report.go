@@ -350,7 +350,7 @@ func CreateDashboardRecord(taskTag, userName string, taskDb DbSchedule) (id stri
 	dr.RelatedProducts = taskDb.ProductList
 	dr.ReportType = "task"
 	dr.ReportData = ""
-	dr.Status = "running"
+	dr.Status = "generating"
 	dr.RelatedTaskIds = taskTag
 	dr.TimeRangeStart = curTime
 	dr.TimeRangeEnd = curTime
@@ -539,7 +539,7 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 		// 查找该任务在该产品下的最新执行历史
 		var history DashboardReport
 		models.Orm.Table("dashboard").
-			Where("related_task_ids in (?) and related_products like ? and status = ?", t.Id, "%"+product+"%", "finished").
+			Where("related_task_ids like CONCAT(?, '\\_%') and related_products like ? and status = ?", t.Id, "%"+product+"%", "finished").
 			Order("created_at desc").
 			Limit(1).
 			Find(&history)
@@ -550,10 +550,7 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 		}
 
 		// 按taskId统计
-		curTaskId := fmt.Sprintf("%s_%s", t.Id, strings.Replace(history.TimeRangeStart, " ", "", -1))
-		curTaskId = fmt.Sprintf("%s_%s", t.Id, strings.Replace(strings.Replace(history.TimeRangeStart, "-", "", -1), ":", "", -1))
-		curTaskId = strings.Replace(curTaskId, " ", "", -1)
-
+		curTaskId := history.RelatedTaskIds
 		sPass, sFail, sTotal := 0, 0, 0
 		dPass, dFail, dTotal := 0, 0, 0
 

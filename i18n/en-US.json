@@ -1130,5 +1130,6 @@
   "common.status_finished": "Finished",
   "common.status_failed": "Failed",
   "common.create_time":"Created At",
-  "dashboard.task_report_name": "[%s] Task Report %s"
+  "dashboard.task_report_name": "[%s] Task Report %s",
+  "task_report.generate_running": "Task report is being generated in background, please check the result report list later"
 }
