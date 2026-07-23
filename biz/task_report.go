@@ -78,6 +78,9 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	reportData.Overview.FailCount = failCount
 	reportData.Overview.ExecuteRate = executeRate
 	reportData.Overview.Executor = userName
+	if executedCount > 0 {
+		reportData.Overview.PassRate = float64(successCount) / float64(executedCount) * 100
+	}
 
 	reportData.SceneStats.Total = sceneTotal
 	reportData.SceneStats.Pass = scenePass

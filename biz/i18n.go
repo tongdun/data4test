@@ -27,8 +27,7 @@ func InitI18n(locale string) {
 		messages: make(map[string]string),
 		aliases:  make(map[string]string),
 	}
-	tmpLang := GetLocale()
-	fmt.Printf("3、当前 go-admin 语言设置: %s, 初始化项目翻译器为: %s\n", tmpLang, locale)
+
 	globalTranslator.loadLocale(locale)
 }
 

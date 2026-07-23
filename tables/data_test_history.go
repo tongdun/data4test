@@ -56,7 +56,8 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 			{Value: "fail", Text: "fail"},
 		})
 	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldWidth(200)
 	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {

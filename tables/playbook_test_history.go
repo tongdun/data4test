@@ -2,6 +2,7 @@ package tables
 
 import (
 	"data4test/biz"
+	"encoding/json"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
@@ -93,7 +94,28 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "fail", Text: "fail"},
 	}).FieldWidth(70)
 	info.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext).
-		FieldWidth(200).
+		FieldWidth(300).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			v := model.Value
+			if len(v) == 0 {
+				return ""
+			}
+			escaped := template2.HTMLEscapeString(v)
+			// data_file_list 有多条数据（逗号分隔）时，该行多行展示，fail_reason 直接展示不折叠
+			dataFiles, _ := model.Row["data_file_list"].(string)
+			multiRow := strings.Contains(dataFiles, ",")
+			if multiRow || len(v) <= 200 {
+				return template2.HTML(escaped)
+			}
+			// 单行数据 + fail_reason 过长 → 折叠显示
+			runes := []rune(v)
+			maxLen := 200
+			if maxLen > len(runes) {
+				maxLen = len(runes)
+			}
+			short := template2.HTMLEscapeString(string(runes[:maxLen]))
+			return template2.HTML(fmt.Sprintf(`<details style="max-width:400px"><summary style="cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">%s...</summary><div style="margin-top:4px;padding:4px;background:#f5f5f5;border-radius:2px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto">%s</div></details>`, short, escaped))
+		}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -222,6 +244,52 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		{Value: "pass", Text: "pass"},
 		{Value: "fail", Text: "fail"},
 	}, action.FieldFilter("result"))
+
+	// 列选择器：默认展示7列，用户可自行勾选，通过__columns URL参数控制，缓存到localStorage
+	colFields := []string{"id","name","data_file_list","last_file","scene_type","result","fail_reason","env_type","remark","product","user_name","created_at"}
+	colNames := []string{
+		biz.T("common.id"),biz.T("common.name"),biz.T("common.data_file_list"),
+		biz.T("common.last_file"),biz.T("common.scene_type"),biz.T("common.test_result"),
+		biz.T("common.fail_reason"),biz.T("common.env_type_label"),biz.T("common.remark"),
+		biz.T("common.product"),biz.T("common.user_name"),biz.T("common.created_at"),
+	}
+	defaultCols := []string{"id","name","data_file_list","last_file","scene_type","result","fail_reason"}
+	fieldsJSON,_ := json.Marshal(colFields)
+	namesJSON,_ := json.Marshal(colNames)
+	defaultsJSON,_ := json.Marshal(defaultCols)
+	colToggleJS := fmt.Sprintf(`<script data-exec-on-popstate>
+(function C(){var f=%s,n=%s,dk="sht_cols",def=%s;
+function gk(){try{return JSON.parse(localStorage.getItem(dk))}catch(e){}return null}
+function sk(v){localStorage.setItem(dk,JSON.stringify(v))}
+(function init(){
+var p=new URLSearchParams(location.search),cols=p.get("__columns");
+if(cols){sk(cols.split(","));return}
+var saved=gk()||def;
+p.set("__columns",saved.join(","));
+location.search=p.toString();
+})();
+function go(c){
+var p=new URLSearchParams(location.search);
+p.set("__columns",c.join(","));sk(c);
+location.search=p.toString();
+}
+var hd=document.querySelector(".box-header .box-title");
+if(!hd)return;
+var cur=(gk()||def).slice();
+var btn=document.createElement("span");btn.style.cssText="margin-left:12px;cursor:pointer;font-size:13px;color:#888;position:relative";btn.innerHTML="&#9662; \u5217\u9009\u62e9";
+var dd=document.createElement("div");dd.style.cssText="display:none;position:absolute;top:22px;left:0;background:#fff;border:1px solid #ddd;z-index:999;padding:6px 0;min-width:140px;box-shadow:0 2px 8px rgba(0,0,0,0.15)";
+f.forEach(function(field,i){
+var it=document.createElement("div");it.style.cssText="padding:4px 14px;cursor:pointer;white-space:nowrap";
+var cb=document.createElement("input");cb.type="checkbox";cb.checked=cur.indexOf(field)>=0;cb.style.marginRight="6px";
+it.appendChild(cb);it.appendChild(document.createTextNode(n[i]));
+it.onclick=function(e){e.stopPropagation();var arr=(gk()||def).slice(),idx=arr.indexOf(field);idx>=0?arr.splice(idx,1):arr.push(field);go(arr);};
+dd.appendChild(it);});
+btn.appendChild(dd);btn.onclick=function(e){e.stopPropagation();dd.style.display=dd.style.display=="none"?"block":"none";};
+document.addEventListener("click",function(){dd.style.display="none";});
+hd.parentNode.appendChild(btn);
+})();
+</script>`, string(fieldsJSON), string(namesJSON), string(defaultsJSON))
+	info.SetHeaderHtml(template2.HTML(colToggleJS))
 
 	info.SetTable("scene_test_history").SetTitle(biz.T("playbook_test_history.title")).SetDescription(biz.T("scene_test_history.description"))
 
