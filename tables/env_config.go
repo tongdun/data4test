@@ -115,12 +115,12 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			userNameSub := user.Name
 			appName, err := biz.GetAppName(id)
 			if err != nil {
-				status = fmt.Sprintf("刷新应用报告失败: %%s", err)
+				status = fmt.Sprintf("刷新应用报告失败: %s", err)
 				return false, status, ""
 			}
 			go func() {
 				if err := pages.GetAppReportData(appName, userNameSub); err != nil {
-					biz.Logger.Error("刷新应用报告失败[%%s]: %%s", appName, err)
+					biz.Logger.Error("刷新应用报告失败[%s]: %s", appName, err)
 				}
 			}()
 			status = biz.T("product.report_refreshing")
