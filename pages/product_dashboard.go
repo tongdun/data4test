@@ -32,7 +32,7 @@ func GetProductReportData(productName, appName, userName string) (err error) {
 
 	nowStr := time.Now().Format("20060102150405")
 	now := time.Now().Format("2006-01-02 15:04:05")
-	reportName := biz.T("product.report_name", nowStr)
+	reportName := biz.T("product.report_name", productName, nowStr)
 	report := biz.DashboardReport{
 		ReportName:      reportName,
 		ReportType:      "product",

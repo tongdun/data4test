@@ -842,12 +842,12 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 
 // ModuleRow 模块统计行数据
 type ModuleRow struct {
-	ModuleName       string            `json:"module_name"`
-	ApiTotal         int               `json:"api_total"`
-	AutoCount        int               `json:"auto_count"`
-	NotAutoCount     int               `json:"not_auto_count"`
-	DataFileCount    int               `json:"data_file_count"`
-	MethodBreakdown  map[string]int    `json:"method_breakdown"`
+	ModuleName      string         `json:"module_name"`
+	ApiTotal        int            `json:"api_total"`
+	AutoCount       int            `json:"auto_count"`
+	NotAutoCount    int            `json:"not_auto_count"`
+	DataFileCount   int            `json:"data_file_count"`
+	MethodBreakdown map[string]int `json:"method_breakdown"`
 }
 
 // GetAppModuleTableData 获取模块统计纯数据（不含 HTML 包装）

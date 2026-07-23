@@ -107,25 +107,25 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			return true, status, ""
 		}))
 
-		info.AddActionButton(template2.HTML(biz.T("product.btn_refresh_report")), action.Ajax("env_refresh_report",
-			func(ctx *context.Context) (success bool, msg string, data interface{}) {
-				id := ctx.FormValue("id")
-				var status string
-				user := auth.Auth(ctx)
-				userNameSub := user.Name
-				appName, err := biz.GetAppName(id)
-				if err != nil {
-					status = fmt.Sprintf("刷新应用报告失败: %%s", err)
-					return false, status, ""
+	info.AddActionButton(template2.HTML(biz.T("product.btn_refresh_report")), action.Ajax("env_refresh_report",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id := ctx.FormValue("id")
+			var status string
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			appName, err := biz.GetAppName(id)
+			if err != nil {
+				status = fmt.Sprintf("刷新应用报告失败: %%s", err)
+				return false, status, ""
+			}
+			go func() {
+				if err := pages.GetAppReportData(appName, userNameSub); err != nil {
+					biz.Logger.Error("刷新应用报告失败[%%s]: %%s", appName, err)
 				}
-				go func() {
-					if err := pages.GetAppReportData(appName, userNameSub); err != nil {
-						biz.Logger.Error("刷新应用报告失败[%%s]: %%s", appName, err)
-					}
-				}()
-				status = biz.T("product.report_refreshing")
-				return true, status, ""
-			}))
+			}()
+			status = biz.T("product.report_refreshing")
+			return true, status, ""
+		}))
 
 	info.AddButton(template.HTML(biz.T("env_config.btn_new_import")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/api_define_import",

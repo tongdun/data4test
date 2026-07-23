@@ -29,7 +29,7 @@ func GetAppReportData(appName, userName string) (err error) {
 
 	nowStr := time.Now().Format("20060102150405")
 	now := time.Now().Format("2006-01-02 15:04:05")
-	reportName := biz.T("app.report_name", nowStr)
+	reportName := biz.T("app.report_name", appName, nowStr)
 	report := biz.DashboardReport{
 		ReportName:      reportName,
 		ReportType:      "app",
@@ -57,21 +57,6 @@ func GetDashBoard3Content(ctx *gin.Context, userName string) (types.Panel, error
 	if err != nil {
 		return types.Panel{}, err
 	}
-
-	//components := tmpl.Default()
-	//colComp := components.Col()
-	//
-	//apiTypeDistribution := template.HTML(biz.T("dashboard.api_type_distribution"))
-	//viewAllApis := template.HTML(biz.T("dashboard.view_all_apis"))
-	//apiSpecCheck := template.HTML(biz.T("dashboard.api_spec_check"))
-	//apiIsAutomation := template.HTML(biz.T("dashboard.api_is_automation"))
-	//viewAllDataFiles := template.HTML(biz.T("dashboard.view_all_data_files"))
-	//dataExecTrend30d := template.HTML(biz.T("dashboard.data_exec_trend_30d"))
-	//dataExecDist30d := template.HTML(biz.T("dashboard.data_exec_dist_30d"))
-	//viewAllHistoryData := template.HTML(biz.T("dashboard.view_all_history_data"))
-	//moduleApiOverview := template.HTML(biz.T("dashboard.module_api_overview"))
-	//appDashboardTitle := template.HTML(biz.T("app_dashboard.title"))
-	//appDashboardDesc := template.HTML(biz.T("app_dashboard.description"))
 
 	// 优先从 dashboard 表读取预计算数据
 	var appReportData AppDashboardReport
