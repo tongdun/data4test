@@ -40,7 +40,7 @@ func (t *Translator) loadLocale(locale string) {
 	t.messages = make(map[string]string)
 	t.aliases = make(map[string]string)
 	var filePath string
-	i18nBasePath := "i18n"
+	i18nBasePath := fmt.Sprintf("%s/i18n", BASEPATH)
 	switch locale {
 	case "en-US", "en":
 		filePath = fmt.Sprintf("%s/en-US.json", i18nBasePath)
@@ -50,16 +50,8 @@ func (t *Translator) loadLocale(locale string) {
 	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// 尝试 mgmt 目录
-
-		filePath = fmt.Sprintf("./mgmt/i18n/%s.json", locale)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			// 回退: 使用英文
-			filePath = fmt.Sprintf("i18n/en-US.json")
-			if _, err2 := os.Stat(filePath); os.IsNotExist(err2) {
-				return
-			}
-		}
+		Logger.Error("err: %s", err)
+		return
 	}
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {

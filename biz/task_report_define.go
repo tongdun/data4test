@@ -70,6 +70,7 @@ type SceneDetail struct {
 }
 
 type DataDetail struct {
+	SceneName  string `json:"scene_name,omitempty"`
 	Name       string `json:"name"`
 	ApiId      string `json:"api_id,omitempty"`
 	Result     string `json:"result"`

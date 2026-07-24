@@ -130,6 +130,10 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	reportData.SceneDetails = executedScenes
 
 	reportData.DataDetails = queryDataDetails(taskTag)
+	// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history）
+	if len(taskTag) > 0 {
+		matchDataToScenes(reportData.DataDetails, taskTag)
+	}
 
 	reportData.ByProduct = productStats
 
@@ -1069,6 +1073,7 @@ func queryDataDetails(taskId string) (items []DataDetail) {
 	models.Orm.Table("scene_data_test_history").
 		Select("name, api_id, result, fail_reason").
 		Where("task_id = ?", taskId).
+		Order("created_at asc").
 		Find(&results)
 	for _, r := range results {
 		items = append(items, DataDetail{
@@ -1094,4 +1099,93 @@ func QueryTaskRelatedApps(taskIds string) string {
 		Pluck("app", &apps)
 
 	return strings.Join(apps, ",")
+}
+
+// matchDataToScenes 按执行顺序将每条数据明细关联到其所属场景
+// 对于同一数据文件在多个场景中出现的情况，按创建时间正序依次分配
+func matchDataToScenes(dataDetails []DataDetail, taskId string) {
+	if len(taskId) == 0 || len(dataDetails) == 0 {
+		return
+	}
+
+	type sceneRecord struct {
+		Name         string `gorm:"column:name"`
+		DataFileList string `gorm:"column:data_file_list"`
+	}
+	var scenes []sceneRecord
+	models.Orm.Table("scene_test_history").
+		Select("name, data_file_list").
+		Where("task_id = ?", taskId).
+		Order("created_at asc").
+		Find(&scenes)
+
+	// 解析每个场景的 data_file_list，得到待匹配的数据文件名列表
+	type sceneSlot struct {
+		SceneName string
+		FileNames []string
+	}
+	var slots []sceneSlot
+	for _, s := range scenes {
+		if len(s.DataFileList) == 0 {
+			continue
+		}
+		parts := strings.Split(s.DataFileList, ",")
+		var names []string
+		for _, part := range parts {
+			name := strings.TrimSpace(part)
+			if len(name) > 0 {
+				names = append(names, name)
+			}
+		}
+		if len(names) > 0 {
+			slots = append(slots, sceneSlot{
+				SceneName: s.Name,
+				FileNames: names,
+			})
+		}
+	}
+
+	// 按创建时间顺序为每条数据明细匹配第一个符合条件的场景
+	for i := range dataDetails {
+		dataName := dataDetails[i].Name
+		for si := range slots {
+			found := false
+			for fi, fileName := range slots[si].FileNames {
+				if matchDataFileName(fileName, dataName) {
+					dataDetails[i].SceneName = slots[si].SceneName
+					// 消费该条目——从该场景的剩余数据列表中移除
+					slots[si].FileNames = append(slots[si].FileNames[:fi], slots[si].FileNames[fi+1:]...)
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+	}
+}
+
+// matchDataFileName 判断 scene_test_history.data_file_list 中的数据文件是否与
+// scene_data_test_history.name 匹配（支持多种格式）
+func matchDataFileName(fromScene, fromDataRecord string) bool {
+	if fromScene == fromDataRecord {
+		return true
+	}
+	if stripFileExt(fromScene) == fromDataRecord {
+		return true
+	}
+	if GetHistoryDataDirName(fromScene) == fromDataRecord {
+		return true
+	}
+	return false
+}
+
+
+// stripFileExt 去除文件名后缀（最后一个 . 及之后的部分）
+func stripFileExt(name string) string {
+	if idx := strings.LastIndex(name, "."); idx > 0 {
+		return name[:idx]
+	}
+	return name
 }
