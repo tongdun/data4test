@@ -158,6 +158,7 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	dRecord.TimeRangeEnd = endTime
 	dRecord.RelatedTaskIds = taskTag
 	dRecord.RelatedProducts = taskDB.ProductList
+	dRecord.RelatedApps = QueryTaskRelatedApps(taskTag)
 	err = models.Orm.Table("dashboard").Where("id = ?", historyId).Update(dRecord).Error
 	if err != nil {
 		Logger.Error("更新任务报告失败: %s", err)
@@ -679,6 +680,7 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 		ReportName:      reportName,
 		ReportType:      "task",
 		RelatedTaskIds:  strings.Join(taskIds, ","),
+		RelatedApps:     QueryTaskRelatedApps(strings.Join(taskIds, ",")),
 		RelatedProducts: product,
 		TimeRangeStart:  now,
 		TimeRangeEnd:    now,

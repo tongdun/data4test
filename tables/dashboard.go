@@ -51,14 +51,6 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(150)
 	info.AddField(biz.T("product.apps"), "related_apps", db.Varchar).
-		FieldDisplay(func(model types.FieldModel) interface{} {
-			rt, _ := model.Row["report_type"].(string)
-			taskIds, _ := model.Row["related_task_ids"].(string)
-			if rt == "task" && taskIds != "" {
-				return biz.QueryTaskRelatedApps(taskIds)
-			}
-			return model.Value
-		}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(150)
 	info.AddField(biz.T("common.related_task"), "related_task_ids", db.Varchar)
