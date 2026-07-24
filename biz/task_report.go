@@ -676,14 +676,20 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 	reportName := fmt.Sprintf("%s-%s", reportNamePrefix, reportTime)
 
 	// 写入dashboard表
+	timeRangeStart := reportData.Overview.StartTime
+	timeRangeEnd := reportData.Overview.EndTime
+	if len(timeRangeStart) == 0 || len(timeRangeEnd) == 0 {
+		timeRangeStart = now
+		timeRangeEnd = now
+	}
 	report := DashboardReport{
 		ReportName:      reportName,
 		ReportType:      "task",
 		RelatedTaskIds:  strings.Join(taskIds, ","),
 		RelatedApps:     QueryTaskRelatedApps(strings.Join(taskIds, ",")),
 		RelatedProducts: product,
-		TimeRangeStart:  now,
-		TimeRangeEnd:    now,
+		TimeRangeStart:  timeRangeStart,
+		TimeRangeEnd:    timeRangeEnd,
 		Status:          "finished",
 		Creator:         reportUser,
 		ReportData:      string(jsonBytes),
