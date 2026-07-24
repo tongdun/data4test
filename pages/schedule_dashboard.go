@@ -612,16 +612,19 @@ func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
 func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardReport) template.HTML {
 	o := data.Overview
 
-	// 计算预计总数 / 已执行 / 未执行
-	totalExpected := o.TotalCases
-	totalExecuted := o.PassCases + o.FailCases
-	notExecuted := totalExpected - totalExecuted
+	// 计算场景维度的预计总数 / 已执行 / 未执行
+	var sceneTotalExpected, sceneTotalExecuted int
+	for _, t := range data.ByTask {
+		sceneTotalExpected += t.SceneTotal
+		sceneTotalExecuted += t.ScenePass + t.SceneFail
+	}
+	notExecuted := sceneTotalExpected - sceneTotalExecuted
 	if notExecuted < 0 {
 		notExecuted = 0
 	}
 	executeRate := 0.0
-	if totalExpected > 0 {
-		executeRate = float64(totalExecuted) / float64(totalExpected) * 100
+	if sceneTotalExpected > 0 {
+		executeRate = float64(sceneTotalExecuted) / float64(sceneTotalExpected) * 100
 	}
 
 	// 执行时间
@@ -673,8 +676,8 @@ func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardRepo
 		biz.T("schedule_report.executor"), report.Creator,
 		biz.T("schedule_report.exec_time"), timeRange,
 		biz.T("schedule_report.duration_label"), durationStr,
-		biz.T("schedule_report.expected_total"), totalExpected,
-		biz.T("schedule_report.executed"), totalExecuted,
+		biz.T("schedule_report.expected_total"), sceneTotalExpected,
+		biz.T("schedule_report.executed"), sceneTotalExecuted,
 		biz.T("schedule_report.not_executed"), notExecuted,
 		biz.T("schedule_report.exec_rate"), execRateDisplay)
 
