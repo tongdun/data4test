@@ -24,8 +24,8 @@ func GetGlobalReportData(userName string) (err error) {
 	globalDR.AppTestDataRunCount.Title, globalDR.AppTestDataRunCount.DayList, globalDR.AppTestDataRunCount.Infos, globalDR.AppTestDataRunCount.Counts = biz.GetAppSceneDataRunCount()
 	globalDR.AppAPIRunCount.Infos, globalDR.AppAPIRunCount.Counts, globalDR.AppAPIRunCount.Colors, globalDR.AppAPIRunCount.Labels = biz.GetAppAPIRunCount()
 	globalDR.ProductPlaybookResultCount.Title, globalDR.ProductPlaybookResultCount.DayList, globalDR.ProductPlaybookResultCount.Infos, globalDR.ProductPlaybookResultCount.Counts = biz.GetProductSceneRunCount()
-	globalDR.PlaybookResultCount.Infos, globalDR.PlaybookResultCount.Counts, globalDR.PlaybookResultCount.Colors, globalDR.PlaybookResultCount.Labels = biz.GetSceneRunCount()
 	globalDR.ProductsTableCount.Contents, globalDR.ProductsTableCount.Headers = biz.GetProductsTableCount()
+	globalDR.AppTableCount.Contents, globalDR.AppTableCount.Headers = biz.GetAppsTableCount()
 	globalDR.PlaybookResultCount.Infos, globalDR.PlaybookResultCount.Counts, globalDR.PlaybookResultCount.Colors, globalDR.PlaybookResultCount.Labels = biz.GetSceneResultCount()
 	globalDR.TestDataResultCount.Infos, globalDR.TestDataResultCount.Counts, globalDR.TestDataResultCount.Colors, globalDR.TestDataResultCount.Labels = biz.GetSceneDataResultCount()
 	globalDR.ScheduleResultCount.Infos, globalDR.ScheduleResultCount.Counts, globalDR.ScheduleResultCount.Colors, globalDR.ScheduleResultCount.Labels = biz.GetScheduleTypeCount()
@@ -86,7 +86,7 @@ func GetDashBoardContent(ctx *gin.Context, userName string) (types.Panel, error)
 		err := json.Unmarshal([]byte(dr.ReportData), &globalReportData)
 		if err != nil {
 			biz.Logger.Error("err: %v", err)
-			biz.Logger.Debug("%v", dr.ReportData)
+			return types.Panel{}, err
 		}
 	} else {
 		err := GetGlobalReportData(userName)
@@ -108,19 +108,10 @@ func GetDashBoardContent(ctx *gin.Context, userName string) (types.Panel, error)
 			}
 		}
 	}
-	return renderGlobalReport(dr)
+	return renderGlobalReport(globalReportData, dr)
 }
 
-func renderGlobalReport(report biz.DashboardReport) (types.Panel, error) {
-	var globalReportData GlobalDashboardReport
-	err := json.Unmarshal([]byte(report.ReportData), &globalReportData)
-	if err != nil {
-		return types.Panel{
-			Content:     template.HTML(fmt.Sprintf("<div style='padding:20px;color:red'>%s</div>", biz.T("schedule_report.parse_error", err))),
-			Title:       template.HTML(biz.T("schedule_report.page_title")),
-			Description: template.HTML(biz.T("schedule_report.description")),
-		}, nil
-	}
+func renderGlobalReport(globalReportData GlobalDashboardReport, report biz.DashboardReport) (types.Panel, error) {
 	components := tmpl.Default()
 	colComp := components.Col()
 	apiMethods := globalReportData.APITypeCount.Infos
@@ -173,9 +164,9 @@ func renderGlobalReport(report biz.DashboardReport) (types.Panel, error) {
 		GetContent()
 	col1 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger1).GetContent()
 	infos := globalReportData.APISpecCount.Infos
-	counts := globalReportData.APITypeCount.Counts
-	colors = globalReportData.APITypeCount.Colors
-	labels = globalReportData.APITypeCount.Labels
+	counts := globalReportData.APISpecCount.Counts
+	colors = globalReportData.APISpecCount.Colors
+	labels = globalReportData.APISpecCount.Labels
 	pie2 := chartjs.Pie().
 		SetHeight(120).
 		SetLabels(infos).
@@ -541,9 +532,8 @@ func renderGlobalReport(report biz.DashboardReport) (types.Panel, error) {
 	tableCol := colComp.SetSize(types.SizeMD(12)).SetContent(boxInfo).GetContent()
 	row4 := components.Row().SetContent(tableCol).GetContent()
 	var tableApp template.HTML
-	aContents, aHeaders := biz.GetAppsTableCount()
-	if len(aContents) > 0 {
-		tableApp = components.Table().SetInfoList(aContents).SetThead(aHeaders).GetContent()
+	if len(globalReportData.AppTableCount.Contents) > 0 {
+		tableApp = components.Table().SetInfoList(globalReportData.AppTableCount.Contents).SetThead(globalReportData.AppTableCount.Headers).GetContent()
 	}
 
 	boxAppInfo := components.Box().

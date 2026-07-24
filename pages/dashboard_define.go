@@ -47,6 +47,7 @@ type GlobalDashboardReport struct {
 	ProductPlaybookResultCount DayRunResult   `json:"product_playbook_result_count"`
 	ProductSceneRunCount       BaseCount      `json:"product_scene_run_count"`
 	ProductsTableCount         AppModuleCount `json:"products_table_count"`
+	AppTableCount              AppModuleCount `json:"app_table_count"`
 	PlaybookResultCount        BaseCount      `json:"playbook_result_count"`
 	TestDataResultCount        BaseCount      `json:"test_data_result_count"`
 	ScheduleResultCount        BaseCount      `json:"schedule_result_count"`

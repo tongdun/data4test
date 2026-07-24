@@ -32,7 +32,13 @@ func GetDashboardByReportId(ctx *gin.Context) (types.Panel, error) {
 	case "app":
 		return renderApplicationReport(report.RelatedApps, report)
 	case "global":
-		return renderGlobalReport(report)
+		var globalReportData GlobalDashboardReport
+		err := json.Unmarshal([]byte(report.ReportData), &globalReportData)
+		if err != nil {
+			biz.Logger.Error("err: %v", err)
+			return types.Panel{}, err
+		}
+		return renderGlobalReport(globalReportData, report)
 	default:
 		desc := template.HTML(biz.T("schedule_report.description"))
 		return types.Panel{

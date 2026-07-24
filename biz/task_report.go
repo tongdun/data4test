@@ -471,7 +471,8 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 			apiSet[a.Name] = true
 		}
 
-		// 查找该任务在该产品下的最新执行历史
+		// 查找该任务在该产品下的最新执行记录
+		// 优先从 dashboard 表查（单任务执行报告），查不到则回退到历史表直接查 task_id
 		var history DashboardReport
 		models.Orm.Table("dashboard").
 			Where("related_task_ids like CONCAT(?, '\\_%') and related_products like ? and status = ?", t.Id, "%"+product+"%", "finished").
@@ -479,13 +480,31 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 			Limit(1).
 			Find(&history)
 
-		if len(history.Id) == 0 {
+		var curTaskId string
+		if len(history.Id) > 0 {
+			curTaskId = history.RelatedTaskIds
+		} else {
+			// 回退：直接从执行历史表查找最新 task_id（格式: scheduleId_timestamp）
+			models.Orm.Table("scene_test_history").
+				Select("task_id").
+				Where("task_id like CONCAT(?, '\\_%') and product = ?", t.Id, product).
+				Order("created_at desc").
+				Limit(1).
+				Row().Scan(&curTaskId)
+			if len(curTaskId) == 0 {
+				models.Orm.Table("scene_data_test_history").
+					Select("task_id").
+					Where("task_id like CONCAT(?, '\\_%') and product = ?", t.Id, product).
+					Order("created_at desc").
+					Limit(1).
+					Row().Scan(&curTaskId)
+			}
+		}
+
+		if len(curTaskId) == 0 {
 			allTaskItems = append(allTaskItems, item)
 			continue
 		}
-
-		// 按taskId统计
-		curTaskId := history.RelatedTaskIds
 		sPass, sFail, sTotal := 0, 0, 0
 		dPass, dFail, dTotal := 0, 0, 0
 
