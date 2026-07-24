@@ -100,6 +100,30 @@ func GetProductTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
 		FieldHide()
 
+	info.AddButton(template2.HTML(biz.T("product.btn_import_scene")), icon.Android, action.Ajax("import_batch_scene",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			var status string
+			if idStr == "," {
+				status = biz.T("product.import_select_first")
+				return false, status, ""
+			}
+			ids := strings.Split(idStr, ",")
+			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+
+				if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
+					status = fmt.Sprintf(biz.T("product.import_done")+": %d "+biz.T("product.added")+", %d "+biz.T("product.existing"), newCount, oldCount)
+				} else {
+					status = fmt.Sprintf(biz.T("product.sync_failed")+": %s, "+biz.T("product.added")+": %d, "+biz.T("product.existing")+": %d", err, newCount, oldCount)
+					return false, status, ""
+				}
+			}
+			return true, status, ""
+		}))
+
 	info.AddButton(template2.HTML(biz.T("product.btn_refresh_report")), icon.Refresh, action.Ajax("product_batch_refresh_report",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
 			idStr := ctx.FormValue("ids")
@@ -178,27 +202,28 @@ func GetProductTable(ctx *context.Context) table.Table {
 
 	info.AddActionButton(template2.HTML(biz.T("common.btn_report")), action.Jump("/admin/product_dashboard?id={{.Id}}"))
 
-	info.AddButton(template2.HTML(biz.T("product.btn_import_scene")), icon.Android, action.Ajax("import_batch_scene",
+	info.AddActionButton(template2.HTML(biz.T("product.btn_refresh_report")), action.Ajax("product_refresh_report",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
+			id := ctx.FormValue("id")
 			var status string
-			if idStr == "," {
-				status = biz.T("product.import_select_first")
+			user := auth.Auth(ctx)
+			userNameSub := user.Name
+			productName, err := biz.GetProductName(id)
+			if err != nil {
+				status = fmt.Sprintf("刷新产品报告失败: %s", err)
 				return false, status, ""
 			}
-			ids := strings.Split(idStr, ",")
-			for _, id := range ids {
-				if len(id) == 0 {
-					continue
-				}
-
-				if newCount, oldCount, err := biz.ImportPlaybookFromExcel(id); err == nil {
-					status = fmt.Sprintf(biz.T("product.import_done")+": %d "+biz.T("product.added")+", %d "+biz.T("product.existing"), newCount, oldCount)
-				} else {
-					status = fmt.Sprintf(biz.T("product.sync_failed")+": %s, "+biz.T("product.added")+": %d, "+biz.T("product.existing")+": %d", err, newCount, oldCount)
-					return false, status, ""
-				}
+			appName, err := biz.GetProductApps(id)
+			if err != nil {
+				status = fmt.Sprintf("获取产品应用失败[%s]: %s", id, err)
+				return false, status, ""
 			}
+			go func() {
+				if err := pages.GetProductReportData(productName, appName, userNameSub); err != nil {
+					biz.Logger.Error("刷新产品报告失败[%s]: %s", appName, err)
+				}
+			}()
+			status = biz.T("product.report_refreshing")
 			return true, status, ""
 		}))
 
