@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/GoAdminGroup/go-admin/template/types"
 )
 
 // GenerateTaskReport 生成任务类型的执行报告
@@ -234,52 +232,6 @@ func queryStatsByProductAndTaskId(product, taskId string) (total, pass, fail int
 	return
 }
 
-// queryFailItemsByTaskId 按taskId查询失败项
-func queryFailItemsByTaskId(taskId string) (items []FailItem) {
-	if len(taskId) == 0 {
-		return
-	}
-	type sceneFailResult struct {
-		Name       string `gorm:"column:name"`
-		Product    string `gorm:"column:product"`
-		ApiList    string `gorm:"column:data_file_list"`
-		FailReason string `gorm:"column:fail_reason"`
-	}
-	var sceneFails []sceneFailResult
-	models.Orm.Table("scene_test_history").
-		Select("name, product, data_file_list, fail_reason").
-		Where("task_id = ? and result = ? and fail_reason is not null and fail_reason <> '' and fail_reason <> ' '", taskId, "fail").
-		Find(&sceneFails)
-	for _, f := range sceneFails {
-		items = append(items, FailItem{
-			Name:   f.Name,
-			Type:   "scene",
-			Reason: f.FailReason,
-		})
-	}
-
-	type dataFailResult struct {
-		Name       string `gorm:"column:name"`
-		Product    string `gorm:"column:product"`
-		ApiId      string `gorm:"column:api_id"`
-		FailReason string `gorm:"column:fail_reason"`
-	}
-	var dataFails []dataFailResult
-	models.Orm.Table("scene_data_test_history").
-		Select("name, product, api_id, fail_reason").
-		Where("task_id = ? and result = ? and fail_reason is not null and fail_reason <> '' and fail_reason <> ' '", taskId, "fail").
-		Find(&dataFails)
-	for _, f := range dataFails {
-		items = append(items, FailItem{
-			Name:   f.Name,
-			Type:   "data",
-			APIId:  f.ApiId,
-			Reason: f.FailReason,
-		})
-	}
-	return
-}
-
 // queryExecutionTrend 查询同schedule最近N次执行趋势
 func queryExecutionTrend(scheduleId, excludeHistoryId string) (items []TrendItem) {
 	if len(scheduleId) == 0 {
@@ -368,28 +320,6 @@ func CreateDashboardRecord(taskTag, userName string, taskDb DbSchedule) (id stri
 	var savedHistory DashboardReport
 	models.Orm.Table("dashboard").Where("report_name = ?", dr.ReportName).Find(&savedHistory)
 	return savedHistory.Id, nil
-}
-
-// FinishScheduleExecutionHistory 完成执行报告（更新结果）
-func FinishScheduleExecutionHistory(id string) (err error) {
-	if len(id) == 0 {
-		return fmt.Errorf("执行报告ID为空")
-	}
-
-	curTime := time.Now().Format(baseFormat)
-	updates := map[string]interface{}{
-		"status":     "finished",
-		"updated_at": curTime,
-	}
-	//if len(failReason) > 0 {
-	//	updates["fail_reason"] = failReason
-	//}
-
-	err = models.Orm.Table("dashboard").Where("id = ?", id).Update(updates).Error
-	if err != nil {
-		Logger.Error("更新执行报告失败: %s", err)
-	}
-	return
 }
 
 // taskInfo 任务信息（用于报告生成）
@@ -877,19 +807,6 @@ func countResources(details []SceneDetail) []ResourceItem {
 	return items
 }
 
-// countResourcesForTaskScene 统计场景明细资源（SceneDetailWithTask 版本）
-func countResourcesForTaskScene(details []SceneDetailWithTask) []ResourceItem {
-	countMap := make(map[string]int)
-	for _, d := range details {
-		countMap[d.Name]++
-	}
-	items := make([]ResourceItem, 0, len(countMap))
-	for name, count := range countMap {
-		items = append(items, ResourceItem{Name: name, Count: count})
-	}
-	return items
-}
-
 // mergeResourceItems 合并资源列表（去重）
 func mergeResourceItems(a, b []ResourceItem) []ResourceItem {
 	seen := make(map[string]bool)
@@ -1067,142 +984,6 @@ func queryAPITypeDistributionForTask(taskId, product string) (items []CountItem)
 		}
 	}
 	return
-}
-
-// GenerateManualReport 手动生成全局/产品/应用报告
-func GenerateManualReport(reportType, products, genUser string) (err error) {
-	now := time.Now().Format(baseFormat)
-	nowStr := time.Now().Format("20060102150405")
-
-	// 汇总数据：复用已有的统计查询函数，异步执行
-	var reportData map[string]interface{}
-
-	switch reportType {
-	case "global":
-		// 全局报告：聚合所有产品的数据
-		reportData = make(map[string]interface{})
-		reportData["type"] = "global"
-		reportData["generated_at"] = now
-		reportData["time_range"] = "最近6个月"
-
-		// API类型分布
-		apiMethods, apiCounts, _, _ := GetAPITypeCount("all", "")
-		reportData["api_type_distribution"] = buildCountMap(apiMethods, apiCounts)
-
-		// API规范检查
-		specInfos, specCounts, _, _ := GetAPISpecCount("all", "")
-		reportData["api_spec_check"] = buildCountMap(specInfos, specCounts)
-
-		// API自动化覆盖
-		autoInfos, autoCounts, _, _ := GetAutoAPICount("all", "")
-		reportData["api_auto_coverage"] = buildCountMap(autoInfos, autoCounts)
-
-		// 场景结果统计
-		sceneInfos, sceneCounts, _, _ := GetSceneResultCount()
-		reportData["scene_result_distribution"] = buildCountMap(sceneInfos, sceneCounts)
-
-		// 数据结果统计
-		dataInfos, dataCounts, _, _ := GetSceneDataResultCount()
-		reportData["data_result_distribution"] = buildCountMap(dataInfos, dataCounts)
-
-		// 任务类型分布
-		schedInfos, schedCounts, _, _ := GetScheduleTypeCount()
-		reportData["schedule_type_distribution"] = buildCountMap(schedInfos, schedCounts)
-
-		// 数据执行趋势(6个月)
-		_, dataMonthLabels, dataInfos2, dataCounts2 := GetAppSceneDataRunCount()
-		reportData["data_trend"] = buildTrendData(dataMonthLabels, dataInfos2, dataCounts2)
-
-		// 数据执行分布(6个月)
-		appRunInfos, appRunCounts, _, _ := GetAppAPIRunCount()
-		reportData["data_exec_dist"] = buildCountMap(appRunInfos, appRunCounts)
-
-		// 场景执行趋势(6个月)
-		_, monthLabels, sceneInfos2, sceneCounts2 := GetProductSceneRunCount()
-		reportData["scene_trend"] = buildTrendData(monthLabels, sceneInfos2, sceneCounts2)
-
-		// 场景执行分布(6个月)
-		sceneRunInfos, sceneRunCounts, _, _ := GetSceneRunCount()
-		reportData["scene_exec_dist"] = buildCountMap(sceneRunInfos, sceneRunCounts)
-	}
-
-	jsonBytes, err := json.Marshal(reportData)
-	if err != nil {
-		return err
-	}
-
-	reportName := fmt.Sprintf("%s报告_%s", reportType, nowStr)
-	report := DashboardReport{
-		ReportName:      reportName,
-		ReportType:      reportType,
-		RelatedProducts: products,
-		RelatedApps:     products,
-		TimeRangeStart:  now,
-		TimeRangeEnd:    now,
-		Status:          "finished",
-		Creator:         genUser,
-		ReportData:      string(jsonBytes),
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
-
-	err = models.Orm.Table("dashboard").Create(&report).Error
-	if err != nil {
-		return fmt.Errorf("保存报告失败: %s", err)
-	}
-
-	return nil
-}
-
-// buildCountMap 构建计数映射
-func buildCountMap(infos []string, counts []float64) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(infos))
-	for i, info := range infos {
-		count := 0.0
-		if i < len(counts) {
-			count = counts[i]
-		}
-		result[i] = map[string]interface{}{
-			"name":  info,
-			"count": count,
-		}
-	}
-	return result
-}
-
-// buildTableData 构建表格数据
-func buildTableData(contents []map[string]types.InfoItem, headers types.Thead) map[string]interface{} {
-	return map[string]interface{}{
-		"headers": headers,
-		"rows":    contents,
-	}
-}
-
-// buildTrendData 构建趋势数据
-func buildTrendData(labels []string, infos []string, counts [][]float64) map[string]interface{} {
-	return map[string]interface{}{
-		"labels": labels,
-		"series": infos,
-		"data":   counts,
-	}
-}
-
-// getTaskEnvironment 获取任务执行环境描述
-func getTaskEnvironment(productList string) string {
-	if len(productList) == 0 {
-		return ""
-	}
-	products := parseProductList(productList)
-	if len(products) == 0 {
-		return ""
-	}
-
-	for _, p := range products {
-		var dbProducts []DbProduct
-		models.Orm.Table("product").Where("product = ?", p).Find(&dbProducts)
-		return fmt.Sprintf("%s", p)
-	}
-	return ""
 }
 
 // queryAPITypeDistribution 按taskId查询API类型分布

@@ -1910,28 +1910,7 @@ func startServer() {
 			"data": map[string]string{},
 		})
 	})
-
-	// 手动生成报告（从系统参数页面触发）
-	r.POST("/generate_report_manual", func(c *gin.Context) {
-		user, _ := engine.User(c)
-		genUser := user.Name
-		reportType := c.PostForm("gen_report_type")
-		products := c.PostForm("gen_report_products")
-
-		go func() {
-			err = biz.GenerateManualReport(reportType, products, genUser)
-			if err != nil {
-				biz.Logger.Error("手动生成报告失败: %s", err)
-			}
-		}()
-
-		c.JSON(http.StatusOK, map[string]interface{}{
-			"code": 200,
-			"msg":  biz.T("schedule_report.generate_running"),
-			"data": map[string]string{},
-		})
-	})
-
+	
 	// 手动刷新菜单翻译（新增菜单后调用，无需重启应用）
 	r.GET("/admin/refresh-menu-i18n", func(c *gin.Context) {
 		biz.RefreshMenuI18n()
