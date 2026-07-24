@@ -101,20 +101,32 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 				return ""
 			}
 			escaped := template2.HTMLEscapeString(v)
-			// data_file_list 有多条数据（逗号分隔）时，该行多行展示，fail_reason 直接展示不折叠
+			// data_file_list 有多条数据（逗号分隔）时，用较高阈值；单条用 200
 			dataFiles, _ := model.Row["data_file_list"].(string)
 			multiRow := strings.Contains(dataFiles, ",")
-			if multiRow || len(v) <= 200 {
+			threshold := 200
+			if multiRow {
+				threshold = 500
+			}
+			if len(v) <= threshold {
 				return template2.HTML(escaped)
 			}
-			// 单行数据 + fail_reason 过长 → 折叠显示
+			// fail_reason 过长 → 折叠显示，summary 展示开头，details 只展示剩余部分避免重复
 			runes := []rune(v)
-			maxLen := 200
+			maxLen := threshold
 			if maxLen > len(runes) {
 				maxLen = len(runes)
 			}
 			short := template2.HTMLEscapeString(string(runes[:maxLen]))
-			return template2.HTML(fmt.Sprintf(`<details style="max-width:400px"><summary style="cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">%s...</summary><div style="margin-top:4px;padding:4px;background:#f5f5f5;border-radius:2px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto">%s</div></details>`, short, escaped))
+			summaryStyle := "cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+			if multiRow {
+				summaryStyle = "cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:pre-wrap;word-break:break-all"
+			}
+			remain := template2.HTMLEscapeString(string(runes[maxLen:]))
+			if len(remain) == 0 {
+				return template2.HTML(short)
+			}
+			return template2.HTML(fmt.Sprintf(`<details style="max-width:400px;max-height:300px;overflow-y:auto"><summary style="%s">%s...</summary><div style="margin-top:4px;padding:4px;background:#f5f5f5;border-radius:2px;white-space:pre-wrap;word-break:break-all">%s</div></details>`, summaryStyle, short, remain))
 		}).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
