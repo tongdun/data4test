@@ -400,7 +400,24 @@ func buildTaskDataTable(data biz.TaskReportData) template.HTML {
 	}
 
 	rows := ""
+	colorA := "#ffffff"
+	colorB := "#f7f9fc"
+	currentColor := colorA
+	prevScene := ""
+
 	for _, d := range data.DataDetails {
+		// 相邻场景切换时交替底色
+		if len(prevScene) > 0 && d.SceneName != prevScene {
+			if currentColor == colorA {
+				currentColor = colorB
+			} else {
+				currentColor = colorA
+			}
+		}
+		if len(d.SceneName) > 0 {
+			prevScene = d.SceneName
+		}
+
 		label := biz.T("common.pass")
 		color := "green"
 		if d.Result == "fail" {
@@ -414,14 +431,14 @@ func buildTaskDataTable(data biz.TaskReportData) template.HTML {
 		if len(d.FailReason) > 0 && d.FailReason != " " {
 			reason = d.FailReason
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
-			d.Name, d.ApiId, color, label, reason, reason)
+		rows += fmt.Sprintf(`<tr style="background-color:%s"><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
+			currentColor, d.SceneName, d.Name, d.ApiId, color, label, reason, reason)
 	}
 
 	table := fmt.Sprintf(`<table class="table table-bordered table-hover"><thead><tr>
-			<th>%s</th><th>%s</th><th>%s</th><th>%s</th>
+			<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>
 		</tr></thead><tbody>%s</tbody></table>`,
-		biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
+		biz.T("schedule_report.scene_name"), biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
 
 	return template.HTML(fmt.Sprintf(`<div class="box box-success"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div>`, biz.T("schedule_report.data_detail"), table))
 }

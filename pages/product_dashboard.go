@@ -32,14 +32,33 @@ func GetProductReportData(productName, appName, userName string) (err error) {
 
 	nowStr := time.Now().Format("20060102150405")
 	now := time.Now().Format("2006-01-02 15:04:05")
+
+	// 从关联数据执行历史中获取实际时间区间作为统计时间
+	var startTime, endTime string
+	models.Orm.Table("scene_data_test_history").
+		Select("MIN(created_at) as start_time, MAX(created_at) as end_time").
+		Where("product = ?", productName).
+		Row().Scan(&startTime, &endTime)
+	if len(startTime) == 0 || len(endTime) == 0 {
+		// 如果 scene_data_test_history 没有数据，尝试从 scene_test_history 查询
+		models.Orm.Table("scene_test_history").
+			Select("MIN(created_at) as start_time, MAX(created_at) as end_time").
+			Where("product = ?", productName).
+			Row().Scan(&startTime, &endTime)
+	}
+	if len(startTime) == 0 || len(endTime) == 0 {
+		startTime = now
+		endTime = now
+	}
+
 	reportName := biz.T("product.report_name", productName, nowStr)
 	report := biz.DashboardReport{
 		ReportName:      reportName,
 		ReportType:      "product",
 		RelatedProducts: productName,
 		RelatedApps:     appName,
-		TimeRangeStart:  now,
-		TimeRangeEnd:    now,
+		TimeRangeStart:  startTime,
+		TimeRangeEnd:    endTime,
 		Status:          "finished",
 		Creator:         userName,
 		ReportData:      string(productDRStr),
