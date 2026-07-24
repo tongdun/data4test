@@ -100,6 +100,6 @@ func init() {
 	if locale == "" {
 		locale = "zh-CN"
 	}
-	fmt.Printf("当前 go-admin 语言设置: %s, 初始化项目翻译器为: %s\n", config.Language, locale)
+
 	InitI18n(locale)
 }
