@@ -153,18 +153,28 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string) (types.Pane
 // ==================== KPI卡片 ====================
 
 func buildTaskKpiCards(data biz.TaskReportData) template.HTML {
-	o := data.Overview
-	passRate := fmt.Sprintf("%.1f%%", o.PassRate)
+	s := data.SceneStats
+	d := data.DataStats
+	scenePassRate := fmt.Sprintf("%.1f%%", s.PassRate)
+	dataPassRate := fmt.Sprintf("%.1f%%", d.PassRate)
 
-	// 第一行：场景执行统计（执行数/通过/失败/通过率）
-	card1 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.scene_exec_count"), o.TotalExecuted)
-	card2 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), o.SuccessCount)
-	card3 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("common.fail_count"), o.FailCount)
-	card4 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), passRate)
+	// 第一行：场景执行统计（执行数/通过数/失败数/通过率）
+	card1 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.scene_exec_count"), s.Total)
+	card2 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), s.Pass)
+	card3 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.fail_count"), s.Fail)
+	card4 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), scenePassRate)
 
 	row1 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card1, card2, card3, card4)
 
-	return template.HTML(row1)
+	// 第二行：数据执行统计（执行数/通过数/失败数/通过率）
+	card5 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-file-text"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.data_exec_count"), d.Total)
+	card6 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), d.Pass)
+	card7 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.fail_count"), d.Fail)
+	card8 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), dataPassRate)
+
+	row2 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card5, card6, card7, card8)
+
+	return template.HTML(row1 + row2)
 }
 
 // buildTaskHeader 顶部执行信息（白色背景，两行排版）
