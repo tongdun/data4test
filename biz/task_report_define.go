@@ -37,6 +37,9 @@ type TaskReportData struct {
 		PassRate        float64 `json:"pass_rate"`
 		ExecuteRate     float64 `json:"execute_rate"`
 		Executor        string  `json:"executor"`
+		SceneTotal      int     `json:"scene_total"` // 任务配置的全量场景数
+		DataTotal       int     `json:"data_total"`  // 任务配置的全量数据文件数
+		APITotal        int     `json:"api_total"`   // 本次任务涉猎的distinct接口数
 	} `json:"overview"`
 	SceneStats struct {
 		Total    int     `json:"total"`
@@ -102,17 +105,17 @@ type TrendItem struct {
 
 // MultiTaskReportData 多任务报告的 report_data JSON 结构
 type MultiTaskReportData struct {
-	Overview            MultiTaskOverview   `json:"overview"`
-	ByTask              []TaskReportItem    `json:"by_task"`
-	SceneList           []ResourceItem      `json:"scene_list"`            // 聚合: 所有关联场景
-	DataList            []ResourceItem      `json:"data_list"`             // 聚合: 所有关联数据文件
-	APIList             []ResourceItem      `json:"api_list"`              // 聚合: 所有关联API接口
-	APITypeDistribution []CountItem         `json:"api_type_distribution"` // 聚合所有任务的API分布
+	Overview            MultiTaskOverview     `json:"overview"`
+	ByTask              []TaskReportItem      `json:"by_task"`
+	SceneList           []ResourceItem        `json:"scene_list"`            // 聚合: 所有关联场景
+	DataList            []ResourceItem        `json:"data_list"`             // 聚合: 所有关联数据文件
+	APIList             []ResourceItem        `json:"api_list"`              // 聚合: 所有关联API接口
+	APITypeDistribution []CountItem           `json:"api_type_distribution"` // 聚合所有任务的API分布
 	SceneDetails        []SceneDetailWithTask `json:"scene_details"`         // 所有任务的场景明细(含任务名)
 	DataDetails         []DataDetailWithTask  `json:"data_details"`          // 所有任务的数据文件明细(含任务名)
-	ByProduct           []ProductReportItem `json:"by_product"`
-	FailItems           []FailItem          `json:"fail_items"` // 所有任务的失败明细
-	Trend               []TrendItem         `json:"trend"`
+	ByProduct           []ProductReportItem   `json:"by_product"`
+	FailItems           []FailItem            `json:"fail_items"` // 所有任务的失败明细
+	Trend               []TrendItem           `json:"trend"`
 }
 
 // MultiTaskOverview 多任务报告概览

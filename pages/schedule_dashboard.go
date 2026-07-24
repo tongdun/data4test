@@ -156,12 +156,15 @@ func buildTaskKpiCards(data biz.TaskReportData) template.HTML {
 	o := data.Overview
 	passRate := fmt.Sprintf("%.1f%%", o.PassRate)
 
+	// 第一行：场景执行统计（执行数/通过/失败/通过率）
 	card1 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.scene_exec_count"), o.TotalExecuted)
 	card2 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), o.SuccessCount)
 	card3 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("common.fail_count"), o.FailCount)
 	card4 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), passRate)
 
-	return template.HTML(fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card1, card2, card3, card4))
+	row1 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card1, card2, card3, card4)
+
+	return template.HTML(row1)
 }
 
 // buildTaskHeader 顶部执行信息（白色背景，两行排版）
@@ -524,18 +527,48 @@ func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
 	// ====== 顶部任务信息 ======
 	headerInfo := buildMultiTaskHeader(reportData, report)
 
-	// ====== KPI 卡片行1：场景执行数/通过/失败/通过率 ======
-	passRate := fmt.Sprintf("%.1f%%", o.PassRate)
-	kpi1 := fmt.Sprintf(`<div class="row">
+	// ====== 从 ByTask 聚合数据维度和场景维度统计 ======
+	var dataTotal, dataPass, dataFail, sceneTotal, scenePass, sceneFail int
+	for _, t := range reportData.ByTask {
+		dataTotal += t.DataTotal
+		dataPass += t.DataPass
+		dataFail += t.DataFail
+		sceneTotal += t.SceneTotal
+		scenePass += t.ScenePass
+		sceneFail += t.SceneFail
+	}
+	dataPassRate := 0.0
+	if dataTotal > 0 {
+		dataPassRate = float64(dataPass) / float64(dataTotal) * 100
+	}
+	scenePassRate := 0.0
+	if sceneTotal > 0 {
+		scenePassRate = float64(scenePass) / float64(sceneTotal) * 100
+	}
+
+	// ====== KPI 卡片行1：数据执行数/通过数/失败数/通过率 ======
+	kpi_data := fmt.Sprintf(`<div class="row">
+		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-file-text"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
+		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
+		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
+		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%.1f%%</span></div></div></div>
+	</div>`,
+		biz.T("schedule_report.data_exec_count"), dataTotal,
+		biz.T("schedule_report.pass_count"), dataPass,
+		biz.T("schedule_report.fail_count"), dataFail,
+		biz.T("schedule_report.pass_rate_label"), dataPassRate)
+
+	// ====== KPI 卡片行2：场景执行数/通过数/失败数/通过率 ======
+	kpi_scene := fmt.Sprintf(`<div class="row">
 		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
 		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
 		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>
+		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%.1f%%</span></div></div></div>
 	</div>`,
-		biz.T("schedule_report.scene_exec_count"), o.TotalCases,
-		biz.T("common.pass"), o.PassCases,
-		biz.T("common.fail"), o.FailCases,
-		biz.T("schedule_report.pass_rate_label"), passRate)
+		biz.T("schedule_report.scene_exec_count"), sceneTotal,
+		biz.T("schedule_report.pass_count"), scenePass,
+		biz.T("schedule_report.fail_count"), sceneFail,
+		biz.T("schedule_report.pass_rate_label"), scenePassRate)
 
 	// ====== KPI 卡片行2：任务数/场景数/数据文件数/API数 ======
 	kpi2 := fmt.Sprintf(`<div class="row">
@@ -564,7 +597,7 @@ func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
 	// ====== 数据执行明细 ======
 	dataTable := buildMultiTaskDataTable(reportData)
 
-	content := headerInfo + template.HTML(kpi1+kpi2) + template.HTML(row1) + taskTable + sceneTable + dataTable
+	content := headerInfo + template.HTML(kpi2+kpi_scene+kpi_data) + template.HTML(row1) + taskTable + sceneTable + dataTable
 	styleBlock := `<style>.sc-td{position:relative;cursor:pointer}.sc-td .sc-truncate{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sc-td .sc-full{display:none;position:absolute;right:5%;top:50%;background:#fff;border:2px solid #666;padding:15px;z-index:9999;max-width:600px;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;box-shadow:0 4px 20px rgba(0,0,0,0.3);border-radius:4px;font-size:13px;line-height:1.4}.sc-td:hover .sc-full{display:block!important}</style>`
 	content += template.HTML(styleBlock)
 

@@ -91,6 +91,24 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 		reportData.Overview.PassRate = float64(successCount) / float64(executedCount) * 100
 	}
 
+	// 全量场景数（任务配置）
+	if len(taskDB.SceneList) > 0 {
+		reportData.Overview.SceneTotal = countNonEmpty(strings.Split(taskDB.SceneList, ","))
+	}
+	// 全量数据文件数（任务配置）
+	if len(taskDB.DataList) > 0 {
+		reportData.Overview.DataTotal = countNonEmpty(strings.Split(taskDB.DataList, ","))
+	}
+	// 全量API数（本任务涉猎的distinct接口）
+	if len(taskTag) > 0 {
+		var distinctAPIs int64
+		models.Orm.Table("scene_data_test_history").
+			Where("task_id = ? and api_id IS NOT NULL and api_id <> ''", taskTag).
+			Select("COUNT(DISTINCT api_id)").
+			Row().Scan(&distinctAPIs)
+		reportData.Overview.APITotal = int(distinctAPIs)
+	}
+
 	reportData.SceneStats.Total = sceneTotal
 	reportData.SceneStats.Pass = scenePass
 	reportData.SceneStats.Fail = sceneFail
@@ -801,6 +819,17 @@ func getTaskResources(t taskInfo) (scenes []ResourceItem, datas []ResourceItem, 
 		}
 	}
 	return
+}
+
+// countNonEmpty 统计拆分后的非空条目数
+func countNonEmpty(items []string) int {
+	count := 0
+	for _, item := range items {
+		if len(strings.TrimSpace(item)) > 0 {
+			count++
+		}
+	}
+	return count
 }
 
 // parseLineList 解析换行分隔的列表
