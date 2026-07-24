@@ -32,7 +32,8 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable().
 		FieldTrimSpace().FieldWidth(60)
 	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
-		FieldHide()
+		FieldHide().
+		FieldFilterable()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).FieldWidth(160).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
@@ -258,17 +259,17 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	}, action.FieldFilter("result"))
 
 	// 列选择器：默认展示7列，用户可自行勾选，通过__columns URL参数控制，缓存到localStorage
-	colFields := []string{"id","name","data_file_list","last_file","scene_type","result","fail_reason","env_type","remark","product","user_name","created_at"}
+	colFields := []string{"id", "name", "data_file_list", "last_file", "scene_type", "result", "fail_reason", "env_type", "remark", "product", "user_name", "created_at"}
 	colNames := []string{
-		biz.T("common.id"),biz.T("common.name"),biz.T("common.data_file_list"),
-		biz.T("common.last_file"),biz.T("common.scene_type"),biz.T("common.test_result"),
-		biz.T("common.fail_reason"),biz.T("common.env_type_label"),biz.T("common.remark"),
-		biz.T("common.product"),biz.T("common.user_name"),biz.T("common.created_at"),
+		biz.T("common.id"), biz.T("common.name"), biz.T("common.data_file_list"),
+		biz.T("common.last_file"), biz.T("common.scene_type"), biz.T("common.test_result"),
+		biz.T("common.fail_reason"), biz.T("common.env_type_label"), biz.T("common.remark"),
+		biz.T("common.product"), biz.T("common.user_name"), biz.T("common.created_at"),
 	}
-	defaultCols := []string{"id","name","data_file_list","last_file","scene_type","result","fail_reason"}
-	fieldsJSON,_ := json.Marshal(colFields)
-	namesJSON,_ := json.Marshal(colNames)
-	defaultsJSON,_ := json.Marshal(defaultCols)
+	defaultCols := []string{"id", "name", "data_file_list", "last_file", "scene_type", "result", "fail_reason"}
+	fieldsJSON, _ := json.Marshal(colFields)
+	namesJSON, _ := json.Marshal(colNames)
+	defaultsJSON, _ := json.Marshal(defaultCols)
 	colToggleJS := fmt.Sprintf(`<script data-exec-on-popstate>
 (function C(){var f=%s,n=%s,dk="sht_cols",def=%s;
 function gk(){try{return JSON.parse(localStorage.getItem(dk))}catch(e){}return null}

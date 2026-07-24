@@ -32,7 +32,8 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable().
 		FieldTrimSpace()
 	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
-		FieldHide()
+		FieldHide().
+		FieldFilterable()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
