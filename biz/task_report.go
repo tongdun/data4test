@@ -1080,3 +1080,18 @@ func queryDataDetails(taskId string) (items []DataDetail) {
 	}
 	return
 }
+
+// QueryTaskRelatedApps 根据任务ID(支持逗号分隔)查询实际执行时关联的应用列表
+func QueryTaskRelatedApps(taskIds string) string {
+	if len(strings.TrimSpace(taskIds)) == 0 {
+		return ""
+	}
+	ids := strings.Split(taskIds, ",")
+	var apps []string
+	models.Orm.Table("scene_data_test_history").
+		Where("task_id in (?) and app <> ''", ids).
+		Group("app").
+		Pluck("app", &apps)
+
+	return strings.Join(apps, ",")
+}
