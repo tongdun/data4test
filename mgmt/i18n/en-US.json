@@ -1078,6 +1078,8 @@
   "schedule_report.parse_error": "Failed to parse report data: %s",
   "schedule_report.pass_count": "Passed Count",
   "schedule_report.pass_rate_label": "Pass Rate",
+  "schedule_report.scene_pass_rate": "Playbook Pass Rate",
+  "schedule_report.data_pass_rate": "Data Pass Rate",
   "schedule_report.per_task_stats": "Execution Statistics by Task",
   "schedule_report.related_apis": "Related API Interfaces",
   "schedule_report.related_data": "Related Data Files",

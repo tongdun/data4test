@@ -1082,6 +1082,8 @@
   "schedule_report.parse_error": "解析报告数据失败: %s",
   "schedule_report.pass_count": "通过数",
   "schedule_report.pass_rate_label": "通过率",
+  "schedule_report.scene_pass_rate": "场景通过率",
+  "schedule_report.data_pass_rate": "数据通过率",
   "schedule_report.per_task_stats": "各任务执行统计",
   "schedule_report.related_apis": "关联API接口列表",
   "schedule_report.related_data": "关联数据文件列表",

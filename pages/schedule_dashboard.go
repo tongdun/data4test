@@ -701,9 +701,13 @@ func buildMultiTaskStatsTable(data biz.MultiTaskReportData) template.HTML {
 	}
 	rows := ""
 	for _, t := range data.ByTask {
-		passRate := ""
-		if t.Total > 0 {
-			passRate = fmt.Sprintf("%.1f%%", t.PassRate)
+		sceneRate := ""
+		if t.SceneTotal > 0 {
+			sceneRate = fmt.Sprintf("%.1f%%", float64(t.ScenePass)/float64(t.SceneTotal)*100)
+		}
+		dataRate := ""
+		if t.DataTotal > 0 {
+			dataRate = fmt.Sprintf("%.1f%%", float64(t.DataPass)/float64(t.DataTotal)*100)
 		}
 		taskTypeLabel := taskTypeLabel(t.TaskType)
 		timeStr := t.StartTime + " ~ " + t.EndTime
@@ -721,11 +725,11 @@ func buildMultiTaskStatsTable(data biz.MultiTaskReportData) template.HTML {
 			<td>%s</td><td>%s</td>
 			<td>%d / %d / %d</td>
 			<td>%d / %d / %d</td>
-			<td>%d</td><td>%s</td>
+			<td>%s</td><td>%s</td>
 		</tr>`, t.TaskName, taskTypeLabel, timeStr, durStr,
 			t.ScenePass, t.SceneFail, t.SceneTotal,
 			t.DataPass, t.DataFail, t.DataTotal,
-			t.Total, passRate)
+			sceneRate, dataRate)
 	}
 	tableHTML := fmt.Sprintf(`<table class="table table-bordered table-striped"><thead><tr>
 		<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>
@@ -733,7 +737,7 @@ func buildMultiTaskStatsTable(data biz.MultiTaskReportData) template.HTML {
 		biz.T("common.task_name"), biz.T("common.task_type"),
 		biz.T("schedule_report.exec_time_col"), biz.T("schedule_report.duration_col"),
 		biz.T("schedule_report.scene_pass_fail_col"), biz.T("schedule_report.data_pass_fail_col"),
-		biz.T("schedule_report.total_exec"), biz.T("schedule_report.pass_rate_label"), rows)
+		biz.T("schedule_report.scene_pass_rate"), biz.T("schedule_report.data_pass_rate"), rows)
 	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`,
 		biz.T("schedule_report.task_detail"), tableHTML))
 }
