@@ -571,7 +571,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 
 	exportDataFilePackageName := fmt.Sprintf("%s_%s.tgz", T("file.data_file_package_prefix"), curTime)
 	exportDataFileAsPackagePath := fmt.Sprintf("%s/%s", DownloadBasePath, exportDataFilePackageName)
-	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, dataMap, playbookMap) // 导出数据文件包
+	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, id, dataMap, playbookMap) // 导出数据文件包
 	if isExist {
 		fileName = fmt.Sprintf("%s,%s", fileName, exportDataFilePackageName)
 	}
@@ -1323,7 +1323,7 @@ func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
 	return
 }
 
-func ExportDataFilePackage(filePath string, fileNameImportMap, playbookNameMap map[string]bool) (isExist bool, err error) {
+func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookNameMap map[string]bool) (isExist bool, err error) {
 	var dataNameList []string
 	for k, _ := range fileNameImportMap {
 		dataNameList = append(dataNameList, k)
@@ -1382,6 +1382,32 @@ func ExportDataFilePackage(filePath string, fileNameImportMap, playbookNameMap m
 			continue
 		}
 	}
+
+	// 导出任务信息（参照 knowledge.go WriteTaskKnowledge 组装方式）
+	var taskList []DbSchedule
+	ids := strings.Split(taskId, ",")
+	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
+
+	var allTask []KTask
+	for _, task := range taskList {
+		var kTask KTask
+		kTask.Name = task.TaskName
+		if task.TaskType == "scene" {
+			kTask.PlaybookList = strings.Split(task.SceneList, ",")
+		} else {
+			kTask.PlaybookList = strings.Split(task.DataList, ",")
+		}
+		if len(kTask.PlaybookList) > 0 && len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
+			kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
+		}
+		allTask = append(allTask, kTask)
+	}
+
+	taskFileName := "task_from_export.json"
+	taskFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, taskFileName)
+	kTaskByte, _ := json.MarshalIndent(allTask, "", "    ")
+	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
+	_ = WriteTarFile(tw, taskFilePath)
 
 	fileName := "playbook_from_task.json"
 	playbookFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, fileName)
