@@ -4,6 +4,7 @@ import (
 	"data4test/models"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -1244,4 +1245,171 @@ func stripFileExt(name string) string {
 		return name[:idx]
 	}
 	return name
+}
+
+// BuildTaskCoverageReportData 根据任务配置生成覆盖范围报告数据（无需执行历史）
+// 用于任务从未执行时，从 schedule+playbook+scene_data 静态解析自动化覆盖范围
+func BuildTaskCoverageReportData(scheduleId string) (TaskReportData, error) {
+	var sched DbSchedule
+	models.Orm.Table("schedule").Where("id = ?", scheduleId).Find(&sched)
+	if len(sched.Id) == 0 {
+		return TaskReportData{}, fmt.Errorf("schedule not found: %s", scheduleId)
+	}
+
+	// 复用 getTaskResources 解析场景/数据/API 列表
+	t := taskInfo{
+		Id:          sched.Id,
+		TaskName:    sched.TaskName,
+		ProductList: sched.ProductList,
+		TaskType:    sched.TaskType,
+		DataList:    sched.DataList,
+		SceneList:   sched.SceneList,
+	}
+	_, datas, apis := getTaskResources(t)
+
+	// SceneDetails：列出所有配置的场景名（包括 playbook 中不存在的）
+	var sceneDetails []SceneDetail
+	configuredScenes := parseLineList(sched.SceneList)
+	for _, name := range configuredScenes {
+		name = strings.TrimSpace(name)
+		if len(name) > 0 {
+			sceneDetails = append(sceneDetails, SceneDetail{Name: name, Result: "未执行"})
+		}
+	}
+
+	// 建立数据文件→场景的映射（从 playbook.data_file_list 静态解析）
+	// dataOrderMap: 数据文件 → 排序序号（场景顺序 × 1000 + 场景内序号），用于按场景分组排序
+	dataToSceneMap := make(map[string]string)
+	dataOrderMap := make(map[string]int)
+	if sched.TaskType == "scene" && len(sched.SceneList) > 0 {
+		type playbookInfo struct {
+			Name         string `gorm:"column:name"`
+			DataFileList string `gorm:"column:data_file_list"`
+		}
+		// 按配置的场景顺序处理各场景
+		var playbooks []playbookInfo
+		for _, s := range configuredScenes {
+			s = strings.TrimSpace(s)
+			if len(s) > 0 {
+				playbooks = append(playbooks, playbookInfo{Name: s})
+			}
+		}
+		// 逐场景查询 data_file_list 以保持场景顺序
+		for si, pb := range playbooks {
+			var dbPb struct {
+				DataFileList string `gorm:"column:data_file_list"`
+			}
+			models.Orm.Table("playbook").
+				Select("data_file_list").
+				Where("name = ?", pb.Name).
+				Find(&dbPb)
+			if len(dbPb.DataFileList) > 0 {
+				di := 0
+				for _, dn := range strings.Split(dbPb.DataFileList, ",") {
+					dn = strings.TrimSpace(dn)
+					if len(dn) > 0 {
+						dataToSceneMap[dn] = pb.Name
+						dataOrderMap[dn] = si*1000 + di
+						di++
+					}
+				}
+			}
+		}
+	}
+
+	// DataDetails：从 scene_data 表获取每个数据文件的 api_id
+	var dataDetails []DataDetail
+	dataNames := make([]string, 0, len(datas))
+	for _, d := range datas {
+		dataNames = append(dataNames, d.Name)
+	}
+	if len(dataNames) > 0 {
+		type dataApiPair struct {
+			FileName string `gorm:"column:file_name"`
+			ApiId    string `gorm:"column:api_id"`
+		}
+		var pairs []dataApiPair
+		models.Orm.Table("scene_data").
+			Select("DISTINCT file_name, api_id").
+			Where("file_name IN (?)", dataNames).
+			Find(&pairs)
+		for _, p := range pairs {
+			dataDetails = append(dataDetails, DataDetail{
+				SceneName: dataToSceneMap[p.FileName],
+				Name:      p.FileName,
+				ApiId:     p.ApiId,
+				Result:    "未执行",
+			})
+		}
+	}
+
+		// 按场景顺序 + 场景内数据文件顺序排序
+		sort.SliceStable(dataDetails, func(i, j int) bool {
+			oi := dataOrderMap[dataDetails[i].Name]
+			oj := dataOrderMap[dataDetails[j].Name]
+			if oi != oj {
+				return oi < oj
+			}
+			return dataDetails[i].SceneName < dataDetails[j].SceneName
+		})
+
+	// API 类型分布：照 api_definition 按 http_method 聚合
+	var apiDistItems []CountItem
+	apiIds := make([]string, 0, len(apis))
+	for _, a := range apis {
+		apiIds = append(apiIds, a.Name)
+	}
+	if len(apiIds) > 0 {
+		var httpMethods []string
+		models.Orm.Table("api_definition").
+			Where("api_id IN (?)", apiIds).
+			Group("http_method").
+			Pluck("http_method", &httpMethods)
+		for _, method := range httpMethods {
+			var cnt struct{ Cnt int64 }
+			models.Orm.Raw(
+				"SELECT COUNT(DISTINCT api_id) as cnt FROM api_definition WHERE http_method = ? AND api_id IN (?)",
+				method, apiIds).Scan(&cnt)
+			methodName := method
+			if len(methodName) == 0 {
+				methodName = "其他"
+			}
+			apiDistItems = append(apiDistItems, CountItem{Name: methodName, Count: int(cnt.Cnt)})
+		}
+	}
+
+	// 产品维度
+	var byProduct []ProductReportItem
+	products := parseProductList(sched.ProductList)
+	for _, p := range products {
+		byProduct = append(byProduct, ProductReportItem{Product: p})
+	}
+
+	// 组装报告数据
+	reportData := TaskReportData{}
+	reportData.Overview.TaskName = sched.TaskName
+	reportData.Overview.TaskType = sched.TaskType
+	if len(products) > 0 {
+		reportData.Overview.Environment = products[0]
+	}
+	reportData.Overview.Executor = sched.UserName
+	reportData.Overview.StartTime = "-"
+	reportData.Overview.EndTime = "-"
+	reportData.Overview.SceneTotal = len(sceneDetails)
+	reportData.Overview.DataTotal = len(datas)
+	reportData.Overview.APITotal = len(apiIds)
+	reportData.Overview.TotalExpected = len(sceneDetails)
+	reportData.Overview.NotExecuted = len(sceneDetails)
+
+	reportData.SceneStats.Total = 0
+	reportData.DataStats.Total = 0
+
+	reportData.SceneDetails = sceneDetails
+	reportData.DataDetails = dataDetails
+	reportData.APITypeDistribution = apiDistItems
+	reportData.ByProduct = byProduct
+	reportData.FailItems = []FailItem{}
+	reportData.Trend = []TrendItem{}
+
+	return reportData, nil
 }

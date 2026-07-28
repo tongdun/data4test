@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"html/template"
 	"strings"
+	"time"
 
 	"data4test/models"
 	"github.com/GoAdminGroup/go-admin/template/types"
@@ -64,14 +65,29 @@ func GetScheduleReportContent(ctx *gin.Context) (types.Panel, error) {
 			Limit(1).
 			Find(&report)
 		if len(report.Id) == 0 || len(report.ReportData) == 0 {
-			return types.Panel{
-				Content: template.HTML(`<div style='padding:40px;text-align:center'>
+			// 无执行报告 → 自动生成覆盖范围报告
+			coverageData, err := biz.BuildTaskCoverageReportData(taskId)
+			if err != nil {
+				biz.Logger.Warning("生成覆盖范围报告失败: %s", err)
+				return types.Panel{
+					Content: template.HTML(`<div style='padding:40px;text-align:center'>
 							<h3>` + biz.T("schedule_report.no_report") + `</h3>
 							<p style='color:#888;margin-top:20px'>` + biz.T("schedule_report.view_report_empty") + `</p>
 						</div>`),
-				Title:       template.HTML(biz.T("schedule_report.page_title")),
-				Description: template.HTML(biz.T("schedule_report.description")),
-			}, nil
+					Title:       template.HTML(biz.T("schedule_report.page_title")),
+					Description: template.HTML(biz.T("schedule_report.description")),
+				}, nil
+			}
+			jsonBytes, _ := json.Marshal(coverageData)
+			fakeReport := biz.DashboardReport{
+				ReportName:  coverageData.Overview.TaskName,
+				ReportType:  "task",
+				ReportData:  string(jsonBytes),
+				Status:      "coverage",
+				Creator:     coverageData.Overview.Executor,
+				CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+			}
+			return renderTaskReport(fakeReport, taskId)
 		}
 
 	}
@@ -262,7 +278,7 @@ func buildTaskAPIPie(data biz.TaskReportData) template.HTML {
 func buildTaskSceneResultPie(data biz.TaskReportData, taskId string) template.HTML {
 	s := data.SceneStats
 	if s.Total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.scene_result_dist") + `</h3></div><div class="box-body"><div style="text-align:center;padding:20px;color:#aaa">` + biz.T("schedule_report.no_scene_data") + `</div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.scene_result_dist") + `</h3></div><div class="box-body"><div class="row"><div class="col-md-8"><div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">` + biz.T("schedule_report.no_scene_data") + `</div></div><div class="col-md-4"></div></div></div></div></div>`)
 	}
 
 	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
@@ -296,7 +312,7 @@ func buildTaskSceneResultPie(data biz.TaskReportData, taskId string) template.HT
 func buildTaskDataResultPie(data biz.TaskReportData, taskId string) template.HTML {
 	d := data.DataStats
 	if d.Total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.data_result_dist") + `</h3></div><div class="box-body"><div style="text-align:center;padding:20px;color:#aaa">` + biz.T("schedule_report.no_data_record") + `</div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.data_result_dist") + `</h3></div><div class="box-body"><div class="row"><div class="col-md-8"><div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">` + biz.T("schedule_report.no_data_record") + `</div></div><div class="col-md-4"></div></div></div></div></div>`)
 	}
 
 	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
