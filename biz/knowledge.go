@@ -1,7 +1,9 @@
 package biz
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"data4test/models"
 	"encoding/json"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 func GetKnowledgeType() (knowTypes []types.FieldOption) {
@@ -411,6 +414,98 @@ func UpdateAssetKnowledge(kType, syncUser string) (err error) {
 			aiConnect.UpdateDocument(dataSetId, doc.ID, path.Base(filePath), string(content))
 		} else {
 			aiConnect.CreateDocument(dataSetId, path.Base(filePath), string(content))
+		}
+	}
+
+	return
+}
+
+func ExportKnowledgePackage(userName string) (fileName string, err error) {
+	if userName != "admin" {
+		err = fmt.Errorf(T("error.no_knowledge_sync_permission"))
+		return
+	}
+
+	curTime := time.Now().Format("20060102150405")
+	fileName = fmt.Sprintf("knowledge_package_%s.tgz", curTime)
+	filePath := fmt.Sprintf("%s/%s", DownloadBasePath, fileName)
+
+	fw, err := os.Create(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	defer fw.Close()
+	gw := gzip.NewWriter(fw)
+	defer gw.Close()
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+
+	tmpDir := fmt.Sprintf("%s/knowledge_tmp_%s", DownloadBasePath, curTime)
+	if _, err = os.Stat(tmpDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(tmpDir, 0755); err != nil {
+			Logger.Error("%s", err)
+			return
+		}
+	}
+
+	// 1. 场景信息 → playbook_from_history.json（参照 WritePlaybookKnowledge）
+	var playbookList []Scene
+	var playbookNameList []string
+	models.Orm.Table("scene_test_history").Where("result = ?", "pass").Group("name").Pluck("name", &playbookNameList)
+	if len(playbookNameList) > 0 {
+		models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
+		var allPlaybook []KPlaybook
+		for _, playbook := range playbookList {
+			var kPlaybook KPlaybook
+			kPlaybook.Name = playbook.Name
+			kPlaybook.DataList = strings.Split(playbook.DataFileList, ",")
+			if len(kPlaybook.DataList) > 0 && len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
+				kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
+			}
+			allPlaybook = append(allPlaybook, kPlaybook)
+		}
+		playbookFileName := "playbook_from_history.json"
+		playbookFilePath := fmt.Sprintf("%s/%s", tmpDir, playbookFileName)
+		kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+		_ = ioutil.WriteFile(playbookFilePath, kByte, 0644)
+		_ = WriteTarFile(tw, playbookFilePath)
+	}
+
+	// 2. 任务信息 → task_from_history.json（参照 WriteTaskKnowledge）
+	var taskList []Schedule
+	models.Orm.Table("schedule").Where("task_status = ? and task_type = ?", "finished", "scene").Group("task_name").Find(&taskList)
+	if len(taskList) > 0 {
+		var allTask []KTask
+		for _, task := range taskList {
+			var kTask KTask
+			kTask.Name = task.TaskName
+			kTask.PlaybookList = strings.Split(task.SceneList, ",")
+			if len(kTask.PlaybookList) > 0 && len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
+				kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
+			}
+			allTask = append(allTask, kTask)
+		}
+		taskFileName := "task_from_history.json"
+		taskFilePath := fmt.Sprintf("%s/%s", tmpDir, taskFileName)
+		kTaskByte, _ := json.MarshalIndent(allTask, "", "    ")
+		_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
+		_ = WriteTarFile(tw, taskFilePath)
+	}
+
+	// 3. 数据文件 → 独立 YAML 文件（参照 WriteDataKnowledge）
+	var dataList []DataBase
+	var dataNameList []string
+	models.Orm.Table("scene_data_test_history").Where("result = ?", "pass").Group("name").Pluck("name", &dataNameList)
+	if len(dataNameList) > 0 {
+		models.Orm.Table("scene_data").Where("name in (?)", dataNameList).Find(&dataList)
+		for _, data := range dataList {
+			if len(data.FileName) == 0 || len(data.Content) == 0 {
+				continue
+			}
+			ymlFilePath := fmt.Sprintf("%s/%s", tmpDir, data.FileName)
+			_ = ioutil.WriteFile(ymlFilePath, []byte(data.Content), 0644)
+			_ = WriteTarFile(tw, ymlFilePath)
 		}
 	}
 

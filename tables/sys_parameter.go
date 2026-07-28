@@ -3,6 +3,7 @@ package tables
 import (
 	"data4test/biz"
 	"data4test/pages"
+	"fmt"
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
@@ -69,6 +70,21 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
 		return panel
 	}, "/sync_knowledge"))
+
+	info.AddButton(template2.HTML(biz.T("sys_parameter.btn_download_knowledge")), icon.Download, action.Ajax("download_knowledge_package",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			user := auth.Auth(ctx)
+			userName := user.Name
+			if fileName, err := biz.ExportKnowledgePackage(userName); err == nil {
+				hostIp := ctx.Request.Host
+				downloadUrl := fmt.Sprintf("http://%s/admin/fm/download/download?path=/%s", hostIp, fileName)
+				status := fmt.Sprintf(biz.T("common.copy_download_link"), downloadUrl)
+				return true, status, ""
+			} else {
+				status := fmt.Sprintf("%s: %s", biz.T("sys_parameter.download_knowledge_fail"), err)
+				return false, status, ""
+			}
+		}))
 
 	info.SetTable("sys_parameter").SetTitle(biz.T("sys_parameter.title")).SetDescription(biz.T("sys_parameter.description"))
 
