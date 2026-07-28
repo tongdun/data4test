@@ -1139,5 +1139,6 @@
   "common.status_failed": "失败",
   "common.create_time":"生成时间",
   "dashboard.task_report_name": "[%s]任务报告_%s",
-  "task_report.generate_running": "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看"
+  "task_report.generate_running": "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看",
+  "common.copy_download_link": "一键导出成功\n请复制下述链接下载:\n%s"
 }

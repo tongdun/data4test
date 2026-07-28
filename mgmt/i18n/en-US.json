@@ -1135,5 +1135,6 @@
   "common.status_failed": "Failed",
   "common.create_time":"Created At",
   "dashboard.task_report_name": "[%s] Task Report %s",
-  "task_report.generate_running": "Task report is being generated in background, please check the result report list later"
+  "task_report.generate_running": "Task report is being generated in background, please check the result report list later",
+  "common.copy_download_link": "Export successful\nCopy the link below to download:\n%s"
 }

@@ -194,7 +194,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 					}
 				}
 
-				status = fmt.Sprintf("%s\n%s:\n%s", biz.T("schedule.export_success"), biz.T("common.copy_download_link"), downloadUrl)
+				status = fmt.Sprintf(biz.T("common.copy_download_link"), downloadUrl)
 
 			} else {
 				status = fmt.Sprintf("%s: %s: %s", biz.T("schedule.export_fail"), idStr, err)
