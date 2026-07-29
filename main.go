@@ -140,6 +140,7 @@ func startServer() {
 	r.Static("./static", "./web/static")
 
 	eng.HTMLFile("GET", "/admin/likePostman", "./html/index.html", nil)
+	eng.HTMLFile("GET", "/admin/schedule_import", "./html/schedule_import.html", nil)
 
 	eng.Data("GET", "/admin/librarian", func(ctx *context.Context) {
 		conn := eng.SqliteConnection()
@@ -1911,6 +1912,89 @@ func startServer() {
 		})
 	})
 	
+
+		// 导入任务数据包-阶段1：上传并检查冲突
+		r.POST("/schedule_import_check", func(c *gin.Context) {
+			user, _ := engine.User(c)
+			uploadFile, errTmp := c.FormFile("upload_file")
+			if errTmp != nil {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  biz.T("schedule.import_no_file"),
+				})
+				return
+			}
+			uploadFilePath := fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+			c.SaveUploadedFile(uploadFile, uploadFilePath)
+
+			result, err := biz.ImportScheduleCheck(uploadFilePath, user.Name)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  fmt.Sprintf(biz.T("schedule.import_parse_error"), err),
+				})
+				return
+			}
+
+			respData := biz.BuildImportCheckResult(result)
+			respData["import_id"] = result.ImportId
+
+			if len(result.Conflicts) > 0 {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  biz.T("schedule.import_conflict_title"),
+					"data": respData,
+				})
+			} else {
+				c.JSON(http.StatusOK, map[string]interface{}{
+					"code": 200,
+					"msg":  biz.T("schedule.import_check_ok"),
+					"data": respData,
+				})
+			}
+		})
+
+		// 导入任务数据包-阶段2：确认导入（异步）
+		r.POST("/schedule_import_confirm", func(c *gin.Context) {
+			importId := c.PostForm("import_id")
+			mode := c.PostForm("import_mode")
+			user, _ := engine.User(c)
+
+			if len(importId) == 0 {
+				c.JSON(http.StatusBadRequest, map[string]interface{}{
+					"code": 400,
+					"msg":  biz.T("schedule.import_id_required"),
+					"data": map[string]string{},
+				})
+				return
+			}
+
+			go func() {
+				defer func() {
+					if e := recover(); e != nil {
+						biz.Logger.Error("import confirm panic: %v", e)
+					}
+				}()
+				err := biz.ImportScheduleConfirm(importId, mode, user.Name)
+				if err != nil {
+					biz.Logger.Error("import confirm failed: %s", err)
+				}
+			}()
+
+			if mode == "cancel" {
+				c.JSON(http.StatusOK, map[string]interface{}{
+					"code": 200,
+					"msg":  biz.T("schedule.import_cancelled"),
+					"data": map[string]string{},
+				})
+			} else {
+				c.JSON(http.StatusOK, map[string]interface{}{
+					"code": 200,
+					"msg":  biz.T("schedule.import_processing"),
+					"data": map[string]string{},
+				})
+			}
+		})
 	// 手动刷新菜单翻译（新增菜单后调用，无需重启应用）
 	r.GET("/admin/refresh-menu-i18n", func(c *gin.Context) {
 		biz.RefreshMenuI18n()

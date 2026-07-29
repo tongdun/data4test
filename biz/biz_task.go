@@ -2,16 +2,20 @@ package biz
 
 import (
 	"archive/tar"
+	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"data4test/models"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
+	uuid "github.com/satori/go.uuid"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -19,6 +23,9 @@ import (
 )
 
 var CronHandle = NewCrontab()
+
+// LastImportId 最近一次导入检查的 ID，供确认导入弹窗预填
+var LastImportId string
 
 func Init() {
 	InitMenuI18n()
@@ -1528,4 +1535,629 @@ func GetTaskNamesByIDs(idStr string) string {
 	//	return fmt.Sprintf("%s等%d个任务", names[0], len(names))
 	//}
 	//return strings.Join(names, ", ")
+}
+
+// ImportScheduleCheck 解析上传的tgz包，检查名称冲突，将完整结果保存到临时文件
+func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err error) {
+	importId := uuid.NewV4().String()
+	LastImportId = importId
+	result.ImportId = importId
+	result.UserName = userName
+	result.Conflicts = make(map[string]string)
+
+	// 1. 读取文件并检测格式
+	tmpDir := fmt.Sprintf("%s/import_tmp_%s", DownloadBasePath, importId)
+	defer os.RemoveAll(tmpDir)
+
+	if err = os.MkdirAll(tmpDir, 0755); err != nil {
+		Logger.Error("create tmp dir failed: %s", err)
+		return
+	}
+
+	// 读取文件内容到内存，检测格式
+	fileData, err := ioutil.ReadFile(tgzFilePath)
+	if err != nil {
+		Logger.Error("read file failed: %s", err)
+		return
+	}
+
+	// 检测并解压：支持 zip / gzip+tar / raw tar
+	if len(fileData) >= 2 && fileData[0] == 0x50 && fileData[1] == 0x4b {
+		// ZIP 格式 (magic: "PK")
+		err = extractZip(fileData, tmpDir)
+	} else if len(fileData) >= 2 && fileData[0] == 0x1f && fileData[1] == 0x8b {
+		// gzip 压缩 (magic: 1f 8b)，内部是 tar
+		err = extractGzipTar(fileData, tmpDir)
+	} else {
+		// 原始 tar 格式
+		err = extractRawTar(fileData, tmpDir)
+	}
+
+	if err != nil {
+		Logger.Error("extract archive failed: %s", err)
+		return
+	}
+
+	// 2. 读取 task_from_export.json
+	taskFilePath := findFileInDir(tmpDir, "task_from_export.json")
+	if len(taskFilePath) > 0 {
+		taskData, readErr := ioutil.ReadFile(taskFilePath)
+		if readErr == nil {
+			json.Unmarshal(taskData, &result.Tasks)
+		}
+	}
+
+	// 3. 读取 playbook_from_task.json
+	playbookFilePath := findFileInDir(tmpDir, "playbook_from_task.json")
+	if len(playbookFilePath) > 0 {
+		playbookData, readErr := ioutil.ReadFile(playbookFilePath)
+		if readErr == nil {
+			json.Unmarshal(playbookData, &result.Playbooks)
+		}
+	}
+
+	// 4. 扫描所有 .yml/.yaml 文件
+	var ymlFiles []string
+	collectYmlFiles(tmpDir, &ymlFiles)
+	for _, ymlPath := range ymlFiles {
+		content, readErr := ioutil.ReadFile(ymlPath)
+		if readErr != nil {
+			Logger.Warning("read yml file failed: %s, %s", ymlPath, readErr)
+			continue
+		}
+		relPath := ymlPath[len(tmpDir)+1:]
+		baseName := filepath.Base(relPath)
+		kData := KData{
+			Name:     baseName,
+			FileName: baseName,
+			Content:  string(content),
+		}
+		result.DataFiles = append(result.DataFiles, kData)
+	}
+
+	// 5. 批量检查名称冲突
+	if len(result.Tasks) > 0 {
+		var taskNames []string
+		for _, t := range result.Tasks {
+			if len(t.Name) > 0 {
+				taskNames = append(taskNames, t.Name)
+			}
+		}
+		if len(taskNames) > 0 {
+			var existingTasks []DbSchedule
+			models.Orm.Table("schedule").Where("task_name in (?)", taskNames).Find(&existingTasks)
+			for _, et := range existingTasks {
+				result.Conflicts[et.TaskName] = "task"
+			}
+		}
+	}
+
+	if len(result.Playbooks) > 0 {
+		var sceneNames []string
+		for _, p := range result.Playbooks {
+			if len(p.Name) > 0 {
+				sceneNames = append(sceneNames, p.Name)
+			}
+		}
+		if len(sceneNames) > 0 {
+			var existingScenes []DbScene
+			models.Orm.Table("playbook").Where("name in (?)", sceneNames).Find(&existingScenes)
+			for _, es := range existingScenes {
+				result.Conflicts[es.Name] = "scene"
+			}
+		}
+	}
+
+	if len(result.DataFiles) > 0 {
+		var dataNames []string
+		for _, d := range result.DataFiles {
+			if len(d.FileName) > 0 {
+				dataNames = append(dataNames, d.FileName)
+			}
+		}
+		if len(dataNames) > 0 {
+			var existingData []DbSceneData
+			models.Orm.Table("scene_data").Where("file_name in (?)", dataNames).Find(&existingData)
+			for _, ed := range existingData {
+				result.Conflicts[ed.FileName] = "data"
+			}
+		}
+	}
+
+	// 6. 保存完整结果到临时 JSON 文件
+	resultFilePath := fmt.Sprintf("%s/import_%s.json", DownloadBasePath, importId)
+	resultBytes, _ := json.MarshalIndent(result, "", "  ")
+	if writeErr := ioutil.WriteFile(resultFilePath, resultBytes, 0644); writeErr != nil {
+		Logger.Error("write import result failed: %s", writeErr)
+		err = writeErr
+		return
+	}
+
+	Logger.Info("Import check done: id=%s, tasks=%d, playbooks=%d, data=%d, conflicts=%d",
+		importId, len(result.Tasks), len(result.Playbooks), len(result.DataFiles), len(result.Conflicts))
+
+	return
+}
+
+// ImportScheduleConfirm 根据用户选择（skip/cancel）执行导入或取消
+func ImportScheduleConfirm(importId, mode, userName string) (err error) {
+	resultFilePath := fmt.Sprintf("%s/import_%s.json", DownloadBasePath, importId)
+
+	if mode == "cancel" {
+		os.Remove(resultFilePath)
+		Logger.Info("Import cancelled: id=%s, user=%s", importId, userName)
+		return
+	}
+
+	data, readErr := ioutil.ReadFile(resultFilePath)
+	if readErr != nil {
+		err = fmt.Errorf(T("error.data_not_found"), importId)
+		Logger.Error("%s", err)
+		return
+	}
+
+	var result ImportResult
+	if unmarshalErr := json.Unmarshal(data, &result); unmarshalErr != nil {
+		err = unmarshalErr
+		Logger.Error("unmarshal import result failed: %s", err)
+		return
+	}
+
+	var newTasks []KTask
+	var newPlaybooks []KPlaybook
+	var newDataFiles []KData
+
+	for _, t := range result.Tasks {
+		if _, isConflict := result.Conflicts[t.Name]; !isConflict {
+			newTasks = append(newTasks, t)
+		}
+	}
+	for _, p := range result.Playbooks {
+		if _, isConflict := result.Conflicts[p.Name]; !isConflict {
+			newPlaybooks = append(newPlaybooks, p)
+		}
+	}
+	for _, d := range result.DataFiles {
+		if _, isConflict := result.Conflicts[d.FileName]; !isConflict {
+			newDataFiles = append(newDataFiles, d)
+		}
+	}
+
+	if len(newTasks) == 0 && len(newPlaybooks) == 0 && len(newDataFiles) == 0 {
+		os.Remove(resultFilePath)
+		Logger.Info("Import skipped (all conflicts): id=%s", importId)
+		return
+	}
+
+	importedCount := 0
+	skippedCount := len(result.Conflicts)
+
+	for _, kd := range newDataFiles {
+		var dbSceneData DbSceneData
+		models.Orm.Table("scene_data").Where("file_name = ?", kd.FileName).Find(&dbSceneData)
+
+		sceneDataRecord := SceneData{
+			FileName: kd.FileName,
+			RunTime:  1,
+			CommonDataBase: CommonDataBase{
+				Name:     strings.TrimSuffix(kd.FileName, ".yml"),
+				FileType: 1,
+			},
+		}
+		sceneDataRecord.Content = kd.Content
+
+		if len(dbSceneData.FileName) == 0 {
+			createErr := models.Orm.Table("scene_data").Create(&sceneDataRecord).Error
+			if createErr != nil {
+				Logger.Error("create scene_data failed: %s, %s", kd.FileName, createErr)
+				continue
+			}
+		}
+
+		ymlFilePath := fmt.Sprintf("%s/%s", DataBasePath, kd.FileName)
+		if writeErr := ioutil.WriteFile(ymlFilePath, []byte(kd.Content), 0644); writeErr != nil {
+			Logger.Error("write data file failed: %s, %s", ymlFilePath, writeErr)
+		}
+		importedCount++
+	}
+
+	for _, kp := range newPlaybooks {
+		var dbScene DbScene
+		models.Orm.Table("playbook").Where("name = ?", kp.Name).Find(&dbScene)
+
+		if len(dbScene.Name) == 0 {
+			scene := SceneWithNoUpdateTime{
+				Name:         kp.Name,
+				DataFileList: strings.Join(kp.DataList, ","),
+				SceneType:    3,
+				Product:      "",
+				UserName:     userName,
+				Remark:       "",
+				Priority:     999,
+				RunTime:      1,
+				DataNumber:   strconv.Itoa(len(kp.DataList)),
+			}
+			createErr := models.Orm.Table("playbook").Create(&scene).Error
+			if createErr != nil {
+				Logger.Error("create playbook failed: %s, %s", kp.Name, createErr)
+				continue
+			}
+			importedCount++
+		}
+	}
+
+	for _, kt := range newTasks {
+		var dbSchedule DbSchedule
+		models.Orm.Table("schedule").Where("task_name = ?", kt.Name).Find(&dbSchedule)
+
+		if len(dbSchedule.TaskName) == 0 {
+			var sceneNameList []string
+			for _, playbookName := range kt.PlaybookList {
+				if _, isConflict := result.Conflicts[playbookName]; !isConflict {
+					sceneNameList = append(sceneNameList, playbookName)
+				}
+			}
+
+			schedule := Schedule4Copy{
+				TaskName:    kt.Name,
+				TaskMode:    "once",
+				TaskType:    "scene",
+				Threading:   "no",
+				SceneList:   strings.Join(sceneNameList, ","),
+				DataList:    "",
+				ProductList: "",
+				TaskStatus:  "not_started",
+				Crontab:     "",
+				UserName:    userName,
+			}
+
+			createErr := models.Orm.Table("schedule").Create(&schedule).Error
+			if createErr != nil {
+				Logger.Error("create schedule failed: %s, %s", kt.Name, createErr)
+				continue
+			}
+			importedCount++
+		}
+	}
+
+	os.Remove(resultFilePath)
+	Logger.Info("Import done: id=%s, imported=%d, skipped=%d", importId, importedCount, skippedCount)
+	return
+}
+
+// BuildImportCheckResult 构造结构化导入检查结果，供前端页面渲染
+func BuildImportCheckResult(result ImportResult) map[string]interface{} {
+	resp := make(map[string]interface{})
+
+	conflictTasks := filterConflictsByType(result, "task")
+	conflictScenes := filterConflictsByType(result, "scene")
+	conflictData := filterConflictsByType(result, "data")
+	nonConflictTasks := getNonConflictItems(result.Tasks, result.Conflicts)
+	nonConflictScenes := getNonConflictPlaybookItems(result.Playbooks, result.Conflicts)
+	nonConflictData := getNonConflictDataItems(result.DataFiles, result.Conflicts)
+
+	resp["conflicts"] = len(result.Conflicts)
+	resp["task_count"] = len(nonConflictTasks)
+	resp["scene_count"] = len(nonConflictScenes)
+	resp["data_count"] = len(nonConflictData)
+
+	// 冲突详情 (HTML格式，每个名称一行)
+	if len(result.Conflicts) > 0 {
+		var htmlParts []string
+
+		// 统计数据放在冲突列表上方
+		var stats []string
+		if len(conflictTasks) > 0 {
+			stats = append(stats, fmt.Sprintf("%d个%s冲突", len(conflictTasks), strings.TrimSuffix(strings.TrimSuffix(T("common.task_name"), "名称"), " Name")))
+		}
+		if len(conflictScenes) > 0 {
+			stats = append(stats, fmt.Sprintf("%d个%s冲突", len(conflictScenes), T("common.scene")))
+		}
+		if len(conflictData) > 0 {
+			stats = append(stats, fmt.Sprintf("%d个%s冲突", len(conflictData), T("common.data")))
+		}
+		if len(nonConflictTasks)+len(nonConflictScenes)+len(nonConflictData) > 0 {
+			var importStats []string
+			if len(nonConflictTasks) > 0 {
+				importStats = append(importStats, fmt.Sprintf("%d个%s", len(nonConflictTasks), strings.TrimSuffix(strings.TrimSuffix(T("common.task_name"), "名称"), " Name")))
+			}
+			if len(nonConflictScenes) > 0 {
+				importStats = append(importStats, fmt.Sprintf("%d个%s", len(nonConflictScenes), T("common.scene")))
+			}
+			if len(nonConflictData) > 0 {
+				importStats = append(importStats, fmt.Sprintf("%d个%s", len(nonConflictData), T("common.data")))
+			}
+			htmlParts = append(htmlParts, fmt.Sprintf(`<div class="summary-bar">%s，可导入: %s</div>`, strings.Join(stats, "，"), strings.Join(importStats, "，")))
+		} else {
+			htmlParts = append(htmlParts, fmt.Sprintf(`<div class="summary-bar">%s，无可导入项</div>`, strings.Join(stats, "，")))
+		}
+
+		// 冲突列表标题
+		htmlParts = append(htmlParts, `<div class="section-subtitle">冲突明细</div>`)
+
+		for _, name := range conflictTasks {
+			taskLabel := strings.TrimSuffix(strings.TrimSuffix(T("common.task_name"), "名称"), " Name")
+			taskLabel = strings.TrimSpace(taskLabel)
+			htmlParts = append(htmlParts, fmt.Sprintf(`<div class="conflict-item"><span class="type-tag">%s</span> %s</div>`, taskLabel, name))
+		}
+		for _, name := range conflictScenes {
+			htmlParts = append(htmlParts, fmt.Sprintf(`<div class="conflict-item"><span class="type-tag">%s</span> %s</div>`, T("common.scene"), name))
+		}
+		for _, name := range conflictData {
+			htmlParts = append(htmlParts, fmt.Sprintf(`<div class="conflict-item"><span class="type-tag">%s</span> %s</div>`, T("common.data"), name))
+		}
+		resp["conflicts_html"] = strings.Join(htmlParts, "")
+	}
+
+	// 可导入项
+	importable := make(map[string][]string)
+	if len(nonConflictTasks) > 0 {
+		importable["任务"] = nonConflictTasks
+	}
+	if len(nonConflictScenes) > 0 {
+		importable["场景"] = nonConflictScenes
+	}
+	if len(nonConflictData) > 0 {
+		importable["数据"] = nonConflictData
+	}
+	resp["importable"] = importable
+
+	return resp
+}
+
+func getNonConflictItems(tasks []KTask, conflicts map[string]string) []string {
+	var names []string
+	for _, t := range tasks {
+		if _, ok := conflicts[t.Name]; !ok {
+			names = append(names, t.Name)
+		}
+	}
+	return names
+}
+
+func getNonConflictPlaybookItems(playbooks []KPlaybook, conflicts map[string]string) []string {
+	var names []string
+	for _, p := range playbooks {
+		if _, ok := conflicts[p.Name]; !ok {
+			names = append(names, p.Name)
+		}
+	}
+	return names
+}
+
+func getNonConflictDataItems(dataFiles []KData, conflicts map[string]string) []string {
+	var names []string
+	for _, d := range dataFiles {
+		if _, ok := conflicts[d.FileName]; !ok {
+			names = append(names, d.FileName)
+		}
+	}
+	return names
+}
+
+// BuildConflictMsg 根据导入结果构造冲突/摘要消息
+func BuildConflictMsg(result ImportResult) string {
+	var sb strings.Builder
+
+	conflictTasks := filterConflictsByType(result, "task")
+	conflictScenes := filterConflictsByType(result, "scene")
+	conflictData := filterConflictsByType(result, "data")
+	countTasks := countNonConflict(result.Tasks, result.Conflicts)
+	countScenes := countNonConflictPlaybooks(result.Playbooks, result.Conflicts)
+	countData := countNonConflictData(result.DataFiles, result.Conflicts)
+
+	if len(result.Conflicts) > 0 {
+		sb.WriteString("⚠ ")
+		sb.WriteString(T("schedule.import_conflict_title"))
+		sb.WriteString("\n\n")
+
+		if len(conflictTasks) > 0 {
+			sb.WriteString("  ✗ ")
+			sb.WriteString(fmt.Sprintf(T("schedule.import_conflict_detail"), T("common.task_name"), strings.Join(conflictTasks, ", ")))
+			sb.WriteString("\n")
+		}
+		if len(conflictScenes) > 0 {
+			sb.WriteString("  ✗ ")
+			sb.WriteString(fmt.Sprintf(T("schedule.import_conflict_detail"), T("common.scene"), strings.Join(conflictScenes, ", ")))
+			sb.WriteString("\n")
+		}
+		if len(conflictData) > 0 {
+			sb.WriteString("  ✗ ")
+			sb.WriteString(fmt.Sprintf(T("schedule.import_conflict_detail"), T("common.data"), strings.Join(conflictData, ", ")))
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	if countTasks+countScenes+countData > 0 {
+		sb.WriteString("✓ 可导入:\n")
+		if countTasks > 0 {
+			sb.WriteString(fmt.Sprintf("  · %s: %d个\n", T("common.task_name"), countTasks))
+		}
+		if countScenes > 0 {
+			sb.WriteString(fmt.Sprintf("  · %s: %d个\n", T("common.scene"), countScenes))
+		}
+		if countData > 0 {
+			sb.WriteString(fmt.Sprintf("  · %s: %d个\n", T("common.data"), countData))
+		}
+		sb.WriteString("\n")
+	} else if len(result.Conflicts) > 0 {
+		sb.WriteString("(全部冲突，无可导入项)\n\n")
+	}
+
+	sb.WriteString(fmt.Sprintf("导入ID: %s\n", result.ImportId))
+	sb.WriteString("\n")
+
+	if len(result.Conflicts) > 0 {
+		sb.WriteString("→ 请关闭本窗口，点击 [确认导入] 按钮\n")
+		sb.WriteString("→ 选择 [跳过冲突项继续] 仅导入不冲突的项\n")
+	} else {
+		sb.WriteString("→ 请关闭本窗口，点击 [确认导入] 按钮完成导入\n")
+	}
+
+	return sb.String()
+}
+
+// extractZip 解压 ZIP 格式数据到目标目录
+func extractZip(data []byte, destDir string) error {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return fmt.Errorf("zip reader failed: %s", err)
+	}
+
+	for _, f := range zipReader.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		fileName := f.Name
+		if strings.Contains(fileName, "..") {
+			Logger.Warning("skip suspicious path: %s", fileName)
+			continue
+		}
+
+		targetPath := fmt.Sprintf("%s/%s", destDir, fileName)
+		targetDir := targetPath[:strings.LastIndex(targetPath, "/")]
+		if _, statErr := os.Stat(targetDir); os.IsNotExist(statErr) {
+			os.MkdirAll(targetDir, 0755)
+		}
+
+		rc, openErr := f.Open()
+		if openErr != nil {
+			Logger.Error("open zip entry failed: %s, %s", fileName, openErr)
+			continue
+		}
+
+		fw, fwErr := os.Create(targetPath)
+		if fwErr != nil {
+			Logger.Error("create file failed: %s", fwErr)
+			rc.Close()
+			continue
+		}
+		io.Copy(fw, rc)
+		fw.Close()
+		rc.Close()
+	}
+	return nil
+}
+
+// extractGzipTar 解压 gzip+tar 格式数据到目标目录
+func extractGzipTar(data []byte, destDir string) error {
+	gr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("gzip reader failed: %s", err)
+	}
+	defer gr.Close()
+
+	return extractTarReader(gr, destDir)
+}
+
+// extractRawTar 解压原始 tar 格式数据到目标目录
+func extractRawTar(data []byte, destDir string) error {
+	return extractTarReader(bytes.NewReader(data), destDir)
+}
+
+// extractTarReader 从 tar reader 提取文件到目标目录
+func extractTarReader(r io.Reader, destDir string) error {
+	tr := tar.NewReader(r)
+	for {
+		hdr, errHdr := tr.Next()
+		if errHdr == io.EOF {
+			break
+		}
+		if errHdr != nil {
+			return fmt.Errorf("tar read failed: %s", errHdr)
+		}
+
+		if hdr.FileInfo().IsDir() {
+			continue
+		}
+
+		fileName := hdr.Name
+		if strings.Contains(fileName, "..") {
+			Logger.Warning("skip suspicious path: %s", fileName)
+			continue
+		}
+
+		targetPath := fmt.Sprintf("%s/%s", destDir, fileName)
+		targetDir := targetPath[:strings.LastIndex(targetPath, "/")]
+		if _, statErr := os.Stat(targetDir); os.IsNotExist(statErr) {
+			os.MkdirAll(targetDir, 0755)
+		}
+
+		fw, fwErr := os.Create(targetPath)
+		if fwErr != nil {
+			Logger.Error("create file failed: %s", fwErr)
+			continue
+		}
+		io.Copy(fw, tr)
+		fw.Close()
+	}
+	return nil
+}
+
+func findFileInDir(dir, targetName string) string {
+	var found string
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == targetName {
+			found = path
+		}
+		return nil
+	})
+	return found
+}
+
+func collectYmlFiles(dir string, result *[]string) {
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && (strings.HasSuffix(info.Name(), ".yml") || strings.HasSuffix(info.Name(), ".yaml")) {
+			*result = append(*result, path)
+		}
+		return nil
+	})
+}
+
+func filterConflictsByType(result ImportResult, typeName string) []string {
+	var names []string
+	for name, typ := range result.Conflicts {
+		if typ == typeName {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func countNonConflict(tasks []KTask, conflicts map[string]string) int {
+	count := 0
+	for _, t := range tasks {
+		if _, ok := conflicts[t.Name]; !ok {
+			count++
+		}
+	}
+	return count
+}
+
+func countNonConflictPlaybooks(playbooks []KPlaybook, conflicts map[string]string) int {
+	count := 0
+	for _, p := range playbooks {
+		if _, ok := conflicts[p.Name]; !ok {
+			count++
+		}
+	}
+	return count
+}
+
+func countNonConflictData(dataFiles []KData, conflicts map[string]string) int {
+	count := 0
+	for _, d := range dataFiles {
+		if _, ok := conflicts[d.FileName]; !ok {
+			count++
+		}
+	}
+	return count
 }
