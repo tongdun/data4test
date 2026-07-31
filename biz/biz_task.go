@@ -1739,6 +1739,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		sceneDataRecord := SceneData{
 			FileName: kd.FileName,
 			RunTime:  1,
+			UserName: userName,
 			CommonDataBase: CommonDataBase{
 				Name:     strings.TrimSuffix(kd.FileName, ".yml"),
 				FileType: 1,
