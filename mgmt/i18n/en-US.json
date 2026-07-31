@@ -1158,5 +1158,6 @@
   "common.create_time":"Created At",
   "dashboard.task_report_name": "[%s] Task Report %s",
   "task_report.generate_running": "Task report is being generated in background, please check the result report list later",
-  "common.copy_download_link": "Export successful\nCopy the link below to download:\n%s"
+  "common.copy_download_link": "Export successful\nCopy the link below to download:\n%s",
+  "error.exec_fail": "Test failed: %s: %s"
 }
