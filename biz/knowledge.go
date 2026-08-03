@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/template/types"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -39,7 +40,7 @@ func EmptyFileContent(filePath string) {
 }
 
 func WritePlaybookKnowledge() {
-	fileName := "playbook_from_history.txt"
+	fileName := "playbook_info.yaml"
 	filePath := fmt.Sprintf("%s/%s", KnowledgeBasePath, fileName)
 	var playbookList []Scene
 	var playbookNameList []string
@@ -52,17 +53,20 @@ func WritePlaybookKnowledge() {
 		return
 	}
 	EmptyFileContent(filePath)
-	var allPlaybook []KPlaybook
+	allPlaybook := make(map[string]KPlaybook)
 	for _, playbook := range playbookList {
 		var kPlaybook KPlaybook
 		kPlaybook.Name = playbook.Name
 		kPlaybook.DataList = strings.Split(playbook.DataFileList, ",")
-		if len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
+		if len(kPlaybook.DataList) > 0 && len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
 			kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
 		}
-		allPlaybook = append(allPlaybook, kPlaybook)
+		if runType, ok := SceneTypeToRunType[playbook.SceneType]; ok {
+			kPlaybook.RunType = runType
+		}
+		allPlaybook[playbook.Name] = kPlaybook
 	}
-	kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+	kByte, _ := yaml.Marshal(allPlaybook)
 	WriteDataInCommonFile(filePath, string(kByte))
 	return
 }
@@ -93,7 +97,7 @@ func WriteDataKnowledge() {
 }
 
 func WriteTaskKnowledge() {
-	fileName := "task.txt"
+	fileName := "task_info.yaml"
 	filePath := fmt.Sprintf("%s/%s", KnowledgeBasePath, fileName)
 	var taskList []Schedule
 	models.Orm.Table("schedule").Where("task_status = ? and task_type = ?", "finished", "scene").Group("task_name").Find(&taskList)
@@ -103,17 +107,24 @@ func WriteTaskKnowledge() {
 
 	EmptyFileContent(filePath)
 
-	var allTask []KTask
+	allTask := make(map[string]KTask)
 	for _, task := range taskList {
 		var kTask KTask
 		kTask.Name = task.TaskName
+		kTask.TaskMode = task.TaskMode
+		if yamlType, ok := TaskTypeToYaml[task.TaskType]; ok {
+			kTask.TaskType = yamlType
+		} else {
+			kTask.TaskType = task.TaskType
+		}
 		kTask.PlaybookList = strings.Split(task.SceneList, ",")
-		if len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
+		if len(kTask.PlaybookList) > 0 && len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
 			kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
 		}
-		allTask = append(allTask, kTask)
+		kTask.Remark = task.Remark
+		allTask[task.TaskName] = kTask
 	}
-	kByte, _ := json.MarshalIndent(allTask, "", "    ")
+	kByte, _ := yaml.Marshal(allTask)
 	WriteDataInCommonFile(filePath, string(kByte))
 
 	return
@@ -342,11 +353,11 @@ func UpdateAssetKnowledge(kType, syncUser string) (err error) {
 	switch kType {
 	case "场景", "playbook":
 		filePathList = []string{
-			fmt.Sprintf("%s/playbook_from_history.txt", KnowledgeBasePath),
+			fmt.Sprintf("%s/playbook_info.yaml", KnowledgeBasePath),
 		}
 	case "任务", "task":
 		filePathList = []string{
-			fmt.Sprintf("%s/task.txt", KnowledgeBasePath),
+			fmt.Sprintf("%s/task_info.yaml", KnowledgeBasePath),
 		}
 	case "数据", "data":
 		filePathList = []string{
@@ -449,13 +460,13 @@ func ExportKnowledgePackage(userName string) (fileName string, err error) {
 		}
 	}
 
-	// 1. 场景信息 → playbook_from_history.json（参照 WritePlaybookKnowledge）
+	// 1. 场景信息 → playbook_info.yaml（参照 WritePlaybookKnowledge）
 	var playbookList []Scene
 	var playbookNameList []string
 	models.Orm.Table("scene_test_history").Where("result = ?", "pass").Group("name").Pluck("name", &playbookNameList)
 	if len(playbookNameList) > 0 {
 		models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
-		var allPlaybook []KPlaybook
+		allPlaybook := make(map[string]KPlaybook)
 		for _, playbook := range playbookList {
 			var kPlaybook KPlaybook
 			kPlaybook.Name = playbook.Name
@@ -463,32 +474,42 @@ func ExportKnowledgePackage(userName string) (fileName string, err error) {
 			if len(kPlaybook.DataList) > 0 && len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
 				kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
 			}
-			allPlaybook = append(allPlaybook, kPlaybook)
+			if runType, ok := SceneTypeToRunType[playbook.SceneType]; ok {
+				kPlaybook.RunType = runType
+			}
+			allPlaybook[playbook.Name] = kPlaybook
 		}
-		playbookFileName := "playbook_from_history.json"
+		playbookFileName := "playbook_info.yaml"
 		playbookFilePath := fmt.Sprintf("%s/%s", tmpDir, playbookFileName)
-		kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+		kByte, _ := yaml.Marshal(allPlaybook)
 		_ = ioutil.WriteFile(playbookFilePath, kByte, 0644)
 		_ = WriteTarFile(tw, playbookFilePath)
 	}
 
-	// 2. 任务信息 → task_from_history.json（参照 WriteTaskKnowledge）
+	// 2. 任务信息 → task_info.yaml（参照 WriteTaskKnowledge）
 	var taskList []Schedule
 	models.Orm.Table("schedule").Where("task_status = ? and task_type = ?", "finished", "scene").Group("task_name").Find(&taskList)
 	if len(taskList) > 0 {
-		var allTask []KTask
+		allTask := make(map[string]KTask)
 		for _, task := range taskList {
 			var kTask KTask
 			kTask.Name = task.TaskName
+			kTask.TaskMode = task.TaskMode
+			if yamlType, ok := TaskTypeToYaml[task.TaskType]; ok {
+				kTask.TaskType = yamlType
+			} else {
+				kTask.TaskType = task.TaskType
+			}
 			kTask.PlaybookList = strings.Split(task.SceneList, ",")
 			if len(kTask.PlaybookList) > 0 && len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
 				kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
 			}
-			allTask = append(allTask, kTask)
+			kTask.Remark = task.Remark
+			allTask[task.TaskName] = kTask
 		}
-		taskFileName := "task_from_history.json"
+		taskFileName := "task_info.yaml"
 		taskFilePath := fmt.Sprintf("%s/%s", tmpDir, taskFileName)
-		kTaskByte, _ := json.MarshalIndent(allTask, "", "    ")
+		kTaskByte, _ := yaml.Marshal(allTask)
 		_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 		_ = WriteTarFile(tw, taskFilePath)
 	}

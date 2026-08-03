@@ -150,6 +150,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
+
+
+	info.AddButton(template2.HTML(biz.T("schedule.import_check_btn")), icon.FolderO,
+		action.Jump("/admin/schedule_import"))
+
 	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/generate_task_report",
 		Title:  biz.T("schedule_report.generate_report"),
@@ -335,7 +340,6 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	info.AddActionButton(template.HTML(biz.T("common.btn_report")), action.Jump("/admin/task_dashboard?id={{.Id}}"))
 
 	info.AddSelectBox(biz.T("common.product_list"), products, action.FieldFilter("product_list"))
-
 	info.SetTable("schedule").SetTitle(biz.T("schedule.title")).SetDescription(biz.T("schedule.description"))
 	cronHelp := template.HTML("<br>" +
 		"*&emsp;*&emsp;*&emsp;*&emsp;*" +

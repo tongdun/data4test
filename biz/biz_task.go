@@ -1395,10 +1395,16 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 	ids := strings.Split(taskId, ",")
 	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
 
-	var allTask []KTask
+	allTask := make(map[string]KTask)
 	for _, task := range taskList {
 		var kTask KTask
 		kTask.Name = task.TaskName
+		kTask.TaskMode = task.TaskMode
+		if yamlType, ok := TaskTypeToYaml[task.TaskType]; ok {
+			kTask.TaskType = yamlType
+		} else {
+			kTask.TaskType = task.TaskType
+		}
 		if task.TaskType == "scene" {
 			kTask.PlaybookList = strings.Split(task.SceneList, ",")
 		} else {
@@ -1407,21 +1413,22 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 		if len(kTask.PlaybookList) > 0 && len(kTask.PlaybookList[len(kTask.PlaybookList)-1]) == 0 {
 			kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
 		}
-		allTask = append(allTask, kTask)
+		kTask.Remark = task.Remark
+		allTask[task.TaskName] = kTask
 	}
 
-	taskFileName := "task_from_export.json"
+	taskFileName := "task_info.yaml"
 	taskFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, taskFileName)
-	kTaskByte, _ := json.MarshalIndent(allTask, "", "    ")
+	kTaskByte, _ := yaml.Marshal(allTask)
 	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 	_ = WriteTarFile(tw, taskFilePath)
 
-	fileName := "playbook_from_task.json"
+	fileName := "playbook_info.yaml"
 	playbookFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, fileName)
 	var playbookList []Scene
 	var playbookNameList []string
 
-	for k, _ := range playbookNameMap {
+	for k := range playbookNameMap {
 		playbookNameList = append(playbookNameList, k)
 	}
 
@@ -1430,19 +1437,22 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 		return
 	}
 
-	var allPlaybook []KPlaybook
+	allPlaybook := make(map[string]KPlaybook)
 
 	for _, playbook := range playbookList {
 		var kPlaybook KPlaybook
 		kPlaybook.Name = playbook.Name
 		kPlaybook.DataList = strings.Split(playbook.DataFileList, ",")
-		if len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
+		if len(kPlaybook.DataList) > 0 && len(kPlaybook.DataList[len(kPlaybook.DataList)-1]) == 0 {
 			kPlaybook.DataList = kPlaybook.DataList[:len(kPlaybook.DataList)-1]
 		}
-		allPlaybook = append(allPlaybook, kPlaybook)
+		if runType, ok := SceneTypeToRunType[playbook.SceneType]; ok {
+			kPlaybook.RunType = runType
+		}
+		allPlaybook[playbook.Name] = kPlaybook
 
 	}
-	kByte, _ := json.MarshalIndent(allPlaybook, "", "    ")
+	kByte, _ := yaml.Marshal(allPlaybook)
 	WriteDataInCommonFile(playbookFilePath, string(kByte))
 	WriteTarFile(tw, playbookFilePath)
 
@@ -1578,35 +1588,49 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 		return
 	}
 
-	// 2. 读取 task_from_export.json
-	taskFilePath := findFileInDir(tmpDir, "task_from_export.json")
+	// 2. 读取 task_info.yaml
+	taskFilePath := findFileInDir(tmpDir, "task_info.yaml")
 	if len(taskFilePath) > 0 {
 		taskData, readErr := ioutil.ReadFile(taskFilePath)
 		if readErr == nil {
-			json.Unmarshal(taskData, &result.Tasks)
+			var taskMap map[string]KTask
+			if yaml.Unmarshal(taskData, &taskMap) == nil {
+				for name, t := range taskMap {
+					t.Name = name
+					result.Tasks = append(result.Tasks, t)
+				}
+			}
 		}
 	}
 
-	// 3. 读取 playbook_from_task.json
-	playbookFilePath := findFileInDir(tmpDir, "playbook_from_task.json")
+	// 3. 读取 playbook_info.yaml
+	playbookFilePath := findFileInDir(tmpDir, "playbook_info.yaml")
 	if len(playbookFilePath) > 0 {
 		playbookData, readErr := ioutil.ReadFile(playbookFilePath)
 		if readErr == nil {
-			json.Unmarshal(playbookData, &result.Playbooks)
+			var playbookMap map[string]KPlaybook
+			if yaml.Unmarshal(playbookData, &playbookMap) == nil {
+				for name, p := range playbookMap {
+					p.Name = name
+					result.Playbooks = append(result.Playbooks, p)
+				}
+			}
 		}
 	}
 
-	// 4. 扫描所有 .yml/.yaml 文件
+	// 4. 扫描所有 .yml/.yaml 文件（排除 task_info.yaml 和 playbook_info.yaml）
 	var ymlFiles []string
 	collectYmlFiles(tmpDir, &ymlFiles)
 	for _, ymlPath := range ymlFiles {
+		baseName := filepath.Base(ymlPath)
+		if baseName == "task_info.yaml" || baseName == "playbook_info.yaml" {
+			continue
+		}
 		content, readErr := ioutil.ReadFile(ymlPath)
 		if readErr != nil {
 			Logger.Warning("read yml file failed: %s, %s", ymlPath, readErr)
 			continue
 		}
-		relPath := ymlPath[len(tmpDir)+1:]
-		baseName := filepath.Base(relPath)
 		kData := KData{
 			Name:     baseName,
 			FileName: baseName,
@@ -1767,10 +1791,14 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		models.Orm.Table("playbook").Where("name = ?", kp.Name).Find(&dbScene)
 
 		if len(dbScene.Name) == 0 {
+			sceneType := 3 // 默认串行继续
+			if st, ok := RunTypeToSceneType[kp.RunType]; ok {
+				sceneType = st
+			}
 			scene := SceneWithNoUpdateTime{
 				Name:         kp.Name,
 				DataFileList: strings.Join(kp.DataList, ","),
-				SceneType:    3,
+				SceneType:    sceneType,
 				Product:      "",
 				UserName:     userName,
 				Remark:       "",
@@ -1799,10 +1827,23 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 				}
 			}
 
+			taskMode := kt.TaskMode
+			if len(taskMode) == 0 {
+				taskMode = "once"
+			}
+			taskType := kt.TaskType
+			if len(taskType) == 0 {
+				taskType = "scene"
+			}
+			// YAML 中的 "playbook" 映射为 DB 中的 "scene"
+			if dbType, ok := TaskTypeFromYaml[taskType]; ok {
+				taskType = dbType
+			}
+
 			schedule := Schedule4Copy{
 				TaskName:    kt.Name,
-				TaskMode:    "once",
-				TaskType:    "scene",
+				TaskMode:    taskMode,
+				TaskType:    taskType,
 				Threading:   "no",
 				SceneList:   strings.Join(sceneNameList, ","),
 				DataList:    "",
@@ -1810,6 +1851,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 				TaskStatus:  "not_started",
 				Crontab:     "",
 				UserName:    userName,
+				Remark:      kt.Remark,
 			}
 
 			createErr := models.Orm.Table("schedule").Create(&schedule).Error

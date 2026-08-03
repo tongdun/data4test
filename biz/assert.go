@@ -111,7 +111,6 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 	if splitIndexType == "list" {
 		if strings.Contains(keyRawName, "@") { // 通过属性值从数组中获取指定的值
 			keyTmpName, compareType, properties := GetSliceProperties(keyRawName)
-			Logger.Debug("keyTmpName: %v, compareType: %v, properties: %v", keyTmpName, compareType, properties)
 			tmpInterface = data.(map[string]interface{})[keyTmpName]
 			var listInterface []interface{}
 			if tmpInterface != nil {
@@ -161,7 +160,6 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 						}
 					}
 				} else {
-					Logger.Debug("subMap: %v", subMap)
 					for subIndex, property := range properties {
 						propertyName := strings.Split(property, "=")[0]
 						propertyValue := strings.Split(property, "=")[1]
