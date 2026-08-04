@@ -1163,5 +1163,10 @@
   "dashboard.task_report_name": "[%s]任务报告_%s",
   "task_report.generate_running": "生成任务已在后台运行,请稍后前往[结果-结果报告列表]查看",
   "common.copy_download_link": "一键导出成功\n请复制下述链接下载:\n%s",
-  "error.exec_fail": "测试失败：%s: %s"
+  "error.exec_fail": "测试失败：%s: %s",
+  "error.update_auth_params_invalid": "更新鉴权参数无效: product 或 key 为空",
+  "error.auth_marshal_failed": "鉴权 JSON 序列化失败: %s",
+  "error.auth_update_db_failed": "更新产品[%s]鉴权信息失败: %s",
+  "warn.auth_parse_failed": "解析产品鉴权 JSON 失败，原始值: %s, 错误: %s，将从空配置开始覆盖",
+  "info.auth_updated": "产品[%s]鉴权已更新: %s = %s"
 }

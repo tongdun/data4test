@@ -111,3 +111,51 @@ func (dbProduct DbProduct) GetPrivateParameter() (privateParameter map[string]in
 
 	return
 }
+
+// UpdateProductAuth 更新产品鉴权配置，将 key-value 追加/更新到 product 表的 auth JSON 字段
+// productName: 产品名称
+// key: auth JSON 中的键名
+// value: 已完成模板格式化的最终值
+func UpdateProductAuth(productName, key, value string) (err error) {
+	if len(productName) == 0 || len(key) == 0 {
+		err = fmt.Errorf(T("error.update_auth_params_invalid"))
+		Logger.Error("%s: product=%s, key=%s", err, productName, key)
+		return
+	}
+
+	var dbProduct DbProduct
+	models.Orm.Table("product").Where("product = ?", productName).Find(&dbProduct)
+	if len(dbProduct.Name) == 0 {
+		err = fmt.Errorf(T("error.product_not_found"), productName)
+		Logger.Error("%s", err)
+		return
+	}
+
+	auth := make(map[string]string)
+	if len(dbProduct.Auth) > 2 {
+		if errUnmarshal := json.Unmarshal([]byte(dbProduct.Auth), &auth); errUnmarshal != nil {
+			Logger.Warning(T("warn.auth_parse_failed"), dbProduct.Auth, errUnmarshal)
+			auth = make(map[string]string)
+		}
+	}
+
+	auth[key] = value
+
+	newAuth, errMarshal := json.MarshalIndent(auth, "", "  ")
+	if errMarshal != nil {
+		err = fmt.Errorf(T("error.auth_marshal_failed"), errMarshal)
+		Logger.Error("%s", err)
+		return
+	}
+
+	err = models.Orm.Table("product").
+		Where("product = ?", productName).
+		Update("auth", string(newAuth)).Error
+	if err != nil {
+		Logger.Error(T("error.auth_update_db_failed"), productName, err)
+		return
+	}
+
+	//Logger.Info(T("info.auth_updated"), productName, key, value)
+	return
+}

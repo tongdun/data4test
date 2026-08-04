@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 )
@@ -37,6 +38,34 @@ func EmptyFileContent(filePath string) {
 		log.Fatal(err)
 	}
 	defer file.Close()
+}
+
+// sortedTaskYaml 将 task map 按键名排序后序列化为 YAML，保证输出顺序稳定
+func sortedTaskYaml(taskMap map[string]KTask) ([]byte, error) {
+	keys := make([]string, 0, len(taskMap))
+	for k := range taskMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	slice := make(yaml.MapSlice, 0, len(keys))
+	for _, k := range keys {
+		slice = append(slice, yaml.MapItem{Key: k, Value: taskMap[k]})
+	}
+	return yaml.Marshal(slice)
+}
+
+// sortedPlaybookYaml 将 playbook map 按键名排序后序列化为 YAML，保证输出顺序稳定
+func sortedPlaybookYaml(pbMap map[string]KPlaybook) ([]byte, error) {
+	keys := make([]string, 0, len(pbMap))
+	for k := range pbMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	slice := make(yaml.MapSlice, 0, len(keys))
+	for _, k := range keys {
+		slice = append(slice, yaml.MapItem{Key: k, Value: pbMap[k]})
+	}
+	return yaml.Marshal(slice)
 }
 
 func WritePlaybookKnowledge() {
@@ -66,7 +95,7 @@ func WritePlaybookKnowledge() {
 		}
 		allPlaybook[playbook.Name] = kPlaybook
 	}
-	kByte, _ := yaml.Marshal(allPlaybook)
+	kByte, _ := sortedPlaybookYaml(allPlaybook)
 	WriteDataInCommonFile(filePath, string(kByte))
 	return
 }
@@ -124,7 +153,7 @@ func WriteTaskKnowledge() {
 		kTask.Remark = task.Remark
 		allTask[task.TaskName] = kTask
 	}
-	kByte, _ := yaml.Marshal(allTask)
+	kByte, _ := sortedTaskYaml(allTask)
 	WriteDataInCommonFile(filePath, string(kByte))
 
 	return
@@ -481,7 +510,7 @@ func ExportKnowledgePackage(userName string) (fileName string, err error) {
 		}
 		playbookFileName := "playbook_info.yaml"
 		playbookFilePath := fmt.Sprintf("%s/%s", tmpDir, playbookFileName)
-		kByte, _ := yaml.Marshal(allPlaybook)
+		kByte, _ := sortedPlaybookYaml(allPlaybook)
 		_ = ioutil.WriteFile(playbookFilePath, kByte, 0644)
 		_ = WriteTarFile(tw, playbookFilePath)
 	}
@@ -509,7 +538,7 @@ func ExportKnowledgePackage(userName string) (fileName string, err error) {
 		}
 		taskFileName := "task_info.yaml"
 		taskFilePath := fmt.Sprintf("%s/%s", tmpDir, taskFileName)
-		kTaskByte, _ := yaml.Marshal(allTask)
+		kTaskByte, _ := sortedTaskYaml(allTask)
 		_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 		_ = WriteTarFile(tw, taskFilePath)
 	}

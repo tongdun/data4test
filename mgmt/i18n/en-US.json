@@ -1159,5 +1159,10 @@
   "dashboard.task_report_name": "[%s] Task Report %s",
   "task_report.generate_running": "Task report is being generated in background, please check the result report list later",
   "common.copy_download_link": "Export successful\nCopy the link below to download:\n%s",
-  "error.exec_fail": "Test failed: %s: %s"
+  "error.exec_fail": "Test failed: %s: %s",
+  "error.update_auth_params_invalid": "Invalid auth update params: product or key is empty",
+  "error.auth_marshal_failed": "Auth JSON marshal failed: %s",
+  "error.auth_update_db_failed": "Update product[%s] auth info failed: %s",
+  "warn.auth_parse_failed": "Parse product auth JSON failed, raw: %s, err: %s, will overwrite with empty config",
+  "info.auth_updated": "Product[%s] auth updated: %s = %s"
 }

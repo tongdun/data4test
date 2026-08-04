@@ -1419,7 +1419,7 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 
 	taskFileName := "task_info.yaml"
 	taskFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, taskFileName)
-	kTaskByte, _ := yaml.Marshal(allTask)
+	kTaskByte, _ := sortedTaskYaml(allTask)
 	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 	_ = WriteTarFile(tw, taskFilePath)
 
@@ -1452,7 +1452,7 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 		allPlaybook[playbook.Name] = kPlaybook
 
 	}
-	kByte, _ := yaml.Marshal(allPlaybook)
+	kByte, _ := sortedPlaybookYaml(allPlaybook)
 	WriteDataInCommonFile(playbookFilePath, string(kByte))
 	WriteTarFile(tw, playbookFilePath)
 
@@ -1554,6 +1554,7 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 	result.ImportId = importId
 	result.UserName = userName
 	result.Conflicts = make(map[string]string)
+	result.ConflictCreators = make(map[string]string)
 
 	// 1. 读取文件并检测格式
 	tmpDir := fmt.Sprintf("%s/import_tmp_%s", DownloadBasePath, importId)
@@ -1652,6 +1653,7 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 			models.Orm.Table("schedule").Where("task_name in (?)", taskNames).Find(&existingTasks)
 			for _, et := range existingTasks {
 				result.Conflicts[et.TaskName] = "task"
+				result.ConflictCreators[et.TaskName] = et.UserName
 			}
 		}
 	}
@@ -1668,6 +1670,7 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 			models.Orm.Table("playbook").Where("name in (?)", sceneNames).Find(&existingScenes)
 			for _, es := range existingScenes {
 				result.Conflicts[es.Name] = "scene"
+				result.ConflictCreators[es.Name] = es.UserName
 			}
 		}
 	}
@@ -1684,6 +1687,7 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 			models.Orm.Table("scene_data").Where("file_name in (?)", dataNames).Find(&existingData)
 			for _, ed := range existingData {
 				result.Conflicts[ed.FileName] = "data"
+				result.ConflictCreators[ed.FileName] = ed.UserName
 			}
 		}
 	}
@@ -1730,30 +1734,43 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 	var newTasks []KTask
 	var newPlaybooks []KPlaybook
 	var newDataFiles []KData
+	var overwriteTasks []KTask
+	var overwritePlaybooks []KPlaybook
+	var overwriteDataFiles []KData
+
+	isOverwrite := mode == "overwrite"
 
 	for _, t := range result.Tasks {
 		if _, isConflict := result.Conflicts[t.Name]; !isConflict {
 			newTasks = append(newTasks, t)
+		} else if isOverwrite {
+			overwriteTasks = append(overwriteTasks, t)
 		}
 	}
 	for _, p := range result.Playbooks {
 		if _, isConflict := result.Conflicts[p.Name]; !isConflict {
 			newPlaybooks = append(newPlaybooks, p)
+		} else if isOverwrite {
+			overwritePlaybooks = append(overwritePlaybooks, p)
 		}
 	}
 	for _, d := range result.DataFiles {
 		if _, isConflict := result.Conflicts[d.FileName]; !isConflict {
 			newDataFiles = append(newDataFiles, d)
+		} else if isOverwrite {
+			overwriteDataFiles = append(overwriteDataFiles, d)
 		}
 	}
 
-	if len(newTasks) == 0 && len(newPlaybooks) == 0 && len(newDataFiles) == 0 {
+	if len(newTasks) == 0 && len(newPlaybooks) == 0 && len(newDataFiles) == 0 &&
+		len(overwriteTasks) == 0 && len(overwritePlaybooks) == 0 && len(overwriteDataFiles) == 0 {
 		os.Remove(resultFilePath)
 		Logger.Info("Import skipped (all conflicts): id=%s", importId)
 		return
 	}
 
 	importedCount := 0
+	overwriteCount := 0
 	skippedCount := len(result.Conflicts)
 
 	for _, kd := range newDataFiles {
@@ -1786,6 +1803,24 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		importedCount++
 	}
 
+	// 覆盖模式：更新已存在的数据文件（需创建人一致）
+	for _, kd := range overwriteDataFiles {
+		var dbSceneData DbSceneData
+		models.Orm.Table("scene_data").Where("file_name = ?", kd.FileName).Find(&dbSceneData)
+		if len(dbSceneData.Id) == 0 {
+			continue
+		}
+
+		// 备份旧版本
+		if bakErr := BakOldVer(dbSceneData.Id, kd.Content, kd.FileName); bakErr != nil {
+			Logger.Error("backup data failed: %s, %s", kd.FileName, bakErr)
+		}
+
+		// 更新数据库 content
+		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update("content", kd.Content)
+		overwriteCount++
+	}
+
 	for _, kp := range newPlaybooks {
 		var dbScene DbScene
 		models.Orm.Table("playbook").Where("name = ?", kp.Name).Find(&dbScene)
@@ -1813,6 +1848,28 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			}
 			importedCount++
 		}
+	}
+
+	// 覆盖模式：更新已存在的场景
+	for _, kp := range overwritePlaybooks {
+		var dbScene DbScene
+		models.Orm.Table("playbook").Where("name = ?", kp.Name).Find(&dbScene)
+		if len(dbScene.Name) == 0 {
+			continue
+		}
+
+		sceneType := 3
+		if st, ok := RunTypeToSceneType[kp.RunType]; ok {
+			sceneType = st
+		}
+
+		updateMap := map[string]interface{}{
+			"data_file_list": strings.Join(kp.DataList, ","),
+			"scene_type":     sceneType,
+			"data_number":    strconv.Itoa(len(kp.DataList)),
+		}
+		models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Updates(updateMap)
+		overwriteCount++
 	}
 
 	for _, kt := range newTasks {
@@ -1863,8 +1920,38 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		}
 	}
 
+	// 覆盖模式：更新已存在的任务
+	for _, kt := range overwriteTasks {
+		var dbSchedule DbSchedule
+		models.Orm.Table("schedule").Where("task_name = ?", kt.Name).Find(&dbSchedule)
+		if len(dbSchedule.TaskName) == 0 {
+			continue
+		}
+
+		taskMode := kt.TaskMode
+		if len(taskMode) == 0 {
+			taskMode = "once"
+		}
+		taskType := kt.TaskType
+		if len(taskType) == 0 {
+			taskType = "scene"
+		}
+		if dbType, ok := TaskTypeFromYaml[taskType]; ok {
+			taskType = dbType
+		}
+
+		updateMap := map[string]interface{}{
+			"task_mode":  taskMode,
+			"task_type":  taskType,
+			"scene_list": strings.Join(kt.PlaybookList, ","),
+			"remark":     kt.Remark,
+		}
+		models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Updates(updateMap)
+		overwriteCount++
+	}
+
 	os.Remove(resultFilePath)
-	Logger.Info("Import done: id=%s, imported=%d, skipped=%d", importId, importedCount, skippedCount)
+	Logger.Info("Import done: id=%s, imported=%d, overwritten=%d, skipped=%d", importId, importedCount, overwriteCount, skippedCount)
 	return
 }
 
@@ -1944,6 +2031,30 @@ func BuildImportCheckResult(result ImportResult) map[string]interface{} {
 		importable["数据"] = nonConflictData
 	}
 	resp["importable"] = importable
+
+	// 为每个冲突项附带创建人信息，前端据此判断是否允许覆盖
+	conflictWithCreator := make(map[string]map[string]string)
+	for name, typ := range result.Conflicts {
+		info := map[string]string{"type": typ}
+		if creator, ok := result.ConflictCreators[name]; ok {
+			info["creator"] = creator
+		}
+		conflictWithCreator[name] = info
+	}
+	resp["conflict_details"] = conflictWithCreator
+
+	// 创建人不一致的冲突项列表，前端据此提醒用户谨慎覆盖
+	var creatorMismatch []map[string]string
+	for name, creator := range result.ConflictCreators {
+		if creator != result.UserName {
+			creatorMismatch = append(creatorMismatch, map[string]string{
+				"name":    name,
+				"type":    result.Conflicts[name],
+				"creator": creator,
+			})
+		}
+	}
+	resp["creator_mismatch"] = creatorMismatch
 
 	return resp
 }

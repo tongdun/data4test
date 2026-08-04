@@ -91,7 +91,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 	var tmpInterface interface{}
 
 	targetValueFlowStr := Interface2Str(sceneAssert.Value)
-	if sceneAssert.Type == "output" {
+	if sceneAssert.Type == "output" || sceneAssert.Type == "output2auth" {
 		keyName = targetValueFlowStr
 	} else {
 		keyName = fmt.Sprintf("flowVar_%s", targetValueFlowStr)
@@ -1360,4 +1360,33 @@ func (assert SceneAssert) GetTargetValueFromNoStructFile(fileType, filePath stri
 	}
 
 	return
+}
+
+// ParseOutput2AuthValue 解析 output2auth 断言的 value 字段
+// 支持两种格式:
+//
+//	"keyName"                  → authKey=keyName, 直接使用提取值
+//	"keyName:template"         → authKey=keyName, 提取值按模板格式化
+//
+// 模板中 @{keyName} 为提取值的占位符，例如:
+//
+//	value: "Cookie:_qjt_ac_=@Cookie"  → 提取 XXX 后得到 "_qjt_ac_=XXX"
+func ParseOutput2AuthValue(rawValue string) (authKey, valueTemplate string) {
+	parts := strings.SplitN(rawValue, ":", 2)
+	authKey = parts[0]
+	if len(parts) == 2 && len(parts[1]) > 0 {
+		valueTemplate = parts[1]
+	}
+	return
+}
+
+// FormatOutput2AuthValue 根据模板格式化提取的值
+// 若 template 为空，直接返回原值
+// 否则将 template 中的 @{authKey} 替换为 extractedValue
+func FormatOutput2AuthValue(template, authKey, extractedValue string) string {
+	if template == "" {
+		return extractedValue
+	}
+	placeholder := "@" + authKey
+	return strings.Replace(template, placeholder, extractedValue, -1)
 }

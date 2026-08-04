@@ -63,10 +63,11 @@ type RunSchecdule struct {
 }
 
 type ImportResult struct {
-	ImportId  string            `json:"import_id"`
-	UserName  string            `json:"user_name"`
-	Tasks     []KTask           `json:"tasks"`
-	Playbooks []KPlaybook       `json:"playbooks"`
-	DataFiles []KData           `json:"data_files"`
-	Conflicts map[string]string `json:"conflicts"` // key: name, value: type(task/scene/data)
+	ImportId         string            `json:"import_id"`
+	UserName         string            `json:"user_name"`
+	Tasks            []KTask           `json:"tasks"`
+	Playbooks        []KPlaybook       `json:"playbooks"`
+	DataFiles        []KData           `json:"data_files"`
+	Conflicts        map[string]string `json:"conflicts"`         // key: name, value: type(task/scene/data)
+	ConflictCreators map[string]string `json:"conflict_creators"` // key: name, value: creator user_name
 }
