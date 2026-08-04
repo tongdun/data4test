@@ -361,148 +361,13 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	return respHeader, resBody, err
 }
 
-func RunHttpUrlencodedWithRespHeader(method, url string, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (res []byte, err error) {
+func RunHttpJson(method, url string, timeout int64, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (respHeader map[string]string, res []byte, err error) {
 	var req *http.Request
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	client := &http.Client{Transport: tr}
-	methodUpper := strings.ToUpper(method)
-
-	if methodUpper == "GET" && len(data) > 0 {
-		uri, err1 := netUrl.Parse(url)
-		if err1 != nil {
-			err = err1
-			Logger.Error("%s", err)
-			return
-		}
-
-		tmpData := make(netUrl.Values)
-		for k, v := range data {
-			strK := Interface2Str(v)
-			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
-				continue
-			}
-			tmpData[k] = []string{strK}
-			uri.RawQuery = tmpData.Encode()
-		}
-
-		req, err = http.NewRequest(methodUpper, uri.String(), nil)
-	} else {
-		dataPayload := netUrl.Values{}
-		for k, v := range data {
-			strValue := Interface2Str(v)
-
-			dataPayload.Add(k, strValue)
-		}
-
-		payload := strings.NewReader(dataPayload.Encode())
-		req, err = http.NewRequest(methodUpper, url, payload)
-	}
-
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	for k, v := range acceptHeader {
-		vStr := Interface2Str(v)
-		req.Header.Add(k, vStr)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	defer resp.Body.Close()
-
-	resBody, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		Logger.Error("%s", err)
-	}
-
-	downloadRawInfo := resp.Header.Get("Content-Disposition")
-	downloadInfo, _ := netUrl.QueryUnescape(downloadRawInfo)
-
-	respHeader := make(map[string]interface{})
-	for k, v := range resp.Header {
-		respHeader[k] = v
-	}
-	Logger.Debug("respHeader: %v", respHeader)
-	// 返回500的是否需要拦截
-	//if resp.StatusCode != 200 || resp.StatusCode != 500 {
-	if resp.StatusCode != 200 {
-		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
-	}
-
-	var downloadFileName, downloadFilePath string
-	if len(downloadInfo) > 0 {
-		tmps := strings.Split(downloadInfo, "=")
-		if len(tmps) > 1 {
-			downloadFileName = tmps[1]
-			if strings.Contains(downloadFileName, "\"") {
-				downloadFileName = strings.Replace(downloadFileName, "\"", "", -1)
-			}
-			if strings.Contains(downloadFileName, "'") {
-				downloadFileName = strings.Replace(downloadFileName, "'", "", -1)
-			}
-
-			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-		}
-	} else {
-		for k, v := range responseHeader {
-			vStr := Interface2Str(v)
-			if k == "Content-Disposition" {
-				tmps := strings.Split(vStr, "=")
-				if len(tmps) > 1 {
-					downloadFileName = tmps[1]
-					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-				}
-				break
-			}
-		}
-	}
-
-	if len(downloadFilePath) > 0 {
-		fh, errTmp := os.Create(downloadFilePath)
-		if errTmp != nil {
-			Logger.Error("%v", errTmp)
-			if err != nil {
-				err = fmt.Errorf("%s;%s", err, errTmp)
-			} else {
-				err = errTmp
-			}
-			return []byte(downloadFileName), err
-		}
-		defer fh.Close()
-
-		_, errTmp = fh.Write(resBody)
-		if errTmp != nil {
-			Logger.Error("%v", errTmp)
-			if err != nil {
-				err = fmt.Errorf("%s;%s", err, errTmp)
-			} else {
-				err = errTmp
-			}
-			return resBody, err
-		}
-		return []byte(downloadFileName), err
-	}
-
-	return resBody, err
-}
-
-func RunHttpJson(method, url string, timeout int64, data map[string]interface{}, header map[string]interface{}) (res []byte, err error) {
-	var req *http.Request
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	if _, ok := header["Content-Type"]; !ok {
+	if _, ok := acceptHeader["Content-Type"]; !ok {
 		err = fmt.Errorf(T("error.header_not_defined"))
 		return
 	}
@@ -553,7 +418,7 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 		return
 	}
 
-	for k, v := range header {
+	for k, v := range acceptHeader {
 		vStr := Interface2Str(v)
 		req.Header.Add(k, vStr)
 	}
@@ -576,7 +441,70 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 		Logger.Error("%s", err)
 	}
-	return resBody, err
+
+	downloadRawInfo := resp.Header.Get("Content-Disposition")
+	downloadInfo, _ := netUrl.QueryUnescape(downloadRawInfo)
+
+	respHeader = make(map[string]string)
+	for k, v := range resp.Header {
+		respHeader[k] = v[0]
+	}
+
+	var downloadFileName, downloadFilePath string
+	if len(downloadInfo) > 0 {
+		tmps := strings.Split(downloadInfo, "=")
+		if len(tmps) > 1 {
+			downloadFileName = tmps[1]
+			if strings.Contains(downloadFileName, "\"") {
+				downloadFileName = strings.Replace(downloadFileName, "\"", "", -1)
+			}
+			if strings.Contains(downloadFileName, "'") {
+				downloadFileName = strings.Replace(downloadFileName, "'", "", -1)
+			}
+
+			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
+		}
+	} else {
+		for k, v := range responseHeader {
+			vStr := Interface2Str(v)
+			if k == "Content-Disposition" {
+				tmps := strings.Split(vStr, "=")
+				if len(tmps) > 1 {
+					downloadFileName = tmps[1]
+					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
+				}
+				break
+			}
+		}
+	}
+
+	if len(downloadFilePath) > 0 {
+		fh, errTmp := os.Create(downloadFilePath)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s;%s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+			return respHeader, []byte(downloadFileName), err
+		}
+		defer fh.Close()
+
+		_, errTmp = fh.Write(resBody)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			if err != nil {
+				err = fmt.Errorf("%s;%s", err, errTmp)
+			} else {
+				err = errTmp
+			}
+			return respHeader, resBody, err
+		}
+		return respHeader, []byte(downloadFileName), err
+	}
+
+	return respHeader, resBody, err
 }
 
 func RunHttpJsonList(method, url string, data []interface{}, header map[string]interface{}) (res []byte, err error) {
@@ -660,7 +588,7 @@ func RunHttp(method, url string, data map[string]interface{}, acceptHeader, resp
 	case "form-data", "multipart/form-data":
 		res, err = RunHttpFormData(method, url, data, acceptHeader)
 	case "application/json":
-		res, err = RunHttpJson(method, url, 180, data, acceptHeader)
+		respHeader, res, err = RunHttpJson(method, url, 180, data, acceptHeader, responseHeader)
 	default:
 		respHeader, res, err = RunHttpUrlencoded(method, url, data, acceptHeader, responseHeader)
 	}

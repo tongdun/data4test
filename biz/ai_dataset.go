@@ -18,7 +18,7 @@ func (aiConnect DataSetConnect) CreateDataset(name string) (string, error) {
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets", aiConnect.BaseUrl)
 
-	respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 
 	result := make(map[string]interface{})
 	err = json.Unmarshal([]byte(respBody), &result)
@@ -39,7 +39,7 @@ func (aiConnect DataSetConnect) DeleteDataset(dataSetId string) {
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets/%s", aiConnect.BaseUrl, dataSetId)
 
-	_, _ = RunHttpJson("DELETE", url, aiConnect.Timeout, nil, header)
+	_, _, _ = RunHttpJson("DELETE", url, aiConnect.Timeout, nil, header, nil)
 
 }
 
@@ -59,7 +59,7 @@ func (aiConnect DataSetConnect) CreateDocument(datasetID, name, text string) (st
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets/%s/document/create-by-text", aiConnect.BaseUrl, datasetID)
 
-	respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 
 	result := make(map[string]interface{})
 	err = json.Unmarshal([]byte(respBody), &result)
@@ -89,7 +89,7 @@ func (aiConnect DataSetConnect) UpdateDocument(datasetID, documentID, name, text
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets/%s/documents/%s/update-by-text", aiConnect.BaseUrl, datasetID, documentID)
 
-	respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 
 	result := make(map[string]interface{})
 	err = json.Unmarshal([]byte(respBody), &result)
@@ -110,7 +110,7 @@ func (aiConnect DataSetConnect) GetDatasetByName(name string) (dataSet Dataset, 
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets", aiConnect.BaseUrl)
 
-	respBody, err := RunHttpJson("GET", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("GET", url, aiConnect.Timeout, data, header, nil)
 
 	var result DatasetsResponse
 	err = json.Unmarshal([]byte(respBody), &result)
@@ -146,7 +146,7 @@ func (aiConnect DataSetConnect) GetDocumentByName(datasetID, fileName string) (d
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets/%s/documents", aiConnect.BaseUrl, datasetID)
 	var result DocumentsResponse
-	respBody, err := RunHttpJson("GET", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("GET", url, aiConnect.Timeout, data, header, nil)
 	if err != nil {
 		Logger.Error("err: %s", err)
 	}
@@ -172,7 +172,7 @@ func (aiConnect DataSetConnect) DeleteDocument(datasetID, documentID string) err
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/datasets/%s/documents/%s", aiConnect.BaseUrl, datasetID, documentID)
 
-	_, err := RunHttpJson("DELETE", url, aiConnect.Timeout, nil, header)
+	_, _, err := RunHttpJson("DELETE", url, aiConnect.Timeout, nil, header, nil)
 	if err != nil {
 		Logger.Error("err: %s", err)
 	}

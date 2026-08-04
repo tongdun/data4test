@@ -1164,5 +1164,8 @@
   "error.auth_marshal_failed": "Auth JSON marshal failed: %s",
   "error.auth_update_db_failed": "Update product[%s] auth info failed: %s",
   "warn.auth_parse_failed": "Parse product auth JSON failed, raw: %s, err: %s, will overwrite with empty config",
-  "info.auth_updated": "Product[%s] auth updated: %s = %s"
+  "info.auth_updated": "Product[%s] auth updated: %s = %s",
+  "error.content_empty": "Data file content cannot be empty",
+  "error.data_list_empty": "Associated data list cannot be empty",
+  "error.parse_content_failed": "Failed to parse data file content: %s"
 }

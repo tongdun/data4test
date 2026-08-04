@@ -76,7 +76,7 @@ func CallModel(aiConnect AIConnect, method, path string, data map[string]interfa
 	header["Authorization"] = fmt.Sprintf("Bearer %s", aiConnect.ApiKey)
 	header["Authorization"] = fmt.Sprintf("Bearer %s", aiConnect.ApiKey)
 
-	resByte, err := RunHttpJson(method, url, aiConnect.Timeout, data, header)
+	_, resByte, err := RunHttpJson(method, url, aiConnect.Timeout, data, header, nil)
 
 	resBody = string(resByte)
 	return

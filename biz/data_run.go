@@ -1943,6 +1943,27 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 			return
 		}
 		dbData.Content = string(content)
+	} else if source == "cli" {
+		content, errTmp := ioutil.ReadFile(fileName)
+		if errTmp != nil {
+			Logger.Error("err: %v", errTmp)
+			err = errTmp
+			return
+		}
+		dbData.FileName = baseName
+		dbData.Content = string(content)
+		dbData.FileType = 1
+		dbData.RunTime = 1
+		var df DataFile
+		suffix := GetStrSuffix(fileName)
+		if suffix == ".json" {
+			_ = json.Unmarshal(content, &df)
+		} else {
+			_ = yaml.Unmarshal(content, &df)
+		}
+		dbData.App = df.Api.App
+		dbData.Name = df.Name
+		dbData.ApiId = df.ApiId
 	} else {
 		models.Orm.Table("scene_data").Where("file_name = ?", baseName).Find(&dbData)
 	}
@@ -1998,6 +2019,63 @@ func GetBodyFromRawContent(lang, fileName, content string, depOutVars map[string
 	}
 
 	bodys, _ = df.GetBody()
+
+	return
+}
+
+func RunDataByFile(fileName string, content []byte, product, userName string) (runResp RunRespModel, err error) {
+	var df DataFile
+	contentStr := string(content)
+	if strings.HasPrefix(strings.TrimSpace(contentStr), "{") {
+		err = json.Unmarshal(content, &df)
+	} else {
+		err = yaml.Unmarshal(content, &df)
+	}
+	if err != nil {
+		Logger.Error("parse content error: %v", err)
+		err = fmt.Errorf(T("error.parse_content_failed"), err)
+		return
+	}
+
+	if len(df.Name) == 0 {
+		df.Name = fmt.Sprintf("cli_%s", GetRandomStr(8, ""))
+	}
+
+	Logger.Debug("CLI dataRun: name=%s, product=%s, app=%s, method=%s, path=%s", df.Name, product, df.Api.App, df.Api.Method, df.Api.Path)
+
+	tempFilePath := fmt.Sprintf("%s/%s", os.TempDir(), fileName)
+
+	err = ioutil.WriteFile(tempFilePath, content, 0644)
+	if err != nil {
+		Logger.Error("write temp file error: %v", err)
+		return
+	}
+	Logger.Debug("CLI dataRun: tempFile=%s", tempFilePath)
+
+	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err := df.RunStandard(product, tempFilePath, "common", "cli", contentStr, nil)
+
+	runResp.Url = urlStr
+	runResp.Header = headerStr
+	runResp.Request = requestStr
+	runResp.Response = responseStr
+	runResp.Output = outputStr
+	runResp.TestResult = result
+
+	Logger.Debug("CLI dataRun: result=%s, dst=%s", result, dst)
+
+	if err != nil || result != "pass" {
+		runResp.TestResult = "fail"
+		if err != nil {
+			runResp.FailReason = fmt.Sprintf("%v", err)
+		}
+	}
+
+	envType := GetEnvTypeByName(product)
+	err = WriteDataResultByFile(userName, tempFilePath, result, dst, product, "cli", envType, err, "")
+	if err != nil {
+		Logger.Error("write history error: %v", err)
+	}
+	Logger.Debug("CLI dataRun: history saved, envType=%d", envType)
 
 	return
 }

@@ -50,7 +50,7 @@ func CallDifyChat(aiConnect AIConnect, query string, userId, cId, fileId, fileTy
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/chat-messages", aiConnect.BaseUrl)
 
-	respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header)
+	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 	if err != nil {
 		Logger.Error("err: %s", err)
 		// 如果请求遇错，直接退出，不再进行后续会话

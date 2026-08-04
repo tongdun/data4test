@@ -1911,90 +1911,89 @@ func startServer() {
 			"data": map[string]string{},
 		})
 	})
-	
 
-		// 导入任务数据包-阶段1：上传并检查冲突
-		r.POST("/schedule_import_check", func(c *gin.Context) {
-			user, _ := engine.User(c)
-			uploadFile, errTmp := c.FormFile("upload_file")
-			if errTmp != nil {
-				c.JSON(http.StatusBadRequest, map[string]interface{}{
-					"code": 400,
-					"msg":  biz.T("schedule.import_no_file"),
-				})
-				return
-			}
-			uploadFilePath := fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
-			c.SaveUploadedFile(uploadFile, uploadFilePath)
+	// 导入任务数据包-阶段1：上传并检查冲突
+	r.POST("/schedule_import_check", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		uploadFile, errTmp := c.FormFile("upload_file")
+		if errTmp != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("schedule.import_no_file"),
+			})
+			return
+		}
+		uploadFilePath := fmt.Sprintf("%s/%s", biz.UploadBasePath, uploadFile.Filename)
+		c.SaveUploadedFile(uploadFile, uploadFilePath)
 
-			result, err := biz.ImportScheduleCheck(uploadFilePath, user.Name)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, map[string]interface{}{
-					"code": 400,
-					"msg":  fmt.Sprintf(biz.T("schedule.import_parse_error"), err),
-				})
-				return
-			}
+		result, err := biz.ImportScheduleCheck(uploadFilePath, user.Name)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  fmt.Sprintf(biz.T("schedule.import_parse_error"), err),
+			})
+			return
+		}
 
-			respData := biz.BuildImportCheckResult(result)
-			respData["import_id"] = result.ImportId
+		respData := biz.BuildImportCheckResult(result)
+		respData["import_id"] = result.ImportId
 
-			if len(result.Conflicts) > 0 {
-				c.JSON(http.StatusBadRequest, map[string]interface{}{
-					"code": 400,
-					"msg":  biz.T("schedule.import_conflict_title"),
-					"data": respData,
-				})
-			} else {
-				c.JSON(http.StatusOK, map[string]interface{}{
-					"code": 200,
-					"msg":  biz.T("schedule.import_check_ok"),
-					"data": respData,
-				})
-			}
-		})
+		if len(result.Conflicts) > 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("schedule.import_conflict_title"),
+				"data": respData,
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("schedule.import_check_ok"),
+				"data": respData,
+			})
+		}
+	})
 
-		// 导入任务数据包-阶段2：确认导入（异步）
-		r.POST("/schedule_import_confirm", func(c *gin.Context) {
-			importId := c.PostForm("import_id")
-			mode := c.PostForm("import_mode")
-			user, _ := engine.User(c)
+	// 导入任务数据包-阶段2：确认导入（异步）
+	r.POST("/schedule_import_confirm", func(c *gin.Context) {
+		importId := c.PostForm("import_id")
+		mode := c.PostForm("import_mode")
+		user, _ := engine.User(c)
 
-			if len(importId) == 0 {
-				c.JSON(http.StatusBadRequest, map[string]interface{}{
-					"code": 400,
-					"msg":  biz.T("schedule.import_id_required"),
-					"data": map[string]string{},
-				})
-				return
-			}
+		if len(importId) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("schedule.import_id_required"),
+				"data": map[string]string{},
+			})
+			return
+		}
 
-			go func() {
-				defer func() {
-					if e := recover(); e != nil {
-						biz.Logger.Error("import confirm panic: %v", e)
-					}
-				}()
-				err := biz.ImportScheduleConfirm(importId, mode, user.Name)
-				if err != nil {
-					biz.Logger.Error("import confirm failed: %s", err)
+		go func() {
+			defer func() {
+				if e := recover(); e != nil {
+					biz.Logger.Error("import confirm panic: %v", e)
 				}
 			}()
-
-			if mode == "cancel" {
-				c.JSON(http.StatusOK, map[string]interface{}{
-					"code": 200,
-					"msg":  biz.T("schedule.import_cancelled"),
-					"data": map[string]string{},
-				})
-			} else {
-				c.JSON(http.StatusOK, map[string]interface{}{
-					"code": 200,
-					"msg":  biz.T("schedule.import_processing"),
-					"data": map[string]string{},
-				})
+			err := biz.ImportScheduleConfirm(importId, mode, user.Name)
+			if err != nil {
+				biz.Logger.Error("import confirm failed: %s", err)
 			}
-		})
+		}()
+
+		if mode == "cancel" {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("schedule.import_cancelled"),
+				"data": map[string]string{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("schedule.import_processing"),
+				"data": map[string]string{},
+			})
+		}
+	})
 	// 手动刷新菜单翻译（新增菜单后调用，无需重启应用）
 	r.GET("/admin/refresh-menu-i18n", func(c *gin.Context) {
 		biz.RefreshMenuI18n()
@@ -2002,6 +2001,86 @@ func startServer() {
 			"code": 200,
 			"msg":  biz.T("common.operate_success"),
 		})
+	})
+
+	// CLI 接口 - 数据执行
+	r.POST("/cli/dataRun", func(c *gin.Context) {
+		product := c.PostForm("product")
+		if len(product) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("main.env_not_configured")})
+			return
+		}
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.content_empty")})
+			return
+		}
+		f, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			return
+		}
+		defer f.Close()
+		content, err := ioutil.ReadAll(f)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			return
+		}
+		runResp, err := biz.RunDataByFile(file.Filename, content, product, "cli")
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": runResp})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": runResp})
+	})
+
+	// CLI 接口 - 场景执行
+	r.POST("/cli/playbookRun", func(c *gin.Context) {
+		name := c.PostForm("name")
+		product := c.PostForm("product")
+		sceneTypeStr := c.PostForm("sceneType")
+		runNumStr := c.PostForm("runNum")
+
+		sceneType := 1
+		if len(sceneTypeStr) > 0 {
+			sceneType, _ = strconv.Atoi(sceneTypeStr)
+		}
+		runNum := 1
+		if len(runNumStr) > 0 {
+			runNum, _ = strconv.Atoi(runNumStr)
+		}
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			return
+		}
+		files := form.File["files"]
+		if len(files) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.data_list_empty")})
+			return
+		}
+
+		fileList := make([]biz.FileEntry, 0, len(files))
+		for _, fh := range files {
+			f, err := fh.Open()
+			if err != nil {
+				continue
+			}
+			content, err := ioutil.ReadAll(f)
+			f.Close()
+			if err != nil {
+				continue
+			}
+			fileList = append(fileList, biz.FileEntry{Name: fh.Filename, Content: content})
+		}
+
+		runResp, err := biz.RunPlaybookByFiles(fileList, name, product, sceneType, runNum, "cli")
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": runResp})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": runResp})
 	})
 
 	models.Init(eng.MysqlConnection())

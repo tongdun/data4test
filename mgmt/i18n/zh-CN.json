@@ -1168,5 +1168,8 @@
   "error.auth_marshal_failed": "鉴权 JSON 序列化失败: %s",
   "error.auth_update_db_failed": "更新产品[%s]鉴权信息失败: %s",
   "warn.auth_parse_failed": "解析产品鉴权 JSON 失败，原始值: %s, 错误: %s，将从空配置开始覆盖",
-  "info.auth_updated": "产品[%s]鉴权已更新: %s = %s"
+  "info.auth_updated": "产品[%s]鉴权已更新: %s = %s",
+  "error.content_empty": "数据文件内容不能为空",
+  "error.data_list_empty": "关联数据列表不能为空",
+  "error.parse_content_failed": "数据文件内容解析失败: %s"
 }

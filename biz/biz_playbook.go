@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -1584,5 +1585,77 @@ func AutoCreatePlaybook(dataIds, userName string) (err error) {
 	if err != nil {
 		Logger.Error("%s", err)
 	}
+	return
+}
+
+func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runNum int, userName string) (runResp RunSceneRespModel, err error) {
+	if len(name) == 0 {
+		err = fmt.Errorf(T("main.scene_name_empty"))
+		return
+	}
+	if len(product) == 0 {
+		err = fmt.Errorf(T("main.env_not_configured"))
+		return
+	}
+	if len(files) == 0 {
+		err = fmt.Errorf(T("error.data_list_empty"))
+		return
+	}
+	if sceneType == 0 {
+		sceneType = 1
+	}
+	if runNum == 0 {
+		runNum = 1
+	}
+
+	Logger.Debug("CLI sceneRun: name=%s, product=%s, sceneType=%d, runNum=%d, dataCount=%d", name, product, sceneType, runNum, len(files))
+
+	// 将每个数据文件内容写入临时文件
+	var tempApis []string
+	for _, file := range files {
+		if len(file.Name) == 0 || len(file.Content) == 0 {
+			continue
+		}
+		tempFilePath := fmt.Sprintf("%s/%s", os.TempDir(), file.Name)
+		err = ioutil.WriteFile(tempFilePath, file.Content, 0644)
+		if err != nil {
+			Logger.Error("write temp file error: %v", err)
+			return
+		}
+		Logger.Debug("CLI sceneRun: tempFile[%d]=%s", len(tempApis), tempFilePath)
+		tempApis = append(tempApis, tempFilePath)
+	}
+
+	if len(tempApis) == 0 {
+		err = fmt.Errorf(T("error.data_list_empty"))
+		return
+	}
+
+	// 获取产品信息
+	productList, errTmp := GetProductInfo(product)
+	if errTmp != nil {
+		Logger.Error("%v", errTmp)
+		err = errTmp
+		return
+	}
+	productInfo := productList[0]
+
+	// 构造 Playbook
+	var playbook Playbook
+	playbook.Name = name
+	playbook.Product = product
+	playbook.SceneType = sceneType
+	playbook.Apis = tempApis
+
+	runResp.TestResult = "pass"
+
+	runResp.TestResult, _, err = RepeatRunPlaybook(productInfo, playbook, runNum, "start", "cli", "", userName, "")
+	Logger.Debug("CLI sceneRun: result=%s, lastFile=%s", runResp.TestResult, runResp.LastFile)
+	if runResp.TestResult != "pass" {
+		if err != nil {
+			runResp.FailReason = fmt.Sprintf("%v", err)
+		}
+	}
+
 	return
 }

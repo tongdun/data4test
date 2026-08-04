@@ -11,6 +11,12 @@ type Playbook struct {
 	HistoryApis []string
 }
 
+// FileEntry 有序文件条目，保留上传顺序用于场景顺序执行
+type FileEntry struct {
+	Name    string
+	Content []byte
+}
+
 type Scene struct {
 	Name         string `gorm:"column:name" json:"name" yaml:"name"`
 	DataNumber   string `gorm:"column:data_number" json:"data_number" yaml:"data_number"`
