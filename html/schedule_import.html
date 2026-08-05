@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入任务</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f0f2f5; padding:40px; color:#333; }
+.container { max-width:720px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.08); padding:32px; }
+h2 { font-size:18px; margin-bottom:24px; color:#1a1a1a; }
+.upload-area { border:2px dashed #d9d9d9; border-radius:6px; padding:40px; text-align:center; margin-bottom:24px; transition:border-color .3s; cursor:pointer; }
+.upload-area:hover { border-color:#2d8cf0; }
+.upload-area.drag-over { border-color:#2d8cf0; background:#f0f7ff; }
+.upload-area input { display:none; }
+.upload-area .icon { font-size:36px; color:#999; margin-bottom:12px; }
+.upload-area .text { color:#666; font-size:14px; }
+.upload-area .hint { color:#999; font-size:12px; margin-top:8px; }
+.file-selected { background:#f6f8fa; border:1px solid #e1e4e8; border-radius:6px; padding:12px 16px; margin-bottom:20px; display:none; align-items:center; gap:12px; }
+.file-selected .name { flex:1; font-size:14px; color:#333; word-break:break-all; }
+.file-selected .remove { color:#999; cursor:pointer; font-size:18px; line-height:1; }
+.file-selected .remove:hover { color:#ff4d4f; }
+.btn { display:inline-block; padding:8px 24px; border:none; border-radius:4px; font-size:14px; cursor:pointer; transition:all .2s; margin-right:12px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-primary { background:#2d8cf0; color:#fff; }
+.btn-primary:hover:not(:disabled) { background:#479ef5; }
+.btn-success { background:#19be6b; color:#fff; }
+.btn-success:hover:not(:disabled) { background:#25d67a; }
+.btn-danger { background:#ed4014; color:#fff; }
+.btn-danger:hover:not(:disabled) { background:#ff5733; }
+.btn-default { background:#fff; color:#333; border:1px solid #d9d9d9; }
+.btn-default:hover:not(:disabled) { border-color:#2d8cf0; color:#2d8cf0; }
+.result { display:none; margin-top:20px; }
+.result-title { font-size:15px; font-weight:600; margin-bottom:12px; }
+.result-section { margin-bottom:16px; }
+.result-section .label { font-size:13px; color:#808695; margin-bottom:6px; }
+.conflict-item { padding:6px 12px; background:#fff2f0; border:1px solid #ffccc7; border-radius:4px; margin-bottom:4px; font-size:13px; color:#cf1322; }
+.conflict-item .type-tag { display:inline-block; background:#ffccc7; color:#a8071a; padding:1px 6px; border-radius:3px; font-size:11px; margin-right:6px; }
+.summary-bar { padding:10px 14px; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; margin-bottom:12px; font-size:14px; color:#ad6800; }
+.section-subtitle { font-size:13px; font-weight:600; color:#8c8c8c; margin-bottom:8px; margin-top:4px; }
+.importable-item { padding:6px 12px; background:#f6ffed; border:1px solid #b7eb8f; border-radius:4px; margin-bottom:4px; font-size:13px; color:#389e0d; }
+.importable-item .type-tag { display:inline-block; background:#b7eb8f; color:#237804; padding:1px 6px; border-radius:3px; font-size:11px; margin-right:6px; }
+.actions { margin-top:24px; padding-top:20px; border-top:1px solid #f0f0f0; }
+.mode-select { margin-bottom:16px; }
+.mode-select label { display:block; padding:10px 14px; border:1px solid #d9d9d9; border-radius:4px; margin-bottom:8px; cursor:pointer; font-size:14px; transition:all .2s; }
+.mode-select label:hover { border-color:#2d8cf0; }
+.mode-select input[type=radio] { margin-right:8px; }
+.mode-select label.active { border-color:#2d8cf0; background:#f0f7ff; }
+.loading { display:none; text-align:center; padding:20px; color:#999; }
+.spinner { display:inline-block; width:20px; height:20px; border:2px solid #d9d9d9; border-top-color:#2d8cf0; border-radius:50%; animation:spin .6s linear infinite; margin-right:8px; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.import-id { font-family:monospace; background:#f5f5f5; padding:2px 6px; border-radius:3px; font-size:13px; word-break:break-all; }
+.error-msg { padding:12px 16px; background:#fff2f0; border:1px solid #ffccc7; border-radius:4px; color:#cf1322; font-size:14px; margin-bottom:16px; display:none; }
+
+	.overwrite-warning { padding:12px 14px; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; color:#ad6800; font-size:13px; margin-top:12px; display:none; }
+	.overwrite-warning .warn-title { font-weight:600; margin-bottom:6px; }
+	.overwrite-warning .warn-item { padding:2px 0; font-size:12px; }
+	.overwrite-warning .type-tag { display:inline-block; background:#ffd591; color:#ad6800; padding:1px 6px; border-radius:3px; font-size:11px; margin-right:4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>导入任务数据包</h2>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div id="uploadSection">
+    <div class="upload-area" id="dropZone">
+      <input type="file" id="fileInput" accept=".zip,.tgz,.tar,.gz">
+      <div class="icon">📦</div>
+      <div class="text">点击选择文件或拖拽到此处</div>
+      <div class="hint">支持 .zip / .tgz / .tar / .gz 格式</div>
+    </div>
+    <div class="file-selected" id="fileSelected">
+      <span class="name" id="fileName"></span>
+      <span class="remove" id="removeFile">&times;</span>
+    </div>
+    <button class="btn btn-primary" id="checkBtn" disabled>上传并检查</button>
+  </div>
+
+  <div class="loading" id="loading">
+    <span class="spinner"></span> 正在解析并检查冲突...
+  </div>
+
+  <div class="result" id="resultSection">
+    <div class="result-title" id="resultTitle"></div>
+    <div id="conflictList"></div>
+    <div id="importableList"></div>
+    <div style="margin-top:8px; font-size:13px; color:#808695;">
+      导入ID: <span class="import-id" id="importIdDisplay"></span>
+    </div>
+
+    <div class="actions" id="confirmActions">
+      <div class="mode-select">
+        <label id="modeSkipLabel" class="active">
+          <input type="radio" name="importMode" value="skip" checked> 跳过冲突项，仅导入不冲突的内容
+        </label>
+        <label id="modeOverwriteLabel" style="display:none">
+          <input type="radio" name="importMode" value="overwrite"> 覆盖冲突项（同名项将使用导入内容替换）
+        </label>
+        <label id="modeCancelLabel">
+          <input type="radio" name="importMode" value="cancel"> 取消（不导入任何内容）
+        </label>
+      </div>
+      <div class="overwrite-warning" id="overwriteWarning">
+        <div class="warn-title">⚠ 以下冲突项由其他用户创建，覆盖后原数据将被替换：</div>
+        <div id="overwriteWarningList"></div>
+      </div>
+      <button class="btn btn-success" id="confirmBtn">确认导入</button>
+      <button class="btn btn-default" id="resetBtn">重新选择文件</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var importId = '';
+var hasConflicts = false;
+
+// Elements
+var dropZone = document.getElementById('dropZone');
+var fileInput = document.getElementById('fileInput');
+var fileSelected = document.getElementById('fileSelected');
+var fileName = document.getElementById('fileName');
+var removeFile = document.getElementById('removeFile');
+var checkBtn = document.getElementById('checkBtn');
+var loading = document.getElementById('loading');
+var uploadSection = document.getElementById('uploadSection');
+var resultSection = document.getElementById('resultSection');
+var errorMsg = document.getElementById('errorMsg');
+var conflictList = document.getElementById('conflictList');
+var importableList = document.getElementById('importableList');
+var confirmActions = document.getElementById('confirmActions');
+var importIdDisplay = document.getElementById('importIdDisplay');
+var resultTitle = document.getElementById('resultTitle');
+var confirmBtn = document.getElementById('confirmBtn');
+var resetBtn = document.getElementById('resetBtn');
+var modeOverwriteLabel = document.getElementById('modeOverwriteLabel');
+var overwriteWarning = document.getElementById('overwriteWarning');
+var overwriteWarningList = document.getElementById('overwriteWarningList');
+var creatorMismatchData = [];
+
+fileInput.addEventListener('change', function() {
+  if (fileInput.files.length > 0) {
+    fileName.textContent = fileInput.files[0].name;
+    fileSelected.style.display = 'flex';
+    checkBtn.disabled = false;
+    errorMsg.style.display = 'none';
+    resultSection.style.display = 'none';
+  }
+});
+
+removeFile.addEventListener('click', function() {
+  fileInput.value = '';
+  fileSelected.style.display = 'none';
+  checkBtn.disabled = true;
+  resultSection.style.display = 'none';
+});
+
+dropZone.addEventListener('click', function() { fileInput.click(); });
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length > 0) {
+    fileInput.files = e.dataTransfer.files;
+    fileName.textContent = e.dataTransfer.files[0].name;
+    fileSelected.style.display = 'flex';
+    checkBtn.disabled = false;
+    errorMsg.style.display = 'none';
+  }
+});
+
+checkBtn.addEventListener('click', function() {
+  if (!fileInput.files[0]) return;
+  errorMsg.style.display = 'none';
+  checkBtn.disabled = true;
+  loading.style.display = 'block';
+  resultSection.style.display = 'none';
+
+  var formData = new FormData();
+  formData.append('upload_file', fileInput.files[0]);
+
+  fetch('/schedule_import_check', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      loading.style.display = 'none';
+      checkBtn.disabled = false;
+      importId = data.data && data.data.import_id || '';
+      importIdDisplay.textContent = importId;
+
+      if (data.code === 200 && data.data && data.data.conflicts === 0) {
+        // No conflicts
+        hasConflicts = false;
+        resultTitle.innerHTML = '&#10004; ' + (data.data.summary || '检查通过，无名称冲突');
+        resultTitle.style.color = '#389e0d';
+        conflictList.innerHTML = '';
+        importableList.innerHTML = buildImportableHtml(data.data);
+        document.getElementById('modeSkipLabel').style.display = 'none';
+        modeOverwriteLabel.style.display = 'none';
+        document.getElementById('modeCancelLabel').style.display = '';
+        document.querySelector('input[name="importMode"][value="skip"]').checked = true;
+        confirmBtn.textContent = '确认导入';
+        overwriteWarning.style.display = 'none';
+        resultSection.style.display = 'block';
+      } else if (data.code === 200 && data.data && data.data.conflicts > 0) {
+        // Has conflicts but returned as 200 (should not happen with new logic)
+        hasConflicts = true;
+        showConflicts(data);
+      } else if (data.code === 400) {
+        // Conflicts detected (400 response)
+        hasConflicts = true;
+        showConflicts(data);
+      } else {
+        errorMsg.textContent = data.msg || '未知错误';
+        errorMsg.style.display = 'block';
+      }
+    })
+    .catch(function(err) {
+      loading.style.display = 'none';
+      checkBtn.disabled = false;
+      errorMsg.textContent = '网络错误: ' + err.message;
+      errorMsg.style.display = 'block';
+    });
+});
+
+function showConflicts(data) {
+  resultTitle.innerHTML = '&#9888; 检测到名称冲突';
+  resultTitle.style.color = '#cf1322';
+  conflictList.innerHTML = (data.data && data.data.conflicts_html) ? data.data.conflicts_html : '';
+  importableList.innerHTML = buildImportableHtml(data.data || {});
+  document.getElementById('modeSkipLabel').style.display = '';
+  modeOverwriteLabel.style.display = '';
+  document.getElementById('modeCancelLabel').style.display = '';
+  document.querySelector('input[name="importMode"][value="skip"]').checked = true;
+  confirmBtn.textContent = '跳过冲突项，导入其余';
+  overwriteWarning.style.display = 'none';
+
+  // 处理创建人不一致的冲突项
+  creatorMismatchData = (data.data && data.data.creator_mismatch) ? data.data.creator_mismatch : [];
+  if (creatorMismatchData.length > 0) {
+    var warnHtml = '';
+    for (var i = 0; i < creatorMismatchData.length; i++) {
+      var item = creatorMismatchData[i];
+      var typeLabel = item.type;
+      if (typeLabel === 'task') typeLabel = '任务';
+      else if (typeLabel === 'scene') typeLabel = '场景';
+      else if (typeLabel === 'data') typeLabel = '数据';
+      warnHtml += '<div class="warn-item"><span class="type-tag">' + typeLabel + '</span>' + item.name + ' （创建人: ' + item.creator + '）</div>';
+    }
+    overwriteWarningList.innerHTML = warnHtml;
+  }
+
+  resultSection.style.display = 'block';
+}
+
+function buildImportableHtml(d) {
+  var html = '';
+  if (d && d.importable) {
+    for (var key in d.importable) {
+      html += '<div class="result-section"><div class="label">' + key + '</div>';
+      var items = d.importable[key];
+      for (var i = 0; i < items.length; i++) {
+        html += '<div class="importable-item">' + items[i] + '</div>';
+      }
+      html += '</div>';
+    }
+  }
+  if (!html && d) {
+    var parts = [];
+    if (d.task_count > 0) parts.push(d.task_count + '个任务');
+    if (d.scene_count > 0) parts.push(d.scene_count + '个场景');
+    if (d.data_count > 0) parts.push(d.data_count + '个数据文件');
+    if (parts.length > 0) {
+      html = '<div class="importable-item">可导入: ' + parts.join(', ') + '</div>';
+    }
+  }
+  return html;
+}
+
+// Radio 切换时更新按钮文字和覆盖警告
+document.querySelectorAll('input[name="importMode"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    if (this.value === 'overwrite') {
+      confirmBtn.textContent = '覆盖冲突项并导入';
+      if (creatorMismatchData.length > 0) {
+        overwriteWarning.style.display = 'block';
+      }
+    } else if (this.value === 'skip') {
+      confirmBtn.textContent = '跳过冲突项，导入其余';
+      overwriteWarning.style.display = 'none';
+    } else {
+      confirmBtn.textContent = '取消导入';
+      overwriteWarning.style.display = 'none';
+    }
+  });
+});
+
+confirmBtn.addEventListener('click', function() {
+  if (!importId) return;
+  var mode = document.querySelector('input[name="importMode"]:checked').value;
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '提交中...';
+
+  var formData = new FormData();
+  formData.append('import_id', importId);
+  formData.append('import_mode', mode);
+
+  fetch('/schedule_import_confirm', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.code === 200) {
+        resultTitle.innerHTML = '&#10004; ' + data.msg;
+        resultTitle.style.color = '#389e0d';
+        confirmActions.style.display = 'none';
+        resetBtn.style.display = 'inline-block';
+        resetBtn.textContent = '完成';
+      } else {
+        errorMsg.textContent = data.msg || '导入失败';
+        errorMsg.style.display = 'block';
+        confirmBtn.disabled = false;
+        var curMode = document.querySelector('input[name="importMode"]:checked').value;
+        if (curMode === 'overwrite') {
+          confirmBtn.textContent = '覆盖冲突项并导入';
+        } else if (curMode === 'skip') {
+          confirmBtn.textContent = '跳过冲突项，导入其余';
+        } else {
+          confirmBtn.textContent = '取消导入';
+        }
+      }
+    })
+    .catch(function(err) {
+      errorMsg.textContent = '网络错误: ' + err.message;
+      errorMsg.style.display = 'block';
+      confirmBtn.disabled = false;
+    });
+});
+
+resetBtn.addEventListener('click', function() {
+  fileInput.value = '';
+  fileSelected.style.display = 'none';
+  checkBtn.disabled = true;
+  resultSection.style.display = 'none';
+  errorMsg.style.display = 'none';
+  loading.style.display = 'none';
+  importId = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = '确认导入';
+  confirmActions.style.display = '';
+  overwriteWarning.style.display = 'none';
+  modeOverwriteLabel.style.display = 'none';
+  creatorMismatchData = [];
+  resetBtn.style.display = 'inline-block';
+  resetBtn.textContent = '重新选择文件';
+});
+</script>
+</body>
+</html>
