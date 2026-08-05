@@ -75,7 +75,6 @@ func RecordDataHistory(userName, dst, product, source string, envType int, dbDat
 	sceneDataRecord.TaskId = taskId
 
 	err = models.Orm.Table("scene_data_test_history").Create(sceneDataRecord).Error
-	Logger.Debug("sceneDataRecord: %+v", sceneDataRecord)
 	if err != nil {
 		Logger.Error("%s", err)
 	}

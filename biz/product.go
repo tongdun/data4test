@@ -159,3 +159,47 @@ func UpdateProductAuth(productName, key, value string) (err error) {
 	//Logger.Info(T("info.auth_updated"), productName, key, value)
 	return
 }
+
+// UpdateProductAuthBatch 批量更新产品鉴权配置，一次读取、批量修改、一次写入，避免并发竞态
+func UpdateProductAuthBatch(productName string, updates map[string]string) (err error) {
+	if len(productName) == 0 || len(updates) == 0 {
+		return
+	}
+
+	var dbProduct DbProduct
+	models.Orm.Table("product").Where("product = ?", productName).Find(&dbProduct)
+	if len(dbProduct.Name) == 0 {
+		err = fmt.Errorf(T("error.product_not_found"), productName)
+		Logger.Error("%s", err)
+		return
+	}
+
+	auth := make(map[string]string)
+	if len(dbProduct.Auth) > 2 {
+		if errUnmarshal := json.Unmarshal([]byte(dbProduct.Auth), &auth); errUnmarshal != nil {
+			Logger.Warning(T("warn.auth_parse_failed"), dbProduct.Auth, errUnmarshal)
+			auth = make(map[string]string)
+		}
+	}
+
+	for k, v := range updates {
+		auth[k] = v
+	}
+
+	newAuth, errMarshal := json.MarshalIndent(auth, "", "  ")
+	if errMarshal != nil {
+		err = fmt.Errorf(T("error.auth_marshal_failed"), errMarshal)
+		Logger.Error("%s", err)
+		return
+	}
+
+	err = models.Orm.Table("product").
+		Where("product = ?", productName).
+		Update("auth", string(newAuth)).Error
+	if err != nil {
+		Logger.Error(T("error.auth_update_db_failed"), productName, err)
+		return
+	}
+
+	return
+}

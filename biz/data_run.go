@@ -1420,6 +1420,7 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 
 func (df DataFile) GetResult(source, filePath, product string, respHeaderList []map[string]string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
 	outputDict = make(map[string][]interface{})
+	authUpdates := make(map[string]string)
 	isPass := 0
 	dst, err = GetResultFilePath(filePath)
 	if err != nil {
@@ -1547,11 +1548,7 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 							authKey, valueTemplate := ParseOutput2AuthValue(rawValue)
 							strValue := Interface2Str(vals[len(vals)-1])
 							finalValue := FormatOutput2AuthValue(valueTemplate, authKey, strValue)
-							go func(p, key, v string) {
-								if errAuth := UpdateProductAuth(p, key, v); errAuth != nil {
-									Logger.Error("%s", errAuth)
-								}
-							}(product, authKey, finalValue)
+							authUpdates[authKey] = finalValue
 						}
 					}
 				default:
@@ -1620,11 +1617,7 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 						outputDict[authKey] = append(outputDict[authKey], extractedValue)
 						if len(product) > 0 && len(extractedValue) > 0 {
 							finalValue := FormatOutput2AuthValue(valueTemplate, authKey, extractedValue)
-							go func(p, k, v string) {
-								if errAuth := UpdateProductAuth(p, k, v); errAuth != nil {
-									Logger.Error("%s", errAuth)
-								}
-							}(product, authKey, finalValue)
+							authUpdates[authKey] = finalValue
 						}
 					} else {
 						Logger.Warning(T("warn.unsupported_assert_type"), assert.Type)
@@ -1745,15 +1738,11 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 					authKey, valueTemplate := ParseOutput2AuthValue(rawKeyName)
 					outputDict[authKey] = append(outputDict[authKey], values...)
 
-					// 异步更新 product auth
+					// 收集 product auth 更新
 					if len(values) > 0 && len(product) > 0 {
 						extractedValue := Interface2Str(values[0])
 						finalValue := FormatOutput2AuthValue(valueTemplate, authKey, extractedValue)
-						go func(p, k, v string) {
-							if errAuth := UpdateProductAuth(p, k, v); errAuth != nil {
-								Logger.Error("%s", errAuth)
-							}
-						}(product, authKey, finalValue)
+						authUpdates[authKey] = finalValue
 					}
 
 				case "output_re":
@@ -1917,6 +1906,13 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 			}
 		}
 
+	}
+
+	// 批量更新 product auth，避免并发竞态
+	if len(authUpdates) > 0 && len(product) > 0 {
+		if errAuth := UpdateProductAuthBatch(product, authUpdates); errAuth != nil {
+			Logger.Error("%s", errAuth)
+		}
 	}
 
 	return

@@ -1816,8 +1816,8 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			Logger.Error("backup data failed: %s, %s", kd.FileName, bakErr)
 		}
 
-		// 更新数据库 content
-		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update("content", kd.Content)
+		// BakOldVer 已更新 content（含版本号升级），此处仅更新 updated_at
+		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update("updated_at", time.Now().Format("2006-01-02 15:04:05"))
 		overwriteCount++
 	}
 
@@ -1867,6 +1867,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			"data_file_list": strings.Join(kp.DataList, ","),
 			"scene_type":     sceneType,
 			"data_number":    strconv.Itoa(len(kp.DataList)),
+			"updated_at":     time.Now().Format("2006-01-02 15:04:05"),
 		}
 		models.Orm.Table("playbook").Where("id = ?", dbScene.Id).Updates(updateMap)
 		overwriteCount++
@@ -1945,6 +1946,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			"task_type":  taskType,
 			"scene_list": strings.Join(kt.PlaybookList, ","),
 			"remark":     kt.Remark,
+			"updated_at": time.Now().Format("2006-01-02 15:04:05"),
 		}
 		models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Updates(updateMap)
 		overwriteCount++
