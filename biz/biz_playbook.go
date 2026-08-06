@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1608,8 +1609,6 @@ func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runN
 		runNum = 1
 	}
 
-	Logger.Debug("CLI sceneRun: name=%s, product=%s, sceneType=%d, runNum=%d, dataCount=%d", name, product, sceneType, runNum, len(files))
-
 	// 将每个数据文件内容写入临时文件
 	var tempApis []string
 	for _, file := range files {
@@ -1622,7 +1621,7 @@ func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runN
 			Logger.Error("write temp file error: %v", err)
 			return
 		}
-		Logger.Debug("CLI sceneRun: tempFile[%d]=%s", len(tempApis), tempFilePath)
+		//Logger.Debug("CLI sceneRun: tempFile[%d]=%s", len(tempApis), tempFilePath)
 		tempApis = append(tempApis, tempFilePath)
 	}
 
@@ -1649,8 +1648,8 @@ func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runN
 
 	runResp.TestResult = "pass"
 
-	runResp.TestResult, _, err = RepeatRunPlaybook(productInfo, playbook, runNum, "start", "cli", "", userName, "")
-	Logger.Debug("CLI sceneRun: result=%s, lastFile=%s", runResp.TestResult, runResp.LastFile)
+	runResp.TestResult, runResp.LastFile, err = RepeatRunPlaybook(productInfo, playbook, runNum, "start", "cli", "", userName, "")
+
 	if runResp.TestResult != "pass" {
 		if err != nil {
 			runResp.FailReason = fmt.Sprintf("%v", err)
@@ -1658,4 +1657,83 @@ func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runN
 	}
 
 	return
+}
+
+// GetDataRunDetailsByFiles 根据数据文件列表反查历史执行详情
+func GetDataRunDetailsByFiles(files []FileEntry, product string) []DataRunDetail {
+	var results []DataRunDetail
+	for _, file := range files {
+		if len(file.Name) == 0 || len(file.Content) == 0 {
+			continue
+		}
+		detail := getHistoryDetail(file.Name)
+		if detail != nil {
+			results = append(results, *detail)
+		}
+	}
+	return results
+}
+
+// getHistoryDetail 根据数据文件名反查历史执行详情
+func getHistoryDetail(fileName string) *DataRunDetail {
+	suffix := GetStrSuffix(fileName)
+	if suffix == "" {
+		return nil
+	}
+	baseName := fileName[:len(fileName)-len(suffix)]
+	if b, num := IsStrEndWithTimeFormat(baseName); b {
+		baseName = baseName[:len(baseName)-num]
+	}
+
+	historyDir := fmt.Sprintf("%s/%s", HistoryBasePath, baseName)
+	files, err := ioutil.ReadDir(historyDir)
+	if err != nil || len(files) == 0 {
+		return nil
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ModTime().After(files[j].ModTime())
+	})
+
+	historyPath := fmt.Sprintf("%s/%s", historyDir, files[0].Name())
+	content, err := ioutil.ReadFile(historyPath)
+	if err != nil {
+		return nil
+	}
+
+	var df DataFile
+	if strings.HasSuffix(files[0].Name(), ".log") {
+		// 非标准文件的历史是原始 stdout
+		df.Response = []string{string(content)}
+		if strings.Contains(string(content), "err:") || strings.HasPrefix(string(content), "cmd:") {
+			df.TestResult = []string{"fail"}
+			df.FailReason = []string{string(content)}
+		} else {
+			df.TestResult = []string{"pass"}
+		}
+	} else if strings.HasSuffix(files[0].Name(), ".json") {
+		if err := json.Unmarshal(content, &df); err != nil {
+			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", files[0].Name(), err)
+		}
+	} else {
+		if err := yaml.Unmarshal(content, &df); err != nil {
+			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", files[0].Name(), err)
+		}
+	}
+
+	urlStr, headerStr, requestStr, responseStr, outputStr, _ := df.GetResponseStr()
+
+	detail := &DataRunDetail{FileName: fileName}
+	detail.Url = urlStr
+	detail.Header = headerStr
+	detail.Request = requestStr
+	detail.Response = responseStr
+	detail.Output = outputStr
+	if len(df.TestResult) > 0 {
+		detail.TestResult = df.TestResult[len(df.TestResult)-1]
+	}
+	if len(df.FailReason) > 0 {
+		detail.FailReason = df.FailReason[len(df.FailReason)-1]
+	}
+
+	return detail
 }

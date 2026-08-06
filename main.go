@@ -2076,11 +2076,19 @@ func startServer() {
 		}
 
 		runResp, err := biz.RunPlaybookByFiles(fileList, name, product, sceneType, runNum, "cli")
+
+		// 无论成功失败，都查询详情并构造响应体
+		dataResults := biz.GetDataRunDetailsByFiles(fileList, product)
+		cliResp := biz.CliPlaybookRunResp{
+			Scene:       runResp,
+			DataResults: dataResults,
+		}
+
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": runResp})
+			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": cliResp})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": runResp})
+		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": cliResp})
 	})
 
 	models.Init(eng.MysqlConnection())

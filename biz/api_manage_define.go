@@ -26,6 +26,16 @@ type RunSceneRespModel struct {
 	FailReason string `json:"failReason"`
 }
 
+type CliPlaybookRunResp struct {
+	Scene       RunSceneRespModel `json:"scene"`
+	DataResults []DataRunDetail   `json:"dataResults"`
+}
+
+type DataRunDetail struct {
+	FileName string `json:"fileName"`
+	RunRespModel
+}
+
 type ModuleModel struct {
 	AppName  string   `json:"appName"`
 	Module   string   `json:"module"`

@@ -32,7 +32,7 @@ func GetResultFilePath(src string) (dst string, err error) {
 
 	curTime := time.Now().Format("20060102_150405.999999999")
 
-	switch suffix {
+	switch strings.ToLower(suffix) {
 	case ".yaml", ".yml", ".json":
 		dst = fmt.Sprintf("%s/%s/%s_%s%s", HistoryBasePath, dirName, dirName, curTime, suffix)
 	default:
@@ -568,7 +568,11 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 			urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
 			return
 		}
-		errTmp = yaml.Unmarshal([]byte(contentStr), &df)
+		if strings.HasSuffix(filePath, ".json") {
+			errTmp = json.Unmarshal([]byte(contentStr), &df)
+		} else {
+			errTmp = yaml.Unmarshal([]byte(contentStr), &df)
+		}
 		if errTmp != nil {
 			Logger.Debug("\nrawContent: %s", dataContent)
 			Logger.Debug("\nafterContent: %s", contentStr)
@@ -1948,10 +1952,14 @@ func GetDataByFileName(fileName, source string) (dbData SceneData, err error) {
 		}
 		dbData.FileName = baseName
 		dbData.Content = string(content)
-		dbData.FileType = 1
 		dbData.RunTime = 1
 		var df DataFile
 		suffix := GetStrSuffix(fileName)
+		if suffix == ".yml" || suffix == ".yaml" || suffix == ".json" {
+			dbData.FileType = 1 // 标准文件 → RunStandard
+		} else {
+			dbData.FileType = 2 // 非标准文件 → RunNonStandard
+		}
 		if suffix == ".json" {
 			_ = json.Unmarshal(content, &df)
 		} else {
@@ -2037,7 +2045,7 @@ func RunDataByFile(fileName string, content []byte, product, userName string) (r
 		df.Name = fmt.Sprintf("cli_%s", GetRandomStr(8, ""))
 	}
 
-	Logger.Debug("CLI dataRun: name=%s, product=%s, app=%s, method=%s, path=%s", df.Name, product, df.Api.App, df.Api.Method, df.Api.Path)
+	//Logger.Debug("CLI dataRun: name=%s, product=%s, app=%s, method=%s, path=%s", df.Name, product, df.Api.App, df.Api.Method, df.Api.Path)
 
 	tempFilePath := fmt.Sprintf("%s/%s", os.TempDir(), fileName)
 
@@ -2046,7 +2054,7 @@ func RunDataByFile(fileName string, content []byte, product, userName string) (r
 		Logger.Error("write temp file error: %v", err)
 		return
 	}
-	Logger.Debug("CLI dataRun: tempFile=%s", tempFilePath)
+	//Logger.Debug("CLI dataRun: tempFile=%s", tempFilePath)
 
 	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err := df.RunStandard(product, tempFilePath, "common", "cli", contentStr, nil)
 
@@ -2071,7 +2079,7 @@ func RunDataByFile(fileName string, content []byte, product, userName string) (r
 	if err != nil {
 		Logger.Error("write history error: %v", err)
 	}
-	Logger.Debug("CLI dataRun: history saved, envType=%d", envType)
+	//Logger.Debug("CLI dataRun: history saved, envType=%d", envType)
 
 	return
 }
