@@ -1155,11 +1155,10 @@
   "common.status_generating": "Generating",
   "common.status_finished": "Finished",
   "common.status_failed": "Failed",
-  "common.create_time":"Created At",
+  "common.create_time": "Created At",
   "dashboard.task_report_name": "[%s] Task Report %s",
   "task_report.generate_running": "Task report is being generated in background, please check the result report list later",
   "common.copy_download_link": "Export successful\nCopy the link below to download:\n%s",
-  "error.exec_fail": "Test failed: %s: %s",
   "error.update_auth_params_invalid": "Invalid auth update params: product or key is empty",
   "error.auth_marshal_failed": "Auth JSON marshal failed: %s",
   "error.auth_update_db_failed": "Update product[%s] auth info failed: %s",
@@ -1167,5 +1166,11 @@
   "info.auth_updated": "Product[%s] auth updated: %s = %s",
   "error.content_empty": "Data file content cannot be empty",
   "error.data_list_empty": "Associated data list cannot be empty",
-  "error.parse_content_failed": "Failed to parse data file content: %s"
+  "error.parse_content_failed": "Failed to parse data file content: %s",
+  "cli.login_success": "CLI login successful",
+  "cli.login_hint": "Please run: curl -X POST [host]/cli/login -d \"username=[user]\" -d \"password=[pwd]\" to get a token, then attach Header Authorization: Bearer [token] or form field token=[token]",
+  "error.cli_login_failed": "Invalid username or password",
+  "error.cli_token_invalid": "Token is invalid or expired, please login again",
+  "error.cli_token_required": "Please login first to get a token",
+  "error.cli_username_password_required": "Username and password are required"
 }
