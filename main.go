@@ -2003,39 +2003,54 @@ func startServer() {
 		})
 	})
 
+	// CLI 接口 - 登录获取 token
+	r.POST("/cli/login", func(c *gin.Context) {
+		var req biz.CliLoginRequest
+		if err := c.ShouldBind(&req); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.param_invalid")})
+			return
+		}
+		resp, err := biz.CliLogin(req.Username, req.Password)
+		if err != nil {
+			c.IndentedJSON(http.StatusOK, gin.H{"code": 400, "msg": err.Error()})
+			return
+		}
+		c.IndentedJSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("cli.login_success"), "data": resp})
+	})
+
 	// CLI 接口 - 数据执行
-	r.POST("/cli/dataRun", func(c *gin.Context) {
+	r.POST("/cli/dataRun", biz.CliAuthMiddleware(), func(c *gin.Context) {
 		product := c.PostForm("product")
 		if len(product) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("main.env_not_configured")})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("main.env_not_configured")})
 			return
 		}
 		file, err := c.FormFile("file")
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.content_empty")})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.content_empty")})
 			return
 		}
 		f, err := file.Open()
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 			return
 		}
 		defer f.Close()
 		content, err := ioutil.ReadAll(f)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 			return
 		}
-		runResp, err := biz.RunDataByFile(file.Filename, content, product, "cli")
+		runResp, err := biz.RunDataByFile(file.Filename, content, product, c.GetString("cliUserName"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": runResp})
+			c.IndentedJSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": runResp})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": runResp})
+		c.IndentedJSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": runResp})
 	})
 
 	// CLI 接口 - 场景执行
-	r.POST("/cli/playbookRun", func(c *gin.Context) {
+	r.POST("/cli/playbookRun", biz.CliAuthMiddleware(), func(c *gin.Context) {
 		name := c.PostForm("name")
 		product := c.PostForm("product")
 		sceneTypeStr := c.PostForm("sceneType")
@@ -2052,12 +2067,12 @@ func startServer() {
 
 		form, err := c.MultipartForm()
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 			return
 		}
 		files := form.File["files"]
 		if len(files) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.data_list_empty")})
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"code": 400, "msg": biz.T("error.data_list_empty")})
 			return
 		}
 
@@ -2075,7 +2090,7 @@ func startServer() {
 			fileList = append(fileList, biz.FileEntry{Name: fh.Filename, Content: content})
 		}
 
-		runResp, err := biz.RunPlaybookByFiles(fileList, name, product, sceneType, runNum, "cli")
+		runResp, err := biz.RunPlaybookByFiles(fileList, name, product, sceneType, runNum, c.GetString("cliUserName"))
 
 		// 无论成功失败，都查询详情并构造响应体
 		dataResults := biz.GetDataRunDetailsByFiles(fileList, product)
@@ -2085,10 +2100,10 @@ func startServer() {
 		}
 
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": cliResp})
+			c.IndentedJSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": cliResp})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": cliResp})
+		c.IndentedJSON(http.StatusOK, gin.H{"code": 200, "msg": biz.T("common.operate_success"), "data": cliResp})
 	})
 
 	models.Init(eng.MysqlConnection())
