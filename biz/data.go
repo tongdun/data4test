@@ -17,7 +17,7 @@ import (
 func GetRunTimeData(id, source string) (dataInfo DbSceneData, appInfo EnvConfig, filePath string, err error) {
 	if source == "ai_data" {
 		models.Orm.Table("ai_data").Where("id = ?", id).Find(&dataInfo)
-		if len(dataInfo.ApiId) == 0 {
+		if len(dataInfo.Name) == 0 {
 			err = fmt.Errorf(T("error.ai_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
@@ -26,7 +26,7 @@ func GetRunTimeData(id, source string) (dataInfo DbSceneData, appInfo EnvConfig,
 		filePath = fmt.Sprintf("%s/%s", AiDataBasePath, dataInfo.FileName)
 	} else {
 		models.Orm.Table("scene_data").Where("id = ?", id).Find(&dataInfo)
-		if len(dataInfo.ApiId) == 0 {
+		if len(dataInfo.Name) == 0 {
 			err = fmt.Errorf(T("error.test_data_not_found"), id)
 			Logger.Error("%s", err)
 			return
