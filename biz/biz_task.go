@@ -1788,6 +1788,15 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		}
 		sceneDataRecord.Content = kd.Content
 
+		// 从 YAML 内容解析 api_id 和 app，补全标准数据接口ID和关联应用
+		var df DataFile
+		if yaml.Unmarshal([]byte(kd.Content), &df) == nil {
+			sceneDataRecord.ApiId = df.ApiId
+			sceneDataRecord.App = df.Api.App
+		} else {
+			Logger.Warning("parse data file yaml failed for api_id/app: %s", kd.FileName)
+		}
+
 		if len(dbSceneData.FileName) == 0 {
 			createErr := models.Orm.Table("scene_data").Create(&sceneDataRecord).Error
 			if createErr != nil {
@@ -1816,8 +1825,16 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			Logger.Error("backup data failed: %s, %s", kd.FileName, bakErr)
 		}
 
-		// BakOldVer 已更新 content（含版本号升级），此处仅更新 updated_at
-		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Update("updated_at", time.Now().Format("2006-01-02 15:04:05"))
+		// BakOldVer 已更新 content（含版本号升级），此处更新 updated_at/api_id/app
+		var df2 DataFile
+		updateMap := map[string]interface{}{
+			"updated_at": time.Now().Format("2006-01-02 15:04:05"),
+		}
+		if yaml.Unmarshal([]byte(kd.Content), &df2) == nil {
+			updateMap["api_id"] = df2.ApiId
+			updateMap["app"] = df2.Api.App
+		}
+		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Updates(updateMap)
 		overwriteCount++
 	}
 
