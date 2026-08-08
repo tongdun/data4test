@@ -32,8 +32,6 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldWidth(150).
 		FieldFilterable()
-	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
-		FieldWidth(150)
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().
