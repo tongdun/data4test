@@ -23,6 +23,29 @@ import (
 	"time"
 )
 
+// numericPlaceholders 产生纯数字值的占位符白名单，替换时自动剥离外围引号
+var numericPlaceholders = map[string]bool{
+	"Timestamp": true,
+	"Int":       true,
+	"Age":       true,
+	"Income":    true,
+}
+
+// replaceQuotedPlaceholder 对数字类占位符做 quote-aware 替换
+// 如果 rawDef 在 str 中被 '...' 或 "..." 包裹，连带引号一起替换为裸数字值
+// 否则按普通方式替换
+func replaceQuotedPlaceholder(str, rawDef, value string) string {
+	singleQuoted := "'" + rawDef + "'"
+	if strings.Contains(str, singleQuoted) {
+		return strings.Replace(str, singleQuoted, value, 1)
+	}
+	doubleQuoted := "\"" + rawDef + "\""
+	if strings.Contains(str, doubleQuoted) {
+		return strings.Replace(str, doubleQuoted, value, 1)
+	}
+	return strings.Replace(str, rawDef, value, 1)
+}
+
 func CopyMapInterface(src map[string]interface{}) (dst map[string]interface{}) {
 	dst = make(map[string]interface{}, len(src))
 	for k, v := range src {
@@ -460,7 +483,11 @@ func GetLengthData(rawStr string) (newStr string) {
 				ret = fmt.Sprintf("%v", tt.UnixNano()/1e6)
 			}
 			if len(ret) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, ret, 1)
+				if numericPlaceholders[dataType] {
+					newStr = replaceQuotedPlaceholder(newStr, rawStrDef, ret)
+				} else {
+					newStr = strings.Replace(newStr, rawStrDef, ret, 1)
+				}
 			}
 
 		}
@@ -556,7 +583,11 @@ func GetCommonData(rawStr string) (newStr string) {
 			}
 
 			if len(value) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, value, 1)
+				if numericPlaceholders[dataType] {
+					newStr = replaceQuotedPlaceholder(newStr, rawStrDef, value)
+				} else {
+					newStr = strings.Replace(newStr, rawStrDef, value, 1)
+				}
 			}
 
 		}
@@ -648,7 +679,11 @@ func GetTimeData(rawStr string) (newStr string) {
 			}
 
 			if len(value) > 0 {
-				newStr = strings.Replace(newStr, rawStrDef, value, 1)
+				if numericPlaceholders[dataType] {
+					newStr = replaceQuotedPlaceholder(newStr, rawStrDef, value)
+				} else {
+					newStr = strings.Replace(newStr, rawStrDef, value, 1)
+				}
 			}
 
 		}
@@ -747,7 +782,11 @@ func GetRangeData(rawStr string) (newStr string) {
 			case "Timestamp":
 				ret = GetRandomTimestamp(start, end)
 			}
-			newStr = strings.Replace(newStr, rawStrDef, ret, 1)
+			if numericPlaceholders[dataType] {
+				newStr = replaceQuotedPlaceholder(newStr, rawStrDef, ret)
+			} else {
+				newStr = strings.Replace(newStr, rawStrDef, ret, 1)
+			}
 		}
 	}
 	return
