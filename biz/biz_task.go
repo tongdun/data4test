@@ -1631,17 +1631,17 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 		}
 	}
 
-	// 4. 扫描所有 .yml/.yaml 文件（排除 task_info.yaml 和 playbook_info.yaml）
-	var ymlFiles []string
-	collectYmlFiles(tmpDir, &ymlFiles)
-	for _, ymlPath := range ymlFiles {
-		baseName := filepath.Base(ymlPath)
+	// 4. 扫描包内所有数据文件（排除 task_info.yaml 和 playbook_info.yaml 两个元信息文件）
+	var dataFiles []string
+	collectDataFiles(tmpDir, &dataFiles)
+	for _, filePath := range dataFiles {
+		baseName := filepath.Base(filePath)
 		if baseName == "task_info.yaml" || baseName == "playbook_info.yaml" {
 			continue
 		}
-		content, readErr := ioutil.ReadFile(ymlPath)
+		content, readErr := ioutil.ReadFile(filePath)
 		if readErr != nil {
-			Logger.Warning("read yml file failed: %s, %s", ymlPath, readErr)
+			Logger.Warning("read data file failed: %s, %s", filePath, readErr)
 			continue
 		}
 		kData := KData{
@@ -1789,24 +1789,30 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		var dbSceneData DbSceneData
 		models.Orm.Table("scene_data").Where("file_name = ?", kd.FileName).Find(&dbSceneData)
 
+		suffix := GetStrSuffix(kd.FileName)
+		fileType := GetFileTypeBySuffix(suffix)
+
 		sceneDataRecord := SceneData{
 			FileName: kd.FileName,
 			RunTime:  1,
 			UserName: userName,
 			CommonDataBase: CommonDataBase{
-				Name:     strings.TrimSuffix(kd.FileName, ".yml"),
-				FileType: 1,
+				Name:     strings.TrimSuffix(kd.FileName, suffix),
+				FileType: fileType,
 			},
 		}
 		sceneDataRecord.Content = kd.Content
 
-		// 从 YAML 内容解析 api_id 和 app，补全标准数据接口ID和关联应用
-		var df DataFile
-		if yaml.Unmarshal([]byte(kd.Content), &df) == nil {
+		// 仅标准文件解析 api_id 和 app；脚本文件无此字段
+		if fileType == 1 {
+			var df DataFile
+			if suffix == ".json" {
+				_ = json.Unmarshal([]byte(kd.Content), &df)
+			} else {
+				_ = yaml.Unmarshal([]byte(kd.Content), &df)
+			}
 			sceneDataRecord.ApiId = df.ApiId
 			sceneDataRecord.App = df.Api.App
-		} else {
-			Logger.Warning("parse data file yaml failed for api_id/app: %s", kd.FileName)
 		}
 
 		if len(dbSceneData.FileName) == 0 {
@@ -1817,9 +1823,9 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			}
 		}
 
-		ymlFilePath := fmt.Sprintf("%s/%s", DataBasePath, kd.FileName)
-		if writeErr := ioutil.WriteFile(ymlFilePath, []byte(kd.Content), 0644); writeErr != nil {
-			Logger.Error("write data file failed: %s, %s", ymlFilePath, writeErr)
+		filePath := fmt.Sprintf("%s/%s", DataBasePath, kd.FileName)
+		if writeErr := ioutil.WriteFile(filePath, []byte(kd.Content), 0644); writeErr != nil {
+			Logger.Error("write data file failed: %s, %s", filePath, writeErr)
 		}
 		importedCount++
 	}
@@ -1832,19 +1838,31 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			continue
 		}
 
-		// 备份旧版本
+		// 备份旧版本（标准文件在此处升级 version 并更新 DB content）
 		if bakErr := BakOldVer(dbSceneData.Id, kd.Content, kd.FileName); bakErr != nil {
 			Logger.Error("backup data failed: %s, %s", kd.FileName, bakErr)
 		}
 
-		// BakOldVer 已更新 content（含版本号升级），此处更新 updated_at/api_id/app
-		var df2 DataFile
+		suffix := GetStrSuffix(kd.FileName)
+		fileType := GetFileTypeBySuffix(suffix)
+
 		updateMap := map[string]interface{}{
 			"updated_at": time.Now().Format("2006-01-02 15:04:05"),
 		}
-		if yaml.Unmarshal([]byte(kd.Content), &df2) == nil {
+
+		if fileType == 1 {
+			// 标准文件：解析 api_id/app（.json 走 json 解析）
+			var df2 DataFile
+			if suffix == ".json" {
+				_ = json.Unmarshal([]byte(kd.Content), &df2)
+			} else {
+				_ = yaml.Unmarshal([]byte(kd.Content), &df2)
+			}
 			updateMap["api_id"] = df2.ApiId
 			updateMap["app"] = df2.Api.App
+		} else {
+			// 非标准脚本文件：BakOldVer 不更新 DB content，此处显式更新
+			updateMap["content"] = kd.Content
 		}
 		models.Orm.Table("scene_data").Where("id = ?", dbSceneData.Id).Updates(updateMap)
 		overwriteCount++
@@ -2295,16 +2313,35 @@ func findFileInDir(dir, targetName string) string {
 	return found
 }
 
-func collectYmlFiles(dir string, result *[]string) {
+func collectDataFiles(dir string, result *[]string) {
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		if !info.IsDir() && (strings.HasSuffix(info.Name(), ".yml") || strings.HasSuffix(info.Name(), ".yaml")) {
+		if !info.IsDir() {
 			*result = append(*result, path)
 		}
 		return nil
 	})
+}
+
+// GetFileTypeBySuffix 根据文件扩展名返回 scene_data.file_type：
+// 1=标准(.yaml/.yml/.json) 2=Python(.py) 3=Shell(.sh) 4=Bat(.bat) 5=JMeter(.jmx) 99=其他
+func GetFileTypeBySuffix(suffix string) int {
+	switch suffix {
+	case ".yml", ".yaml", ".json":
+		return 1
+	case ".py":
+		return 2
+	case ".sh":
+		return 3
+	case ".bat":
+		return 4
+	case ".jmx":
+		return 5
+	default:
+		return 99
+	}
 }
 
 func filterConflictsByType(result ImportResult, typeName string) []string {
