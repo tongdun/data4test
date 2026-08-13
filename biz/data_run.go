@@ -294,11 +294,12 @@ func RunNonStandard(app, rawFilePath, content, logFilePath, product, source stri
 			}
 		}
 
-		dbProductList, err := GetProductInfo(product)
-		dbProduct := dbProductList[0]
-		if err != nil {
-			Logger.Error("%v", err)
+		dbProductList, errTmp := GetProductInfo(product)
+		if errTmp != nil {
+			Logger.Error("%v", errTmp)
+			return "fail", rawFilePath, errTmp
 		}
+		dbProduct := dbProductList[0]
 
 		privateParameter := dbProduct.GetPrivateParameter()
 		for k, v := range privateParameter {

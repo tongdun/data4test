@@ -124,7 +124,12 @@ func RunPlaybookFromConsole(userName string, sceneModel SceneSaveModel) (runResp
 	var productInfo DbProduct
 	var playbook Playbook
 
-	productList, _ := GetProductInfo(sceneModel.Product)
+	productList, errTmp := GetProductInfo(sceneModel.Product)
+	if errTmp != nil {
+		err = errTmp
+		Logger.Error("%s", err)
+		return
+	}
 	productInfo = productList[0]
 
 	playbook.Product = sceneModel.Product
@@ -589,12 +594,20 @@ func GetPlRunInfo(source, id string) (dbScene DbScene, dbProduct []DbProduct, er
 		return
 	}
 
+	if source == "task" {
+		return
+	}
+
 	dbProduct, err = GetProductInfo(dbScene.Product)
 
 	return
 }
 
 func GetProductInfo(product string) (productList []DbProduct, err error) {
+	if len(strings.TrimSpace(product)) == 0 {
+		err = fmt.Errorf(T("error.product_not_selected"))
+		return
+	}
 	productTmp := strings.Split(product, ",")
 	models.Orm.Table("product").Where("product in (?)", productTmp).Find(&productList)
 	if len(productList) == 0 {

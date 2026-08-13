@@ -316,6 +316,7 @@
   "error.execution_failed_with_prev": "%s; %s执行失败：%s",
   "debug.start_comparison": "开始比较",
   "error.product_not_found": "未找到[%v]产品信息，请核对",
+  "error.product_not_selected": "未选择产品信息，请先配置",
   "warning.product_not_found": "未找到[%s]产品信息，请核对",
   "error.auth_not_configured": "未配置鉴权信息，请先配置",
   "common.copy_suffix": "%s_复制",

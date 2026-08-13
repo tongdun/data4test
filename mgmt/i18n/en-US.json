@@ -316,6 +316,7 @@
   "error.execution_failed_with_prev": "%s; %s execution failed: %s",
   "debug.start_comparison": "Comparison started",
   "error.product_not_found": "Product information for [%v] was not found. Please verify.",
+  "error.product_not_selected": "No product selected. Please configure the product first.",
   "warning.product_not_found": "Product information [%s] was not found. Please verify.",
   "error.auth_not_configured": "Authentication information is not configured. Please configure it first.",
   "common.copy_suffix": "%s_copy",

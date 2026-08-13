@@ -174,8 +174,15 @@ func OneTask(id, userName string) (err error) {
 		return
 	}
 
-	productTaskList, _ := GetProductInfo(dbSchedule.ProductList)
-	productTaskInfo := productTaskList[0]
+	var productTaskInfo DbProduct
+	if len(dbSchedule.ProductList) > 0 {
+		productTaskList, errTmp := GetProductInfo(dbSchedule.ProductList)
+		if errTmp != nil {
+			Logger.Error("%s", errTmp)
+			return
+		}
+		productTaskInfo = productTaskList[0]
+	}
 
 	var err1 error
 	dataList, _ := dbSchedule.GetDataIds()
@@ -191,7 +198,12 @@ func OneTask(id, userName string) (err error) {
 		}
 	} else if dbSchedule.TaskType == "scene" {
 		for _, sceneId := range sceneList {
-			playbookInfo, productList, err := GetPlRunInfo("task", sceneId)
+			playbookInfo, productList, errTmp := GetPlRunInfo("task", sceneId)
+			if errTmp != nil {
+				err = errTmp
+				Logger.Error("%s", errTmp)
+				break
+			}
 			playbook := playbookInfo.GetPlaybook("task")
 			productSceneInfo := productList[0]
 			if len(dbSchedule.ProductList) == 0 {
