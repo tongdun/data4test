@@ -1,5 +1,10 @@
+#### 2026年8月14日
+1、[Feature] 新增时间戳占位符 {TimestampMinute}、{TimestampHour}、{TimestampSecond}，支持以当前时间为基准生成指定分钟/小时/秒偏移后的毫秒时间戳（如 {TimestampMinute(30)} 生成半小时后时间戳）
+
 #### 2026年8月13日
 1、[Bug] 场景列表关联产品为空时，运行提示"找不到环境信息"，改为提示"未选择产品信息"，并修复空产品导致的取 productList[0] 越界错误
+2、[Bug] 任务导入数据包未包含 .sh 等脚本文件
+
 
 #### 2026年8月8日
 1、[Optimize] 当参数占位符是{Timpstamp}、{Age}、{Int}等整数时，JSON格式的请求无法识别，改成整数型请求

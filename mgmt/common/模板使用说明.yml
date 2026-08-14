@@ -6,7 +6,7 @@ version: 1.0              # 数据用例版本，后续可以进行数据升级
 is_run_pre_apis: "no"     # 是否跑前置用例，选项：yes / no,  默认 no， 功能未开发
 is_run_post_apis: "no"    # 是否跑后置用例，选项：yes / no,  默认 no， 功能未开发
 is_parallel: "no"         # 是否并行跑数据，选项：yes / no,  默认 no，
-is_use_env_config: "yes"  # 是否使用公共环境，选项：yes / no,  默认 yes
+is_use_env_config: "yes"  # 是否使用公共环境，选项：yes / no,  默认 yes， 如果为no, env和header下环境信息优先级最高，如果为yes, 产品配置>应用配置>数据文件的配置
 is_var_strong_check: "yes"   # 是否开启变量强校验，选项：yes / no,  默认 yes
 # 环境信息
 env:
@@ -40,7 +40,7 @@ single:
     name: '*{Name}*'      # 引用上文Name变量，当做一个整体，JSON格式
     name2: '**{Name}**'   # 引用上文Name变量，当做一个整体，字符串格式
     XXName: '{self}'      # 引用上文XXName变量的值，{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
-  bodyList:               # 当请求body直接是List时，相关请求参数放到bodyList下
+  bodyList:               # 当请求body直接是List时，相关请求参数放到bodyList下; bodyList存在时, 优先级更高, 如果无值时，该参数直接删除
     - name: '{Name}'
       sex: '{Sex}'
     - name: '{Rune(4)}'
@@ -58,6 +58,9 @@ multi:
       - '{Date(-2)}'      # 获取两天前的日期
       - '{Date(2)}'       # 获取两天后的日期
       - '{Timestamp(-2)}' # 获取两天前的时间戳
+      - '{TimestampMinute(30)}'  # 获取30分钟后的时间戳（毫秒）
+      - '{TimestampHour(1)}'     # 获取1小时后的时间戳（毫秒）
+      - '{TimestampSecond(1800)}' # 获取1800秒（30分钟）后的时间戳（毫秒）
     name:
       - '{IDNo}'          # 获取身份证字符串
       - '{Name}'          # 获取名字字符串
@@ -120,9 +123,15 @@ assert:
   - type: output  # 返回值为文件时，从输出的文件中取data字典下total的值赋值给XXXCount, 取值与标准文件的取值规则一致
     source: File:YML:data.total
     value: XXXCount
-  - type: output    # todo
+  - type: output
     source: data.Contents[@status=XXX].uuid
     value: dataUuid
+  - type: output
+    source: ResponseHeader:KeyName    # 从返回的response header中取KeyName的值赋值给XXKeyName
+    value: XXKeyName
+  - type: output_re
+      source: ResponseHeader:application/([a-z]+)    # 从返回的response header中正则匹配提取([a-z]+)的值赋值给XXKeyName
+      value: XXKeyName
 
 # 数据执行后的动作
 action:

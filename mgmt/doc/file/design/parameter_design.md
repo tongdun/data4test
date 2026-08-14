@@ -74,6 +74,10 @@
 - {MonthStampEnd(-1)}
 - {YearStampBegin(-1)}
 - {YearStampEnd(-1)}
+- {Timestamp(int)}  时间戳，e.g.: {Timestamp(-2)}，生成2天前的时间戳（毫秒）
+- {TimestampMinute(int)}  时间戳，e.g.: {TimestampMinute(30)}，生成30分钟后的时间戳（毫秒），传负数生成之前
+- {TimestampHour(int)}  时间戳，e.g.: {TimestampHour(1)}，生成1小时后的时间戳（毫秒），传负数生成之前
+- {TimestampSecond(int)}  时间戳，e.g.: {TimestampSecond(1800)}，生成1800秒（30分钟）后的时间戳（毫秒），传负数生成之前
 
 
 #### 特征数据自动生成：

@@ -25,10 +25,13 @@ import (
 
 // numericPlaceholders 产生纯数字值的占位符白名单，替换时自动剥离外围引号
 var numericPlaceholders = map[string]bool{
-	"Timestamp": true,
-	"Int":       true,
-	"Age":       true,
-	"Income":    true,
+	"Timestamp":       true,
+	"TimestampMinute": true,
+	"TimestampHour":   true,
+	"TimestampSecond": true,
+	"Int":             true,
+	"Age":             true,
+	"Income":          true,
 }
 
 // replaceQuotedPlaceholder 对数字类占位符做 quote-aware 替换
@@ -378,6 +381,18 @@ func GetLengthData(rawStr string) (newStr string) {
 			case "Timestamp":
 				curTimestamp := time.Now().Unix()
 				targetTimestamp := (int(curTimestamp) + 86400*num) * 1000
+				ret = strconv.Itoa(targetTimestamp)
+			case "TimestampMinute":
+				curTimestamp := time.Now().Unix()
+				targetTimestamp := (int(curTimestamp) + 60*num) * 1000
+				ret = strconv.Itoa(targetTimestamp)
+			case "TimestampHour":
+				curTimestamp := time.Now().Unix()
+				targetTimestamp := (int(curTimestamp) + 3600*num) * 1000
+				ret = strconv.Itoa(targetTimestamp)
+			case "TimestampSecond":
+				curTimestamp := time.Now().Unix()
+				targetTimestamp := (int(curTimestamp) + num) * 1000
 				ret = strconv.Itoa(targetTimestamp)
 			case "Date":
 				curTimestamp := time.Now().Unix() + int64(86400*num)

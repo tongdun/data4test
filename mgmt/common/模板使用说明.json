@@ -61,7 +61,10 @@
       "displayName": [
         "{Date(-2)}",
         "{Date(2)}",
-        "{Timestamp(-2)}"
+        "{Timestamp(-2)}",
+        "{TimestampMinute(30)}",
+        "{TimestampHour(1)}",
+        "{TimestampSecond(1800)}"
       ],
       "name": [
         "{IDNo}",
