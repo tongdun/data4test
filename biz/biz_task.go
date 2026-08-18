@@ -1838,6 +1838,11 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 			continue
 		}
 
+		// 内容一致（标准文件忽略 version）则跳过，不升级版本
+		if IsSameContent(dbSceneData.Content, kd.Content, kd.FileName) {
+			continue
+		}
+
 		// 备份旧版本（标准文件在此处升级 version 并更新 DB content）
 		if bakErr := BakOldVer(dbSceneData.Id, kd.Content, kd.FileName); bakErr != nil {
 			Logger.Error("backup data failed: %s, %s", kd.FileName, bakErr)

@@ -684,6 +684,23 @@ func GetFileHistoryVersion(fileName, fileType string) (vOld int) {
 	return
 }
 
+// versionLineReg 匹配标准数据文件顶层的 version 字段行，用于内容比较时忽略该字段
+var versionLineReg = regexp.MustCompile(`(?m)^version\s*:.*$`)
+
+// stripVersionLine 移除标准数据文件中的 version 行
+func stripVersionLine(content string) string {
+	return versionLineReg.ReplaceAllString(content, "")
+}
+
+// IsSameContent 判断导入内容与库中现有内容是否一致。
+// 标准文件(.yml/.yaml/.json)忽略 version 字段比较，脚本文件逐字节比较。
+func IsSameContent(oldContent, newContent, fileName string) bool {
+	if GetFileTypeBySuffix(GetStrSuffix(fileName)) == 1 {
+		return strings.TrimSpace(stripVersionLine(oldContent)) == strings.TrimSpace(stripVersionLine(newContent))
+	}
+	return strings.TrimSpace(oldContent) == strings.TrimSpace(newContent)
+}
+
 func BakOldVer(id, content, fileName string) (err error) {
 	filePath := fmt.Sprintf("%s/%s", DataBasePath, fileName)
 

@@ -1,3 +1,6 @@
+#### 2026年8月18日
+1、[Optimize] 任务导入数据选择覆盖模式时，若导入内容与库中一致（标准文件忽略 version 字段），跳过版本升级，不生成冗余历史版本
+
 #### 2026年8月14日
 1、[Feature] 新增时间戳占位符 {TimestampMinute}、{TimestampHour}、{TimestampSecond}，支持以当前时间为基准生成指定分钟/小时/秒偏移后的毫秒时间戳（如 {TimestampMinute(30)} 生成半小时后时间戳）
 
