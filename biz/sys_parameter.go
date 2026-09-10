@@ -4,7 +4,10 @@ import (
 	"data4test/models"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
+
+	"github.com/GoAdminGroup/go-admin/template/types"
 )
 
 func IsValueInSysParameter(sourceName, targetName string) (b bool, err error) {
@@ -179,5 +182,92 @@ func GetValueFromMapDef(parameterName, keyName string) (value string, err error)
 		Logger.Warning("%s", err)
 	}
 
+	return
+}
+
+// GetTestCaseExportTemplates 返回导出模板名列表（下拉选项），仿 GetAiCreatePlatform
+func GetTestCaseExportTemplates() (templates []types.FieldOption) {
+	var sysParameter SysParameter
+	parameterName := "testCaseExportTemplates"
+	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
+	if len(sysParameter.ValueList) == 0 {
+		templates = GetNoSelectOption(T("test_case.define_export_template"))
+		return
+	}
+
+	templateMap := make(map[string]TestCaseExportTemplate)
+	if err := json.Unmarshal([]byte(sysParameter.ValueList), &templateMap); err != nil {
+		Logger.Error(T("error.param_definition_error"), parameterName, err)
+		templates = GetNoSelectOption(T("test_case.define_export_template"))
+		return
+	}
+
+	names := make([]string, 0, len(templateMap))
+	for name := range templateMap {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		templates = append(templates, types.FieldOption{Value: name, Text: name})
+	}
+
+	if len(templates) == 0 {
+		templates = GetNoSelectOption(T("test_case.define_export_template"))
+	}
+	return
+}
+
+// GetTestCaseExportTemplateByName 按名取单个导出模板
+func GetTestCaseExportTemplateByName(name string) (template TestCaseExportTemplate, err error) {
+	var sysParameter SysParameter
+	parameterName := "testCaseExportTemplates"
+	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
+	if len(sysParameter.ValueList) == 0 {
+		err = fmt.Errorf(T("error.undefined_system_parameter"), parameterName)
+		return
+	}
+
+	templateMap := make(map[string]TestCaseExportTemplate)
+	if errTmp := json.Unmarshal([]byte(sysParameter.ValueList), &templateMap); errTmp != nil {
+		err = fmt.Errorf(T("error.param_definition_error"), parameterName, errTmp)
+		return
+	}
+
+	var ok bool
+	template, ok = templateMap[name]
+	if !ok {
+		err = fmt.Errorf(T("error.template_not_found"), name)
+		return
+	}
+	if len(template.Columns) == 0 {
+		err = fmt.Errorf(T("test_case.template_no_columns"), name)
+	}
+	return
+}
+
+// GetSupportLanguages 返回导出语种选项（value 为存入字段 JSON 的语种 key）
+func GetSupportLanguages() (languages []types.FieldOption) {
+	var sysParameter SysParameter
+	parameterName := "supportLanguages"
+	models.Orm.Table("sys_parameter").Where("name = ?", parameterName).Find(&sysParameter)
+
+	langMap := make(map[string]string)
+	if len(sysParameter.ValueList) > 0 {
+		if err := json.Unmarshal([]byte(sysParameter.ValueList), &langMap); err != nil {
+			Logger.Error(T("error.param_definition_error"), parameterName, err)
+		}
+	}
+	if len(langMap) == 0 {
+		langMap = map[string]string{"zh-CN": "中文", "en-US": "English"}
+	}
+
+	langs := make([]string, 0, len(langMap))
+	for lang := range langMap {
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+	for _, lang := range langs {
+		languages = append(languages, types.FieldOption{Value: lang, Text: langMap[lang]})
+	}
 	return
 }

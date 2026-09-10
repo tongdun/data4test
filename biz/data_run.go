@@ -2028,7 +2028,7 @@ func GetBodyFromRawContent(lang, fileName, content string, depOutVars map[string
 	return
 }
 
-func RunDataByFile(fileName string, content []byte, product, userName string) (runResp RunRespModel, err error) {
+func RunDataByFile(fileName string, content []byte, product, userName string) (runResp CliDataRunResp, err error) {
 	var df DataFile
 	contentStr := string(content)
 	if strings.HasPrefix(strings.TrimSpace(contentStr), "{") {
@@ -2057,10 +2057,8 @@ func RunDataByFile(fileName string, content []byte, product, userName string) (r
 	}
 	//Logger.Debug("CLI dataRun: tempFile=%s", tempFilePath)
 
-	urlStr, headerStr, requestStr, responseStr, outputStr, result, dst, err := df.RunStandard(product, tempFilePath, "common", "cli", contentStr, nil)
+	_, _, requestStr, responseStr, outputStr, result, dst, err := df.RunStandard(product, tempFilePath, "common", "cli", contentStr, nil)
 
-	runResp.Url = urlStr
-	runResp.Header = headerStr
 	runResp.Request = requestStr
 	runResp.Response = responseStr
 	runResp.Output = outputStr

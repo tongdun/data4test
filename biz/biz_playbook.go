@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1663,6 +1662,20 @@ func RunPlaybookByFiles(files []FileEntry, name, product string, sceneType, runN
 
 	runResp.TestResult, runResp.LastFile, err = RepeatRunPlaybook(productInfo, playbook, runNum, "start", "cli", "", userName, "")
 
+	// RepeatRunPlaybook 返回的 lastFile 是临时文件全路径，这里统一转为文件名
+	if len(runResp.LastFile) > 0 {
+		runResp.LastFile = path.Base(runResp.LastFile)
+	}
+
+	// 回查本次场景历史记录 id，供后续结果查询（task_id 仅任务执行时才有值，CLI 场景为空）
+	var rec DbSceneRecord
+	models.Orm.Table("scene_test_history").
+		Where("name = ? and user_name = ?", name, userName).
+		Order("id desc").
+		Limit(1).
+		Find(&rec)
+	runResp.SceneId = rec.Id
+
 	if runResp.TestResult != "pass" {
 		if err != nil {
 			runResp.FailReason = fmt.Sprintf("%v", err)
@@ -1687,7 +1700,8 @@ func GetDataRunDetailsByFiles(files []FileEntry, product string) []DataRunDetail
 	return results
 }
 
-// getHistoryDetail 根据数据文件名反查历史执行详情
+// getHistoryDetail 根据数据文件名反查本次执行详情
+// 从 scene_data_test_history 反查，而非直接读磁盘目录按 ModTime 取最新文件，避免读到旧历史结果
 func getHistoryDetail(fileName string) *DataRunDetail {
 	suffix := GetStrSuffix(fileName)
 	if suffix == "" {
@@ -1698,55 +1712,52 @@ func getHistoryDetail(fileName string) *DataRunDetail {
 		baseName = baseName[:len(baseName)-num]
 	}
 
-	historyDir := fmt.Sprintf("%s/%s", HistoryBasePath, baseName)
-	files, err := ioutil.ReadDir(historyDir)
-	if err != nil || len(files) == 0 {
-		return nil
-	}
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].ModTime().After(files[j].ModTime())
-	})
+	// CLI 执行 task_id 为空，按 content 中的文件名/目录名匹配本次记录，取最新一条
+	var rec SceneDataRecord
+	matchBaseName := fmt.Sprintf("%%%s%%", baseName)
+	models.Orm.Table("scene_data_test_history").
+		Where("content like ?", matchBaseName).
+		Order("id desc").
+		Limit(1).
+		Find(&rec)
 
-	historyPath := fmt.Sprintf("%s/%s", historyDir, files[0].Name())
+	detail := &DataRunDetail{FileName: fileName}
+	// result / fail_reason 以 DB 记录为准
+	detail.TestResult = rec.Result
+	detail.FailReason = rec.FailReason
+
+	if len(rec.Content) == 0 {
+		return detail
+	}
+
+	// 通过 content 链接还原本次结果文件路径，读取 url/request/response 等详情
+	basePath := GetStrFromHtml(rec.Content)
+	dirName := GetHistoryDataDirName(basePath)
+	historyPath := fmt.Sprintf("%s/%s/%s", HistoryBasePath, dirName, basePath)
 	content, err := ioutil.ReadFile(historyPath)
 	if err != nil {
-		return nil
+		// 结果文件未落盘（如执行早期失败），仅返回 DB 中的 result/fail_reason
+		return detail
 	}
 
 	var df DataFile
-	if strings.HasSuffix(files[0].Name(), ".log") {
+	if strings.HasSuffix(basePath, ".log") {
 		// 非标准文件的历史是原始 stdout
 		df.Response = []string{string(content)}
-		if strings.Contains(string(content), "err:") || strings.HasPrefix(string(content), "cmd:") {
-			df.TestResult = []string{"fail"}
-			df.FailReason = []string{string(content)}
-		} else {
-			df.TestResult = []string{"pass"}
-		}
-	} else if strings.HasSuffix(files[0].Name(), ".json") {
+	} else if strings.HasSuffix(basePath, ".json") {
 		if err := json.Unmarshal(content, &df); err != nil {
-			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", files[0].Name(), err)
+			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", basePath, err)
 		}
 	} else {
 		if err := yaml.Unmarshal(content, &df); err != nil {
-			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", files[0].Name(), err)
+			Logger.Warning("getHistoryDetail unmarshal file %s error: %v", basePath, err)
 		}
 	}
 
-	urlStr, headerStr, requestStr, responseStr, outputStr, _ := df.GetResponseStr()
-
-	detail := &DataRunDetail{FileName: fileName}
-	detail.Url = urlStr
-	detail.Header = headerStr
+	_, _, requestStr, responseStr, outputStr, _ := df.GetResponseStr()
 	detail.Request = requestStr
 	detail.Response = responseStr
 	detail.Output = outputStr
-	if len(df.TestResult) > 0 {
-		detail.TestResult = df.TestResult[len(df.TestResult)-1]
-	}
-	if len(df.FailReason) > 0 {
-		detail.FailReason = df.FailReason[len(df.FailReason)-1]
-	}
 
 	return detail
 }

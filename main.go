@@ -138,9 +138,11 @@ func startServer() {
 
 	r.Static("./upload", args.Upload)
 	r.Static("./static", "./web/static")
+	r.Static("/uploads", biz.UploadBasePath)
 
 	eng.HTMLFile("GET", "/admin/likePostman", "./html/index.html", nil)
 	eng.HTMLFile("GET", "/admin/schedule_import", "./html/schedule_import.html", nil)
+	eng.HTMLFile("GET", "/admin/case_import", "./html/case_import.html", nil)
 
 	eng.Data("GET", "/admin/librarian", func(ctx *context.Context) {
 		conn := eng.SqliteConnection()
@@ -205,6 +207,14 @@ func startServer() {
 
 	r.GET("/admin/report_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
 		return pages.GetDashboardByReportId(ctx)
+	}))
+
+	r.GET("/admin/case_statistics_report", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		return pages.GetCaseStatisticsReportContent(ctx)
+	}))
+
+	r.GET("/admin/case_statistics_report_detail", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		return pages.GetCaseStatisticsReportById(ctx)
 	}))
 
 	plug, _ := plugins.FindByName("filemanager")
@@ -1208,6 +1218,97 @@ func startServer() {
 		return
 	})
 
+	// TestCaseExport2ExcelByTemplate
+	r.POST("/test_case_export_excel", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		product := c.PostForm("product")
+		module := c.PostForm("module")
+		introVersion := c.PostForm("intro_version")
+		caseDesigner := c.PostForm("case_designer")
+		createdAtStart := c.PostForm("created_at_start__goadmin")
+		createdAtEnd := c.PostForm("created_at_end__goadmin")
+		templateName := c.PostForm("template")
+		lang := c.PostForm("lang")
+		screenshotMode := c.PostForm("screenshot_mode")
+		packFormat := c.PostForm("pack_format")
+
+		var status string
+		if idStr == "," && len(product) == 0 && len(module) == 0 && len(introVersion) == 0 && len(caseDesigner) == 0 && len(createdAtStart) == 0 {
+			status = biz.T("main.select_data_export")
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+		if len(templateName) == 0 {
+			status = biz.T("test_case.select_template_first")
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+
+		fileName, err := biz.ExportTestCase2ExcelByTemplate(idStr, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, packFormat)
+		if err != nil {
+			status = fmt.Sprintf(biz.T("error.export_fail"), err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+
+		hostIp := c.Request.Host
+		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
+		return
+	})
+
+	// 切换用例数据语种（写/清 cookie，默认跟随界面语言）
+	r.POST("/setDataLocale", func(c *gin.Context) {
+		lang := c.PostForm("lang")
+		if lang == "auto" || lang == "" {
+			c.SetCookie("data_locale", "", -1, "/", "", false, true)
+		} else {
+			c.SetCookie("data_locale", lang, 60*60*24*365, "/", "", false, true)
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("test_case.data_lang_switched"), "data": map[string]string{}})
+	})
+
+	// 批量修改选中用例
+	r.POST("/test_case_batch_update", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		module := c.PostForm("module")
+		testResult := c.PostForm("test_result")
+		introVersion := c.PostForm("intro_version")
+		funDeveloper := c.PostForm("fun_developer")
+		caseDesigner := c.PostForm("case_designer")
+		caseExecutor := c.PostForm("case_executor")
+		testTime := c.PostForm("test_time")
+		user, _ := engine.User(c)
+		userName := user.Name
+
+		var ids []string
+		for _, id := range strings.Split(idStr, ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				ids = append(ids, id)
+			}
+		}
+		if len(ids) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("common.btn_select_first"), "data": map[string]string{}})
+			return
+		}
+		if module == "" && testResult == "" && introVersion == "" && funDeveloper == "" && caseDesigner == "" && caseExecutor == "" && testTime == "" {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("test_case.batch_select_field_first"), "data": map[string]string{}})
+			return
+		}
+		if err := biz.BatchUpdateTestCase(ids, module, testResult, introVersion, funDeveloper, caseDesigner, caseExecutor, testTime, userName); err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf(biz.T("error.update_fail"), err), "data": map[string]string{}})
+			return
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("common.operate_success"), "data": map[string]string{}})
+	})
+
+	// 手动刷新多语种 YAML 索引
+	r.POST("/reloadCaseI18n", func(c *gin.Context) {
+		biz.ReloadCaseI18n()
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("common.operate_success"), "data": map[string]string{}})
+	})
+
 	// AI用例
 	r.POST("/ai_case_create_by_create_desc", func(c *gin.Context) {
 		user, _ := engine.User(c)
@@ -1994,6 +2095,159 @@ func startServer() {
 			})
 		}
 	})
+	// 测试用例导入Excel-获取可选模板列表
+	r.GET("/case_import_templates", func(c *gin.Context) {
+		templates := biz.GetTestCaseExportTemplates()
+		names := make([]string, 0, len(templates))
+		for _, t := range templates {
+			names = append(names, t.Value)
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("common.operate_success"),
+			"data": names,
+		})
+	})
+
+	// 测试用例导入Excel-获取可选关联产品列表(来自系统参数 caseProduct)
+	r.GET("/case_products", func(c *gin.Context) {
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("common.operate_success"),
+			"data": biz.GetCaseProductList(),
+		})
+	})
+
+	// 测试用例导入Excel-下载空模板
+	r.POST("/case_import_template", func(c *gin.Context) {
+		templateName := c.PostForm("template")
+		if len(templateName) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_template_required"),
+				"data": map[string]string{},
+			})
+			return
+		}
+		fileName, err := biz.GenerateCaseImportTemplate(templateName)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  fmt.Sprintf(biz.T("error.export_fail"), err),
+				"data": map[string]string{},
+			})
+			return
+		}
+		hostIp := c.Request.Host
+		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("common.operate_success"),
+			"data": map[string]string{"file_name": fileName, "download_url": downloadUrl},
+		})
+	})
+
+	// 测试用例导入Excel-阶段1：上传并检查冲突
+	r.POST("/case_import_check", func(c *gin.Context) {
+		user, _ := engine.User(c)
+		templateName := c.PostForm("template")
+		if len(templateName) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_template_required"),
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		excelFile, errTmp := c.FormFile("excel_file")
+		if errTmp != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_no_file"),
+				"data": map[string]string{},
+			})
+			return
+		}
+		excelPath := fmt.Sprintf("%s/%s", biz.UploadBasePath, excelFile.Filename)
+		c.SaveUploadedFile(excelFile, excelPath)
+
+		imagePkgPath := ""
+		if imagePkg, errImg := c.FormFile("image_pkg"); errImg == nil {
+			imagePkgPath = fmt.Sprintf("%s/%s", biz.UploadBasePath, imagePkg.Filename)
+			c.SaveUploadedFile(imagePkg, imagePkgPath)
+		}
+
+		defaultsJSON := c.PostForm("defaults")
+
+		result, err := biz.TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, user.Name)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  err.Error(),
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		respData := biz.BuildCaseImportCheckResult(result)
+
+		if len(result.Conflicts) > 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_conflict_title"),
+				"data": respData,
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("test_case.import_check_ok"),
+				"data": respData,
+			})
+		}
+	})
+
+	// 测试用例导入Excel-阶段2：确认导入（异步）
+	r.POST("/case_import_confirm", func(c *gin.Context) {
+		importId := c.PostForm("import_id")
+		mode := c.PostForm("import_mode")
+		user, _ := engine.User(c)
+
+		if len(importId) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_id_required"),
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		go func() {
+			defer func() {
+				if e := recover(); e != nil {
+					biz.Logger.Error("case import confirm panic: %v", e)
+				}
+			}()
+			if err := biz.TestCaseImportConfirm(importId, mode, user.Name); err != nil {
+				biz.Logger.Error("case import confirm failed: %s", err)
+			}
+		}()
+
+		if mode == "cancel" {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("test_case.import_cancelled"),
+				"data": map[string]string{},
+			})
+		} else {
+			c.JSON(http.StatusOK, map[string]interface{}{
+				"code": 200,
+				"msg":  biz.T("test_case.import_processing"),
+				"data": map[string]string{},
+			})
+		}
+	})
+
 	// 手动刷新菜单翻译（新增菜单后调用，无需重启应用）
 	r.GET("/admin/refresh-menu-i18n", func(c *gin.Context) {
 		biz.RefreshMenuI18n()
@@ -2092,13 +2346,34 @@ func startServer() {
 
 		runResp, err := biz.RunPlaybookByFiles(fileList, name, product, sceneType, runNum, c.GetString("cliUserName"))
 
-		// 无论成功失败，都查询详情并构造响应体
-		dataResults := biz.GetDataRunDetailsByFiles(fileList, product)
-		cliResp := biz.CliPlaybookRunResp{
-			Scene:       runResp,
-			DataResults: dataResults,
+		// 串行中断/比较模式执行到失败文件即停止，其余模式全部执行；据此确定本次实际执行的数据文件
+		executedFiles := fileList
+		if (sceneType == 1 || sceneType == 2) && len(runResp.LastFile) > 0 {
+			for i, f := range fileList {
+				if f.Name == runResp.LastFile {
+					executedFiles = fileList[:i+1]
+					break
+				}
+			}
 		}
 
+		dataList := make([]string, 0, len(fileList))
+		for _, f := range fileList {
+			dataList = append(dataList, f.Name)
+		}
+
+		dataResults := biz.GetDataRunDetailsByFiles(executedFiles, product)
+		cliResp := biz.CliPlaybookRunResp{
+			PlaybookResults: biz.CliPlaybookResultModel{
+				PlaybookName: name,
+				DataList:     dataList,
+				LastFile:     runResp.LastFile,
+				TestResult:   runResp.TestResult,
+				FailReason:   runResp.FailReason,
+				SceneId:      runResp.SceneId,
+			},
+			DataResults: dataResults,
+		}
 		if err != nil {
 			c.IndentedJSON(http.StatusOK, gin.H{"code": 400, "msg": biz.T("common.operate_fail"), "data": cliResp})
 			return

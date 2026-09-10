@@ -11,10 +11,18 @@ type AppModel struct {
 }
 
 type RunRespModel struct {
-	Response   string `json:"response"`
 	Url        string `json:"url"`
 	Request    string `json:"request"`
+	Response   string `json:"response"`
 	Header     string `json:"header"`
+	TestResult string `json:"testResult"`
+	FailReason string `json:"failReason"`
+	Output     string `json:"output"`
+}
+
+type CliDataRunResp struct {
+	Request    string `json:"request"`
+	Response   string `json:"response"`
 	TestResult string `json:"testResult"`
 	FailReason string `json:"failReason"`
 	Output     string `json:"output"`
@@ -24,16 +32,30 @@ type RunSceneRespModel struct {
 	LastFile   string `json:"lastDataFile"`
 	TestResult string `gorm:"column:result" json:"testResult"`
 	FailReason string `json:"failReason"`
+	SceneId    string `json:"sceneId"`
+}
+
+type CliPlaybookResultModel struct {
+	PlaybookName string   `json:"playbook_name"`
+	DataList     []string `json:"data_list"`
+	LastFile     string   `json:"lastDataFile"`
+	TestResult   string   `json:"testResult"`
+	FailReason   string   `json:"failReason"`
+	SceneId      string   `json:"sceneId"`
 }
 
 type CliPlaybookRunResp struct {
-	Scene       RunSceneRespModel `json:"scene"`
-	DataResults []DataRunDetail   `json:"dataResults"`
+	PlaybookResults CliPlaybookResultModel `json:"playbookResults"`
+	DataResults     []DataRunDetail        `json:"dataResults"`
 }
 
 type DataRunDetail struct {
-	FileName string `json:"fileName"`
-	RunRespModel
+	FileName   string `json:"fileName"`
+	Request    string `json:"request"`
+	Response   string `json:"response"`
+	TestResult string `json:"testResult"`
+	FailReason string `json:"failReason"`
+	Output     string `json:"output"`
 }
 
 type ModuleModel struct {

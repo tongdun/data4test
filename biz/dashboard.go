@@ -47,6 +47,27 @@ func GetProducts() (products []types.FieldOption) {
 	return
 }
 
+// GetCaseProductList 从系统参数 caseProduct 读取关联产品名列表（逗号分隔），未配置返回空
+func GetCaseProductList() (products []string) {
+	var dbSysParameters []SysParameter
+	models.Orm.Table("sys_parameter").Where("name = ?", "caseProduct").Find(&dbSysParameters)
+	if len(dbSysParameters) == 0 {
+		return
+	}
+	return GetValuesFromStringList(dbSysParameters[0].ValueList)
+}
+
+// GetCaseProducts 返回关联产品下拉选项；未配置时返回提示项
+func GetCaseProducts() (products []types.FieldOption) {
+	for _, item := range GetCaseProductList() {
+		products = append(products, types.FieldOption{Value: item, Text: item})
+	}
+	if len(products) == 0 {
+		products = GetNoSelectOption(T("info.define_case_product"))
+	}
+	return
+}
+
 func GetProductsByUpdateTime(yearNo int) (products []types.FieldOption) {
 	var dbProducts []Product
 	var product types.FieldOption

@@ -30,6 +30,7 @@ var LastImportId string
 func Init() {
 	InitMenuI18n()
 	ServiceRestart()
+	ReloadCaseI18n()
 }
 
 func ServiceRestart() {

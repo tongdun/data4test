@@ -70,5 +70,7 @@ var Generators = map[string]table.Generator{
 	"ai_create":               GetAiCreateTable,
 	"ai_optimize":             GetAiOptimizeTable,
 	"dashboard":               GetDashboardTable,
+	"case_statistics":         GetCaseStatisticsTable,
+	"case_statistics_report":  GetCaseStatisticsReportTable,
 	// generators end
 }
