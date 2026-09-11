@@ -34,10 +34,10 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
-	info.AddField(biz.T("common.id"), "id", db.Int)
+	info.AddField(biz.T("common.id"), "id", db.Int).FieldWidth(100)
 	info.AddField(biz.T("case_statistics.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace().FieldWidth(200)
+		FieldTrimSpace()
 	info.AddField(biz.T("case_statistics.intro_versions"), "intro_versions", db.Varchar).
 		FieldWidth(160)
 	info.AddField(biz.T("case_statistics.product"), "product", db.Varchar).
@@ -59,7 +59,7 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.remark"), "remark", db.Varchar).
 		FieldHide()
 	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
-		FieldSortable().FieldWidth(120)
+		FieldSortable()
 	info.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp).
 		FieldHide()
 	info.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp).
@@ -79,6 +79,20 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 
 	// 查看报告（最新）
 	info.AddActionButton(template.HTML(biz.T("case_statistics.btn_report")), action.Jump("/admin/case_statistics_report?id={{.Id}}"))
+
+	// i18n同步（导出叶子模块用例原始数据 → mgmt/i18n_case/<模块>/zh-CN.yaml）
+	info.AddActionButton(template.HTML(biz.T("case_statistics.btn_i18n_sync")), action.Ajax("case_statistics_i18n_sync",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			id, err := strconv.Atoi(ctx.FormValue("id"))
+			if err != nil {
+				return false, biz.T("case_statistics.invalid_id"), ""
+			}
+			mc, cc, err := biz.SyncCaseI18nFromStatistics(id)
+			if err != nil {
+				return false, fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), ""
+			}
+			return true, fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc), ""
+		}))
 
 	info.SetTable("case_statistics").SetTitle(biz.T("case_statistics.title")).SetDescription(biz.T("case_statistics.description"))
 

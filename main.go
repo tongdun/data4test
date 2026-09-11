@@ -1230,6 +1230,7 @@ func startServer() {
 		templateName := c.PostForm("template")
 		lang := c.PostForm("lang")
 		screenshotMode := c.PostForm("screenshot_mode")
+		excelType := c.PostForm("excel_type")
 		packFormat := c.PostForm("pack_format")
 
 		var status string
@@ -1244,7 +1245,7 @@ func startServer() {
 			return
 		}
 
-		fileName, err := biz.ExportTestCase2ExcelByTemplate(idStr, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, packFormat)
+		fileName, err := biz.ExportTestCase2ExcelByTemplate(idStr, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, excelType, packFormat, c.Request.Host)
 		if err != nil {
 			status = fmt.Sprintf(biz.T("error.export_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})

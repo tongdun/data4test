@@ -269,7 +269,34 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 					{Value: "", Text: biz.T("test_case.screenshot_mode_none")},
 					{Value: "path", Text: biz.T("test_case.screenshot_mode_path")},
 					{Value: "embed", Text: biz.T("test_case.screenshot_mode_embed")},
-				}).FieldDefault("")
+				}).FieldDefault("").
+				// 图片模式联动：嵌入图片→显示 EXCEL类型；打包图片→显示 打包格式
+				// 注：导出弹窗是 PopUpWithCtxForm，不渲染 panel.FooterHtml（AddJS / FieldOnChooseShow 都会丢弃），
+				// 故改用 FieldFoot 把脚本内联到该字段，才能随弹窗一起渲染。
+				FieldFoot(template.HTML(`<script>
+$(function () {
+    function toggleExportPicFields() {
+        var v = $('select.screenshot_mode').val() || '';
+        if (v === 'embed') {
+            $("label[for='excel_type']").parent().show();
+        } else {
+            $("label[for='excel_type']").parent().hide();
+        }
+        if (v === 'path') {
+            $("label[for='pack_format']").parent().show();
+        } else {
+            $("label[for='pack_format']").parent().hide();
+        }
+    }
+    toggleExportPicFields();
+    $('select.screenshot_mode').on('select2:select change', toggleExportPicFields);
+});
+</script>`))
+			panel.AddField(biz.T("test_case.excel_type"), "excel_type", db.Varchar, form.SelectSingle).
+				FieldOptions(types.FieldOptions{
+					{Value: "wps", Text: biz.T("test_case.excel_type_wps")},
+					{Value: "office", Text: biz.T("test_case.excel_type_office")},
+				}).FieldDefault("wps")
 			panel.AddField(biz.T("test_case.pack_format"), "pack_format", db.Varchar, form.SelectSingle).
 				FieldOptions(types.FieldOptions{
 					{Value: "tgz", Text: biz.T("test_case.pack_tgz")},

@@ -3,11 +3,17 @@ package biz
 import (
 	"archive/tar"
 	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"data4test/models"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -183,20 +189,31 @@ func extractImgSrcs(raw string) []string {
 	return srcs
 }
 
-// resolveUploadFilePath 将图片引用解析为本地绝对路径：/uploads/xxx 映射到 UploadBasePath 下，其余按相对路径兜底
+// resolveUploadFilePath 将图片引用解析为本地绝对路径：/uploads/xxx 映射到 UploadBasePath 下，其余按相对路径兜底。
+// 保存时 src 经 url.PathEscape 编码，磁盘文件名为未编码形式，需反向解码后才能定位。
 func resolveUploadFilePath(ref string) string {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return ""
 	}
 	if strings.HasPrefix(ref, "/uploads/") {
-		return filepath.Join(UploadBasePath, strings.TrimPrefix(ref, "/uploads/"))
+		rest := strings.TrimPrefix(ref, "/uploads/")
+		if q := strings.IndexByte(rest, '?'); q >= 0 {
+			rest = rest[:q]
+		}
+		if decoded, err := url.PathUnescape(rest); err == nil {
+			return filepath.Join(UploadBasePath, decoded)
+		}
+		return filepath.Join(UploadBasePath, rest)
 	}
 	return filepath.Join(UploadBasePath, ref)
 }
 
-// resolveScreenshotValue 处理 test_process 截图列；返回单元格文本与需打包的图片路径
-func resolveScreenshotValue(raw, screenshotMode string, xlsxFile *excelize.File, sheet, cell string) (text string, imagePaths []string) {
+// resolveScreenshotValue 处理 test_process 截图列；返回单元格文本与需打包的图片路径。
+// col/rowNum 为当前单元格的列下标与行号，用于嵌入模式把多张图依次放到同行右侧单元格。
+// embedImgs 收集 WPS 嵌入模式的图片（用于导出后注入 cellimages 部件）。
+// excelType 区分嵌入实现：wps 用 DISPIMG 单元格内嵌，office 用 IMAGE() 函数内嵌（需 host 构造图片 URL）。
+func resolveScreenshotValue(raw, screenshotMode, excelType, host string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (text string, imagePaths []string) {
 	if screenshotMode == "" {
 		return "", nil
 	}
@@ -213,31 +230,64 @@ func resolveScreenshotValue(raw, screenshotMode string, xlsxFile *excelize.File,
 	}
 
 	if screenshotMode == "embed" {
-		if len(paths) > 0 {
-			absPath := resolveUploadFilePath(paths[0])
-			if _, statErr := os.Stat(absPath); statErr == nil {
-				_ = xlsxFile.AddPicture(sheet, cell, absPath, `{"x_scale":0.4,"y_scale":0.4}`)
+		if excelType == "office" {
+			// OFFICE：用 IMAGE() 函数把图片作为单元格值嵌入（Excel 365+），第一张放 test_process 单元格，后续依次放同行右侧单元格
+			for i, p := range paths {
+				imgURL := toHTTPImageURL(p, host)
+				if imgURL == "" {
+					continue
+				}
+				cell := columnName(col+i) + fmt.Sprintf("%d", rowNum)
+				// <f> 存 _xlfn.IMAGE（公式），<v> 存 =IMAGE（缓存值）
+				xlsxFile.SetCellFormula(sheet, cell, fmt.Sprintf(`_xlfn.IMAGE("%s","",0)`, imgURL))
+				xlsxFile.SetCellStr(sheet, cell, fmt.Sprintf(`=IMAGE("%s","",0)`, imgURL))
 			}
-			if len(paths) > 1 {
-				text = strings.Join(paths[1:], "\n")
-			}
+			return "", nil
 		}
-		return text, nil
+		// WPS：嵌入单元格，每张图写一个 DISPIMG 公式，第一张放 test_process 单元格，后续依次放同行右侧单元格
+		for i, p := range paths {
+			absPath := resolveUploadFilePath(p)
+			if _, statErr := os.Stat(absPath); statErr != nil {
+				continue
+			}
+			id := fmt.Sprintf("ID_%08X", len(*embedImgs)+1)
+			cell := columnName(col+i) + fmt.Sprintf("%d", rowNum)
+			// <f> 存 _xlfn.DISPIMG（公式），<v> 存 =DISPIMG（缓存值，与 WPS 一致）
+			xlsxFile.SetCellFormula(sheet, cell, fmt.Sprintf(`_xlfn.DISPIMG("%s",1)`, id))
+			xlsxFile.SetCellStr(sheet, cell, fmt.Sprintf(`=DISPIMG("%s",1)`, id))
+			*embedImgs = append(*embedImgs, wpsEmbedImage{id: id, absPath: absPath})
+		}
+		return "", nil
 	}
 
-	// path 模式：写路径文本并收集图片用于打包
-	return strings.Join(paths, "\n"), paths
+	// path 模式：收集图片用于打包，单元格文本留空（打包图片不写路径文本）
+	return "", paths
+}
+
+// toHTTPImageURL 将图片引用（/uploads/xxx 或相对路径）转为 http 可访问地址，供 IMAGE() 函数使用。
+func toHTTPImageURL(ref, host string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
+		return ref
+	}
+	if strings.HasPrefix(ref, "/") {
+		return "http://" + host + ref
+	}
+	return "http://" + host + "/" + ref
 }
 
 // resolveExportCellValue 按模板列 field 求值
-func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode string, xlsxFile *excelize.File, sheet, cell string) (string, []string) {
+func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode, excelType, host string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (string, []string) {
 	switch {
 	case strings.HasPrefix(field, "ext_info."):
 		return GetExtInfoValue(row.ExtInfo, strings.TrimPrefix(field, "ext_info."), lang), nil
 	case field == "ext_info":
 		return row.ExtInfo, nil
 	case field == "test_process":
-		return resolveScreenshotValue(row.TestProcess, screenshotMode, xlsxFile, sheet, cell)
+		return resolveScreenshotValue(row.TestProcess, screenshotMode, excelType, host, xlsxFile, sheet, col, rowNum, embedImgs)
 	case field == FieldCaseName || field == FieldCaseModule || field == FieldCaseType ||
 		field == FieldPreCondition || field == FieldTestRange || field == FieldTestSteps || field == FieldExpectResult:
 		if v := GetCaseLocalized(row.CaseNumber, row.Module, lang, field); v != "" {
@@ -250,7 +300,7 @@ func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode s
 }
 
 // ExportTestCase2ExcelByTemplate 按模板导出用例为 Excel
-func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, packFormat string) (fileName string, err error) {
+func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, excelType, packFormat, host string) (fileName string, err error) {
 	template, err := GetTestCaseExportTemplateByName(templateName)
 	if err != nil {
 		return
@@ -275,11 +325,12 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	}
 
 	var imagePaths []string
+	var embedImgs []wpsEmbedImage
 	for r, row := range rows {
 		rowNum := r + 2
 		for c, col := range template.Columns {
 			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
-			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, xlsxFile, sheet, cell)
+			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
 			if len(text) > 0 {
 				xlsxFile.SetCellValue(sheet, cell, text)
 			}
@@ -294,6 +345,13 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	if err = xlsxFile.SaveAs(xlsxPath); err != nil {
 		Logger.Error("%s", err)
 		return
+	}
+
+	if screenshotMode == "embed" && excelType == "wps" {
+		if err = injectWpsCellImages(xlsxPath, embedImgs); err != nil {
+			Logger.Error("inject wps cell images failed: %s", err)
+			return
+		}
 	}
 
 	if screenshotMode == "embed" || screenshotMode == "" || packFormat == "" {
@@ -312,6 +370,49 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	}
 	if err == nil && fileName != baseName+".xlsx" {
 		_ = os.Remove(xlsxPath)
+	}
+	return
+}
+
+// imageEntryName 计算图片在归档内的条目名：优先保留 /uploads 下的相对目录（模块目录/文件名），
+// 避免不同模块下同名图片在归档内冲突、丢失层级。
+func imageEntryName(absPath string) string {
+	if rel, err := filepath.Rel(UploadBasePath, absPath); err == nil &&
+		!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel) {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.Base(absPath)
+}
+
+// writeTarEntry 将文件以指定条目名写入 tar，逻辑同 WriteTarFile，仅条目名可定制。
+func writeTarEntry(tw *tar.Writer, filePath, entryName string) (err error) {
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	fr, err := os.Open(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	defer fr.Close()
+
+	h := new(tar.Header)
+	h.Name = entryName
+	h.Size = fi.Size()
+	h.Mode = int64(fi.Mode())
+	h.ModTime = fi.ModTime()
+
+	if err = tw.WriteHeader(h); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	_, err = io.Copy(tw, fr)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
 	}
 	return
 }
@@ -343,7 +444,7 @@ func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		}
 		seen[absPath] = true
 		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = WriteTarFile(tw, absPath); err != nil {
+			if err = writeTarEntry(tw, absPath, imageEntryName(absPath)); err != nil {
 				Logger.Error("%s", err)
 				return
 			}
@@ -375,13 +476,13 @@ func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 	}
 	zw := zip.NewWriter(fz)
 
-	addToZip := func(src string) error {
+	addToZip := func(src, entryName string) error {
 		fr, e := os.Open(src)
 		if e != nil {
 			return e
 		}
 		defer fr.Close()
-		w, e := zw.Create(filepath.Base(src))
+		w, e := zw.Create(entryName)
 		if e != nil {
 			return e
 		}
@@ -389,7 +490,7 @@ func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		return e
 	}
 
-	if err = addToZip(xlsxPath); err != nil {
+	if err = addToZip(xlsxPath, filepath.Base(xlsxPath)); err != nil {
 		Logger.Error("%s", err)
 		return
 	}
@@ -405,7 +506,7 @@ func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		}
 		seen[absPath] = true
 		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = addToZip(absPath); err != nil {
+			if err = addToZip(absPath, imageEntryName(absPath)); err != nil {
 				Logger.Error("%s", err)
 				return
 			}
@@ -421,4 +522,163 @@ func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		return
 	}
 	return
+}
+
+// wpsEmbedImage 一张待嵌入单元格的图片（WPS DISPIMG）
+type wpsEmbedImage struct {
+	id      string // DISPIMG ID，如 "ID_00000001"
+	absPath string // 本地绝对路径
+}
+
+// buildCellImagesXML 生成 WPS xl/cellimages.xml（嵌入单元格图片清单）。
+// 结构对齐 WPS 官方写入格式：nvPicPr 含 cNvPicPr，blipFill 含 stretch，spPr 含 xfrm/prstGeom/noFill/ln。
+func buildCellImagesXML(entries []wpsCellImageEntry) []byte {
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n")
+	b.WriteString(`<etc:cellImages xmlns:etc="http://www.wps.cn/officeDocument/2017/etCustomData" xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`)
+	for _, e := range entries {
+		widthEMU := e.widthPx * 9525
+		heightEMU := e.heightPx * 9525
+		fmt.Fprintf(&b, `<etc:cellImage><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="%s" name="%s"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="%s"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="%d" cy="%d"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln w="9525"><a:noFill/></a:ln></xdr:spPr></xdr:pic></etc:cellImage>`,
+			e.id, e.name, e.relID, widthEMU, heightEMU)
+	}
+	b.WriteString(`</etc:cellImages>`)
+	return []byte(b.String())
+}
+
+// buildCellImagesRels 生成 WPS xl/_rels/cellimages.xml.rels（rId → media 映射）
+func buildCellImagesRels(entries []wpsCellImageEntry) []byte {
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n")
+	b.WriteString(`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`)
+	for _, e := range entries {
+		fmt.Fprintf(&b, `<Relationship Id="%s" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/%s"/>`, e.relID, e.mediaName)
+	}
+	b.WriteString(`</Relationships>`)
+	return []byte(b.String())
+}
+
+// wpsCellImageEntry 单张 cellImage 的构造信息
+type wpsCellImageEntry struct {
+	name      string // cNvPr@name，DISPIMG ID
+	id        string // cNvPr@id
+	relID     string // blip@r:embed
+	mediaName string // media 文件名，如 image1.png
+	widthPx   int    // 图片宽度（像素）
+	heightPx  int    // 图片高度（像素）
+}
+
+// injectWpsCellImages 向已生成的 xlsx 注入 WPS「嵌入单元格图片」部件：
+// xl/cellimages.xml、xl/_rels/cellimages.xml.rels、xl/media/imageN.ext，
+// 并注册 [Content_Types].xml 与 xl/_rels/workbook.xml.rels。
+func injectWpsCellImages(xlsxPath string, images []wpsEmbedImage) (err error) {
+	if len(images) == 0 {
+		return nil
+	}
+
+	r, err := zip.OpenReader(xlsxPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	// 读入图片字节并构造 cellImage 条目与 media 文件
+	media := make(map[string][]byte) // mediaName -> bytes
+	entries := make([]wpsCellImageEntry, 0, len(images))
+	for i, img := range images {
+		data, rerr := os.ReadFile(img.absPath)
+		if rerr != nil {
+			Logger.Error("read embed image failed: %s, %s", img.absPath, rerr)
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(img.absPath))
+		if ext == "" {
+			ext = ".png"
+		}
+		widthPx, heightPx := 0, 0
+		if cfg, _, derr := image.DecodeConfig(bytes.NewReader(data)); derr == nil {
+			widthPx, heightPx = cfg.Width, cfg.Height
+		}
+		mediaName := fmt.Sprintf("image%d%s", i+1, ext)
+		media[mediaName] = data
+		entries = append(entries, wpsCellImageEntry{
+			name:      img.id,
+			id:        fmt.Sprintf("%d", i+1),
+			relID:     fmt.Sprintf("rId%d", i+1),
+			mediaName: mediaName,
+			widthPx:   widthPx,
+			heightPx:  heightPx,
+		})
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	cellimagesXML := buildCellImagesXML(entries)
+	cellimagesRels := buildCellImagesRels(entries)
+
+	// 写新 zip：原条目（含补丁后的 content types / workbook rels）+ 新部件
+	tmpPath := xlsxPath + ".tmp"
+	fz, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	zw := zip.NewWriter(fz)
+
+	copyEntry := func(name string, data []byte) error {
+		w, e := zw.Create(name)
+		if e != nil {
+			return e
+		}
+		_, e = w.Write(data)
+		return e
+	}
+
+	for _, f := range r.File {
+		data, rerr := readZipFile(f)
+		if rerr != nil {
+			return rerr
+		}
+		switch f.Name {
+		case "[Content_Types].xml":
+			data = patchContentTypes(data)
+		case "xl/_rels/workbook.xml.rels":
+			data = patchWorkbookRels(data)
+		}
+		if e := copyEntry(f.Name, data); e != nil {
+			return e
+		}
+	}
+
+	if e := copyEntry("xl/cellimages.xml", cellimagesXML); e != nil {
+		return e
+	}
+	if e := copyEntry("xl/_rels/cellimages.xml.rels", cellimagesRels); e != nil {
+		return e
+	}
+	for name, data := range media {
+		if e := copyEntry("xl/media/"+name, data); e != nil {
+			return e
+		}
+	}
+
+	if e := zw.Close(); e != nil {
+		return e
+	}
+	if e := fz.Close(); e != nil {
+		return e
+	}
+	return os.Rename(tmpPath, xlsxPath)
+}
+
+// patchContentTypes 在 [Content_Types].xml 中注册 /xl/cellimages.xml
+func patchContentTypes(data []byte) []byte {
+	override := `<Override PartName="/xl/cellimages.xml" ContentType="application/vnd.wps-officedocument.cellimage+xml"/>`
+	return []byte(strings.Replace(string(data), "</Types>", override+"</Types>", 1))
+}
+
+// patchWorkbookRels 在 xl/_rels/workbook.xml.rels 中关联 cellimages.xml
+func patchWorkbookRels(data []byte) []byte {
+	rel := `<Relationship Id="rIdWpsCellImages" Type="http://www.wps.cn/officeDocument/2020/cellImage" Target="cellimages.xml"/>`
+	return []byte(strings.Replace(string(data), "</Relationships>", rel+"</Relationships>", 1))
 }
