@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入测试用例</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f0f2f5; padding:40px; color:#333; }
+.container { max-width:860px; margin:0 auto; background:#fff; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.08); padding:32px; }
+h2 { font-size:18px; margin-bottom:24px; color:#1a1a1a; }
+.form-row { margin-bottom:16px; }
+.form-row label { display:block; font-size:14px; color:#333; margin-bottom:6px; font-weight:600; }
+.form-row select, .form-row input[type=text] { width:100%; padding:8px 12px; border:1px solid #d9d9d9; border-radius:4px; font-size:14px; }
+.upload-area { border:2px dashed #d9d9d9; border-radius:6px; padding:32px; text-align:center; margin-bottom:16px; transition:border-color .3s; cursor:pointer; }
+.upload-area:hover { border-color:#2d8cf0; }
+.upload-area.drag-over { border-color:#2d8cf0; background:#f0f7ff; }
+.upload-area input { display:none; }
+.upload-area .icon { font-size:32px; color:#999; margin-bottom:8px; }
+.upload-area .text { color:#666; font-size:14px; }
+.upload-area .hint { color:#999; font-size:12px; margin-top:6px; }
+.file-selected { background:#f6f8fa; border:1px solid #e1e4e8; border-radius:6px; padding:10px 14px; margin-bottom:16px; display:none; align-items:center; gap:12px; }
+.file-selected .name { flex:1; font-size:14px; color:#333; word-break:break-all; }
+.file-selected .remove { color:#999; cursor:pointer; font-size:18px; line-height:1; }
+.file-selected .remove:hover { color:#ff4d4f; }
+.uniform-fill { border:1px solid #e1e4e8; border-radius:6px; padding:16px; margin-bottom:16px; background:#fafafa; }
+.uniform-fill .uf-title { font-size:14px; font-weight:600; margin-bottom:4px; color:#333; }
+.uniform-fill .uf-hint { font-size:12px; color:#999; margin-bottom:12px; }
+.uf-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.uf-grid .field label { display:block; font-size:13px; color:#555; margin-bottom:4px; }
+.uf-grid .field input, .uf-grid .field select, .uf-grid .field textarea { width:100%; padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; font-size:13px; }
+.uf-grid .field textarea { height:60px; resize:vertical; }
+.uf-grid .field.full { grid-column:1 / -1; }
+.btn { display:inline-block; padding:8px 24px; border:none; border-radius:4px; font-size:14px; cursor:pointer; transition:all .2s; margin-right:12px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-primary { background:#2d8cf0; color:#fff; }
+.btn-primary:hover:not(:disabled) { background:#479ef5; }
+.btn-success { background:#19be6b; color:#fff; }
+.btn-success:hover:not(:disabled) { background:#25d67a; }
+.btn-danger { background:#ed4014; color:#fff; }
+.btn-default { background:#fff; color:#333; border:1px solid #d9d9d9; }
+.btn-default:hover:not(:disabled) { border-color:#2d8cf0; color:#2d8cf0; }
+.btn-link { background:none; border:none; color:#2d8cf0; cursor:pointer; font-size:13px; padding:4px 0; }
+.result { display:none; margin-top:20px; }
+.result-title { font-size:15px; font-weight:600; margin-bottom:12px; }
+.summary-bar { padding:10px 14px; background:#fff7e6; border:1px solid #ffd591; border-radius:4px; margin-bottom:12px; font-size:14px; color:#ad6800; }
+table.conflict-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:12px; }
+table.conflict-table th, table.conflict-table td { border:1px solid #e1e4e8; padding:6px 10px; text-align:left; }
+table.conflict-table th { background:#fff2f0; color:#a8071a; }
+.actions { margin-top:24px; padding-top:20px; border-top:1px solid #f0f0f0; }
+.mode-select { margin-bottom:16px; }
+.mode-select label { display:block; padding:10px 14px; border:1px solid #d9d9d9; border-radius:4px; margin-bottom:8px; cursor:pointer; font-size:14px; transition:all .2s; }
+.mode-select label:hover { border-color:#2d8cf0; }
+.mode-select input[type=radio] { margin-right:8px; }
+.mode-select label.active { border-color:#2d8cf0; background:#f0f7ff; }
+.loading { display:none; text-align:center; padding:20px; color:#999; }
+.spinner { display:inline-block; width:20px; height:20px; border:2px solid #d9d9d9; border-top-color:#2d8cf0; border-radius:50%; animation:spin .6s linear infinite; margin-right:8px; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.error-msg { padding:12px 16px; background:#fff2f0; border:1px solid #ffccc7; border-radius:4px; color:#cf1322; font-size:14px; margin-bottom:16px; display:none; }
+.import-id { font-family:monospace; background:#f5f5f5; padding:2px 6px; border-radius:3px; font-size:13px; word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>导入测试用例</h2>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div id="uploadSection">
+    <div class="form-row">
+      <label>导入模板</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="templateSelect"></select>
+        <button class="btn btn-default" id="downloadTemplateBtn" type="button">下载模板(含示例)</button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>上传 Excel 文件（必填，首行为表头）</label>
+      <div class="upload-area" id="excelDropZone">
+        <input type="file" id="excelInput" accept=".xlsx">
+        <div class="icon">📄</div>
+        <div class="text">点击选择 Excel 文件或拖拽到此处</div>
+        <div class="hint">支持 .xlsx 格式</div>
+      </div>
+      <div class="file-selected" id="excelSelected">
+        <span class="name" id="excelName"></span>
+        <span class="remove" id="removeExcel">&times;</span>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>上传图片压缩包（选填）</label>
+      <div class="upload-area" id="imageDropZone">
+        <input type="file" id="imageInput" accept=".zip">
+        <div class="icon">🖼️</div>
+        <div class="text">点击选择图片压缩包或拖拽到此处</div>
+        <div class="hint">图片按「编号_N.format」命名，如 TC_001_1.png</div>
+      </div>
+      <div class="file-selected" id="imageSelected">
+        <span class="name" id="imageName"></span>
+        <span class="remove" id="removeImage">&times;</span>
+      </div>
+    </div>
+
+    <div class="uniform-fill">
+      <div class="uf-title">统一填写（选填）</div>
+      <div class="uf-hint">仅当 Excel 中该字段未映射或无值时生效，Excel 有值不覆盖。</div>
+      <div class="uf-grid">
+        <div class="field"><label>用例模块</label><input type="text" data-field="module"></div>
+        <div class="field"><label>引入版本</label><input type="text" data-field="intro_version"></div>
+        <div class="field"><label>功能开发者</label><input type="text" data-field="fun_developer"></div>
+        <div class="field"><label>用例设计者</label><input type="text" data-field="case_designer"></div>
+        <div class="field"><label>用例执行者</label><input type="text" data-field="case_executor"></div>
+        <div class="field"><label>是否自动化</label>
+          <select data-field="auto">
+            <option value="">不填</option>
+            <option value="1">是</option>
+            <option value="0">否</option>
+            <option value="2">部分</option>
+          </select>
+        </div>
+        <div class="field"><label>用例类型</label><input type="text" data-field="case_type"></div>
+        <div class="field"><label>优先级</label><input type="text" data-field="priority"></div>
+        <div class="field"><label>关联产品线</label><select data-field="product"></select></div>
+        <div class="field full"><label>扩展信息（YAML）</label><textarea data-field="ext_info"></textarea></div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="checkBtn" disabled>上传并检查</button>
+  </div>
+
+  <div class="loading" id="loading">
+    <span class="spinner"></span> 正在解析并检查冲突...
+  </div>
+
+  <div class="result" id="resultSection">
+    <div class="result-title" id="resultTitle"></div>
+    <div id="conflictList"></div>
+    <div style="margin-top:8px; font-size:13px; color:#808695;">
+      导入ID: <span class="import-id" id="importIdDisplay"></span>
+    </div>
+
+    <div class="actions" id="confirmActions">
+      <div class="mode-select">
+        <label id="modeSkipLabel" class="active">
+          <input type="radio" name="importMode" value="skip" checked> 跳过冲突项，仅导入不冲突的内容
+        </label>
+        <label id="modeOverwriteLabel" style="display:none">
+          <input type="radio" name="importMode" value="overwrite"> 覆盖冲突项（仅更新 Excel 有值或统一填写的字段）
+        </label>
+        <label id="modeCancelLabel">
+          <input type="radio" name="importMode" value="cancel"> 取消（不导入任何内容）
+        </label>
+      </div>
+      <button class="btn btn-success" id="confirmBtn">确认导入</button>
+      <button class="btn btn-default" id="resetBtn">重新选择文件</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var importId = '';
+
+// Elements
+var templateSelect = document.getElementById('templateSelect');
+var downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+var excelInput = document.getElementById('excelInput');
+var imageInput = document.getElementById('imageInput');
+var excelDropZone = document.getElementById('excelDropZone');
+var imageDropZone = document.getElementById('imageDropZone');
+var excelSelected = document.getElementById('excelSelected');
+var excelName = document.getElementById('excelName');
+var imageSelected = document.getElementById('imageSelected');
+var imageName = document.getElementById('imageName');
+var checkBtn = document.getElementById('checkBtn');
+var loading = document.getElementById('loading');
+var resultSection = document.getElementById('resultSection');
+var errorMsg = document.getElementById('errorMsg');
+var conflictList = document.getElementById('conflictList');
+var importIdDisplay = document.getElementById('importIdDisplay');
+var resultTitle = document.getElementById('resultTitle');
+var confirmBtn = document.getElementById('confirmBtn');
+var resetBtn = document.getElementById('resetBtn');
+var modeSkipLabel = document.getElementById('modeSkipLabel');
+var modeOverwriteLabel = document.getElementById('modeOverwriteLabel');
+var modeCancelLabel = document.getElementById('modeCancelLabel');
+
+// 加载模板列表
+function loadTemplates() {
+  fetch('/case_import_templates')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var names = (data && data.data) || [];
+      templateSelect.innerHTML = '';
+      if (names.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '暂无模板，请先在系统参数中定义导出模板';
+        templateSelect.appendChild(opt);
+        return;
+      }
+      names.forEach(function(n) {
+        var opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        templateSelect.appendChild(opt);
+      });
+    })
+    .catch(function(err) {
+      errorMsg.textContent = '加载模板失败: ' + err.message;
+      errorMsg.style.display = 'block';
+    });
+}
+
+// 下载空模板
+downloadTemplateBtn.addEventListener('click', function() {
+  var tpl = templateSelect.value;
+  if (!tpl) {
+    errorMsg.textContent = '请先选择导入模板';
+    errorMsg.style.display = 'block';
+    return;
+  }
+  var formData = new FormData();
+  formData.append('template', tpl);
+  fetch('/case_import_template', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.code === 200 && data.data && data.data.download_url) {
+        window.open(data.data.download_url, '_blank');
+      } else {
+        errorMsg.textContent = data.msg || '下载失败';
+        errorMsg.style.display = 'block';
+      }
+    })
+    .catch(function(err) {
+      errorMsg.textContent = '网络错误: ' + err.message;
+      errorMsg.style.display = 'block';
+    });
+});
+
+function bindUpload(dropZone, input, selectedEl, nameEl, removeEl) {
+  input.addEventListener('change', function() {
+    if (input.files.length > 0) {
+      nameEl.textContent = input.files[0].name;
+      selectedEl.style.display = 'flex';
+      updateCheckBtn();
+      errorMsg.style.display = 'none';
+    }
+  });
+  removeEl.addEventListener('click', function() {
+    input.value = '';
+    selectedEl.style.display = 'none';
+    updateCheckBtn();
+  });
+  dropZone.addEventListener('click', function() { input.click(); });
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {
+      input.files = e.dataTransfer.files;
+      nameEl.textContent = e.dataTransfer.files[0].name;
+      selectedEl.style.display = 'flex';
+      updateCheckBtn();
+      errorMsg.style.display = 'none';
+    }
+  });
+}
+
+bindUpload(excelDropZone, excelInput, excelSelected, excelName, document.getElementById('removeExcel'));
+bindUpload(imageDropZone, imageInput, imageSelected, imageName, document.getElementById('removeImage'));
+
+function updateCheckBtn() {
+  checkBtn.disabled = !(excelInput.files.length > 0);
+}
+
+// 收集统一填写默认值
+function collectDefaults() {
+  var defaults = {};
+  document.querySelectorAll('[data-field]').forEach(function(el) {
+    var v = el.value.trim();
+    if (v !== '') {
+      defaults[el.getAttribute('data-field')] = v;
+    }
+  });
+  return defaults;
+}
+
+checkBtn.addEventListener('click', function() {
+  var tpl = templateSelect.value;
+  if (!tpl) {
+    errorMsg.textContent = '请先选择导入模板';
+    errorMsg.style.display = 'block';
+    return;
+  }
+  if (!excelInput.files[0]) return;
+  errorMsg.style.display = 'none';
+  checkBtn.disabled = true;
+  loading.style.display = 'block';
+  resultSection.style.display = 'none';
+
+  var formData = new FormData();
+  formData.append('template', tpl);
+  formData.append('excel_file', excelInput.files[0]);
+  if (imageInput.files[0]) {
+    formData.append('image_pkg', imageInput.files[0]);
+  }
+  formData.append('defaults', JSON.stringify(collectDefaults()));
+
+  fetch('/case_import_check', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      loading.style.display = 'none';
+      checkBtn.disabled = false;
+      var d = data.data || {};
+      importId = d.import_id || '';
+      importIdDisplay.textContent = importId;
+
+      if (data.code === 200) {
+        // 无冲突
+        resultTitle.innerHTML = '&#10004; 检查通过，无编号冲突';
+        resultTitle.style.color = '#389e0d';
+        conflictList.innerHTML = '';
+        document.getElementById('modeSkipLabel').style.display = 'none';
+        modeOverwriteLabel.style.display = 'none';
+        modeCancelLabel.style.display = '';
+        document.querySelector('input[name="importMode"][value="skip"]').checked = true;
+        confirmBtn.textContent = '确认导入';
+        resultSection.style.display = 'block';
+      } else if (data.code === 400 && d && d.conflicts > 0) {
+        // 有冲突
+        resultTitle.innerHTML = '&#9888; 检测到编号冲突（' + d.conflicts + ' 条）';
+        resultTitle.style.color = '#cf1322';
+        conflictList.innerHTML = buildConflictHtml(d);
+        modeSkipLabel.style.display = '';
+        modeOverwriteLabel.style.display = '';
+        modeCancelLabel.style.display = '';
+        document.querySelector('input[name="importMode"][value="skip"]').checked = true;
+        confirmBtn.textContent = '跳过冲突项，导入其余';
+        resultSection.style.display = 'block';
+      } else {
+        // 其它错误
+        errorMsg.textContent = data.msg || '未知错误';
+        errorMsg.style.display = 'block';
+      }
+    })
+    .catch(function(err) {
+      loading.style.display = 'none';
+      checkBtn.disabled = false;
+      errorMsg.textContent = '网络错误: ' + err.message;
+      errorMsg.style.display = 'block';
+    });
+});
+
+function buildConflictHtml(d) {
+  var details = d.conflict_details || [];
+  var summary = '';
+  if (d.new_count !== undefined) {
+    summary = '<div class="summary-bar">可导入（无冲突）：' + d.new_count + ' 条</div>';
+  }
+  var html = summary + '<table class="conflict-table"><thead><tr>' +
+    '<th>用例编号</th><th>模块</th><th>库中已有名称</th><th>导入名称</th>' +
+    '</tr></thead><tbody>';
+  for (var i = 0; i < details.length; i++) {
+    var c = details[i];
+    html += '<tr><td>' + esc(c.case_number) + '</td><td>' + esc(c.module) + '</td>' +
+      '<td>' + esc(c.exist_name) + '</td><td>' + esc(c.import_name) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// 模式切换
+document.querySelectorAll('input[name="importMode"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    if (this.value === 'overwrite') {
+      confirmBtn.textContent = '覆盖冲突项并导入';
+    } else if (this.value === 'skip') {
+      confirmBtn.textContent = '跳过冲突项，导入其余';
+    } else {
+      confirmBtn.textContent = '取消导入';
+    }
+  });
+});
+
+confirmBtn.addEventListener('click', function() {
+  if (!importId) return;
+  var mode = document.querySelector('input[name="importMode"]:checked').value;
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '提交中...';
+
+  var formData = new FormData();
+  formData.append('import_id', importId);
+  formData.append('import_mode', mode);
+
+  fetch('/case_import_confirm', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.code === 200) {
+        resultTitle.innerHTML = '&#10004; ' + data.msg;
+        resultTitle.style.color = '#389e0d';
+        confirmActions.style.display = 'none';
+        resetBtn.textContent = '完成';
+      } else {
+        errorMsg.textContent = data.msg || '导入失败';
+        errorMsg.style.display = 'block';
+        confirmBtn.disabled = false;
+      }
+    })
+    .catch(function(err) {
+      errorMsg.textContent = '网络错误: ' + err.message;
+      errorMsg.style.display = 'block';
+      confirmBtn.disabled = false;
+    });
+});
+
+resetBtn.addEventListener('click', function() {
+  excelInput.value = '';
+  excelSelected.style.display = 'none';
+  imageInput.value = '';
+  imageSelected.style.display = 'none';
+  checkBtn.disabled = true;
+  resultSection.style.display = 'none';
+  errorMsg.style.display = 'none';
+  loading.style.display = 'none';
+  importId = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = '确认导入';
+  confirmActions.style.display = '';
+  modeOverwriteLabel.style.display = 'none';
+  resetBtn.textContent = '重新选择文件';
+});
+
+// 加载关联产品下拉（来自系统参数 caseProduct）
+function loadProducts() {
+  fetch('/case_products')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var names = (data && data.data) || [];
+      var select = document.querySelector('[data-field="product"]');
+      select.innerHTML = '';
+      var emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '不填';
+      select.appendChild(emptyOpt);
+      names.forEach(function(n) {
+        var opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        select.appendChild(opt);
+      });
+    })
+    .catch(function(err) {});
+}
+
+loadTemplates();
+loadProducts();
+</script>
+</body>
+</html>
