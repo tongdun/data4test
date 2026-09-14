@@ -5,13 +5,10 @@ import (
 	"data4test/models"
 	"encoding/json"
 	"fmt"
-	tmpl "github.com/GoAdminGroup/go-admin/template"
 	"html/template"
 	"time"
 
-	"github.com/GoAdminGroup/go-admin/template/chartjs"
 	"github.com/GoAdminGroup/go-admin/template/types"
-	"github.com/GoAdminGroup/themes/adminlte/components/chart_legend"
 	"github.com/gin-gonic/gin"
 )
 
@@ -111,522 +108,82 @@ func GetDashBoardContent(ctx *gin.Context, userName string) (types.Panel, error)
 	return renderGlobalReport(globalReportData, dr)
 }
 
+// globalPie 大盘饼图（col-md-4 一栏，含可选 footer 链接）。
+func globalPie(id, title string, data BaseCount, footerURL, footerText string) string {
+	if len(data.Infos) == 0 {
+		return `<div class="col-md-4">` + reportCard(title, "", "") + `</div>`
+	}
+	infos := localizeInfos(data.Infos)
+	pie := reportPieChart(id, infos, data.Counts, data.Colors)
+	legend := reportLegend(rebuildLegendLabels(data.Labels, infos, data.Counts))
+	body := fmt.Sprintf(`<div class="row"><div class="col-md-8">%s</div><div class="col-md-4">%s</div></div>`, pie, legend)
+	if footerURL != "" {
+		body += fmt.Sprintf(`<div class="report-card-footer"><a href="%s">%s &raquo;</a></div>`, footerURL, footerText)
+	}
+	return `<div class="col-md-4">` + reportCard(title, "", body) + `</div>`
+}
+
+// globalLine 大盘折线图（按 DayRunResult 系列循环取色）。
+// X 轴标签 DayList 存的是 i18n key（如 report.month_N）或日期字符串，渲染时本地化。
+func globalLine(id, cardTitle string, dr DayRunResult) string {
+	if len(dr.Infos) == 0 {
+		return reportCard(cardTitle, "", "")
+	}
+	labels := localizeInfos(dr.DayList)
+	series := make([]reportLineSeries, 0, len(dr.Infos))
+	for i := range dr.Infos {
+		var data []float64
+		if i < len(dr.Counts) {
+			data = dr.Counts[i]
+		}
+		series = append(series, reportLineSeries{
+			Label: dr.Infos[i],
+			Data:  data,
+			Color: categoricalColor(i),
+		})
+	}
+	return reportLine(id, cardTitle, labels, series)
+}
+
 func renderGlobalReport(globalReportData GlobalDashboardReport, report biz.DashboardReport) (types.Panel, error) {
-	components := tmpl.Default()
-	colComp := components.Col()
-	apiMethods := globalReportData.APITypeCount.Infos
-	apiCounts := globalReportData.APITypeCount.Counts
-	colors := globalReportData.APITypeCount.Colors
-	labels := globalReportData.APITypeCount.Labels
-	pie1 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(apiMethods).
-		SetID("pieChart1").
-		AddDataSet(apiMethods[0]).
-		DSData(apiCounts).
-		DSBackgroundColor(colors).
-		GetContent()
+	// 第1行：API 类型分布 / API 规范 / API 自动化
+	row1 := `<div class="row">` +
+		globalPie("pieChart1", biz.T("dashboard.api_type_distribution"), globalReportData.APITypeCount, "/admin/info/api_definition", biz.T("dashboard.view_all_apis")) +
+		globalPie("pieChart2", biz.T("dashboard.api_spec_check"), globalReportData.APISpecCount, "/admin/info/api_definition", biz.T("dashboard.view_all_apis")) +
+		globalPie("pieChart3", biz.T("dashboard.api_is_automation"), globalReportData.AutoAPICount, "/admin/info/scene_data", biz.T("dashboard.view_all_api_data")) +
+		`</div>`
 
-	legend1 := chart_legend.New().SetData(labels).GetContent()
+	// 第2行：数据执行趋势（折线）+ 数据执行分布（饼）
+	line1 := globalLine("dataChart", biz.T("dashboard.data_exec_trend_6m"), globalReportData.AppTestDataRunCount)
+	pie4 := globalPie("pieChart4", biz.T("dashboard.data_exec_dist_6m"), globalReportData.AppAPIRunCount, "/admin/info/scene_data_test_history", biz.T("dashboard.view_all_history_data"))
+	row2 := `<div class="row"><div class="col-md-8">` + line1 + `</div>` + pie4 + `</div>`
 
-	apiTypeDistribution := template.HTML(biz.T("dashboard.api_type_distribution"))
-	viewAllApis := template.HTML(biz.T("dashboard.view_all_apis"))
-	apiSpecCheck := template.HTML(biz.T("dashboard.api_spec_check"))
-	apiIsAutomation := template.HTML(biz.T("dashboard.api_is_automation"))
-	viewAllApiData := template.HTML(biz.T("dashboard.view_all_api_data"))
-	dataExecTrend6m := template.HTML(biz.T("dashboard.data_exec_trend_6m"))
-	dataExecDist6m := template.HTML(biz.T("dashboard.data_exec_dist_6m"))
-	viewAllHistoryData := template.HTML(biz.T("dashboard.view_all_history_data"))
-	sceneExecTrend6m := template.HTML(biz.T("dashboard.scene_exec_trend_6m"))
-	sceneExecDist6m := template.HTML(biz.T("dashboard.scene_exec_dist_6m"))
-	viewAllHistoryScene := template.HTML(biz.T("dashboard.view_all_history_scene"))
-	productList := template.HTML(biz.T("common.product_list"))
-	gotoProductDetail := template.HTML(biz.T("dashboard.goto_product_detail"))
-	appList := template.HTML(biz.T("dashboard.app_list"))
-	gotoAppDetail := template.HTML(biz.T("dashboard.goto_app_detail"))
-	sceneExecStatus := template.HTML(biz.T("dashboard.scene_exec_status"))
-	viewAllSceneRecords := template.HTML(biz.T("dashboard.view_all_scene_records"))
-	dataExecStatus := template.HTML(biz.T("dashboard.data_exec_status"))
-	viewAllDataRecords := template.HTML(biz.T("dashboard.view_all_data_records"))
-	taskTypeDist := template.HTML(biz.T("dashboard.task_type_dist"))
-	viewAllTasks := template.HTML(biz.T("dashboard.view_all_tasks"))
-	dashboardTitle := template.HTML(biz.T("dashboard.title"))
-	dashboardDesc := template.HTML(biz.T("dashboard.description"))
+	// 第3行：场景执行趋势（折线）+ 场景执行分布（饼）
+	line2 := globalLine("sceneChart", biz.T("dashboard.scene_exec_trend_6m"), globalReportData.ProductPlaybookResultCount)
+	pie5 := globalPie("pieChart5", biz.T("dashboard.scene_exec_dist_6m"), globalReportData.PlaybookResultCount, "/admin/info/sence_test_history", biz.T("dashboard.view_all_history_scene"))
+	row3 := `<div class="row"><div class="col-md-8">` + line2 + `</div>` + pie5 + `</div>`
 
-	boxDanger1 := components.Box().SetTheme("danger1").WithHeadBorder().SetHeader(apiTypeDistribution).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie1).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend1).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/api_definition" class="uppercase1">` + viewAllApis + `</a></p>`).
-		GetContent()
-	col1 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger1).GetContent()
-	infos := globalReportData.APISpecCount.Infos
-	counts := globalReportData.APISpecCount.Counts
-	colors = globalReportData.APISpecCount.Colors
-	labels = globalReportData.APISpecCount.Labels
-	pie2 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart2").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
+	// 第6行：场景执行状态 / 数据执行状态 / 任务类型分布
+	row6 := `<div class="row">` +
+		globalPie("pieChart6", biz.T("dashboard.scene_exec_status"), globalReportData.PlaybookResultCount, "/admin/info/scene_test_history", biz.T("dashboard.view_all_scene_records")) +
+		globalPie("pieChart7", biz.T("dashboard.data_exec_status"), globalReportData.TestDataResultCount, "/admin/info/scene_data", biz.T("dashboard.view_all_data_records")) +
+		globalPie("pieChart8", biz.T("dashboard.task_type_dist"), globalReportData.ScheduleResultCount, "/admin/info/schedule", biz.T("dashboard.view_all_tasks")) +
+		`</div>`
 
-	legend2 := chart_legend.New().SetData(labels).GetContent()
+	// 产品列表 / 应用列表
+	productsBody := reportTableFromInfo(globalReportData.ProductsTableCount.Contents, globalReportData.ProductsTableCount.Headers) +
+		fmt.Sprintf(`<div class="report-card-footer"><a href="/admin/info/product">%s &raquo;</a></div>`, biz.T("dashboard.goto_product_detail"))
+	row4 := reportCard(biz.T("common.product_list"), "", productsBody)
 
-	boxDanger2 := components.Box().SetTheme("danger2").WithHeadBorder().SetHeader(apiSpecCheck).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie2).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend2).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/api_definition" class="uppercase2">` + viewAllApis + `</a></p>`).
-		GetContent()
+	appsBody := reportTableFromInfo(globalReportData.AppTableCount.Contents, globalReportData.AppTableCount.Headers) +
+		fmt.Sprintf(`<div class="report-card-footer"><a href="/admin/info/env_config">%s &raquo;</a></div>`, biz.T("dashboard.goto_app_detail"))
+	row5 := reportCard(biz.T("dashboard.app_list"), "", appsBody)
 
-	col2 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger2).GetContent()
-	infos = globalReportData.AutoAPICount.Infos
-	counts = globalReportData.AutoAPICount.Counts
-	colors = globalReportData.AutoAPICount.Colors
-	labels = globalReportData.AutoAPICount.Labels
-	pie3 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart3").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
+	content := row1 + row2 + row3 + row6 + row5 + row4 + string(reportStyle())
 
-	legend3 := chart_legend.New().SetData(labels).GetContent()
-
-	boxDanger3 := components.Box().SetTheme("danger3").WithHeadBorder().SetHeader(apiIsAutomation).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie3).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend3).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/scene_data" class="uppercase3">` + viewAllApiData + `</a></p>`).
-		GetContent()
-
-	col3 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger3).GetContent()
-
-	row1 := components.Row().SetContent(col1 + col2 + col3).GetContent()
-
-	line1 := chartjs.Line()
-	title := globalReportData.AppTestDataRunCount.Title
-	infos = globalReportData.AppTestDataRunCount.Infos
-	monthCounts := globalReportData.AppTestDataRunCount.Counts
-	monthLable := globalReportData.AppTestDataRunCount.DayList
-	var lineChart1 template.HTML
-	if len(infos) == 1 {
-		lineChart1 = line1.
-			SetID("dataChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 2 {
-		lineChart1 = line1.
-			SetID("dataChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 3 {
-		lineChart1 = line1.
-			SetID("dataChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(true).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 4 {
-		lineChart1 = line1.
-			SetID("dataChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(false).
-			DSBorderColor("rgb(238,232,170)").
-			DSLineTension(0.1).
-			AddDataSet(infos[3]).
-			DSData(monthCounts[3]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) >= 5 {
-		lineChart1 = line1.
-			SetID("dataChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(false).
-			DSBorderColor("rgb(238,232,170)").
-			DSLineTension(0.1).
-			AddDataSet(infos[3]).
-			DSData(monthCounts[3]).
-			DSFill(false).
-			DSBorderColor("rgb(189,183,107)").
-			DSLineTension(0.1).
-			AddDataSet(infos[4]).
-			DSData(monthCounts[4]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	}
-	boxInternalCol1 := colComp.SetContent(lineChart1).SetSize(types.SizeMD(12)).GetContent()
-	boxInternalRow1 := components.Row().SetContent(boxInternalCol1).GetContent()
-	box1 := components.Box().WithHeadBorder().SetHeader(dataExecTrend6m).
-		SetBody(boxInternalRow1).
-		GetContent()
-
-	boxcol1 := colComp.SetContent(box1).SetSize(types.SizeMD(8)).GetContent()
-	infos = globalReportData.AppAPIRunCount.Infos
-	counts = globalReportData.AppAPIRunCount.Counts
-	colors = globalReportData.AppAPIRunCount.Colors
-	labels = globalReportData.AppAPIRunCount.Labels
-	pie4 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart4").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend4 := chart_legend.New().SetData(labels).GetContent()
-
-	boxDanger4 := components.Box().SetTheme("danger4").WithHeadBorder().SetHeader(dataExecDist6m).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie4).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend4).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/scene_data_test_history" class="uppercase3">` + viewAllHistoryData + `</a></p>`).
-		GetContent()
-
-	col4 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger4).GetContent()
-
-	row2 := components.Row().SetContent(boxcol1 + col4).GetContent()
-
-	line2 := chartjs.Line()
-	title = globalReportData.ProductPlaybookResultCount.Title
-	infos = globalReportData.ProductPlaybookResultCount.Infos
-	monthCounts = globalReportData.ProductPlaybookResultCount.Counts
-	monthLable = globalReportData.ProductPlaybookResultCount.DayList
-	var lineChart2 template.HTML
-	if len(infos) == 1 {
-		lineChart2 = line2.
-			SetID("sceneChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 2 {
-		lineChart2 = line2.
-			SetID("sceneChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 3 {
-		lineChart2 = line2.
-			SetID("sceneChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(true).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) == 4 {
-		lineChart2 = line2.
-			SetID("sceneChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(false).
-			DSBorderColor("rgb(238,232,170)").
-			DSLineTension(0.1).
-			AddDataSet(infos[3]).
-			DSData(monthCounts[3]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	} else if len(infos) >= 5 {
-		lineChart2 = line2.
-			SetID("sceneChart").
-			SetHeight(320).
-			SetTitle(title).
-			SetLabels(monthLable).
-			AddDataSet(infos[0]).
-			DSData(monthCounts[0]).
-			DSFill(false).
-			DSBorderColor("rgb(255, 205, 86)").
-			DSLineTension(0.1).
-			AddDataSet(infos[1]).
-			DSData(monthCounts[1]).
-			DSFill(false).
-			DSBorderColor("rgb(54, 162, 235)").
-			DSLineTension(0.1).
-			AddDataSet(infos[2]).
-			DSData(monthCounts[2]).
-			DSFill(false).
-			DSBorderColor("rgb(238,232,170)").
-			DSLineTension(0.1).
-			AddDataSet(infos[3]).
-			DSData(monthCounts[3]).
-			DSFill(false).
-			DSBorderColor("rgb(189,183,107)").
-			DSLineTension(0.1).
-			AddDataSet(infos[4]).
-			DSData(monthCounts[4]).
-			DSFill(false).
-			DSBorderColor("rgba(60,141,188,1)").
-			DSLineTension(0.1).
-			GetContent()
-	}
-	boxInternalCol2 := colComp.SetContent(lineChart2).SetSize(types.SizeMD(12)).GetContent()
-	boxInternalRow2 := components.Row().SetContent(boxInternalCol2).GetContent()
-	box2 := components.Box().WithHeadBorder().SetHeader(sceneExecTrend6m).
-		SetBody(boxInternalRow2).
-		GetContent()
-
-	boxcol2 := colComp.SetContent(box2).SetSize(types.SizeMD(8)).GetContent()
-	infos = globalReportData.PlaybookResultCount.Infos
-	counts = globalReportData.PlaybookResultCount.Counts
-	colors = globalReportData.PlaybookResultCount.Colors
-	labels = globalReportData.PlaybookResultCount.Labels
-	pie5 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart5").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-	legend5 := chart_legend.New().SetData(labels).GetContent()
-	boxDanger5 := components.Box().SetTheme("danger5").WithHeadBorder().SetHeader(sceneExecDist6m).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie5).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend5).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/sence_test_history" class="uppercase3">` + viewAllHistoryScene + `</a></p>`).
-		GetContent()
-	col5 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger5).GetContent()
-	row3 := components.Row().SetContent(boxcol2 + col5).GetContent()
-	contents := globalReportData.ProductsTableCount.Contents
-	headers := globalReportData.ProductsTableCount.Headers
-	table := components.Table().SetInfoList(contents).SetThead(headers).GetContent()
-	boxInfo := components.Box().
-		WithHeadBorder().
-		SetHeader(productList).
-		SetHeadColor("#f7f7f7").
-		SetBody(table).
-		SetFooter(`<div class="clearfix"><a href="/admin/info/product" class="btn btn-sm btn-default btn-flat pull-right">` + gotoProductDetail + `</a> </div>`).
-		GetContent()
-	tableCol := colComp.SetSize(types.SizeMD(12)).SetContent(boxInfo).GetContent()
-	row4 := components.Row().SetContent(tableCol).GetContent()
-	var tableApp template.HTML
-	if len(globalReportData.AppTableCount.Contents) > 0 {
-		tableApp = components.Table().SetInfoList(globalReportData.AppTableCount.Contents).SetThead(globalReportData.AppTableCount.Headers).GetContent()
-	}
-
-	boxAppInfo := components.Box().
-		WithHeadBorder().
-		SetHeader(appList).
-		SetHeadColor("#f7f7f7").
-		SetBody(tableApp).
-		SetFooter(`<div class="clearfix"><a href="/admin/info/env_config" class="btn btn-sm btn-default btn-flat pull-right">` + gotoAppDetail + `</a> </div>`).
-		GetContent()
-	tableAppCol := colComp.SetSize(types.SizeMD(12)).SetContent(boxAppInfo).GetContent()
-	row5 := components.Row().SetContent(tableAppCol).GetContent()
-	infos = globalReportData.PlaybookResultCount.Infos
-	counts = globalReportData.PlaybookResultCount.Counts
-	colors = globalReportData.PlaybookResultCount.Colors
-	labels = globalReportData.PlaybookResultCount.Labels
-	pie6 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart6").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend6 := chart_legend.New().SetData(labels).GetContent()
-
-	boxDanger6 := components.Box().SetTheme("danger5").WithHeadBorder().SetHeader(sceneExecStatus).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie6).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend6).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/scene_test_history" class="uppercase3">` + viewAllSceneRecords + `</a></p>`).
-		GetContent()
-
-	col6 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger6).GetContent()
-	infos = globalReportData.TestDataResultCount.Infos
-	counts = globalReportData.TestDataResultCount.Counts
-	colors = globalReportData.TestDataResultCount.Colors
-	labels = globalReportData.TestDataResultCount.Labels
-	pie7 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart7").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend7 := chart_legend.New().SetData(labels).GetContent()
-
-	boxDanger7 := components.Box().SetTheme("danger5").WithHeadBorder().SetHeader(dataExecStatus).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie7).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend7).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/scene_data" class="uppercase3">` + viewAllDataRecords + `</a></p>`).
-		GetContent()
-
-	col7 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger7).GetContent()
-	infos = globalReportData.ScheduleResultCount.Infos
-	counts = globalReportData.ScheduleResultCount.Counts
-	colors = globalReportData.ScheduleResultCount.Colors
-	labels = globalReportData.ScheduleResultCount.Labels
-	pie8 := chartjs.Pie().
-		SetHeight(120).
-		SetLabels(infos).
-		SetID("pieChart8").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend8 := chart_legend.New().SetData(labels).GetContent()
-
-	boxDanger8 := components.Box().SetTheme("danger5").WithHeadBorder().SetHeader(taskTypeDist).
-		SetBody(components.Row().
-			SetContent(colComp.SetSize(types.SizeMD(8)).
-				SetContent(pie8).
-				GetContent() + colComp.SetSize(types.SizeMD(4)).
-				SetContent(legend8).
-				GetContent()).GetContent()).
-		SetFooter(`<p class="text-center"><a href="/admin/info/schedule" class="uppercase3">` + viewAllTasks + `</a></p>`).
-		GetContent()
-
-	col8 := colComp.SetSize(types.SizeMD(4)).SetContent(boxDanger8).GetContent()
-	row6 := components.Row().SetContent(col6 + col7 + col8).GetContent()
 	return types.Panel{
-		Content:     row1 + row2 + row3 + row6 + row5 + row4,
-		Title:       dashboardTitle,
-		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, dashboardDesc, biz.T("schedule_report.generated_at"), report.CreatedAt)),
+		Content:     template.HTML(content),
+		Title:       template.HTML(biz.T("dashboard.title")),
+		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, biz.T("dashboard.description"), biz.T("schedule_report.generated_at"), report.CreatedAt)),
 	}, nil
 }

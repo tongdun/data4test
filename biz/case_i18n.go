@@ -22,7 +22,7 @@ const caseI18nReloadTTL = 5 * time.Second
 
 // caseI18nDir 多语种数据目录
 func caseI18nDir() string {
-	return fmt.Sprintf("%s/i18n_case", BASEPATH)
+	return fmt.Sprintf("%s/i18n/i18n_case", BASEPATH)
 }
 
 // normalizeLang 将语种后缀规范化为 BCP-47 标准大小写（en-Us/en-us → en-US，zh-cn → zh-CN）

@@ -20,10 +20,14 @@ type caseStatRow struct {
 	TestTime     string `gorm:"column:test_time"`
 	FunDeveloper string `gorm:"column:fun_developer"`
 	CaseDesigner string `gorm:"column:case_designer"`
+	Priority     string `gorm:"column:priority"`
 	CaseExecutor string `gorm:"column:case_executor"`
 	ExtInfo      string `gorm:"column:ext_info"`
 	Remark       string `gorm:"column:remark"`
 }
+
+// ExtEmptyPlaceholder 统计维度中空值的占位显示（扩展字段/优先级/执行者等）
+const ExtEmptyPlaceholder = "-"
 
 // GetIntroVersions 获取 test_case 中所有非空引入版（用于统计定义表单多选）
 func GetIntroVersions() (versions []string) {
@@ -136,7 +140,7 @@ func GenerateCaseStatisticsReport(caseStatId int, userName string) {
 		query = query.Where("product IN (?)", products)
 	}
 	var rows []caseStatRow
-	if err := query.Select("module, case_number, case_name, test_result, test_time, fun_developer, case_designer, case_executor, ext_info, remark").
+	if err := query.Select("module, case_number, case_name, test_result, test_time, fun_developer, case_designer, priority, case_executor, ext_info, remark").
 		Find(&rows).Error; err != nil {
 		Logger.Error("查询测试用例失败: %s", err)
 		models.Orm.Table("case_statistics").Where("id = ?", caseStatId).
@@ -232,6 +236,7 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 	resultCount := map[string]int{}
 	devCount := map[string]int{}
 	designerCount := map[string]int{}
+	priorityCount := map[string]int{}
 	executorTotal := map[string]int{}
 	executorPass := map[string]int{}
 	executorFail := map[string]int{}
@@ -285,27 +290,43 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 			resultCount["untest"]++
 		}
 
-		if d := strings.TrimSpace(r.FunDeveloper); d != "" {
-			devCount[d]++
+		dev := strings.TrimSpace(r.FunDeveloper)
+		if dev == "" {
+			dev = ExtEmptyPlaceholder
 		}
-		if d := strings.TrimSpace(r.CaseDesigner); d != "" {
-			designerCount[d]++
+		devCount[dev]++
+
+		des := strings.TrimSpace(r.CaseDesigner)
+		if des == "" {
+			des = ExtEmptyPlaceholder
 		}
-		if d := strings.TrimSpace(r.CaseExecutor); d != "" {
-			executorTotal[d]++
-			switch r.TestResult {
-			case "pass":
-				executorPass[d]++
-			case "fail":
-				executorFail[d]++
-			case "deprecated":
-				executorDeprecated[d]++
-			case "unmerged":
-				executorUnmerged[d]++
-			}
-			if isUntestResult(r.TestResult) {
-				executorUntest[d]++
-			}
+		designerCount[des]++
+
+		// 优先级计数（空值归入占位符）
+		prio := strings.TrimSpace(r.Priority)
+		if prio == "" {
+			prio = ExtEmptyPlaceholder
+		}
+		priorityCount[prio]++
+
+		// 用例执行者计数（空值归入占位符，同时用于饼图与人员统计表）
+		exec := strings.TrimSpace(r.CaseExecutor)
+		if exec == "" {
+			exec = ExtEmptyPlaceholder
+		}
+		executorTotal[exec]++
+		switch r.TestResult {
+		case "pass":
+			executorPass[exec]++
+		case "fail":
+			executorFail[exec]++
+		case "deprecated":
+			executorDeprecated[exec]++
+		case "unmerged":
+			executorUnmerged[exec]++
+		}
+		if isUntestResult(r.TestResult) {
+			executorUntest[exec]++
 		}
 
 		for _, k := range def.ExtInfo {
@@ -314,7 +335,7 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 			}
 			v := GetExtInfoValue(r.ExtInfo, k, "zh-CN")
 			if v == "" {
-				v = "-"
+				v = ExtEmptyPlaceholder
 			}
 			if extCount[k] == nil {
 				extCount[k] = map[string]int{}
@@ -361,6 +382,8 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 	}
 	report.ByFunDeveloper = sortCountMap(devCount)
 	report.ByCaseDesigner = sortCountMap(designerCount)
+	report.ByPriority = sortCountMap(priorityCount)
+	report.ByCaseExecutor = sortCountMap(executorTotal)
 
 	// 用例执行者统计（含已执行/未执行/执行率），按总用例数降序
 	executorNames := make([]string, 0, len(executorTotal))
@@ -368,6 +391,13 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 		executorNames = append(executorNames, name)
 	}
 	sort.Slice(executorNames, func(i, j int) bool {
+		// 空值占位符始终排在最后
+		if executorNames[i] == ExtEmptyPlaceholder {
+			return false
+		}
+		if executorNames[j] == ExtEmptyPlaceholder {
+			return true
+		}
 		if executorTotal[executorNames[i]] != executorTotal[executorNames[j]] {
 			return executorTotal[executorNames[i]] > executorTotal[executorNames[j]]
 		}
@@ -425,6 +455,13 @@ func sortCountMap(m map[string]int) []CountItem {
 		items = append(items, CountItem{Name: k, Count: v})
 	}
 	sort.Slice(items, func(i, j int) bool {
+		// 空值占位符始终排在最后
+		if items[i].Name == ExtEmptyPlaceholder {
+			return false
+		}
+		if items[j].Name == ExtEmptyPlaceholder {
+			return true
+		}
 		if items[i].Count != items[j].Count {
 			return items[i].Count > items[j].Count
 		}

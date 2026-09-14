@@ -22,7 +22,7 @@ const caseCountI18nReloadTTL = 5 * time.Second
 
 // caseCountI18nDir 用例统计多语种数据目录
 func caseCountI18nDir() string {
-	return fmt.Sprintf("%s/i18n_caseCount", BASEPATH)
+	return fmt.Sprintf("%s/i18n/i18n_caseCount", BASEPATH)
 }
 
 // loadCaseCountI18nDir 扫描 <dir>/<语种>.yaml，构建 [lang][中文]→译文 索引

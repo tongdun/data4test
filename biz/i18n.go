@@ -40,7 +40,7 @@ func (t *Translator) loadLocale(locale string) {
 	t.messages = make(map[string]string)
 	t.aliases = make(map[string]string)
 	var filePath string
-	i18nBasePath := fmt.Sprintf("%s/i18n", BASEPATH)
+	i18nBasePath := fmt.Sprintf("%s/i18n/i18n_system", BASEPATH)
 	switch locale {
 	case "en-US", "en":
 		filePath = fmt.Sprintf("%s/en-US.json", i18nBasePath)

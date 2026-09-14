@@ -22,7 +22,7 @@ func GetAPITypeCount(mode, appName string) (infos []string, counts []float64, co
 	}
 
 	if len(infos) == 0 {
-		infos = []string{T("report.no_data")}
+		infos = []string{"report.no_data"}
 		counts = []float64{0}
 		colors = []chartjs.Color{"rgb(255, 205, 86)"}
 		return
@@ -58,12 +58,13 @@ func GetAPITypeCount(mode, appName string) (infos []string, counts []float64, co
 }
 
 func GetAPISpecCount(mode, appName string) (infos []string, counts []float64, colors []chartjs.Color, labels []map[string]string) {
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 	defineColors := []chartjs.Color{"rgb(255, 205, 86)", "rgb(54, 162, 235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
 	colorNames := []string{"yellow", "blue", "red", "green", "black"}
 	appList := strings.Split(appName, ",")
 
-	for index, item := range infos {
+	for index, item := range infosRaw {
 		var itemCount float64
 		labelInfo := make(map[string]string)
 
@@ -77,7 +78,7 @@ func GetAPISpecCount(mode, appName string) (infos []string, counts []float64, co
 
 			unknownCount = allCount - counts[0] - counts[1]
 			counts = append(counts, unknownCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(unknownCount))
+			labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(unknownCount))
 			labelInfo["color"] = colorNames[index]
 			colors = append(colors, defineColors[index])
 		} else {
@@ -87,7 +88,7 @@ func GetAPISpecCount(mode, appName string) (infos []string, counts []float64, co
 				models.Orm.Table("api_definition").Where("`check` = ? and app in (?)", item, appList).Count(&itemCount)
 			}
 			counts = append(counts, itemCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(itemCount))
+			labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(itemCount))
 			if index < len(defineColors) {
 				colors = append(colors, defineColors[index])
 				labelInfo["color"] = colorNames[index]
@@ -108,10 +109,11 @@ func GetAutoAPICount(mode, appName string) (infos []string, counts []float64, co
 	type ApiSingle struct {
 		ApiId string `gorm:"column:api_id" json:"api_id"`
 	}
-	infos = []string{"yes", "no"}
+	infos = []string{"common.yes", "common.no"}
+	infosRaw := []string{"yes", "no"}
 	appList := strings.Split(appName, ",")
 
-	for index, item := range infos {
+	for index, item := range infosRaw {
 		var apiCount, allCount, noNeedAutoCount float64
 		labelInfo := make(map[string]string)
 		if item == "yes" {
@@ -143,7 +145,7 @@ func GetAutoAPICount(mode, appName string) (infos []string, counts []float64, co
 		}
 
 		counts = append(counts, apiCount)
-		labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(apiCount))
+		labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(apiCount))
 		if index < len(defineColors) {
 			colors = append(colors, defineColors[index])
 			labelInfo["color"] = colorNames[index]
@@ -168,11 +170,11 @@ func GetAppAPIRunCount() (infos []string, counts []float64, colors []chartjs.Col
 	models.Orm.Table("scene_data_test_history").Group("app").Pluck("app", &infos)
 
 	if len(infos) == 0 {
-		infos = append(infos, T("report.no_data"))
+		infos = append(infos, "report.no_data")
 		counts = append(counts, 0)
 		colors = append(colors, defineColors[0])
 		labelInfo := make(map[string]string)
-		labelInfo["label"] = T("report.no_data")
+		labelInfo["label"] = "report.no_data"
 		labelInfo["color"] = colorNames[0]
 		labels = append(labels, labelInfo)
 		return
@@ -222,11 +224,11 @@ func GetSceneRunCount() (infos []string, counts []float64, colors []chartjs.Colo
 	models.Orm.Table("scene_test_history").Group("product").Pluck("product", &infos)
 
 	if len(infos) == 0 {
-		infos = append(infos, T("report.no_data"))
+		infos = append(infos, "report.no_data")
 		counts = append(counts, 0)
 		colors = append(colors, defineColors[0])
 		labelInfo := make(map[string]string)
-		labelInfo["label"] = T("report.no_data")
+		labelInfo["label"] = "report.no_data"
 		labelInfo["color"] = colorNames[0]
 		labels = append(labels, labelInfo)
 		return
@@ -272,41 +274,35 @@ func GetSceneRunCount() (infos []string, counts []float64, colors []chartjs.Colo
 
 func GetSceneResultCount() (infos []string, counts []float64, colors []chartjs.Color, labels []map[string]string) {
 
-	infos = []string{"pass", "fail", "unknown"}
+	infosKey := []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
 	defineColors := []chartjs.Color{"rgb(255, 205, 86)", "rgb(54, 162, 235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
 
 	colorNames := []string{"yellow", "blue", "red", "green", "black"}
 
-	for index, item := range infos {
-		var itemCount float64
-		labelInfo := make(map[string]string)
+	// 先统计 pass/fail，再计算 unknown，避免分类名与计数错位
+	var passCount, failCount, allCount float64
+	models.Orm.Table("scene_test_history").Where("result = ?", "pass").Count(&passCount)
+	models.Orm.Table("scene_test_history").Where("result = ?", "fail").Count(&failCount)
+	models.Orm.Table("scene_test_history").Count(&allCount)
+	rawCounts := []float64{passCount, failCount, allCount - passCount - failCount}
 
-		if item == "unknown" {
-			var allCount, unknownCount float64
-			models.Orm.Table("scene_test_history").Count(&allCount)
-			unknownCount = allCount - counts[0] - counts[1]
-			if unknownCount == 0 {
-				continue
-			}
-			infos = append(infos, item)
-			counts = append(counts, unknownCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(unknownCount))
-			labelInfo["color"] = colorNames[index]
-			colors = append(colors, defineColors[index])
-		} else {
-			models.Orm.Table("scene_test_history").Where("result = ?", item).Count(&itemCount)
-			counts = append(counts, itemCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(itemCount))
-			if index < len(defineColors) {
-				colors = append(colors, defineColors[index])
-				labelInfo["color"] = colorNames[index]
-			} else {
-				colors = append(colors, defineColors[0])
-				labelInfo["color"] = colorNames[0]
-			}
+	for index, item := range infosRaw {
+		if item == "unknown" && rawCounts[index] == 0 {
+			continue
 		}
-
+		labelInfo := make(map[string]string)
+		infos = append(infos, infosKey[index])
+		counts = append(counts, rawCounts[index])
+		labelInfo["label"] = fmt.Sprintf(" %s - %d", infosKey[index], int(rawCounts[index]))
+		if index < len(defineColors) {
+			colors = append(colors, defineColors[index])
+			labelInfo["color"] = colorNames[index]
+		} else {
+			colors = append(colors, defineColors[0])
+			labelInfo["color"] = colorNames[0]
+		}
 		labels = append(labels, labelInfo)
 	}
 
@@ -315,13 +311,14 @@ func GetSceneResultCount() (infos []string, counts []float64, colors []chartjs.C
 
 func GetSceneDataResultCount() (infos []string, counts []float64, colors []chartjs.Color, labels []map[string]string) {
 
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
 	defineColors := []chartjs.Color{"rgb(255, 205, 86)", "rgb(54, 162, 235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
 
 	colorNames := []string{"yellow", "blue", "red", "green", "black"}
 
-	for index, item := range infos {
+	for index, item := range infosRaw {
 		var itemCount float64
 		labelInfo := make(map[string]string)
 
@@ -330,13 +327,13 @@ func GetSceneDataResultCount() (infos []string, counts []float64, colors []chart
 			models.Orm.Table("scene_data_test_history").Count(&allCount)
 			unknownCount = allCount - counts[0] - counts[1]
 			counts = append(counts, unknownCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(unknownCount))
+			labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(unknownCount))
 			labelInfo["color"] = colorNames[index]
 			colors = append(colors, defineColors[index])
 		} else {
 			models.Orm.Table("scene_data_test_history").Where("result = ?", item).Count(&itemCount)
 			counts = append(counts, itemCount)
-			labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(itemCount))
+			labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(itemCount))
 			if index < len(defineColors) {
 				colors = append(colors, defineColors[index])
 				labelInfo["color"] = colorNames[index]
@@ -354,7 +351,7 @@ func GetSceneDataResultCount() (infos []string, counts []float64, colors []chart
 
 func GetScheduleTypeCount() (infos []string, counts []float64, colors []chartjs.Color, labels []map[string]string) {
 
-	infos = []string{T("schedule.task_mode_cron"), T("schedule.task_mode_once"), T("schedule.task_mode_day"), T("schedule.task_mode_week")}
+	infos = []string{"schedule.task_mode_cron", "schedule.task_mode_once", "schedule.task_mode_day", "schedule.task_mode_week"}
 	infosEn := []string{"cron", "once", "day", "week"}
 
 	defineColors := []chartjs.Color{"rgb(255, 205, 86)", "rgb(54, 162, 235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
@@ -393,10 +390,10 @@ func GetAppSceneDataRunCount() (title template.HTML, getMonthLabels, infos []str
 	title = template.HTML(titleTemp)
 
 	allMonthLabel := []string{
-		T("report.month_1"), T("report.month_2"), T("report.month_3"), T("report.month_4"),
-		T("report.month_5"), T("report.month_6"), T("report.month_7"), T("report.month_8"),
-		T("report.month_9"), T("report.month_10"), T("report.month_11"), T("report.month_12"),
-		T("report.month_1"), T("report.month_2"), T("report.month_3"), T("report.month_4"), T("report.month_5"),
+		"report.month_1", "report.month_2", "report.month_3", "report.month_4",
+		"report.month_5", "report.month_6", "report.month_7", "report.month_8",
+		"report.month_9", "report.month_10", "report.month_11", "report.month_12",
+		"report.month_1", "report.month_2", "report.month_3", "report.month_4", "report.month_5",
 	}
 	allMonthInt := []string{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "1", "2", "3", "4", "5"}
 	var allYearAndMonths []string
@@ -467,10 +464,10 @@ func GetProductSceneRunCount() (title template.HTML, getMonthLabels, infos []str
 	title = template.HTML(titleTemp)
 
 	allMonthLabel := []string{
-		T("report.month_1"), T("report.month_2"), T("report.month_3"), T("report.month_4"),
-		T("report.month_5"), T("report.month_6"), T("report.month_7"), T("report.month_8"),
-		T("report.month_9"), T("report.month_10"), T("report.month_11"), T("report.month_12"),
-		T("report.month_1"), T("report.month_2"), T("report.month_3"), T("report.month_4"), T("report.month_5"),
+		"report.month_1", "report.month_2", "report.month_3", "report.month_4",
+		"report.month_5", "report.month_6", "report.month_7", "report.month_8",
+		"report.month_9", "report.month_10", "report.month_11", "report.month_12",
+		"report.month_1", "report.month_2", "report.month_3", "report.month_4", "report.month_5",
 	}
 	allMonthInt := []string{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "1", "2", "3", "4", "5"}
 	var allYearAndMonths []string
@@ -528,14 +525,14 @@ func GetProductSceneRunCount() (title template.HTML, getMonthLabels, infos []str
 
 func GetAppsTableCount() (contents []map[string]types.InfoItem, headers types.Thead) {
 	headers = types.Thead{
-		{Head: T("report.app_name")},
-		{Head: T("report.app_orig_api_count"), Sortable: true},
-		{Head: T("report.app_covered_api_count"), Sortable: true},
-		{Head: T("report.app_data_file_count"), Sortable: true},
-		{Head: T("report.app_history_total"), Sortable: true},
-		{Head: T("report.app_history_pass"), Sortable: true},
-		{Head: T("report.app_history_fail"), Sortable: true},
-		{Head: T("report.app_history_unknown"), Sortable: true},
+		{Head: "report.app_name"},
+		{Head: "report.app_orig_api_count", Sortable: true},
+		{Head: "report.app_covered_api_count", Sortable: true},
+		{Head: "report.app_data_file_count", Sortable: true},
+		{Head: "report.app_history_total", Sortable: true},
+		{Head: "report.app_history_pass", Sortable: true},
+		{Head: "report.app_history_fail", Sortable: true},
+		{Head: "report.app_history_unknown", Sortable: true},
 	}
 
 	var infos []string
@@ -549,38 +546,38 @@ func GetAppsTableCount() (contents []map[string]types.InfoItem, headers types.Th
 		content := make(map[string]types.InfoItem)
 
 		itemHtml := template.HTML(item)
-		content[T("report.app_name")] = types.InfoItem{Content: itemHtml}
+		content["report.app_name"] = types.InfoItem{Content: itemHtml}
 
 		var itemCount, allCount, allRunCount, passRunCount, failRunCount, unknownRunCount int
 		var apiIds []string
 
 		models.Orm.Table("api_definition").Where("app = ?", item).Count(&itemCount)
 		itemCountHtml := template.HTML(fmt.Sprintf("%d", itemCount))
-		content[T("report.app_orig_api_count")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_orig_api_count"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data").Group("api_id").Where("app = ?", item).Pluck("api_id", &apiIds).Count(&itemCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", itemCount))
-		content[T("report.app_covered_api_count")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_covered_api_count"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data").Where("app = ?", item).Count(&allCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
-		content[T("report.app_data_file_count")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_data_file_count"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ?", item).Count(&allRunCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", allRunCount))
-		content[T("report.app_history_total")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_history_total"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ? and result = ?", item, "pass").Count(&passRunCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", passRunCount))
-		content[T("report.app_history_pass")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_history_pass"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ? and result = ?", item, "fail").Count(&failRunCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", failRunCount))
-		content[T("report.app_history_fail")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_history_fail"] = types.InfoItem{Content: itemCountHtml}
 
 		unknownRunCount = allRunCount - passRunCount - failRunCount
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownRunCount))
-		content[T("report.app_history_unknown")] = types.InfoItem{Content: itemCountHtml}
+		content["report.app_history_unknown"] = types.InfoItem{Content: itemCountHtml}
 		contents = append(contents, content)
 
 	}
@@ -590,20 +587,20 @@ func GetAppsTableCount() (contents []map[string]types.InfoItem, headers types.Th
 
 func GetProductsTableCount() (contents []map[string]types.InfoItem, headers types.Thead) {
 	headers = types.Thead{
-		{Head: T("report.product_name")},
-		{Head: T("report.product_app_count"), Sortable: true},
-		{Head: T("report.product_scene_total"), Sortable: true},
-		{Head: T("report.product_scene_pass"), Sortable: true},
-		{Head: T("report.product_scene_fail"), Sortable: true},
-		{Head: T("report.product_scene_history_total"), Sortable: true},
-		{Head: T("report.product_scene_history_pass"), Sortable: true},
-		{Head: T("report.product_scene_history_fail"), Sortable: true},
-		{Head: T("report.product_data_total"), Sortable: true},
-		{Head: T("report.product_data_pass"), Sortable: true},
-		{Head: T("report.product_data_fail"), Sortable: true},
-		{Head: T("report.product_data_history_total"), Sortable: true},
-		{Head: T("report.product_data_history_pass"), Sortable: true},
-		{Head: T("report.product_data_history_fail"), Sortable: true},
+		{Head: "report.product_name"},
+		{Head: "report.product_app_count", Sortable: true},
+		{Head: "report.product_scene_total", Sortable: true},
+		{Head: "report.product_scene_pass", Sortable: true},
+		{Head: "report.product_scene_fail", Sortable: true},
+		{Head: "report.product_scene_history_total", Sortable: true},
+		{Head: "report.product_scene_history_pass", Sortable: true},
+		{Head: "report.product_scene_history_fail", Sortable: true},
+		{Head: "report.product_data_total", Sortable: true},
+		{Head: "report.product_data_pass", Sortable: true},
+		{Head: "report.product_data_fail", Sortable: true},
+		{Head: "report.product_data_history_total", Sortable: true},
+		{Head: "report.product_data_history_pass", Sortable: true},
+		{Head: "report.product_data_history_fail", Sortable: true},
 	}
 
 	var infos []string
@@ -638,14 +635,15 @@ func GetAPIRunResultCount(mode, name string) (title template.HTML, dayList, info
 	endDay := now.Format("2006-01-02")
 	startDay := fmt.Sprintf(time.Unix(before30DaysTimestamp, 0).Format("2006-01-02"))
 	dayList = GetBetweenDates(startDay, endDay)
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
 	var appList []string
 	if mode != "product" {
 		appList = strings.Split(name, ",")
 	}
 
-	for _, item := range infos {
+	for _, item := range infosRaw {
 		var daysCount []float64
 		var dayCount float64
 		for subIndex, subItem := range dayList[1 : len(dayList)-1] {
@@ -675,9 +673,10 @@ func GetProductPlaybookRunResultCount(product string) (title template.HTML, dayL
 	endDay := now.Format("2006-01-02")
 	startDay := fmt.Sprintf(time.Unix(before30DaysTimestamp, 0).Format("2006-01-02"))
 	dayList = GetBetweenDates(startDay, endDay)
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
-	for _, item := range infos {
+	for _, item := range infosRaw {
 		var daysCount []float64
 		var dayCount float64
 		for subIndex, subItem := range dayList[1 : len(dayList)-1] {
@@ -694,7 +693,8 @@ func GetDaysAPIResultCount(mode, name string, day int) (infos []string, counts [
 	defineColors := []chartjs.Color{"rgb(255, 205, 86)", "rgb(54, 162, 235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
 
 	colorNames := []string{"yellow", "blue", "red", "green", "black"}
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
 	beforeDayTimestamp := time.Now().Unix() - int64(86400*day)
 	timeStr := fmt.Sprintf(time.Unix(beforeDayTimestamp, 0).Format("2006-01-02 15:04:05"))
@@ -703,7 +703,7 @@ func GetDaysAPIResultCount(mode, name string, day int) (infos []string, counts [
 		appList = strings.Split(name, ",")
 	}
 
-	for index, item := range infos {
+	for index, item := range infosRaw {
 		var apiCount float64
 		labelInfo := make(map[string]string)
 
@@ -714,7 +714,7 @@ func GetDaysAPIResultCount(mode, name string, day int) (infos []string, counts [
 		}
 
 		counts = append(counts, apiCount)
-		labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(apiCount))
+		labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(apiCount))
 		if index < len(defineColors) {
 			colors = append(colors, defineColors[index])
 			labelInfo["color"] = colorNames[index]
@@ -736,17 +736,18 @@ func GetDaysSceneResultCount(product string, day int) (infos []string, counts []
 
 	colorNames := []string{"yellow", "blue", "red", "green", "black"}
 
-	infos = []string{"pass", "fail", "unknown"}
+	infos = []string{"common.pass", "common.fail", "common.unknown"}
+	infosRaw := []string{"pass", "fail", "unknown"}
 
 	beforeDayTimestamp := time.Now().Unix() - int64(86400*day)
 	timeStr := fmt.Sprintf(time.Unix(beforeDayTimestamp, 0).Format("2006-01-02 15:04:05"))
 
-	for index, item := range infos {
+	for index, item := range infosRaw {
 		var apiCount float64
 		labelInfo := make(map[string]string)
 		models.Orm.Table("scene_test_history").Where("result = ? and product = ? and created_at > ?", item, product, timeStr).Count(&apiCount).Limit(5)
 		counts = append(counts, apiCount)
-		labelInfo["label"] = fmt.Sprintf(" %s - %d", item, int(apiCount))
+		labelInfo["label"] = fmt.Sprintf(" %s - %d", infos[index], int(apiCount))
 		if index < len(defineColors) {
 			colors = append(colors, defineColors[index])
 			labelInfo["color"] = colorNames[index]
@@ -764,11 +765,11 @@ func GetDaysSceneResultCount(product string, day int) (infos []string, counts []
 
 func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoItem, headers types.Thead) {
 	headers = types.Thead{
-		{Head: T("report.module_name")},
-		{Head: T("report.module_api_total"), Sortable: true},
-		{Head: T("report.module_auto_count"), Sortable: true},
-		{Head: T("report.module_not_auto_count"), Sortable: true},
-		{Head: T("report.module_data_file_count"), Sortable: true},
+		{Head: "report.module_name"},
+		{Head: "report.module_api_total", Sortable: true},
+		{Head: "report.module_auto_count", Sortable: true},
+		{Head: "report.module_not_auto_count", Sortable: true},
+		{Head: "report.module_data_file_count", Sortable: true},
 	}
 
 	appList := strings.Split(appName, ",")
@@ -794,20 +795,20 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 		content := make(map[string]types.InfoItem)
 
 		itemHtml := template.HTML(item)
-		content[T("report.module_name")] = types.InfoItem{Content: itemHtml}
+		content["report.module_name"] = types.InfoItem{Content: itemHtml}
 
 		var allCount, autoCount, notAutoCount, dataFileCount int
 		var apiList []string
 		models.Orm.Table("api_definition").Where("api_module = ? and app in (?)", item, appList).Count(&allCount).Select("api_id").Find(&apiIds)
 		allCountHtml := template.HTML(fmt.Sprintf("%d", allCount))
-		content[T("report.module_api_total")] = types.InfoItem{Content: allCountHtml}
+		content["report.module_api_total"] = types.InfoItem{Content: allCountHtml}
 
 		for _, subItem := range apiIds {
 			apiList = append(apiList, subItem.ApiId)
 		}
 		models.Orm.Table("scene_data").Group("api_id").Where("api_id in (?) and app in (?)", apiList, appList).Count(&autoCount)
 		autoCountHtml := template.HTML(fmt.Sprintf("%d", autoCount))
-		content[T("report.module_auto_count")] = types.InfoItem{Content: autoCountHtml}
+		content["report.module_auto_count"] = types.InfoItem{Content: autoCountHtml}
 
 		if allCount > 0 && allCount > autoCount {
 			notAutoCount = allCount - autoCount
@@ -815,7 +816,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 			notAutoCount = 0
 		}
 		notAutoCountHtml := template.HTML(fmt.Sprintf("%d", notAutoCount))
-		content[T("report.module_not_auto_count")] = types.InfoItem{Content: notAutoCountHtml}
+		content["report.module_not_auto_count"] = types.InfoItem{Content: notAutoCountHtml}
 
 		if len(appList) > 0 {
 			models.Orm.Table("scene_data").Where("api_id in (?) and app in (?)", apiList, appList).Select("api_id").Count(&dataFileCount)
@@ -823,7 +824,7 @@ func GetAppModuleTableCount(appName string) (contents []map[string]types.InfoIte
 			dataFileCount = 0
 		}
 		dataFileCountHtml := template.HTML(fmt.Sprintf("%d", dataFileCount))
-		content[T("report.module_data_file_count")] = types.InfoItem{Content: dataFileCountHtml}
+		content["report.module_data_file_count"] = types.InfoItem{Content: dataFileCountHtml}
 
 		for _, subItem := range httpMethods {
 			var apiIds []string
@@ -857,9 +858,9 @@ func GetAppModuleTableData(appName string) (headers []string, rows []ModuleRow) 
 	models.Orm.Table("api_definition").Group("api_module").Where("app in (?)", appList).Pluck("api_module", &infos)
 	models.Orm.Table("api_definition").Group("http_method").Where("app in (?)", appList).Pluck("http_method", &httpMethods)
 
-	headers = append(headers, T("report.module_name"), T("report.module_api_total"),
-		T("report.module_auto_count"), T("report.module_not_auto_count"),
-		T("report.module_data_file_count"))
+	headers = append(headers, "report.module_name", "report.module_api_total",
+		"report.module_auto_count", "report.module_not_auto_count",
+		"report.module_data_file_count")
 	for _, m := range httpMethods {
 		headers = append(headers, m)
 	}
@@ -907,16 +908,16 @@ func GetAppModuleTableData(appName string) (headers []string, rows []ModuleRow) 
 
 func GetProductAppTableCount(appName string) (contents []map[string]types.InfoItem, headers types.Thead) {
 	headers = types.Thead{
-		{Head: T("report.product_app_name")},
-		{Head: T("report.product_app_api_total")},
-		{Head: T("report.product_app_auto_count")},
-		{Head: T("report.product_app_not_auto_count")},
-		{Head: T("report.product_app_module_count")},
-		{Head: T("report.product_app_data_file_count")},
-		{Head: T("report.product_app_history_total"), Sortable: true},
-		{Head: T("report.product_app_history_pass"), Sortable: true},
-		{Head: T("report.product_app_history_fail"), Sortable: true},
-		{Head: T("report.product_app_history_unknown"), Sortable: true},
+		{Head: "report.product_app_name"},
+		{Head: "report.product_app_api_total"},
+		{Head: "report.product_app_auto_count"},
+		{Head: "report.product_app_not_auto_count"},
+		{Head: "report.product_app_module_count"},
+		{Head: "report.product_app_data_file_count"},
+		{Head: "report.product_app_history_total", Sortable: true},
+		{Head: "report.product_app_history_pass", Sortable: true},
+		{Head: "report.product_app_history_fail", Sortable: true},
+		{Head: "report.product_app_history_unknown", Sortable: true},
 	}
 
 	appList := strings.Split(appName, ",")
@@ -929,21 +930,21 @@ func GetProductAppTableCount(appName string) (contents []map[string]types.InfoIt
 	for _, item := range appList {
 		content := make(map[string]types.InfoItem)
 		itemHtml := template.HTML(item)
-		content[T("report.product_app_name")] = types.InfoItem{Content: itemHtml}
+		content["report.product_app_name"] = types.InfoItem{Content: itemHtml}
 
 		var allCount, autoCount, notAutoCount, dataFileCount, moduleCount, allRunCount, passRunCount, failRunCount, unknownRunCount int
 		var apiList []string
 
 		models.Orm.Table("api_definition").Where("app = ?", item).Count(&allCount).Select("api_id").Find(&apiIds)
 		allCountHtml := template.HTML(fmt.Sprintf("%d", allCount))
-		content[T("report.product_app_api_total")] = types.InfoItem{Content: allCountHtml}
+		content["report.product_app_api_total"] = types.InfoItem{Content: allCountHtml}
 
 		for _, subItem := range apiIds {
 			apiList = append(apiList, subItem.ApiId)
 		}
 		models.Orm.Table("scene_data").Group("api_id").Where("app = ? and api_id in (?)", item, apiList).Count(&autoCount)
 		autoCountHtml := template.HTML(fmt.Sprintf("%d", autoCount))
-		content[T("report.product_app_auto_count")] = types.InfoItem{Content: autoCountHtml}
+		content["report.product_app_auto_count"] = types.InfoItem{Content: autoCountHtml}
 
 		if allCount > 0 && allCount > autoCount {
 			notAutoCount = allCount - autoCount
@@ -951,33 +952,33 @@ func GetProductAppTableCount(appName string) (contents []map[string]types.InfoIt
 			notAutoCount = 0
 		}
 		notAutoCountHtml := template.HTML(fmt.Sprintf("%d", notAutoCount))
-		content[T("report.product_app_not_auto_count")] = types.InfoItem{Content: notAutoCountHtml}
+		content["report.product_app_not_auto_count"] = types.InfoItem{Content: notAutoCountHtml}
 
 		var apiModules []string
 		models.Orm.Table("api_definition").Group("api_module").Where("app = ?", item).Pluck("api_module", &apiModules).Count(&moduleCount)
 		moduleCountHtml := template.HTML(fmt.Sprintf("%d", moduleCount))
-		content[T("report.product_app_module_count")] = types.InfoItem{Content: moduleCountHtml}
+		content["report.product_app_module_count"] = types.InfoItem{Content: moduleCountHtml}
 
 		models.Orm.Table("scene_data").Where("app = ?", item).Select("api_id").Count(&dataFileCount)
 
 		dataFileCountHtml := template.HTML(fmt.Sprintf("%d", dataFileCount))
-		content[T("report.product_app_data_file_count")] = types.InfoItem{Content: dataFileCountHtml}
+		content["report.product_app_data_file_count"] = types.InfoItem{Content: dataFileCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ?", item).Count(&allRunCount)
 		itemCountHtml := template.HTML(fmt.Sprintf("%d", allRunCount))
-		content[T("report.product_app_history_total")] = types.InfoItem{Content: itemCountHtml}
+		content["report.product_app_history_total"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ? and result = ?", item, "pass").Count(&passRunCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", passRunCount))
-		content[T("report.product_app_history_pass")] = types.InfoItem{Content: itemCountHtml}
+		content["report.product_app_history_pass"] = types.InfoItem{Content: itemCountHtml}
 
 		models.Orm.Table("scene_data_test_history").Where("app = ? and result = ?", item, "fail").Count(&failRunCount)
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", failRunCount))
-		content[T("report.product_app_history_fail")] = types.InfoItem{Content: itemCountHtml}
+		content["report.product_app_history_fail"] = types.InfoItem{Content: itemCountHtml}
 
 		unknownRunCount = allRunCount - passRunCount - failRunCount
 		itemCountHtml = template.HTML(fmt.Sprintf("%d", unknownRunCount))
-		content[T("report.product_app_history_unknown")] = types.InfoItem{Content: itemCountHtml}
+		content["report.product_app_history_unknown"] = types.InfoItem{Content: itemCountHtml}
 
 		contents = append(contents, content)
 	}
@@ -1001,11 +1002,11 @@ type ProductAppRow struct {
 // GetProductAppTableData 获取产品下APP统计纯数据
 func GetProductAppTableData(appName string) (headers []string, rows []ProductAppRow) {
 	headers = []string{
-		T("report.product_app_name"), T("report.product_app_api_total"),
-		T("report.product_app_auto_count"), T("report.product_app_not_auto_count"),
-		T("report.product_app_module_count"), T("report.product_app_data_file_count"),
-		T("report.product_app_history_total"), T("report.product_app_history_pass"),
-		T("report.product_app_history_fail"), T("report.product_app_history_unknown"),
+		"report.product_app_name", "report.product_app_api_total",
+		"report.product_app_auto_count", "report.product_app_not_auto_count",
+		"report.product_app_module_count", "report.product_app_data_file_count",
+		"report.product_app_history_total", "report.product_app_history_pass",
+		"report.product_app_history_fail", "report.product_app_history_unknown",
 	}
 
 	appList := strings.Split(appName, ",")
@@ -1062,13 +1063,13 @@ func GetProductAppTableData(appName string) (headers []string, rows []ProductApp
 func GetSumOfProduct(name string) (content map[string]types.InfoItem, err error) {
 	itemHtml := template.HTML(name)
 	content = make(map[string]types.InfoItem)
-	content[T("report.product_name")] = types.InfoItem{Content: itemHtml}
+	content["report.product_name"] = types.InfoItem{Content: itemHtml}
 	var allCount, passCount, failCount, appNum int
 
 	var appList []string
 	models.Orm.Table("product").Where("product = ? and apps IS NOT NULL", name).Pluck("apps", &appList)
 	if len(appList) == 0 {
-		Logger.Warning(T("report.product_no_app"), name)
+		Logger.Warning(T("report.product_no_app", name))
 	} else {
 		appArray := strings.Split(appList[0], ",")
 		appNum = len(appArray)
@@ -1076,61 +1077,61 @@ func GetSumOfProduct(name string) (content map[string]types.InfoItem, err error)
 
 	models.Orm.Table("scene_data_test_history").Where("product = ?", name).Count(&allCount)
 	if allCount == 0 {
-		err = fmt.Errorf(T("report.product_no_data"), name)
+		err = E("report.product_no_data", name)
 		Logger.Warning("%s", err)
 		return
 	}
 
 	itemCountHtml := template.HTML(fmt.Sprintf("%d", appNum))
-	content[T("report.product_app_count")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_app_count"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ?", name).Group("name").Count(&allCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
-	content[T("report.product_scene_total")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_total"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "pass").Group("name").Count(&passCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-	content[T("report.product_scene_pass")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_pass"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "fail").Group("name").Count(&failCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-	content[T("report.product_scene_fail")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_fail"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ?", name).Count(&allCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", allCount))
-	content[T("report.product_scene_history_total")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_history_total"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "pass").Count(&passCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-	content[T("report.product_scene_history_pass")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_history_pass"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_test_history").Where("product = ? and result = ?", name, "fail").Count(&failCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-	content[T("report.product_scene_history_fail")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_scene_history_fail"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ?", name).Group("name").Count(&passCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-	content[T("report.product_data_total")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_total"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ? and result = ?", name, "pass").Group("name").Count(&passCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-	content[T("report.product_data_pass")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_pass"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ? and result = ?", name, "fail").Group("name").Count(&failCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-	content[T("report.product_data_fail")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_fail"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ?", name).Count(&failCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-	content[T("report.product_data_history_total")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_history_total"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ? and result = ?", name, "pass").Count(&passCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", passCount))
-	content[T("report.product_data_history_pass")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_history_pass"] = types.InfoItem{Content: itemCountHtml}
 
 	models.Orm.Table("scene_data_test_history").Where("product = ? and result = ?", name, "fail").Count(&failCount)
 	itemCountHtml = template.HTML(fmt.Sprintf("%d", failCount))
-	content[T("report.product_data_history_fail")] = types.InfoItem{Content: itemCountHtml}
+	content["report.product_data_history_fail"] = types.InfoItem{Content: itemCountHtml}
 
 	return
 }

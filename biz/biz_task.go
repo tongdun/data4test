@@ -1317,26 +1317,27 @@ func GetScheduleProductListByIds(idStr string) string {
 	return strings.Join(products, ",")
 }
 
-func GetPlaybookLinkByPlaybookStr(pStr string) (linkStr string) {
+func GetPlaybookLinkByPlaybookStr(pStr, lang string) (linkStr string) {
 	pList := strings.Split(pStr, ",")
 	for _, item := range pList {
 		if len(item) == 0 {
 			continue
 		}
+		displayName := GetPlaybookLocalized(item, lang)
 		var ids []int
 		models.Orm.Table("playbook").Where("name = ?", item).Pluck("id", &ids)
 		if len(ids) == 0 {
 			Logger.Warning(T("warn.scene_playbook_not_found"), item)
 			if len(linkStr) == 0 {
-				linkStr = item //跳详情，可点击编辑进行改写
+				linkStr = displayName //跳详情，可点击编辑进行改写
 			} else {
-				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item)
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, displayName)
 			}
 		} else {
 			if len(linkStr) == 0 {
-				linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳编辑区可直接改写
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], displayName) //跳编辑区可直接改写
 			} else {
-				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/playbook/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], displayName)
 			}
 		}
 	}

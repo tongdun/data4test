@@ -1336,16 +1336,17 @@ func GetPlaybookEditTypeById(id string) (editType string) {
 	return
 }
 
-func GetDataFileLinkByDataStr(pStr string) (linkStr string) {
+func GetDataFileLinkByDataStr(pStr, lang string) (linkStr string) {
 	pList := strings.Split(pStr, ",")
 	for _, item := range pList {
 		if len(item) == 0 {
 			continue
 		}
+		displayName := GetDataLocalized(item, lang)
 		if len(linkStr) == 0 {
-			linkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item) //跳详情，可自动点击编辑进行改写
+			linkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, displayName) //跳详情，可自动点击编辑进行改写
 		} else {
-			linkStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", linkStr, item, item)
+			linkStr = fmt.Sprintf("%s<br><a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", linkStr, item, displayName)
 		}
 	}
 	return
@@ -1436,19 +1437,19 @@ func GetApiAutoDataList(apiId, pkId string) (linkStr string) {
 	return
 }
 
-func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
+func GetDataUsedInPlaybookList(dataName, pkId, lang string) (linkStr string) {
 	var dataDef DbSceneData
 	models.Orm.Table("scene_data").Where("id = ?", pkId).Find(&dataDef)
 	if len(dataDef.Name) == 0 {
 		Logger.Warning(T("warning.data_definition_not_found"), pkId, dataName)
-		return dataName
+		return GetDataLocalized(dataName, lang)
 	}
 
 	var playbookCount int
 	matchStr := "%" + dataName + "%"
 	models.Orm.Table("playbook").Where("data_file_list like ?", matchStr).Limit(1).Count(&playbookCount)
 	if playbookCount == 0 {
-		return dataName
+		return GetDataLocalized(dataName, lang)
 	}
 
 	var playbookIdList []int
@@ -1462,23 +1463,23 @@ func GetDataUsedInPlaybookList(dataName, pkId string) (linkStr string) {
 			queryStr = fmt.Sprintf("%s&%s=%d", queryStr, encodeId, id)
 		}
 	}
-	linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook?%s\">%s</a>", queryStr, dataName) // 直接跑数据列表进行过滤
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/playbook?%s\">%s</a>", queryStr, GetDataLocalized(dataName, lang)) // 直接跑数据列表进行过滤
 	return
 }
 
-func GetPlaybookUsedInTaskList(playbookName, pkId string) (linkStr string) {
+func GetPlaybookUsedInTaskList(playbookName, pkId, lang string) (linkStr string) {
 	var playbookDef DbScene
 	models.Orm.Table("playbook").Where("id = ?", pkId).Find(&playbookDef)
 	if len(playbookDef.Name) == 0 {
 		Logger.Warning(T("warning.scene_definition_not_found"), pkId, playbookName)
-		return playbookName
+		return GetPlaybookLocalized(playbookName, lang)
 	}
 
 	var playbookCount int
 	matchStr := "%" + playbookName + "%"
 	models.Orm.Table("schedule").Where("scene_list like ?", matchStr).Limit(1).Count(&playbookCount)
 	if playbookCount == 0 {
-		return playbookName
+		return GetPlaybookLocalized(playbookName, lang)
 	}
 
 	var taskIdList []int
@@ -1494,12 +1495,12 @@ func GetPlaybookUsedInTaskList(playbookName, pkId string) (linkStr string) {
 			queryStr = fmt.Sprintf("%s&%s=%d", queryStr, encodeId, id)
 		}
 	}
-	linkStr = fmt.Sprintf("<a href=\"/admin/info/schedule?%s\">%s</a>", queryStr, playbookName) // 直接跑数据列表进行过滤
+	linkStr = fmt.Sprintf("<a href=\"/admin/info/schedule?%s\">%s</a>", queryStr, GetPlaybookLocalized(playbookName, lang)) // 直接跑数据列表进行过滤
 
 	return
 }
 
-func GetHistoryDataLinkByDataStr(pStr string) (linkStr string) {
+func GetHistoryDataLinkByDataStr(pStr, lang string) (linkStr string) {
 	pList := strings.Split(pStr, ",")
 	for _, item := range pList {
 		if len(item) == 0 {
@@ -1507,13 +1508,15 @@ func GetHistoryDataLinkByDataStr(pStr string) (linkStr string) {
 		}
 
 		var dirName, itemLinkStr string
+		base := GetHistoryDataDirName(item)
+		displayName := GetDataLocalized(base, lang) + item[len(base):]
 		b, num := IsStrEndWithTimeFormat(item)
 		suffix := GetStrSuffix(item)
 		if b {
 			dirName = item[:len(item)-num-len(suffix)]
-			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, item, item)
+			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/history/preview?path=/%s/%s\">%s</a>", dirName, item, displayName)
 		} else {
-			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, item)
+			itemLinkStr = fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", item, displayName)
 		}
 
 		if len(linkStr) == 0 {
@@ -1525,26 +1528,27 @@ func GetHistoryDataLinkByDataStr(pStr string) (linkStr string) {
 	return
 }
 
-func GetDataDetailLinkByDataStr(dStr string) (linkStr string) {
+func GetDataDetailLinkByDataStr(dStr, lang string) (linkStr string) {
 	dList := strings.Split(dStr, ",")
 	for _, item := range dList {
 		if len(item) == 0 {
 			continue
 		}
+		displayName := GetDataLocalized(item, lang)
 		var ids []int
 		models.Orm.Table("scene_data").Where("file_name = ?", item).Pluck("id", &ids)
 		if len(ids) == 0 {
 			Logger.Warning(T("warning.data_file_not_found"), item)
 			if len(linkStr) == 0 {
-				linkStr = item //跳详情，可自动点击编辑进行改写
+				linkStr = displayName //跳详情，可自动点击编辑进行改写
 			} else {
-				linkStr = fmt.Sprintf("%s<br>%s", linkStr, item) // 如果被删了，显示普通信息，无链接
+				linkStr = fmt.Sprintf("%s<br>%s", linkStr, displayName) // 如果被删了，显示普通信息，无链接
 			}
 		} else {
 			if len(linkStr) == 0 {
-				linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], item) //跳详情，可自动点击编辑进行改写
+				linkStr = fmt.Sprintf("<a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", ids[0], displayName) //跳详情，可自动点击编辑进行改写
 			} else {
-				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], item)
+				linkStr = fmt.Sprintf("%s<br><a href=\"/admin/info/scene_data/detail?__goadmin_detail_pk=%d\">%s</a>", linkStr, ids[0], displayName)
 			}
 		}
 	}

@@ -53,6 +53,7 @@ type CaseStatisticsReportData struct {
 	ResultDistribution []CountItem            `json:"result_distribution"`
 	ByFunDeveloper     []CountItem            `json:"by_fun_developer"`
 	ByCaseDesigner     []CountItem            `json:"by_case_designer"`
+	ByPriority         []CountItem            `json:"by_priority"`
 	ByCaseExecutor     []CountItem            `json:"by_case_executor"`
 	ExecutorStats      []CaseStatExecutorItem `json:"executor_stats"`
 	ExtInfoStats       []CaseStatExtInfoItem  `json:"ext_info_stats"`

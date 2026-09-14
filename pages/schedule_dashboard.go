@@ -12,11 +12,12 @@ import (
 
 	"data4test/models"
 	"github.com/GoAdminGroup/go-admin/template/types"
-	"github.com/GoAdminGroup/themes/adminlte/components/chart_legend"
 )
 
 func GetDashboardByReportId(ctx *gin.Context) (types.Panel, error) {
 	reportId := ctx.Query("id")
+	cookie, _ := ctx.Cookie("data_locale")
+	dataLocale := biz.GetDataLocale(cookie, biz.GetLocale())
 	var report biz.DashboardReport
 	models.Orm.Table("dashboard").
 		Where("id = ?", reportId).
@@ -24,10 +25,10 @@ func GetDashboardByReportId(ctx *gin.Context) (types.Panel, error) {
 	switch report.ReportType {
 	case "task":
 		if strings.Contains(report.RelatedTaskIds, ",") {
-			return renderMultiTaskReport(report)
+			return renderMultiTaskReport(report, dataLocale)
 		}
 
-		return renderTaskReport(report, "")
+		return renderTaskReport(report, "", dataLocale)
 	case "product":
 		return renderProductReport(report.RelatedProducts, report)
 	case "app":
@@ -51,12 +52,12 @@ func GetDashboardByReportId(ctx *gin.Context) (types.Panel, error) {
 		}, nil
 
 	}
-
-	return renderTaskReport(report, "")
 }
 
 func GetScheduleReportContent(ctx *gin.Context) (types.Panel, error) {
 	taskId := ctx.Query("id")
+	cookie, _ := ctx.Cookie("data_locale")
+	dataLocale := biz.GetDataLocale(cookie, biz.GetLocale())
 	var report biz.DashboardReport
 	if len(taskId) > 0 {
 		models.Orm.Table("dashboard").
@@ -80,22 +81,22 @@ func GetScheduleReportContent(ctx *gin.Context) (types.Panel, error) {
 			}
 			jsonBytes, _ := json.Marshal(coverageData)
 			fakeReport := biz.DashboardReport{
-				ReportName:  coverageData.Overview.TaskName,
-				ReportType:  "task",
-				ReportData:  string(jsonBytes),
-				Status:      "coverage",
-				Creator:     coverageData.Overview.Executor,
-				CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+				ReportName: coverageData.Overview.TaskName,
+				ReportType: "task",
+				ReportData: string(jsonBytes),
+				Status:     "coverage",
+				Creator:    coverageData.Overview.Executor,
+				CreatedAt:  time.Now().Format("2006-01-02 15:04:05"),
 			}
-			return renderTaskReport(fakeReport, taskId)
+			return renderTaskReport(fakeReport, taskId, dataLocale)
 		}
 
 	}
-	return renderTaskReport(report, taskId)
+	return renderTaskReport(report, taskId, dataLocale)
 }
 
 // renderTaskReport 解析 TaskReportData JSON 并渲染完整报告页面
-func renderTaskReport(report biz.DashboardReport, scheduleId string) (types.Panel, error) {
+func renderTaskReport(report biz.DashboardReport, scheduleId string, dataLocale string) (types.Panel, error) {
 	var reportData biz.TaskReportData
 	err := json.Unmarshal([]byte(report.ReportData), &reportData)
 	if err != nil {
@@ -121,7 +122,7 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string) (types.Pane
 	}
 
 	// ====== KPI卡片 + 执行信息 ======
-	headerInfo := buildTaskHeader(reportData)
+	headerInfo := buildTaskHeader(reportData, dataLocale)
 
 	kpiCards := buildTaskKpiCards(reportData)
 
@@ -139,25 +140,24 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string) (types.Pane
 	}
 
 	// ====== 第3行: 场景明细表(独占一行) ======
-	sceneTable := buildTaskSceneTable(reportData)
+	sceneTable := buildTaskSceneTable(reportData, dataLocale)
 	row3 := ""
 	if len(sceneTable) > 0 {
 		row3 = fmt.Sprintf(`<div class="row"><div class="col-md-12">%s</div></div>`, sceneTable)
 	}
 
 	// ====== 第4行: 数据文件明细表(独占一行) ======
-	dataTable := buildTaskDataTable(reportData)
+	dataTable := buildTaskDataTable(reportData, dataLocale)
 	row4 := ""
 	if len(dataTable) > 0 {
 		row4 = fmt.Sprintf(`<div class="row"><div class="col-md-12">%s</div></div>`, dataTable)
 	}
 
 	// ====== 第5行: 失败明细表 ======
-	failHTML := buildTaskFailTable(reportData)
+	failHTML := buildTaskFailTable(reportData, dataLocale)
 
 	content := string(headerInfo) + string(kpiCards) + row1 + row2 + row3 + row4 + string(failHTML)
-	styleBlock := `<style>.sc-td{position:relative;cursor:pointer}.sc-td .sc-truncate{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sc-td .sc-full{display:none;position:absolute;right:5%;top:50%;background:#fff;border:2px solid #666;padding:15px;z-index:9999;max-width:600px;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;box-shadow:0 4px 20px rgba(0,0,0,0.3);border-radius:4px;font-size:13px;line-height:1.4}.sc-td:hover .sc-full{display:block!important}</style>`
-	content += styleBlock
+	content += string(reportStyle())
 
 	return types.Panel{
 		Content:     template.HTML(content),
@@ -175,26 +175,24 @@ func buildTaskKpiCards(data biz.TaskReportData) template.HTML {
 	dataPassRate := fmt.Sprintf("%.1f%%", d.PassRate)
 
 	// 第一行：场景执行统计（执行数/通过数/失败数/通过率）
-	card1 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.scene_exec_count"), s.Total)
-	card2 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), s.Pass)
-	card3 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.fail_count"), s.Fail)
-	card4 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), scenePassRate)
-
-	row1 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card1, card2, card3, card4)
+	row1 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", s.Total), biz.T("schedule_report.scene_exec_count"), "fa-cubes", "blue"),
+		reportInfoBox(fmt.Sprintf("%d", s.Pass), biz.T("schedule_report.pass_count"), "fa-check-circle", "green"),
+		reportInfoBox(fmt.Sprintf("%d", s.Fail), biz.T("schedule_report.fail_count"), "fa-times-circle", "red"),
+		reportInfoBox(scenePassRate, biz.T("schedule_report.pass_rate_label"), "fa-percent", "green"))
 
 	// 第二行：数据执行统计（执行数/通过数/失败数/通过率）
-	card5 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-file-text"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.data_exec_count"), d.Total)
-	card6 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.pass_count"), d.Pass)
-	card7 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>`, biz.T("schedule_report.fail_count"), d.Fail)
-	card8 := fmt.Sprintf(`<div class="col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%s</span></div></div></div>`, biz.T("schedule_report.pass_rate_label"), dataPassRate)
-
-	row2 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`, card5, card6, card7, card8)
+	row2 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", d.Total), biz.T("schedule_report.data_exec_count"), "fa-file-text", "blue"),
+		reportInfoBox(fmt.Sprintf("%d", d.Pass), biz.T("schedule_report.pass_count"), "fa-check-circle", "green"),
+		reportInfoBox(fmt.Sprintf("%d", d.Fail), biz.T("schedule_report.fail_count"), "fa-times-circle", "red"),
+		reportInfoBox(dataPassRate, biz.T("schedule_report.pass_rate_label"), "fa-percent", "green"))
 
 	return template.HTML(row1 + row2)
 }
 
 // buildTaskHeader 顶部执行信息（白色背景，两行排版）
-func buildTaskHeader(data biz.TaskReportData) template.HTML {
+func buildTaskHeader(data biz.TaskReportData, dataLocale string) template.HTML {
 	o := data.Overview
 	envInfo := o.Environment
 	if len(envInfo) == 0 {
@@ -203,21 +201,19 @@ func buildTaskHeader(data biz.TaskReportData) template.HTML {
 	durationStr := formatDuration(o.DurationSeconds)
 	statusColor := resultColor(o.Executor)
 
-	html := fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-default" style="border-top:none;box-shadow:none;background:#fff;margin-bottom:10px"><div class="box-body" style="padding:15px 20px">
-			<div class="row" style="margin-bottom:8px">
-				<div class="col-md-4"><strong>%s</strong> %s</div>
-				<div class="col-md-2"><strong>%s</strong> %s</div>
-				<div class="col-md-4"><strong>%s</strong> %s</div>
-				<div class="col-md-2"><strong>%s</strong> <span style="color:%s;font-weight:bold">%s</span></div>
-			</div>
-			<div class="row">
-				<div class="col-md-4"><strong>%s</strong> %s ~ %s</div>
-				<div class="col-md-2"><strong>%s</strong> %s</div>
-				<div class="col-md-4"><strong>%s</strong> %d | <strong>%s</strong> %d | <strong>%s</strong> %d</div>
-				<div class="col-md-2"><strong>%s</strong> <span style="color:green">%.1f%%</span></div>
-			</div>
-		</div></div></div></div>`,
-		biz.T("schedule_report.task_name_label"), o.TaskName,
+	html := fmt.Sprintf(`<div class="row" style="margin-bottom:8px">
+			<div class="col-md-4"><strong>%s</strong> %s</div>
+			<div class="col-md-2"><strong>%s</strong> %s</div>
+			<div class="col-md-4"><strong>%s</strong> %s</div>
+			<div class="col-md-2"><strong>%s</strong> <span style="color:%s;font-weight:bold">%s</span></div>
+		</div>
+		<div class="row">
+			<div class="col-md-4"><strong>%s</strong> %s ~ %s</div>
+			<div class="col-md-2"><strong>%s</strong> %s</div>
+			<div class="col-md-4"><strong>%s</strong> %d | <strong>%s</strong> %d | <strong>%s</strong> %d</div>
+			<div class="col-md-2"><strong>%s</strong> <span style="color:green">%.1f%%</span></div>
+		</div>`,
+		biz.T("schedule_report.task_name_label"), biz.GetTaskLocalized(o.TaskName, dataLocale),
 		biz.T("schedule_report.task_type_label"), taskTypeLabel(o.TaskType),
 		biz.T("schedule_report.environment"), envInfo,
 		biz.T("schedule_report.executor"), statusColor, o.Executor,
@@ -228,117 +224,79 @@ func buildTaskHeader(data biz.TaskReportData) template.HTML {
 		biz.T("schedule_report.not_executed"), o.NotExecuted,
 		biz.T("schedule_report.exec_rate"), o.ExecuteRate)
 
-	return template.HTML(html)
+	return template.HTML(reportCard("", "", html))
 }
 
 // ==================== 饼图：API类型分布 ====================
 
 func buildTaskAPIPie(data biz.TaskReportData) template.HTML {
+	title := biz.T("schedule_report.api_type_dist")
 	if len(data.APITypeDistribution) == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-info"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.api_type_dist") + `</h3></div><div class="box-body"><div style="text-align:center;padding:20px;color:#aaa">` + biz.T("schedule_report.no_data") + `</div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4">` + reportCard(title, "", fmt.Sprintf(`<div style="text-align:center;padding:20px;color:#aaa">%s</div>`, biz.T("schedule_report.no_data"))) + `</div>`)
 	}
 
-	var infos, colorNames []string
-	var counts []float64
-	colors := []chartjs.Color{"rgb(255,205,86)", "rgb(54,162,235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
-	colorNameMap := []string{"yellow", "blue", "red", "green", "black"}
-
+	labels := make([]string, 0, len(data.APITypeDistribution))
+	counts := make([]float64, 0, len(data.APITypeDistribution))
+	colors := make([]chartjs.Color, 0, len(data.APITypeDistribution))
+	legendItems := make([]map[string]string, 0, len(data.APITypeDistribution))
 	for i, item := range data.APITypeDistribution {
-		infos = append(infos, item.Name)
+		labels = append(labels, item.Name)
 		counts = append(counts, float64(item.Count))
-		c := colors[i%len(colors)]
-		cn := colorNameMap[i%len(colorNameMap)]
-		colorNames = append(colorNames, string(c))
-		_ = cn
-	}
-
-	pie := chartjs.Pie().
-		SetHeight(180).
-		SetLabels(infos).
-		SetID("apiPie").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	var labels []map[string]string
-	for i, item := range data.APITypeDistribution {
-		labels = append(labels, map[string]string{
+		colors = append(colors, identityColor(i))
+		legendItems = append(legendItems, map[string]string{
 			"label": fmt.Sprintf(" %s - %d", item.Name, item.Count),
-			"color": colorNameMap[i%len(colorNameMap)],
+			"color": identityLegendColor(i),
 		})
 	}
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	return template.HTML(fmt.Sprintf(`<div class="col-md-4"><div class="box box-info"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body"><div class="row">%s</div></div></div></div>`, biz.T("schedule_report.api_type_dist"), boxContent))
+	return template.HTML(reportPie("apiPie", title, "", labels, counts, colors, legendItems))
 }
 
 // ==================== 饼图：场景执行结果分布 ====================
 
 func buildTaskSceneResultPie(data biz.TaskReportData, taskId string) template.HTML {
+	title := biz.T("schedule_report.scene_result_dist")
 	s := data.SceneStats
 	if s.Total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.scene_result_dist") + `</h3></div><div class="box-body"><div class="row"><div class="col-md-8"><div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">` + biz.T("schedule_report.no_scene_data") + `</div></div><div class="col-md-4"></div></div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4">` + reportCard(title, "", fmt.Sprintf(`<div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">%s</div>`, biz.T("schedule_report.no_scene_data"))) + `</div>`)
 	}
 
-	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
+	labels := []string{biz.T("common.pass"), biz.T("common.fail")}
 	counts := []float64{float64(s.Pass), float64(s.Fail)}
-	colors := []chartjs.Color{"rgb(0, 166, 90)", "rgb(221, 75, 57)"}
-	labels := []map[string]string{
+	colors := []chartjs.Color{colorPass, colorFail}
+	legendItems := []map[string]string{
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.pass"), s.Pass), "color": "green"},
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.fail"), s.Fail), "color": "red"},
 	}
 
-	pie := chartjs.Pie().
-		SetHeight(180).
-		SetLabels(infos).
-		SetID("scenePie").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	historyLink := ""
+	extra := ""
 	if len(taskId) > 0 {
-		historyLink = fmt.Sprintf(`<a href="/admin/info/scene_test_history?task_id=%s" class="pull-right" target="_blank" style="font-size:12px;margin-top:3px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		extra = fmt.Sprintf(`<a href="/admin/info/scene_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
 	}
-	return template.HTML(fmt.Sprintf(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3>%s</div><div class="box-body"><div class="row">%s</div></div></div></div>`, biz.T("schedule_report.scene_result_dist"), historyLink, boxContent))
+	return template.HTML(reportPie("scenePie", title, extra, labels, counts, colors, legendItems))
 }
 
 // ==================== 饼图：数据执行结果分布 ====================
 
 func buildTaskDataResultPie(data biz.TaskReportData, taskId string) template.HTML {
+	title := biz.T("schedule_report.data_result_dist")
 	d := data.DataStats
 	if d.Total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.data_result_dist") + `</h3></div><div class="box-body"><div class="row"><div class="col-md-8"><div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">` + biz.T("schedule_report.no_data_record") + `</div></div><div class="col-md-4"></div></div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4">` + reportCard(title, "", fmt.Sprintf(`<div style="height:180px;display:flex;align-items:center;justify-content:center;color:#aaa">%s</div>`, biz.T("schedule_report.no_data_record"))) + `</div>`)
 	}
 
-	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
+	labels := []string{biz.T("common.pass"), biz.T("common.fail")}
 	counts := []float64{float64(d.Pass), float64(d.Fail)}
-	colors := []chartjs.Color{"rgb(0, 166, 90)", "rgb(221, 75, 57)"}
-	labels := []map[string]string{
+	colors := []chartjs.Color{colorPass, colorFail}
+	legendItems := []map[string]string{
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.pass"), d.Pass), "color": "green"},
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.fail"), d.Fail), "color": "red"},
 	}
 
-	pie := chartjs.Pie().
-		SetHeight(180).
-		SetLabels(infos).
-		SetID("dataPie").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	historyLink := ""
+	extra := ""
 	if len(taskId) > 0 {
-		historyLink = fmt.Sprintf(`<a href="/admin/info/scene_data_test_history?task_id=%s" class="pull-right" target="_blank" style="font-size:12px;margin-top:3px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		extra = fmt.Sprintf(`<a href="/admin/info/scene_data_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
 	}
-	return template.HTML(fmt.Sprintf(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">%s</h3>%s</div><div class="box-body"><div class="row">%s</div></div></div></div>`, biz.T("schedule_report.data_result_dist"), historyLink, boxContent))
+	return template.HTML(reportPie("dataPie", title, extra, labels, counts, colors, legendItems))
 }
 
 // ==================== 执行趋势(折线图) ====================
@@ -363,44 +321,28 @@ func buildTaskTrendChart(data biz.TaskReportData) template.HTML {
 		notExecutedCounts = append(notExecutedCounts, float64(notExecuted))
 	}
 
-	line := chartjs.Line().
-		SetID("trendChart").
-		SetHeight(320).
-		SetTitle(template.HTML(biz.T("schedule_report.trend_7"))).
-		SetLabels(dayLabels).
-		AddDataSet(biz.T("common.pass")).
-		DSData(passCounts).
-		DSFill(false).
-		DSBorderColor("rgb(0, 166, 90)").
-		DSLineTension(0.1).
-		AddDataSet(biz.T("common.fail")).
-		DSData(failCounts).
-		DSFill(false).
-		DSBorderColor("rgb(221, 75, 57)").
-		DSLineTension(0.1).
-		AddDataSet(biz.T("schedule_report.status_not_executed")).
-		DSData(notExecutedCounts).
-		DSFill(false).
-		DSBorderColor("rgb(169, 169, 169)").
-		DSLineTension(0.1).
-		AddDataSet(biz.T("schedule_report.total_label")).
-		DSData(totalCounts).
-		DSFill(false).
-		DSBorderColor("rgb(54, 162, 235)").
-		DSLineTension(0.1).
-		GetContent()
-
-	return template.HTML(fmt.Sprintf(`<div class="box box-info"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div>`, biz.T("schedule_report.trend_chart"), line))
+	series := []reportLineSeries{
+		{Label: biz.T("common.pass"), Data: passCounts, Color: colorPass},
+		{Label: biz.T("common.fail"), Data: failCounts, Color: colorFail},
+		{Label: biz.T("schedule_report.status_not_executed"), Data: notExecutedCounts, Color: colorUntest},
+		{Label: biz.T("schedule_report.total_label"), Data: totalCounts, Color: colorInfo},
+	}
+	return template.HTML(reportLine("trendChart", biz.T("schedule_report.trend_chart"), dayLabels, series))
 }
 
 // ==================== 场景明细表 ====================
 
-func buildTaskSceneTable(data biz.TaskReportData) template.HTML {
+func buildTaskSceneTable(data biz.TaskReportData, dataLocale string) template.HTML {
 	if len(data.SceneDetails) == 0 {
 		return template.HTML("")
 	}
 
-	rows := ""
+	headers := []string{
+		biz.T("schedule_report.scene_name"),
+		biz.T("schedule_report.test_result"),
+		biz.T("common.fail_reason"),
+	}
+	var rows []string
 	for _, s := range data.SceneDetails {
 		label := biz.T("common.pass")
 		color := "green"
@@ -415,26 +357,28 @@ func buildTaskSceneTable(data biz.TaskReportData) template.HTML {
 		if len(s.FailReason) > 0 && s.FailReason != " " {
 			reason = s.FailReason
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
-			s.Name, color, label, reason, reason)
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
+			biz.GetPlaybookLocalized(s.Name, dataLocale), color, label, reason, reason))
 	}
 
-	table := fmt.Sprintf(`<table class="table table-bordered table-hover"><thead><tr>
-			<th>%s</th><th>%s</th><th>%s</th>
-		</tr></thead><tbody>%s</tbody></table>`,
-		biz.T("schedule_report.scene_name"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
-
-	return template.HTML(fmt.Sprintf(`<div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div>`, biz.T("schedule_report.scene_detail"), table))
+	return template.HTML(reportCard(biz.T("schedule_report.scene_detail"), "", reportTable(headers, rows)))
 }
 
 // ==================== 数据文件明细表 ====================
 
-func buildTaskDataTable(data biz.TaskReportData) template.HTML {
+func buildTaskDataTable(data biz.TaskReportData, dataLocale string) template.HTML {
 	if len(data.DataDetails) == 0 {
 		return template.HTML("")
 	}
 
-	rows := ""
+	headers := []string{
+		biz.T("schedule_report.scene_name"),
+		biz.T("schedule_report.data_name"),
+		biz.T("schedule_report.api_id_col"),
+		biz.T("schedule_report.test_result"),
+		biz.T("common.fail_reason"),
+	}
+	var rows []string
 	colorA := "#ffffff"
 	colorB := "#f7f9fc"
 	currentColor := colorA
@@ -466,41 +410,38 @@ func buildTaskDataTable(data biz.TaskReportData) template.HTML {
 		if len(d.FailReason) > 0 && d.FailReason != " " {
 			reason = d.FailReason
 		}
-		rows += fmt.Sprintf(`<tr style="background-color:%s"><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
-			currentColor, d.SceneName, d.Name, d.ApiId, color, label, reason, reason)
+		rows = append(rows, fmt.Sprintf(`<tr style="background-color:%s"><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
+			currentColor, biz.GetPlaybookLocalized(d.SceneName, dataLocale), biz.GetDataLocalized(d.Name, dataLocale), d.ApiId, color, label, reason, reason))
 	}
 
-	table := fmt.Sprintf(`<table class="table table-bordered table-hover"><thead><tr>
-			<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>
-		</tr></thead><tbody>%s</tbody></table>`,
-		biz.T("schedule_report.scene_name"), biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
-
-	return template.HTML(fmt.Sprintf(`<div class="box box-success"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div>`, biz.T("schedule_report.data_detail"), table))
+	return template.HTML(reportCard(biz.T("schedule_report.data_detail"), "", reportTable(headers, rows)))
 }
 
 // ==================== 失败明细表 ====================
 
-func buildTaskFailTable(data biz.TaskReportData) template.HTML {
+func buildTaskFailTable(data biz.TaskReportData, dataLocale string) template.HTML {
 	if len(data.FailItems) == 0 {
 		return template.HTML("")
 	}
 
-	rows := ""
+	headers := []string{
+		biz.T("common.name"),
+		biz.T("schedule_report.type_col"),
+		biz.T("schedule_report.api_id_col"),
+		biz.T("common.fail_reason"),
+	}
+	var rows []string
 	for _, f := range data.FailItems {
 		typeStr := biz.T("type.scene")
+		nameStr := biz.GetPlaybookLocalized(f.Name, dataLocale)
 		if f.Type == "data" {
 			typeStr = biz.T("type.data")
+			nameStr = biz.GetDataLocalized(f.Name, dataLocale)
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`,
-			f.Name, typeStr, f.APIId, f.Reason, f.Reason)
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`,
+			nameStr, typeStr, f.APIId, f.Reason, f.Reason))
 	}
-
-	table := fmt.Sprintf(`<table class="table table-bordered table-striped"><thead><tr>
-			<th>%s</th><th>%s</th><th>%s</th><th>%s</th>
-		</tr></thead><tbody>%s</tbody></table>`,
-		biz.T("common.name"), biz.T("schedule_report.type_col"), biz.T("schedule_report.api_id_col"), biz.T("common.fail_reason"), rows)
-
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-danger"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`, biz.T("schedule_report.fail_detail"), table))
+	return template.HTML(reportCard(biz.T("schedule_report.fail_detail"), "", reportTable(headers, rows)))
 }
 
 // ==================== 通用辅助函数 ====================
@@ -537,7 +478,7 @@ func taskTypeLabel(t string) string {
 }
 
 // renderMultiTaskReport 渲染多任务报告页面
-func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
+func renderMultiTaskReport(report biz.DashboardReport, dataLocale string) (types.Panel, error) {
 	var reportData biz.MultiTaskReportData
 	err := json.Unmarshal([]byte(report.ReportData), &reportData)
 	if err != nil {
@@ -573,40 +514,25 @@ func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
 	}
 
 	// ====== KPI 卡片行1：数据执行数/通过数/失败数/通过率 ======
-	kpi_data := fmt.Sprintf(`<div class="row">
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-file-text"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%.1f%%</span></div></div></div>
-	</div>`,
-		biz.T("schedule_report.data_exec_count"), dataTotal,
-		biz.T("schedule_report.pass_count"), dataPass,
-		biz.T("schedule_report.fail_count"), dataFail,
-		biz.T("schedule_report.pass_rate_label"), dataPassRate)
+	kpi_data := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", dataTotal), biz.T("schedule_report.data_exec_count"), "fa-file-text", "blue"),
+		reportInfoBox(fmt.Sprintf("%d", dataPass), biz.T("schedule_report.pass_count"), "fa-check-circle", "green"),
+		reportInfoBox(fmt.Sprintf("%d", dataFail), biz.T("schedule_report.fail_count"), "fa-times-circle", "red"),
+		reportInfoBox(fmt.Sprintf("%.1f%%", dataPassRate), biz.T("schedule_report.pass_rate_label"), "fa-percent", "green"))
 
 	// ====== KPI 卡片行2：场景执行数/通过数/失败数/通过率 ======
-	kpi_scene := fmt.Sprintf(`<div class="row">
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-blue"><i class="fa fa-cubes"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-green"><i class="fa fa-check-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-red"><i class="fa fa-times-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-yellow"><i class="fa fa-percent"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%.1f%%</span></div></div></div>
-	</div>`,
-		biz.T("schedule_report.scene_exec_count"), sceneTotal,
-		biz.T("schedule_report.pass_count"), scenePass,
-		biz.T("schedule_report.fail_count"), sceneFail,
-		biz.T("schedule_report.pass_rate_label"), scenePassRate)
+	kpi_scene := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", sceneTotal), biz.T("schedule_report.scene_exec_count"), "fa-cubes", "blue"),
+		reportInfoBox(fmt.Sprintf("%d", scenePass), biz.T("schedule_report.pass_count"), "fa-check-circle", "green"),
+		reportInfoBox(fmt.Sprintf("%d", sceneFail), biz.T("schedule_report.fail_count"), "fa-times-circle", "red"),
+		reportInfoBox(fmt.Sprintf("%.1f%%", scenePassRate), biz.T("schedule_report.pass_rate_label"), "fa-percent", "green"))
 
-	// ====== KPI 卡片行2：任务数/场景数/数据文件数/API数 ======
-	kpi2 := fmt.Sprintf(`<div class="row">
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-purple"><i class="fa fa-tasks"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-aqua"><i class="fa fa-play-circle"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-light-blue"><i class="fa fa-file-text"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-		<div class="col-lg-3 col-md-3 col-sm-6 col-xs-12"><div class="info-box"><span class="info-box-icon bg-maroon"><i class="fa fa-plug"></i></span><div class="info-box-content"><span class="info-box-text">%s</span><span class="info-box-number">%d</span></div></div></div>
-	</div>`,
-		biz.T("schedule_report.task_list_col"), o.TaskCount,
-		biz.T("schedule_report.scene_count"), o.SceneCount,
-		biz.T("schedule_report.data_count"), o.DataCount,
-		biz.T("schedule_report.api_count"), o.APICount)
+	// ====== KPI 卡片行3：任务数/场景数/数据文件数/API数 ======
+	kpi2 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", o.TaskCount), biz.T("schedule_report.task_list_col"), "fa-tasks", "purple"),
+		reportInfoBox(fmt.Sprintf("%d", o.SceneCount), biz.T("schedule_report.scene_count"), "fa-play-circle", "aqua"),
+		reportInfoBox(fmt.Sprintf("%d", o.DataCount), biz.T("schedule_report.data_count"), "fa-file-text", "lightblue"),
+		reportInfoBox(fmt.Sprintf("%d", o.APICount), biz.T("schedule_report.api_count"), "fa-plug", "maroon"))
 
 	// ====== 饼图行：API类型分布 + 场景执行结果 + 数据执行结果 (3并列) ======
 	apiPie := buildMultiTaskAPIPie(reportData)
@@ -615,17 +541,16 @@ func renderMultiTaskReport(report biz.DashboardReport) (types.Panel, error) {
 	row1 := fmt.Sprintf(`<div class="row">%s%s%s</div>`, scenePie, dataPie, apiPie)
 
 	// ====== 各任务统计表（移到饼图下方） ======
-	taskTable := buildMultiTaskStatsTable(reportData)
+	taskTable := buildMultiTaskStatsTable(reportData, dataLocale)
 
 	// ====== 场景执行明细 ======
-	sceneTable := buildMultiTaskSceneTable(reportData)
+	sceneTable := buildMultiTaskSceneTable(reportData, dataLocale)
 
 	// ====== 数据执行明细 ======
-	dataTable := buildMultiTaskDataTable(reportData)
+	dataTable := buildMultiTaskDataTable(reportData, dataLocale)
 
 	content := headerInfo + template.HTML(kpi2+kpi_scene+kpi_data) + template.HTML(row1) + taskTable + sceneTable + dataTable
-	styleBlock := `<style>.sc-td{position:relative;cursor:pointer}.sc-td .sc-truncate{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sc-td .sc-full{display:none;position:absolute;right:5%;top:50%;background:#fff;border:2px solid #666;padding:15px;z-index:9999;max-width:600px;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;box-shadow:0 4px 20px rgba(0,0,0,0.3);border-radius:4px;font-size:13px;line-height:1.4}.sc-td:hover .sc-full{display:block!important}</style>`
-	content += template.HTML(styleBlock)
+	content += reportStyle()
 
 	return types.Panel{
 		Content:     template.HTML(content),
@@ -682,20 +607,18 @@ func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardRepo
 		execRateDisplay = biz.T("schedule_report.unknown")
 	}
 
-	html := fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-default" style="border-top:none;box-shadow:none;background:#fff;margin-bottom:10px"><div class="box-body" style="padding:15px 20px">
-		<div class="row" style="margin-bottom:8px">
-			<div class="col-md-4"><strong>%s</strong> %s</div>
-			<div class="col-md-2"><strong>%s</strong> %d</div>
-			<div class="col-md-4"><strong>%s</strong> %s</div>
-			<div class="col-md-2"><strong>%s</strong> %s</div>
-		</div>
-		<div class="row">
-			<div class="col-md-4"><strong>%s</strong> %s</div>
-			<div class="col-md-2"><strong>%s</strong> %s</div>
-			<div class="col-md-4"><strong>%s</strong> %d | <strong>%s</strong> %d | <strong>%s</strong> %d</div>
-			<div class="col-md-2"><strong>%s</strong> <span style="color:green">%s</span></div>
-		</div>
-	</div></div></div></div>`,
+	html := fmt.Sprintf(`<div class="row" style="margin-bottom:8px">
+		<div class="col-md-4"><strong>%s</strong> %s</div>
+		<div class="col-md-2"><strong>%s</strong> %d</div>
+		<div class="col-md-4"><strong>%s</strong> %s</div>
+		<div class="col-md-2"><strong>%s</strong> %s</div>
+	</div>
+	<div class="row">
+		<div class="col-md-4"><strong>%s</strong> %s</div>
+		<div class="col-md-2"><strong>%s</strong> %s</div>
+		<div class="col-md-4"><strong>%s</strong> %d | <strong>%s</strong> %d | <strong>%s</strong> %d</div>
+		<div class="col-md-2"><strong>%s</strong> <span style="color:green">%s</span></div>
+	</div>`,
 		biz.T("schedule_report.task_name_label"), report.ReportName,
 		biz.T("schedule_report.task_count_label"), o.TaskCount,
 		biz.T("schedule_report.environment"), o.Product,
@@ -707,15 +630,21 @@ func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardRepo
 		biz.T("schedule_report.not_executed"), notExecuted,
 		biz.T("schedule_report.exec_rate"), execRateDisplay)
 
-	return template.HTML(html)
+	return template.HTML(reportCard("", "", html))
 }
 
 // buildMultiTaskStatsTable 构建各任务统计表
-func buildMultiTaskStatsTable(data biz.MultiTaskReportData) template.HTML {
+func buildMultiTaskStatsTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
 	if len(data.ByTask) == 0 {
 		return template.HTML("")
 	}
-	rows := ""
+	headers := []string{
+		biz.T("common.task_name"), biz.T("common.task_type"),
+		biz.T("schedule_report.exec_time_col"), biz.T("schedule_report.duration_col"),
+		biz.T("schedule_report.scene_pass_fail_col"), biz.T("schedule_report.data_pass_fail_col"),
+		biz.T("schedule_report.scene_pass_rate"), biz.T("schedule_report.data_pass_rate"),
+	}
+	var rows []string
 	for _, t := range data.ByTask {
 		sceneRate := ""
 		if t.SceneTotal > 0 {
@@ -736,26 +665,18 @@ func buildMultiTaskStatsTable(data biz.MultiTaskReportData) template.HTML {
 		} else {
 			durStr = "-"
 		}
-		rows += fmt.Sprintf(`<tr>
+		rows = append(rows, fmt.Sprintf(`<tr>
 			<td>%s</td><td>%s</td>
 			<td>%s</td><td>%s</td>
 			<td>%d / %d / %d</td>
 			<td>%d / %d / %d</td>
 			<td>%s</td><td>%s</td>
-		</tr>`, t.TaskName, taskTypeLabel, timeStr, durStr,
+		</tr>`, biz.GetTaskLocalized(t.TaskName, dataLocale), taskTypeLabel, timeStr, durStr,
 			t.ScenePass, t.SceneFail, t.SceneTotal,
 			t.DataPass, t.DataFail, t.DataTotal,
-			sceneRate, dataRate)
+			sceneRate, dataRate))
 	}
-	tableHTML := fmt.Sprintf(`<table class="table table-bordered table-striped"><thead><tr>
-		<th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th>
-	</tr></thead><tbody>%s</tbody></table>`,
-		biz.T("common.task_name"), biz.T("common.task_type"),
-		biz.T("schedule_report.exec_time_col"), biz.T("schedule_report.duration_col"),
-		biz.T("schedule_report.scene_pass_fail_col"), biz.T("schedule_report.data_pass_fail_col"),
-		biz.T("schedule_report.scene_pass_rate"), biz.T("schedule_report.data_pass_rate"), rows)
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`,
-		biz.T("schedule_report.task_detail"), tableHTML))
+	return template.HTML(reportCard(biz.T("schedule_report.task_detail"), "", reportTable(headers, rows)))
 }
 
 // buildMultiTaskAPIPie 构建多任务聚合的API类型分布饼图
@@ -763,32 +684,25 @@ func buildMultiTaskAPIPie(data biz.MultiTaskReportData) template.HTML {
 	if len(data.APITypeDistribution) == 0 {
 		return template.HTML("")
 	}
-	var infos []string
-	var counts []float64
-	colorNames := []string{"yellow", "blue", "red", "green", "black"}
-	colors := []chartjs.Color{"rgb(255,205,86)", "rgb(54,162,235)", "rgb(238,232,170)", "rgb(189,183,107)", "rgb(255,228,181)"}
+	labels := make([]string, 0, len(data.APITypeDistribution))
+	counts := make([]float64, 0, len(data.APITypeDistribution))
+	colors := make([]chartjs.Color, 0, len(data.APITypeDistribution))
+	legendItems := make([]map[string]string, 0, len(data.APITypeDistribution))
 	for i, item := range data.APITypeDistribution {
-		infos = append(infos, item.Name)
+		labels = append(labels, item.Name)
 		counts = append(counts, float64(item.Count))
-		_ = colors[i%len(colors)]
-		_ = colorNames[i%len(colorNames)]
-	}
-	pie := chartjs.Pie().SetHeight(180).SetLabels(infos).SetID("multiApiPie").
-		AddDataSet(infos[0]).DSData(counts).DSBackgroundColor(colors).GetContent()
-	var labels []map[string]string
-	for i, item := range data.APITypeDistribution {
-		labels = append(labels, map[string]string{
+		colors = append(colors, identityColor(i))
+		legendItems = append(legendItems, map[string]string{
 			"label": fmt.Sprintf(" %s - %d", item.Name, item.Count),
-			"color": colorNames[i%len(colorNames)],
+			"color": identityLegendColor(i),
 		})
 	}
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-4"><div class="box box-info"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body"><div class="row">%s</div></div></div></div></div>`, biz.T("schedule_report.api_type_dist"), boxContent))
+	return template.HTML(reportPie("multiApiPie", biz.T("schedule_report.api_type_dist"), "", labels, counts, colors, legendItems))
 }
 
 // buildMultiTaskSceneResultPie 多任务场景执行结果分布饼图
 func buildMultiTaskSceneResultPie(data biz.MultiTaskReportData) template.HTML {
+	title := biz.T("schedule_report.scene_result_dist")
 	pass, fail := 0, 0
 	for _, s := range data.SceneDetails {
 		if s.Result == "pass" {
@@ -799,33 +713,22 @@ func buildMultiTaskSceneResultPie(data biz.MultiTaskReportData) template.HTML {
 	}
 	total := pass + fail
 	if total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.scene_result_dist") + `</h3></div><div class="box-body"><div style="text-align:center;padding:20px;color:#aaa">` + biz.T("schedule_report.no_scene_data") + `</div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4">` + reportCard(title, "", fmt.Sprintf(`<div style="text-align:center;padding:20px;color:#aaa">%s</div>`, biz.T("schedule_report.no_scene_data"))) + `</div>`)
 	}
 
-	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
+	labels := []string{biz.T("common.pass"), biz.T("common.fail")}
 	counts := []float64{float64(pass), float64(fail)}
-	colors := []chartjs.Color{"rgb(0, 166, 90)", "rgb(221, 75, 57)"}
-	labels := []map[string]string{
+	colors := []chartjs.Color{colorPass, colorFail}
+	legendItems := []map[string]string{
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.pass"), pass), "color": "green"},
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.fail"), fail), "color": "red"},
 	}
-
-	pie := chartjs.Pie().
-		SetHeight(180).
-		SetLabels(infos).
-		SetID("multiScenePie").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	return template.HTML(fmt.Sprintf(`<div class="col-md-4"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body"><div class="row">%s</div></div></div></div>`, biz.T("schedule_report.scene_result_dist"), boxContent))
+	return template.HTML(reportPie("multiScenePie", title, "", labels, counts, colors, legendItems))
 }
 
 // buildMultiTaskDataResultPie 多任务数据执行结果分布饼图
 func buildMultiTaskDataResultPie(data biz.MultiTaskReportData) template.HTML {
+	title := biz.T("schedule_report.data_result_dist")
 	pass, fail := 0, 0
 	for _, d := range data.DataDetails {
 		if d.Result == "pass" {
@@ -836,37 +739,28 @@ func buildMultiTaskDataResultPie(data biz.MultiTaskReportData) template.HTML {
 	}
 	total := pass + fail
 	if total == 0 {
-		return template.HTML(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">` + biz.T("schedule_report.data_result_dist") + `</h3></div><div class="box-body"><div style="text-align:center;padding:20px;color:#aaa">` + biz.T("schedule_report.no_data_record") + `</div></div></div></div>`)
+		return template.HTML(`<div class="col-md-4">` + reportCard(title, "", fmt.Sprintf(`<div style="text-align:center;padding:20px;color:#aaa">%s</div>`, biz.T("schedule_report.no_data_record"))) + `</div>`)
 	}
 
-	infos := []string{biz.T("common.pass"), biz.T("common.fail")}
+	labels := []string{biz.T("common.pass"), biz.T("common.fail")}
 	counts := []float64{float64(pass), float64(fail)}
-	colors := []chartjs.Color{"rgb(0, 166, 90)", "rgb(221, 75, 57)"}
-	labels := []map[string]string{
+	colors := []chartjs.Color{colorPass, colorFail}
+	legendItems := []map[string]string{
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.pass"), pass), "color": "green"},
 		{"label": fmt.Sprintf(" %s - %d", biz.T("common.fail"), fail), "color": "red"},
 	}
-
-	pie := chartjs.Pie().
-		SetHeight(180).
-		SetLabels(infos).
-		SetID("multiDataPie").
-		AddDataSet(infos[0]).
-		DSData(counts).
-		DSBackgroundColor(colors).
-		GetContent()
-
-	legend := chart_legend.New().SetData(labels).GetContent()
-	boxContent := fmt.Sprintf(`<div class="col-md-8">%s</div><div class="col-md-4">%s</div>`, pie, legend)
-	return template.HTML(fmt.Sprintf(`<div class="col-md-4"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body"><div class="row">%s</div></div></div></div>`, biz.T("schedule_report.data_result_dist"), boxContent))
+	return template.HTML(reportPie("multiDataPie", title, "", labels, counts, colors, legendItems))
 }
 
 // buildMultiTaskSceneTable 构建多任务聚合的场景/数据明细表
-func buildMultiTaskSceneTable(data biz.MultiTaskReportData) template.HTML {
+func buildMultiTaskSceneTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
 	if len(data.SceneDetails) == 0 {
 		return template.HTML("")
 	}
-	rows := ""
+	headers := []string{
+		biz.T("common.task_name"), biz.T("schedule_report.scene_name"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"),
+	}
+	var rows []string
 	for _, s := range data.SceneDetails {
 		label := biz.T("common.pass")
 		color := "green"
@@ -881,19 +775,20 @@ func buildMultiTaskSceneTable(data biz.MultiTaskReportData) template.HTML {
 		if len(s.FailReason) > 0 && s.FailReason != " " {
 			reason = s.FailReason
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, s.TaskName, s.Name, color, label, reason, reason)
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, biz.GetTaskLocalized(s.TaskName, dataLocale), biz.GetPlaybookLocalized(s.Name, dataLocale), color, label, reason, reason))
 	}
-	tableHTML := fmt.Sprintf(`<table class="table table-bordered table-hover"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>%s</tbody></table>`,
-		biz.T("common.task_name"), biz.T("schedule_report.scene_name"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-primary"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`, biz.T("schedule_report.scene_detail"), tableHTML))
+	return template.HTML(reportCard(biz.T("schedule_report.scene_detail"), "", reportTable(headers, rows)))
 }
 
 // buildMultiTaskDataTable 构建多任务聚合的数据文件明细表
-func buildMultiTaskDataTable(data biz.MultiTaskReportData) template.HTML {
+func buildMultiTaskDataTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
 	if len(data.DataDetails) == 0 {
 		return template.HTML("")
 	}
-	rows := ""
+	headers := []string{
+		biz.T("common.task_name"), biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"),
+	}
+	var rows []string
 	for _, d := range data.DataDetails {
 		label := biz.T("common.pass")
 		color := "green"
@@ -905,11 +800,9 @@ func buildMultiTaskDataTable(data biz.MultiTaskReportData) template.HTML {
 		if len(d.FailReason) > 0 && d.FailReason != " " {
 			reason = d.FailReason
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, d.TaskName, d.Name, d.ApiId, color, label, reason, reason)
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, biz.GetTaskLocalized(d.TaskName, dataLocale), biz.GetDataLocalized(d.Name, dataLocale), d.ApiId, color, label, reason, reason))
 	}
-	tableHTML := fmt.Sprintf(`<table class="table table-bordered table-hover"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>%s</tbody></table>`,
-		biz.T("common.task_name"), biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"), rows)
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-success"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`, biz.T("schedule_report.data_detail"), tableHTML))
+	return template.HTML(reportCard(biz.T("schedule_report.data_detail"), "", reportTable(headers, rows)))
 }
 
 // buildMultiTaskFailTable 构建多任务聚合的失败明细表
@@ -917,17 +810,18 @@ func buildMultiTaskFailTable(data biz.MultiTaskReportData) template.HTML {
 	if len(data.FailItems) == 0 {
 		return template.HTML("")
 	}
-	rows := ""
+	headers := []string{
+		biz.T("schedule_report.name_with_task"), biz.T("schedule_report.type_col"), biz.T("schedule_report.api_id_col"), biz.T("common.fail_reason"),
+	}
+	var rows []string
 	for _, f := range data.FailItems {
 		typeStr := biz.T("common.scene")
 		if f.Type == "data" {
 			typeStr = biz.T("common.data")
 		}
-		rows += fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`, f.Name, typeStr, f.APIId, f.Reason, f.Reason)
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td><div class="sc-td" style="max-width:400px;color:red"><span class="sc-truncate">%s</span><div class="sc-full" style="color:#333">%s</div></div></td></tr>`, f.Name, typeStr, f.APIId, f.Reason, f.Reason))
 	}
-	tableHTML := fmt.Sprintf(`<table class="table table-bordered table-striped"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>%s</tbody></table>`,
-		biz.T("schedule_report.name_with_task"), biz.T("schedule_report.type_col"), biz.T("schedule_report.api_id_col"), biz.T("common.fail_reason"), rows)
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-danger"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body">%s</div></div></div></div>`, biz.T("schedule_report.fail_detail"), tableHTML))
+	return template.HTML(reportCard(biz.T("schedule_report.fail_detail"), "", reportTable(headers, rows)))
 }
 
 // buildMultiTaskResourceBox 构建资源关联统计区（场景/数据/API 三个列表卡片并排）
@@ -940,8 +834,7 @@ func buildMultiTaskResourceBox(data biz.MultiTaskReportData) template.HTML {
 	} else {
 		sceneItems = "<li style='color:#aaa'>" + biz.T("schedule_report.no_related_scene") + "</li>"
 	}
-	sceneBox := fmt.Sprintf(`<div class="col-md-4"><div class="box box-default"><div class="box-header with-border"><h3 class="box-title">%s (%d)</h3></div><div class="box-body" style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div></div></div>`,
-		biz.T("schedule_report.related_scenes"), len(data.SceneList), sceneItems)
+	sceneBox := `<div class="col-md-4">` + reportCard(fmt.Sprintf("%s (%d)", biz.T("schedule_report.related_scenes"), len(data.SceneList)), "", fmt.Sprintf(`<div style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div>`, sceneItems)) + `</div>`
 
 	dataItems := ""
 	if len(data.DataList) > 0 {
@@ -951,8 +844,7 @@ func buildMultiTaskResourceBox(data biz.MultiTaskReportData) template.HTML {
 	} else {
 		dataItems = "<li style='color:#aaa'>" + biz.T("schedule_report.no_related_data") + "</li>"
 	}
-	dataBox := fmt.Sprintf(`<div class="col-md-4"><div class="box box-default"><div class="box-header with-border"><h3 class="box-title">%s (%d)</h3></div><div class="box-body" style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div></div></div>`,
-		biz.T("schedule_report.related_data"), len(data.DataList), dataItems)
+	dataBox := `<div class="col-md-4">` + reportCard(fmt.Sprintf("%s (%d)", biz.T("schedule_report.related_data"), len(data.DataList)), "", fmt.Sprintf(`<div style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div>`, dataItems)) + `</div>`
 
 	apiItems := ""
 	if len(data.APIList) > 0 {
@@ -962,9 +854,7 @@ func buildMultiTaskResourceBox(data biz.MultiTaskReportData) template.HTML {
 	} else {
 		apiItems = "<li style='color:#aaa'>" + biz.T("schedule_report.no_related_api") + "</li>"
 	}
-	apiBox := fmt.Sprintf(`<div class="col-md-4"><div class="box box-default"><div class="box-header with-border"><h3 class="box-title">%s (%d)</h3></div><div class="box-body" style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div></div></div>`,
-		biz.T("schedule_report.related_apis"), len(data.APIList), apiItems)
+	apiBox := `<div class="col-md-4">` + reportCard(fmt.Sprintf("%s (%d)", biz.T("schedule_report.related_apis"), len(data.APIList)), "", fmt.Sprintf(`<div style="max-height:300px;overflow-y:auto"><ul style="padding-left:20px">%s</ul></div>`, apiItems)) + `</div>`
 
-	return template.HTML(fmt.Sprintf(`<div class="row"><div class="col-md-12"><div class="box box-info"><div class="box-header with-border"><h3 class="box-title">%s</h3></div><div class="box-body"><div class="row">%s%s%s</div></div></div></div></div>`,
-		biz.T("schedule_report.resource_stats"), sceneBox, dataBox, apiBox))
+	return template.HTML(reportCard(biz.T("schedule_report.resource_stats"), "", fmt.Sprintf(`<div class="row">%s%s%s</div>`, sceneBox, dataBox, apiBox)))
 }

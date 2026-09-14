@@ -1267,7 +1267,7 @@ func startServer() {
 		} else {
 			c.SetCookie("data_locale", lang, 60*60*24*365, "/", "", false, true)
 		}
-		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("test_case.data_lang_switched"), "data": map[string]string{}})
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("sys_parameter.data_lang_switched"), "data": map[string]string{}})
 	})
 
 	// 批量修改选中用例
