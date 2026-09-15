@@ -326,8 +326,19 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 
 	var imagePaths []string
 	var embedImgs []wpsEmbedImage
+	// 语种导出时收集「原始模块目录 → 译文目录」映射，用于打包时翻译图片所在模块目录名
+	dirRename := map[string]string{}
 	for r, row := range rows {
 		rowNum := r + 2
+		if lang != "" && lang != "zh-CN" {
+			if oldDir := sanitizeDirName(row.Module); oldDir != "" {
+				if newName := GetCaseCountLocalized(row.Module, lang); newName != "" && newName != row.Module {
+					if newDir := sanitizeDirName(newName); newDir != "" && newDir != oldDir {
+						dirRename[oldDir] = newDir
+					}
+				}
+			}
+		}
 		for c, col := range template.Columns {
 			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
 			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
@@ -361,10 +372,10 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	switch packFormat {
 	case "zip":
 		fileName = baseName + ".zip"
-		err = zipExportFiles(xlsxPath, imagePaths, fileName)
+		err = zipExportFiles(xlsxPath, imagePaths, fileName, dirRename)
 	case "tgz":
 		fileName = baseName + ".tgz"
-		err = tgzExportFiles(xlsxPath, imagePaths, fileName)
+		err = tgzExportFiles(xlsxPath, imagePaths, fileName, dirRename)
 	default:
 		fileName = baseName + ".xlsx"
 	}
@@ -376,12 +387,21 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 
 // imageEntryName 计算图片在归档内的条目名：优先保留 /uploads 下的相对目录（模块目录/文件名），
 // 避免不同模块下同名图片在归档内冲突、丢失层级。
-func imageEntryName(absPath string) string {
-	if rel, err := filepath.Rel(UploadBasePath, absPath); err == nil &&
-		!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel) {
-		return filepath.ToSlash(rel)
+func imageEntryName(absPath string, dirRename map[string]string) string {
+	rel := filepath.Base(absPath)
+	if r, err := filepath.Rel(UploadBasePath, absPath); err == nil &&
+		!strings.HasPrefix(r, "..") && !filepath.IsAbs(r) {
+		rel = filepath.ToSlash(r)
 	}
-	return filepath.Base(absPath)
+	// 语种导出时翻译模块目录段（rel 首段为模块目录）
+	if len(dirRename) > 0 {
+		if i := strings.IndexByte(rel, '/'); i > 0 {
+			if newDir, ok := dirRename[rel[:i]]; ok && newDir != "" {
+				rel = newDir + rel[i:]
+			}
+		}
+	}
+	return rel
 }
 
 // writeTarEntry 将文件以指定条目名写入 tar，逻辑同 WriteTarFile，仅条目名可定制。
@@ -418,7 +438,7 @@ func writeTarEntry(tw *tar.Writer, filePath, entryName string) (err error) {
 }
 
 // tgzExportFiles 打包 xlsx 与图片为 tar.gz
-func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string) (err error) {
+func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string, dirRename map[string]string) (err error) {
 	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
 	fw, err := os.Create(filePath)
 	if err != nil {
@@ -444,7 +464,7 @@ func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		}
 		seen[absPath] = true
 		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = writeTarEntry(tw, absPath, imageEntryName(absPath)); err != nil {
+			if err = writeTarEntry(tw, absPath, imageEntryName(absPath, dirRename)); err != nil {
 				Logger.Error("%s", err)
 				return
 			}
@@ -467,7 +487,7 @@ func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 }
 
 // zipExportFiles 打包 xlsx 与图片为 zip
-func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err error) {
+func zipExportFiles(xlsxPath string, imagePaths []string, fileName string, dirRename map[string]string) (err error) {
 	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
 	fz, err := os.Create(filePath)
 	if err != nil {
@@ -506,7 +526,7 @@ func zipExportFiles(xlsxPath string, imagePaths []string, fileName string) (err 
 		}
 		seen[absPath] = true
 		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = addToZip(absPath, imageEntryName(absPath)); err != nil {
+			if err = addToZip(absPath, imageEntryName(absPath, dirRename)); err != nil {
 				Logger.Error("%s", err)
 				return
 			}

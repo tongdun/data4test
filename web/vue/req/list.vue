@@ -296,7 +296,8 @@ export default class RunList extends Vue {
         }
       })
   }
-  setDefaultOptions(val) {
+
+    setDefaultOptions(val) {
       this.inValueTypeOptions.push(val)
   }
 

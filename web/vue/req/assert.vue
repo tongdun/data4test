@@ -18,7 +18,7 @@ export default class AssertList extends Vue {
   @Prop() contentType: string
   @Prop() assertListData: Req.AssertListModel[]
   assertTableData: any[] = []
-  assertType: string[] = ["re", "output", "output_re","=", "!=", ">", ">=", "<", "<=", "in", "!in", "sum", "avg", "count", "not_in", "equal", "not_equal", "contain", "not_contain", "null", "not_null", "regexp"]
+  assertType: string[] = ["re", "output", "output_re", "output2auth", "=", "!=", ">", ">=", "<", "<=", "in", "!in", "sum", "avg", "count", "not_in", "equal", "not_equal", "contain", "not_contain", "null", "not_null", "regexp"]
   typeOptions: string[] = []
   sourceOptions: string[] = []
   valueOptions: string[] = []

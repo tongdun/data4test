@@ -1451,12 +1451,6 @@ export default class Tab extends Vue {
   }
 
   get isDataBodyRaw(): boolean {
-    // let isDataBodyRaw = this.dataRunSave.bodyMode == 'raw'
-    //
-    // if (isDataBodyRaw) {
-    //   this.dataRunSave.bodyMode = this.rawDefContentType
-    // }
-
     let isDataBodyRaw = false
 
     if (this.dataRunSave.bodyMode === "application/json") {
@@ -2591,7 +2585,12 @@ export default class Tab extends Vue {
             this.dataRunSave.bodyVars = this.dataRunSave.bodyVars.concat(v)
           })
         }
+
         this.dataRunSave.bodyMode = result.data["bodyMode"]
+
+        if (result.data["bodyStr"]) {
+          this.dataRunSave.bodyStr = result.data["bodyStr"]
+        }
 
         this.dataRunSave.headerVars = []
         if (result.data["headerVars"]) {

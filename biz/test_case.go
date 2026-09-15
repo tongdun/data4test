@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/GoAdminGroup/go-admin/context"
 	"github.com/vivian0517/goxmind"
@@ -665,6 +666,28 @@ func sanitizeDirName(s string) string {
 		s = "ungrouped"
 	}
 	return s
+}
+
+// isModuleNameAllowedChar 判断模块名是否命中白名单：中文/字母/数字/空格/下划线/连字符/点号
+func isModuleNameAllowedChar(r rune) bool {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return true
+	}
+	switch r {
+	case ' ', '_', '-', '.':
+		return true
+	}
+	return false
+}
+
+// ValidateModuleName 校验模块名是否仅含允许字符，返回首个非法字符（合法时 ok=true）
+func ValidateModuleName(module string) (invalid rune, ok bool) {
+	for _, r := range module {
+		if !isModuleNameAllowedChar(r) {
+			return r, false
+		}
+	}
+	return 0, true
 }
 
 // sanitizeFileName 清洗用例编号为安全文件名

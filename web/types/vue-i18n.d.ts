@@ -23,6 +23,8 @@ declare interface i18nModel {
         testValue: string
         egValue: string
         desc: string
+        key: string
+        value: string
     }
 
     actionList: {
@@ -87,5 +89,64 @@ declare interface i18nModel {
         respResultTitle: string
         advancedTitle: string
         outputTitle: string
+    }
+    req: {
+        report: {
+            title: string
+            summary: {
+                total: string
+                slowest: string
+                fastest: string
+                average: string
+                rps: string
+            }
+            table: {
+                type: string
+                average: string
+                slowest: string
+                fastest: string
+                dns: string
+                conn: string
+                req: string
+                delay: string
+                res: string
+            }
+            chart: {
+                title: string
+                serieName: string
+            }
+        }
+        pre: {
+            title: string
+            code: string
+            report: string
+            body: {
+                pretty: string
+                raw: string
+                language: string
+            }
+            listTable: {
+                duration: string
+                hasError: string
+            }
+            cookie: {
+                name: string
+                value: string
+                domain: string
+                path: string
+                expires: string
+            }
+        }
+    }
+    headerList: {
+        name: string
+        valueType: string
+        isDisable: string
+        assertResult: string
+    }
+    goman: {
+        general: {
+            noFilterData: string
+        }
     }
 }

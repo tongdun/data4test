@@ -439,6 +439,10 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 			err = fmt.Errorf(T("test_case.import_module_required"), item.CaseNumber)
 			return
 		}
+		if r, ok := ValidateModuleName(item.Module); !ok {
+			err = fmt.Errorf(T("test_case.import_module_invalid_char"), item.CaseNumber, string(r))
+			return
+		}
 	}
 
 	// 截图：从图片包按「编号_N.format」归并
