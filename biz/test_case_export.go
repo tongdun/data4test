@@ -318,43 +318,8 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	curTime := time.Now().Format("20060102150405")
 	baseName := fmt.Sprintf("%s_%s", templateName, curTime)
 
-	xlsxFile := excelize.NewFile()
-	sheet := "Sheet1"
-	for c, col := range template.Columns {
-		xlsxFile.SetCellValue(sheet, columnName(c)+"1", col.Title)
-	}
-
-	var imagePaths []string
-	var embedImgs []wpsEmbedImage
-	// 语种导出时收集「原始模块目录 → 译文目录」映射，用于打包时翻译图片所在模块目录名
-	dirRename := map[string]string{}
-	for r, row := range rows {
-		rowNum := r + 2
-		if lang != "" && lang != "zh-CN" {
-			if oldDir := sanitizeDirName(row.Module); oldDir != "" {
-				if newName := GetCaseCountLocalized(row.Module, lang); newName != "" && newName != row.Module {
-					if newDir := sanitizeDirName(newName); newDir != "" && newDir != oldDir {
-						dirRename[oldDir] = newDir
-					}
-				}
-			}
-		}
-		for c, col := range template.Columns {
-			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
-			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
-			if len(text) > 0 {
-				xlsxFile.SetCellValue(sheet, cell, text)
-			}
-			imagePaths = append(imagePaths, imgs...)
-		}
-		if screenshotMode == "embed" {
-			xlsxFile.SetRowHeight(sheet, rowNum, 80)
-		}
-	}
-
-	xlsxPath := fmt.Sprintf("%s/%s.xlsx", CaseFilePath, baseName)
-	if err = xlsxFile.SaveAs(xlsxPath); err != nil {
-		Logger.Error("%s", err)
+	xlsxPath, imagePaths, embedImgs, dirRename, err := buildTestCaseXlsx(template, rows, baseName, lang, screenshotMode, excelType, host)
+	if err != nil {
 		return
 	}
 
@@ -381,6 +346,50 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	}
 	if err == nil && fileName != baseName+".xlsx" {
 		_ = os.Remove(xlsxPath)
+	}
+	return
+}
+
+// buildTestCaseXlsx 按模板将用例行写入 xlsx：写表头 + 逐行填值 + SaveAs 到 CaseFilePath/<baseName>.xlsx。
+// 返回保存路径、打包所需图片路径、WPS 内嵌图片清单、语种目录名映射。
+// 注：embed+WPS 的 injectWpsCellImages 需在 SaveAs 后由调用方执行。
+func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow, baseName, lang, screenshotMode, excelType, host string) (xlsxPath string, imagePaths []string, embedImgs []wpsEmbedImage, dirRename map[string]string, err error) {
+	xlsxFile := excelize.NewFile()
+	sheet := "Sheet1"
+	for c, col := range template.Columns {
+		xlsxFile.SetCellValue(sheet, columnName(c)+"1", col.Title)
+	}
+
+	// 语种导出时收集「原始模块目录 → 译文目录」映射，用于打包时翻译图片所在模块目录名
+	dirRename = map[string]string{}
+	for r, row := range rows {
+		rowNum := r + 2
+		if lang != "" && lang != "zh-CN" {
+			if oldDir := sanitizeDirName(row.Module); oldDir != "" {
+				if newName := GetCaseCountLocalized(row.Module, lang); newName != "" && newName != row.Module {
+					if newDir := sanitizeDirName(newName); newDir != "" && newDir != oldDir {
+						dirRename[oldDir] = newDir
+					}
+				}
+			}
+		}
+		for c, col := range template.Columns {
+			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
+			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
+			if len(text) > 0 {
+				xlsxFile.SetCellValue(sheet, cell, text)
+			}
+			imagePaths = append(imagePaths, imgs...)
+		}
+		if screenshotMode == "embed" {
+			xlsxFile.SetRowHeight(sheet, rowNum, 80)
+		}
+	}
+
+	xlsxPath = fmt.Sprintf("%s/%s.xlsx", CaseFilePath, baseName)
+	if err = xlsxFile.SaveAs(xlsxPath); err != nil {
+		Logger.Error("%s", err)
+		return
 	}
 	return
 }

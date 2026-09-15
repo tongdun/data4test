@@ -24,6 +24,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	products := biz.GetProducts()
 	partProducts := biz.GetProductsByUpdateTime(1)
 	userName := auth.Auth(ctx).Name
+	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 
 	info := schedule.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
@@ -35,7 +36,10 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldHide()
 	info.AddField(biz.T("common.task_name"), "task_name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace().FieldWidth(160)
+		FieldTrimSpace().FieldWidth(160).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskLocalized(model.Value, dataLocale)
+		})
 	info.AddField(biz.T("common.task_mode"), "task_mode", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "cron" {
@@ -154,6 +158,19 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	info.AddButton(template2.HTML(biz.T("schedule.import_check_btn")), icon.FolderO,
 		action.Jump("/admin/schedule_import"))
+
+	info.AddButton(template2.HTML(biz.T("common.btn_i18n_sync")), icon.Android, action.Ajax("schedule_i18n_sync",
+		func(ctx *context.Context) (success bool, msg string, data interface{}) {
+			idStr := ctx.FormValue("ids")
+			if idStr == "," {
+				return false, biz.T("common.btn_select_first"), ""
+			}
+			tc, dc, pc, err := biz.SyncEntityI18n(idStr)
+			if err != nil {
+				return false, fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), ""
+			}
+			return true, fmt.Sprintf(biz.T("common.i18n_sync_done"), tc, dc, pc), ""
+		}))
 
 	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/generate_task_report",
@@ -509,7 +526,10 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 	detail := schedule.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
-	detail.AddField(biz.T("common.task_name"), "task_name", db.Varchar)
+	detail.AddField(biz.T("common.task_name"), "task_name", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.task_mode"), "task_mode", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "cron" {
@@ -552,11 +572,11 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		})
 	detail.AddField(biz.T("common.data_list"), "data_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetDataDetailLinkByDataStr(model.Value)
+			return biz.GetDataDetailLinkByDataStr(model.Value, dataLocale)
 		})
 	detail.AddField(biz.T("schedule.scene_list"), "scene_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetPlaybookLinkByPlaybookStr(model.Value)
+			return biz.GetPlaybookLinkByPlaybookStr(model.Value, dataLocale)
 
 		})
 	detail.AddField(biz.T("common.product_list"), "product_list", db.Varchar)
@@ -577,7 +597,10 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 
 			return biz.T("common.not_started")
 		})
-	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetTaskLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("schedule.last_at"), "last_at", db.Timestamp)
 	detail.AddField(biz.T("schedule.next_at"), "next_at", db.Timestamp)
 	detail.AddField(biz.T("common.user_name"), "user_name", db.Text)

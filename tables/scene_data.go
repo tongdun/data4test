@@ -28,6 +28,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	user := auth.Auth(ctx)
 	userName := user.Name
+	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 	info.AddField(biz.T("common.id"), "id", db.Int).
@@ -35,7 +36,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetDataUsedInPlaybookList(model.Value, model.ID)
+			return biz.GetDataUsedInPlaybookList(model.Value, model.ID, dataLocale)
 		})
 	info.AddField(biz.T("common.api_id"), "api_id", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
@@ -45,7 +46,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 		return template.Default().
 			Link().
 			SetURL("/admin/fm/data/preview?path=/" + value.Value).
-			SetContent(template2.HTML(value.Value)).
+			SetContent(template2.HTML(biz.GetDataLocalized(value.Value, dataLocale))).
 			OpenInNewTab().
 			SetTabTitle(template2.HTML(biz.T("common.data_file"))).
 			GetContent()
@@ -270,12 +271,15 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 
 	detail := sceneData.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
-	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.api_id"), "api_id", db.Varchar)
 	detail.AddField(biz.T("common.app"), "app", db.Varchar)
 	detail.AddField(biz.T("common.file_name"), "file_name", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			linkStr := fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", model.Value, model.Value)
+			linkStr := fmt.Sprintf("<a href=\"/admin/fm/data/preview?path=/%s\">%s</a>", model.Value, biz.GetDataLocalized(model.Value, dataLocale))
 			return linkStr
 		})
 	detail.AddField(biz.T("common.file_type"), "file_type", db.Enum).
@@ -303,7 +307,10 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.run_time"), "run_time", db.Int)
 	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
 	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
-	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.user_name"), "user_name", db.Varchar)
 	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
 	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)

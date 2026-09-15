@@ -86,6 +86,21 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 			}
 		}))
 
+	info.AddButton(template2.HTML(biz.T("sys_parameter.btn_switch_data_lang")), icon.Language, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/setDataLocale",
+		Title:  biz.T("sys_parameter.title_switch_data_lang"),
+		Width:  "600px",
+		Height: "240px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		langOptions := append(types.FieldOptions{
+			{Value: "auto", Text: biz.T("sys_parameter.data_lang_follow_ui")},
+		}, biz.GetSupportLanguages()...)
+		panel.AddField(biz.T("sys_parameter.title_switch_data_lang"), "lang", db.Varchar, form.SelectSingle).
+			FieldOptions(langOptions).FieldDefault("auto")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/setDataLocale"))
+
 	info.SetTable("sys_parameter").SetTitle(biz.T("sys_parameter.title")).SetDescription(biz.T("sys_parameter.description"))
 
 	formList := sysParameter.GetForm()

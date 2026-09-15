@@ -27,6 +27,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	info := playbook.GetInfo()
 	user := auth.Auth(ctx)
 	userName := user.Name
+	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 	info.AddField(biz.T("common.id"), "id", db.Int).
@@ -37,12 +38,12 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldTrimSpace().
 		FieldWidth(220).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetPlaybookUsedInTaskList(model.Value, model.ID)
+			return biz.GetPlaybookUsedInTaskList(model.Value, model.ID, dataLocale)
 		})
 	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldWidth(600).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetDataFileLinkByDataStr(model.Value)
+			return biz.GetDataFileLinkByDataStr(model.Value, dataLocale)
 		})
 
 	info.AddField(biz.T("common.last_file"), "last_file", db.Varchar).
@@ -50,7 +51,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 			return template.Default().
 				Link().
 				SetURL("/admin/fm/data/preview?path=/" + value.Value).
-				SetContent(template2.HTML(value.Value)).
+				SetContent(template2.HTML(biz.GetDataLocalized(value.Value, dataLocale))).
 				OpenInNewTab().
 				SetTabTitle(template2.HTML(biz.T("common.data_file"))).
 				GetContent()
@@ -358,12 +359,18 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 
 	detail := playbook.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
-	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetDataDetailLinkByDataStr(model.Value)
+			return biz.GetDataDetailLinkByDataStr(model.Value, dataLocale)
 		})
-	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar)
+	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {
@@ -387,7 +394,10 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.run_time"), "run_time", db.Int)
 	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
 	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
-	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.product"), "product", db.Varchar)
 	detail.AddField(biz.T("common.user_name"), "user_name", db.Varchar)
 	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)

@@ -2,11 +2,13 @@ package tables
 
 import (
 	"data4test/biz"
+	"data4test/models"
 	"fmt"
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/config"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	form2 "github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
+	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/parameter"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
 	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
@@ -15,6 +17,7 @@ import (
 	editType "github.com/GoAdminGroup/go-admin/template/types/table"
 	"html/template"
 
+	"strconv"
 	"strings"
 
 	"github.com/GoAdminGroup/go-admin/context"
@@ -173,20 +176,26 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		{Value: "unmerged", Text: biz.T("test_case.result_unmerged")},
 	}, action.FieldFilter("test_result"))
 
-	info.AddButton(template2.HTML(biz.T("test_case.btn_switch_data_lang")), icon.Language, action.PopUpWithCtxForm(action.PopUpData{
-		Id:     "/setDataLocale",
-		Title:  biz.T("test_case.title_switch_data_lang"),
-		Width:  "600px",
-		Height: "240px",
-	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-		langOptions := append(types.FieldOptions{
-			{Value: "auto", Text: biz.T("test_case.data_lang_follow_ui")},
-		}, biz.GetSupportLanguages()...)
-		panel.AddField(biz.T("test_case.title_switch_data_lang"), "lang", db.Varchar, form.SelectSingle).
-			FieldOptions(langOptions).FieldDefault("auto")
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-		return panel
-	}, "/setDataLocale"))
+	addDropdownButton(info, template2.HTML(biz.T("test_case.btn_import_group")), icon.Upload, []DropdownItem{
+		{Label: template2.HTML(biz.T("test_case.btn_import_xmind")), Icon: icon.FolderO, Action: action.PopUpWithCtxForm(action.PopUpData{
+			Id:     "/testcase_xmind2import",
+			Title:  biz.T("test_case.btn_import_xmind"),
+			Width:  "900px",
+			Height: "680px", // TextArea
+		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+			info.AddField(biz.T("common.product_line"), "product", db.Varchar).
+				FieldFilterable(types.FilterType{FormType: form.Select}).
+				FieldFilterOptions(products)
+			info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar).
+				FieldFilterable()
+			panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+				"maxFileCount": 1,
+			}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
+			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+			return panel
+		}, "/testcase_xmind2import")},
+
+		{Label: template2.HTML(biz.T("test_case.btn_import_excel")), Icon: icon.FolderO, Action: action.Jump("/admin/case_import")}})
 
 	addDropdownButton(info, template2.HTML(biz.T("test_case.btn_export_group")), icon.Download, []DropdownItem{
 		{Label: template2.HTML(biz.T("common.btn_export_md")), Icon: icon.File, Action: action.Ajax("test_case_export_markdown",
@@ -234,19 +243,6 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 
 			return panel
 		}, "/test_case_export_xmind")},
-
-		{Label: template2.HTML(biz.T("test_case.btn_xmind2excel")), Icon: icon.FolderO, Action: action.PopUpWithCtxForm(action.PopUpData{
-			Id:     "/testcase_xmind2excel",
-			Title:  biz.T("test_case.title_xmind2excel"),
-			Width:  "900px",
-			Height: "680px", // TextArea
-		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-			panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
-				"maxFileCount": 1,
-			}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
-			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-			return panel
-		}, "/testcase_xmind2excel")},
 
 		{Label: template2.HTML(biz.T("test_case.btn_export_excel")), Icon: icon.FolderO, Action: action.PopUpWithCtxForm(action.PopUpData{
 			Id:     "/test_case_export_excel",
@@ -343,26 +339,40 @@ $(function () {
 		return panel
 	}, "/test_case_batch_update"))
 
-	addDropdownButton(info, template2.HTML(biz.T("test_case.btn_import_group")), icon.Upload, []DropdownItem{
-		{Label: template2.HTML(biz.T("test_case.btn_import_xmind")), Icon: icon.FolderO, Action: action.PopUpWithCtxForm(action.PopUpData{
-			Id:     "/testcase_xmind2import",
-			Title:  biz.T("test_case.btn_import_xmind"),
-			Width:  "900px",
-			Height: "680px", // TextArea
-		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
-			info.AddField(biz.T("common.product_line"), "product", db.Varchar).
-				FieldFilterable(types.FilterType{FormType: form.Select}).
-				FieldFilterOptions(products)
-			info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar).
-				FieldFilterable()
-			panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
-				"maxFileCount": 1,
-			}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
-			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
-			return panel
-		}, "/testcase_xmind2import")},
+	info.AddButton(template2.HTML(biz.T("test_case.btn_xmind2excel")), icon.FolderO, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/testcase_xmind2excel",
+		Title:  biz.T("test_case.title_xmind2excel"),
+		Width:  "900px",
+		Height: "680px", // TextArea
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
+			"maxFileCount": 1,
+		}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/testcase_xmind2excel"))
 
-		{Label: template2.HTML(biz.T("test_case.btn_import_excel")), Icon: icon.FolderO, Action: action.Jump("/admin/case_import")}})
+	// 报告“未执行”下钻：test_result 非 pass/part/fail/deprecated/unmerged 均视为未执行（不改库内值，查询层做补集过滤）
+	info.SetQueryFilterFn(func(params parameter.Parameters, conn db.Connection) ([]string, bool) {
+		if params.GetFieldValue("untest_broad") != "1" {
+			return nil, false
+		}
+		q := models.Orm.Table("test_case").
+			Where("deleted_at IS NULL AND test_result NOT IN (?)", []string{"pass", "part", "fail", "deprecated", "unmerged"})
+		if module := params.GetFieldValue("module"); module != "" {
+			q = q.Where("module LIKE ?", "%"+module+"%")
+		}
+		var idInts []int
+		if err := q.Pluck("id", &idInts).Error; err != nil {
+			biz.Logger.Error("未执行补集过滤查询失败: %v", err)
+			return nil, false
+		}
+		ids := make([]string, 0, len(idInts))
+		for _, id := range idInts {
+			ids = append(ids, strconv.Itoa(id))
+		}
+		return ids, true
+	})
 
 	info.SetTable("test_case").SetTitle(biz.T("test_case.title")).SetDescription(biz.T("test_case.description"))
 
@@ -468,6 +478,14 @@ $(function () {
 		return values
 	})
 
+	// 模块名白名单校验：仅允许中文/字母/数字/空格/下划线/连字符/点号，含非法字符拒绝保存
+	formList.SetPostValidator(func(values form2.Values) error {
+		if r, ok := biz.ValidateModuleName(values.Get("module")); !ok {
+			return fmt.Errorf(biz.T("test_case.module_invalid_char"), string(r))
+		}
+		return nil
+	})
+
 	detail := testCase.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
 	detail.AddField(biz.T("common.case_number"), "case_number", db.Varchar)
@@ -521,7 +539,8 @@ $(function () {
 	detail.AddField(biz.T("common.product_line"), "product", db.Varchar)
 	detail.AddField(biz.T("common.remark"), "remark", db.Varchar)
 	detail.AddField(biz.T("test_case.test_process"), "test_process", db.Longtext)
-	detail.AddField(biz.T("test_case.ext_info"), "ext_info", db.Longtext)
+	detail.AddField(biz.T("test_case.ext_info"), "ext_info", db.Longtext).
+		FieldDisplay(multilineDisplay)
 	detail.AddField(biz.T("test_case.result_history"), "result_history", db.Longtext).
 		FieldDisplay(resultHistoryDisplay)
 
@@ -556,6 +575,11 @@ func caseFieldDisplay(dataLocale, field string, html bool) func(types.FieldModel
 		}
 		return v
 	}
+}
+
+// multilineDisplay 将 Longtext 字段按原格式换行显示：先 HTML 转义防注入，再把 \n 转 <br/>
+func multilineDisplay(model types.FieldModel) interface{} {
+	return template.HTML(strings.ReplaceAll(template.HTMLEscapeString(rowString(model.Value)), "\n", "<br/>"))
 }
 
 // resultHistoryDisplay 渲染结果历史：HTML 表格，结果枚举按当前语言翻译

@@ -26,23 +26,29 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 	user := auth.Auth(ctx)
 	userName := user.Name
+	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace().FieldWidth(60)
 	info.AddField(biz.T("common.name"), "name", db.Varchar).FieldWidth(160).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookLocalized(model.Value, dataLocale)
+		})
 	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
 		FieldHide().
 		FieldFilterable()
 	info.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return biz.GetHistoryDataLinkByDataStr(model.Value)
+			return biz.GetHistoryDataLinkByDataStr(model.Value, dataLocale)
 		})
 	info.AddField(biz.T("common.last_file"), "last_file", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldDisplay(func(value types.FieldModel) interface{} {
+			base := biz.GetHistoryDataDirName(value.Value)
+			display := biz.GetDataLocalized(base, dataLocale) + value.Value[len(base):]
 			b, num := biz.IsStrEndWithTimeFormat(value.Value)
 			suffix := biz.GetStrSuffix(value.Value)
 			if b {
@@ -50,7 +56,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 				return template.Default().
 					Link().
 					SetURL("/admin/fm/history/preview?path=/" + dirName + "/" + value.Value).
-					SetContent(template2.HTML(value.Value)).
+					SetContent(template2.HTML(display)).
 					OpenInNewTab().
 					SetTabTitle(template2.HTML(biz.T("test_execute_history_file.title"))).
 					GetContent()
@@ -58,7 +64,7 @@ func GetSceneTestHistoryTable(ctx *context.Context) table.Table {
 				return template.Default().
 					Link().
 					SetURL("/admin/fm/data/preview?path=/" + value.Value).
-					SetContent(template2.HTML(value.Value)).
+					SetContent(template2.HTML(display)).
 					OpenInNewTab().
 					SetTabTitle(template2.HTML(biz.T("common.data_file"))).
 					GetContent()
@@ -348,12 +354,25 @@ hd.parentNode.appendChild(btn);
 
 	detail := playbookTestHistory.GetDetail()
 	detail.AddField(biz.T("common.id"), "id", db.Int)
-	detail.AddField(biz.T("common.name"), "name", db.Varchar)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetPlaybookLocalized(model.Value, dataLocale)
+		})
 	detail.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return strings.Replace(model.Value, ",", ",<br>", -1)
+			items := strings.Split(model.Value, ",")
+			for i, it := range items {
+				it = strings.TrimSpace(it)
+				base := biz.GetHistoryDataDirName(it)
+				items[i] = biz.GetDataLocalized(base, dataLocale) + it[len(base):]
+			}
+			return strings.Join(items, ",<br>")
 		})
-	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar)
+	detail.AddField(biz.T("common.last_file"), "last_file", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			base := biz.GetHistoryDataDirName(model.Value)
+			return biz.GetDataLocalized(base, dataLocale) + model.Value[len(base):]
+		})
 	detail.AddField(biz.T("common.scene_type"), "scene_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "1" {

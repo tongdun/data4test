@@ -26,13 +26,17 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 	info.SetFilterFormInputWidth(8)
 	user := auth.Auth(ctx)
 	userName := user.Name
+	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldFilterable().
 		FieldTrimSpace()
 	info.AddField(biz.T("common.name"), "name", db.Varchar).
-		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataLocalized(model.Value, dataLocale)
+		})
 	info.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar).
 		FieldHide().
 		FieldFilterable()
@@ -42,10 +46,24 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike})
 	info.AddField(biz.T("common.data_content"), "content", db.Longtext).
 		FieldDisplay(func(value types.FieldModel) interface{} {
+			fileName := biz.GetStrFromHtml(value.Value)
+			if fileName == "" {
+				fileName = value.Value
+			}
+			base := biz.GetHistoryDataDirName(fileName)
+			display := biz.GetDataLocalized(base, dataLocale) + fileName[len(base):]
+
+			b, num := biz.IsStrEndWithTimeFormat(fileName)
+			suffix := biz.GetStrSuffix(fileName)
+			url := "/admin/fm/data/preview?path=/" + fileName
+			if b {
+				dirName := fileName[:len(fileName)-num-len(suffix)]
+				url = "/admin/fm/history/preview?path=/" + dirName + "/" + fileName
+			}
 			return template.Default().
 				Link().
-				SetURL("/admin/fm/history/preview?path=" + value.Value).
-				SetContent(template2.HTML(value.Value)).
+				SetURL(url).
+				SetContent(template2.HTML(display)).
 				OpenInNewTab().
 				SetTabTitle(template2.HTML(biz.T("data_test_history.history_record"))).
 				GetContent()

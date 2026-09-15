@@ -10,6 +10,7 @@ import (
 	"github.com/GoAdminGroup/go-admin/modules/auth"
 	"github.com/GoAdminGroup/go-admin/modules/db"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+	"github.com/GoAdminGroup/go-admin/template/icon"
 	"github.com/GoAdminGroup/go-admin/template/types"
 	"github.com/GoAdminGroup/go-admin/template/types/action"
 	"github.com/GoAdminGroup/go-admin/template/types/form"
@@ -80,19 +81,46 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 	// 查看报告（最新）
 	info.AddActionButton(template.HTML(biz.T("case_statistics.btn_report")), action.Jump("/admin/case_statistics_report?id={{.Id}}"))
 
-	// i18n同步（导出叶子模块用例原始数据 → mgmt/i18n_case/<模块>/zh-CN.yaml）
-	info.AddActionButton(template.HTML(biz.T("case_statistics.btn_i18n_sync")), action.Ajax("case_statistics_i18n_sync",
+	// i18n同步（批量）：导出选中定义的叶子模块用例原始数据 → mgmt/i18n/i18n_case/<模块>/zh-CN.yaml
+	info.AddButton(template.HTML(biz.T("case_statistics.btn_i18n_sync")), icon.Android, action.Ajax("case_statistics_i18n_sync",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			id, err := strconv.Atoi(ctx.FormValue("id"))
-			if err != nil {
-				return false, biz.T("case_statistics.invalid_id"), ""
+			idStr := ctx.FormValue("ids")
+			if idStr == "," {
+				return false, biz.T("common.btn_select_first"), ""
 			}
-			mc, cc, err := biz.SyncCaseI18nFromStatistics(id)
+			mc, cc, err := biz.SyncCaseI18nFromStatistics(idStr)
 			if err != nil {
 				return false, fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), ""
 			}
 			return true, fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc), ""
 		}))
+
+	// 导出Excel（批量）：选中定义覆盖的全量用例按模块导出，一个模块一个 xlsx，打包为单个 zip
+	info.AddButton(template.HTML(biz.T("case_statistics.btn_export_excel")), icon.Download, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/case_statistics_export_excel",
+		Title:  biz.T("case_statistics.title_export_excel"),
+		Width:  "900px",
+		Height: "480px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		templates := biz.GetTestCaseExportTemplates()
+		languages := biz.GetSupportLanguages()
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
+			FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate().
+			FieldHelpMsg(template.HTML(biz.T("common.help_select_or_filter")))
+		panel.AddField(biz.T("test_case.export_template"), "template", db.Varchar, form.SelectSingle).
+			FieldOptions(templates).FieldDefault(templates[0].Value)
+		panel.AddField(biz.T("test_case.export_lang"), "lang", db.Varchar, form.SelectSingle).
+			FieldOptions(languages).FieldDefault(biz.GetLocale())
+		panel.AddField(biz.T("test_case.screenshot_mode"), "screenshot_mode", db.Varchar, form.SelectSingle).
+			FieldOptions(types.FieldOptions{
+				{Value: "", Text: biz.T("test_case.screenshot_mode_none")},
+				{Value: "path", Text: biz.T("test_case.screenshot_mode_path")},
+				{Value: "embed", Text: biz.T("test_case.screenshot_mode_embed")},
+			}).FieldDefault("")
+		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		return panel
+	}, "/case_statistics_export_excel"))
 
 	info.SetTable("case_statistics").SetTitle(biz.T("case_statistics.title")).SetDescription(biz.T("case_statistics.description"))
 
@@ -101,6 +129,7 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 		FieldDisableWhenCreate()
 	formList.AddField(biz.T("case_statistics.name"), "name", db.Varchar, form.Text)
 	formList.AddField(biz.T("case_statistics.definition"), "definition", db.Longtext, form.TextArea).
+		FieldDefault(biz.T("case_statistics.sample_definition")).
 		FieldHelpMsg(template.HTML(biz.T("case_statistics.help_definition")))
 	formList.AddField(biz.T("case_statistics.intro_versions"), "intro_versions", db.Varchar, form.Select).
 		FieldOptions(versions).
