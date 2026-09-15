@@ -1259,6 +1259,43 @@ func startServer() {
 		return
 	})
 
+	// CaseStatisticsExport2Excel：统计定义列表「导出Excel」——按模块导出全量用例，打包单个 zip
+	r.POST("/case_statistics_export_excel", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		templateName := c.PostForm("template")
+		lang := c.PostForm("lang")
+		screenshotMode := c.PostForm("screenshot_mode")
+		excelType := c.PostForm("excel_type")
+
+		var status string
+		if idStr == "," {
+			status = biz.T("common.btn_select_first")
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+		if len(templateName) == 0 {
+			status = biz.T("test_case.select_template_first")
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+		if excelType == "" {
+			excelType = "wps"
+		}
+
+		fileName, err := biz.ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excelType, c.Request.Host)
+		if err != nil {
+			status = fmt.Sprintf(biz.T("error.export_fail"), err)
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
+			return
+		}
+
+		hostIp := c.Request.Host
+		downloadUrl := fmt.Sprintf("http://%s/admin/fm/case/download?path=/%s", hostIp, fileName)
+		status = fmt.Sprintf("导出成功\n请复制下述链接下载:\n%s", downloadUrl)
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
+		return
+	})
+
 	// 切换用例数据语种（写/清 cookie，默认跟随界面语言）
 	r.POST("/setDataLocale", func(c *gin.Context) {
 		lang := c.PostForm("lang")
