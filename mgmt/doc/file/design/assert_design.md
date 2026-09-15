@@ -83,6 +83,11 @@
 - empty: 为空
 - not_empty: 不为空
 - output: {type: output, source: data.contents[0].uuid, value: uuid}, 定义输出变量，提供给其他接口依赖使用
+- output2auth: 从接口返回的ResponseBody中提取值，输出到鉴权信息中，存在则更新，不存在则追加（todo）
+  - e.g.1: ```{type: output2auth:"lang=cn; _qjt_ac_=$Cookie", source: data.XXX, value: Cookie}``` 赋值到鉴权信息中Cookie字段,如果输出信息无法直接满足，可以用冒号在输出动作后追加格式,@Cookie表示输出值的位置，然后再输出到鉴权信息中
+  - e.g.2: ```{type: output2auth, source: data.XXX, value: X-Cf-Random}``` 赋值到鉴权信息中X-Cf-Random字段
+- output2env: 从接口返回的ResponseBody中提取值，赋值到专用参数中，存在则更新，不存在则追加（todo）
+  - e.g.1: ```{type: output2env, source: data.XXXName, value: XXXName}```
 
 ### 其他特性说明
 ##### source提取目标字段说明
@@ -116,7 +121,7 @@
 - JSON格式：e.g.:
   - {"default": "v1,v2,v3,v4,……", "ch": "v1,v2,v3,v4,……", "en": "v1,v2,v3,v4,……"}
   
-- 普通格式定义：e.g.:ß
+- 普通格式定义：e.g.:
   - v1,v2,v3,v4,……
   
 - 当断言值为模板时，用占位符，执行时会自动获取，如果有设置多语种，会根据语言获取对应的值，e.g.:

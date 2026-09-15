@@ -8,6 +8,7 @@ nav:
       - 场景管理: design/playbook_design.md
       - 任务管理: design/task_design.md
       - Mock使用: design/mock_design.md
+      - 公共管理: design/common_design.md
       - 常见问题: question/FAQ.md
   - 智能助手:
       - 智能用例: ai/ai_testcase_design.md
@@ -31,6 +32,7 @@ nav:
       - 数据库设计: design/db_design.md
       - 开发待办: plan/todo.md
       - 开发须知: development/must_know.md
+      - 开发环境: development/dev_env.md
   - 系统变更:
       - 最新发布: update/release.md
       - 变更日志: update/change_log.md

@@ -50,6 +50,7 @@
 - 5. Documentation-friendly: User manuals and guides are online for easy access and use.
 - 6. Cross-platform Compatible: Golang program, compilable into various cross-platform executables.
 - 7. LLM-Friendly: Customizable large model generation engines with on-demand scalability.
+- 8. Internationalization-friendly: Interface, menus, and business data support multiple languages (Chinese, English, etc.) — build once, reuse across languages without rewriting.
 
 ### Functionality
 
@@ -75,6 +76,10 @@
   - Intelligent Analysis Hub: Provides analysis closed-loop management capabilities, including generated defect/optimization ticket import, status tracking (change management), and regression test scheduling
   - Intelligent Template Management: Centralized management of prompt templates used to drive the generation of intelligent test cases, data, and scenarios
   - Automated Coverage Monitoring: One-click identification of non-automated interfaces for rapid localization of testing gaps
+- 6. Internationalization (i18n) System
+  - Multilingual Interface: System copy and menu titles support switching between Chinese, English, and other languages without recompilation
+  - Multilingual Business Data: Fields such as names, descriptions, and steps of test cases, data files, scenarios, and tasks are translated by language — build once, reuse across languages
+  - i18n Sync: One-click export of the Chinese skeleton (zh-CN.yaml) from the database; after translation, add other language files (e.g., en-US.yaml) and they take effect automatically
 
 #### Applicable Test Types
 - 1. Functional Testing: Positive path functional testing, custom or automatically generated characteristic test data.

@@ -4,6 +4,9 @@
 - mgmt/common: 放置公用文件，e.g: 模板使用说明.yml
 - mgmt/data: 数据用例的存储目录
 - mgmt/ai_data: 智能数据用例的存储目录
+- mgmt/knowledge: AI 知识库文件的存储目录，放置项目知识文档(.txt)，供 AI 生成与分析测试用例、剧本、任务等使用
+- mgmt/i18n: 国际化翻译文件的存储目录，按业务域分子目录(i18n_case 用例、i18n_data 数据、i18n_menu 菜单、i18n_playbook 场景、i18n_system 系统文案、i18n_task 任务、i18n_caseCount 用例统计)，支持 i18n 同步
+- mgmt/sql: 数据库脚本目录，放置数据库初始化(init.sql)与增量更新(update.sql)脚本
 - mgmt/upload: 数据用例中需上传文件的存储目录
 - mgmt/doc: 系统设计的详情说明以及使用说明
 - mgmt/log: 目录下的文件自动生成，为系统运行的日志信息
