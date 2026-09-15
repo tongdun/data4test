@@ -32,10 +32,36 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 		FieldTrimSpace()
 	info.AddField(biz.T("sys_parameter.value_list"), "value_list", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().
+		//FieldWidth(400).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			v := model.Value
+			if len(v) == 0 {
+				return ""
+			}
+			escaped := template2.HTMLEscapeString(v)
+			const threshold = 200
+			if len(v) <= threshold {
+				return template2.HTML(escaped)
+			}
+			runes := []rune(v)
+			maxLen := threshold
+			if maxLen > len(runes) {
+				maxLen = len(runes)
+			}
+			short := template2.HTMLEscapeString(string(runes[:maxLen]))
+			remain := template2.HTMLEscapeString(string(runes[maxLen:]))
+			if len(remain) == 0 {
+				return template2.HTML(short)
+			}
+			return template2.HTML(fmt.Sprintf(
+				`<details style="max-width:800px;max-height:300px;overflow-y:auto"><summary style="cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:pre-wrap;word-break:break-all">%s...</summary><div style="margin-top:4px;padding:4px;background:#f5f5f5;border-radius:2px;white-space:pre-wrap;word-break:break-all">%s</div></details>`,
+				short, remain))
+		})
 	info.AddField(biz.T("common.remark"), "remark", db.Longtext).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().
+		FieldWidth(350)
 	info.AddField(biz.T("common.created_at"), "created_at", db.Timestamp).
 		FieldSortable().FieldWidth(110).
 		FieldFilterable(types.FilterType{FormType: form.DatetimeRange})
