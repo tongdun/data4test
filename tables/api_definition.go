@@ -239,7 +239,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			FieldOptions(products).FieldDefault(products[0].Value)
 		panel.AddField(biz.T("common.create_platform"), "create_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
-		panel.EnableAjax(biz.T("common.operate_success"))
+		panel.EnableAjaxData(types.AjaxData{SuccessTitle: biz.T("common.operate_success"), DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/ai_create_case_by_api_define"))
 
@@ -268,7 +268,7 @@ func GetApiDefinitionTable(ctx *context.Context) table.Table {
 			FieldOptions(products).
 			FieldDefault(aiPlatforms[0].Value).
 			FieldHelpMsg(template.HTML(biz.T("api_definition.product_help")))
-		panel.EnableAjax(biz.T("common.operate_success"))
+		panel.EnableAjaxData(types.AjaxData{SuccessTitle: biz.T("common.operate_success"), DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/ai_create_data_by_api_define"))
 

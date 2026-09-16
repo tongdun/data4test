@@ -165,7 +165,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
 		panel.AddField(biz.T("common.case_source"), "source", db.Varchar, form.Text).FieldDefault("ai_case").FieldHide()
 
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/ai_case_export_xmind"))
@@ -188,7 +188,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.raw_reply"), "raw_reply", db.Varchar, form.TextArea).
 			FieldHelpMsg(template.HTML(biz.T("common.help_raw_reply")))
 
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/ai_case_import"))
@@ -213,7 +213,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 10,
 		}).FieldHelpMsg(template.HTML(biz.T("ai_case.help_upload_file")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/ai_case_create_by_create_desc"))
 
@@ -229,7 +229,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.optimize_platform"), "optimize_platform", db.Varchar, form.SelectSingle).
 			FieldOptions(aiPlatforms).FieldDefault(aiPlatforms[0].Value)
 		panel.AddField(biz.T("common.optimize_desc"), "optimize_desc", db.Varchar, form.TextArea)
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/ai_case_optimize"))
 
@@ -282,7 +282,7 @@ func GetAiCaseTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("ai_case.upload_xmind"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 1,
 		}).FieldHelpMsg(template.HTML(biz.T("common.help_xmind")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/testcase_xmind_import_and_use"))
 

@@ -142,7 +142,7 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("env_config.field_upload_doc"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 1,
 		}).FieldHelpMsg(template.HTML(biz.T("env_config.help_swagger_upload")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/api_define_import"))
 

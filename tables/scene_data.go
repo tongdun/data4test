@@ -196,7 +196,7 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			FieldOptions(products).
 			FieldDefault(products[0].Value).
 			FieldHelpMsg(template.HTML(biz.T("scene_data.env_help")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/data_batch_run"))

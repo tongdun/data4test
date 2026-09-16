@@ -93,7 +93,7 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		panel.AddField(biz.T("sys_parameter.sync_type"), "k_type", db.Varchar, form.SelectSingle).
 			FieldOptions(kTypes)
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/sync_knowledge"))
 
@@ -123,7 +123,7 @@ func GetSysParameterTable(ctx *context.Context) table.Table {
 		}, biz.GetSupportLanguages()...)
 		panel.AddField(biz.T("sys_parameter.title_switch_data_lang"), "lang", db.Varchar, form.SelectSingle).
 			FieldOptions(langOptions).FieldDefault("auto")
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/setDataLocale"))
 

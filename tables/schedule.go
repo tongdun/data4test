@@ -187,7 +187,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			FieldOptions(products).
 			FieldDefault(defaultProducts).
 			FieldHelpMsg(template2.HTML(biz.T("schedule_report.select_report_type")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/generate_task_report"))
 

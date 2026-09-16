@@ -152,7 +152,7 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 		panel.AddField(biz.T("common.raw_reply"), "raw_reply", db.Varchar, form.TextArea).
 			FieldHelpMsg(template.HTML(biz.T("common.help_raw_reply")))
 
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/ai_data_import"))
@@ -177,7 +177,7 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 			FieldOptions(products).
 			FieldDefault(products[0].Value).
 			FieldHelpMsg(template.HTML(biz.T("common.help_execute_data")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/ai_data_test_and_analysis"))
@@ -195,7 +195,7 @@ func GetAiDataTable(ctx *context.Context) table.Table {
 			FieldOptions(products).
 			FieldDefault(products[0].Value).
 			FieldHelpMsg(template.HTML(biz.T("ai_data.help_select_env")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 		return panel
 	}, "/ai_data_test"))

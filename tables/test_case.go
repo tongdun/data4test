@@ -191,7 +191,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 				"maxFileCount": 1,
 			}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
-			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+			panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 			return panel
 		}, "/testcase_xmind2import")},
 
@@ -239,7 +239,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
 			panel.AddField(biz.T("common.case_source"), "source", db.Varchar, form.Text).FieldDefault("test_case").FieldHide()
 
-			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+			panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 
 			return panel
 		}, "/test_case_export_xmind")},
@@ -305,7 +305,7 @@ $(function () {
 			panel.AddField(biz.T("common.case_module"), "module", db.Varchar, form.Text).
 				FieldHelpMsg(template.HTML(biz.T("common.help_module_multi")))
 			panel.AddField(biz.T("common.created_at"), "created_at", db.Varchar, form.DatetimeRange)
-			panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+			panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 			return panel
 		}, "/test_case_export_excel")}})
 
@@ -335,7 +335,7 @@ $(function () {
 		panel.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar, form.Text)
 		panel.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar, form.Text)
 		panel.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar, form.Datetime)
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/test_case_batch_update"))
 
@@ -348,7 +348,7 @@ $(function () {
 		panel.AddField(biz.T("common.upload_file"), "upload_file", db.Varchar, form.Multifile).FieldOptionExt(map[string]interface{}{
 			"maxFileCount": 1,
 		}).FieldHelpMsg(template2.HTML(biz.T("common.help_xmind")))
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/testcase_xmind2excel"))
 

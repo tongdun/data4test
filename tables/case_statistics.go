@@ -118,7 +118,7 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 				{Value: "path", Text: biz.T("test_case.screenshot_mode_path")},
 				{Value: "embed", Text: biz.T("test_case.screenshot_mode_embed")},
 			}).FieldDefault("")
-		panel.EnableAjax(ctx.Response.Status, ctx.Response.Status)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/case_statistics_export_excel"))
 
