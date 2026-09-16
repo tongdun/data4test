@@ -107,6 +107,12 @@ func reportStyle() template.HTML {
 .scene-child{display:none;background:#fafbfc}
 .scene-child.open{display:table-row}
 .scene-child:hover{background:#f4f7fa}
+.task-header{cursor:pointer}
+.task-header:hover{background:#eef4fb!important}
+.task-name{font-weight:700;color:#1a3c5e}
+.task-scene{display:none;cursor:pointer;background:#fbfcfe}
+.task-scene.open{display:table-row}
+.task-scene:hover{background:#f4f8fb!important}
 .report-table td.sc-data-name{padding-left:48px;color:#555}
 .report-table td.sc-api{font-family:Menlo,Consolas,monospace;font-size:12px;color:#777}
 .sc-badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;white-space:nowrap}
@@ -120,6 +126,7 @@ func reportStyle() template.HTML {
 }
 
 // reportCollapseScript 场景折叠展开的前端脚本（点击场景头行展开/收起关联数据，全部展开/收起）。
+// 多任务报告复用同一脚本：任务头行用 toggleTaskGroup 展开/收起其场景，场景头行用 toggleSceneGroup 展开/收起其数据。
 func reportCollapseScript() string {
 	return `<script>
 function toggleSceneGroup(idx, el) {
@@ -129,8 +136,20 @@ function toggleSceneGroup(idx, el) {
   var arrow = el.querySelector('.scene-arrow');
   if (arrow) { arrow.textContent = open ? '▸' : '▾'; }
 }
+function toggleTaskGroup(idx, el) {
+  var rows = document.querySelectorAll('.task-scene[data-task="' + idx + '"]');
+  var open = rows.length && rows[0].classList.contains('open');
+  for (var i = 0; i < rows.length; i++) { rows[i].classList.toggle('open', !open); }
+  // 无论展开还是收起任务，其下数据子行均收起，场景箭头复位为 ▸
+  var kids = document.querySelectorAll('.scene-child[data-task="' + idx + '"]');
+  for (var j = 0; j < kids.length; j++) { kids[j].classList.remove('open'); }
+  var sarrows = document.querySelectorAll('.task-scene[data-task="' + idx + '"] .scene-arrow');
+  for (var k = 0; k < sarrows.length; k++) { sarrows[k].textContent = '▸'; }
+  var arrow = el.querySelector('.scene-arrow');
+  if (arrow) { arrow.textContent = open ? '▸' : '▾'; }
+}
 function setAllScenes(open) {
-  var rows = document.querySelectorAll('.scene-child');
+  var rows = document.querySelectorAll('.scene-child, .task-scene');
   for (var i = 0; i < rows.length; i++) { rows[i].classList.toggle('open', open); }
   var arrows = document.querySelectorAll('.scene-arrow');
   for (var j = 0; j < arrows.length; j++) { arrows[j].textContent = open ? '▾' : '▸'; }

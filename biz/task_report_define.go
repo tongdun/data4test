@@ -176,6 +176,7 @@ type SceneDetailWithTask struct {
 // DataDetailWithTask 多任务报告中带任务信息的数据文件明细
 type DataDetailWithTask struct {
 	TaskName   string `json:"task_name"`
+	SceneName  string `json:"scene_name,omitempty"`
 	Name       string `json:"name"`
 	ApiId      string `json:"api_id,omitempty"`
 	Result     string `json:"result"`

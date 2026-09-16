@@ -18,7 +18,12 @@ type Translator struct {
 	mu       sync.RWMutex
 }
 
-var globalTranslator *Translator
+var (
+	globalTranslator    *Translator
+	goAdminConfig       *config.Config // go-admin 全局配置指针，供运行期改语种
+	systemDefaultLocale = "zh-CN"      // 系统默认语种（site 设置），cookie=auto 时回退
+	defaultLocaleMu     sync.RWMutex   // 保护 systemDefaultLocale（site 编辑会运行期改写）
+)
 
 // InitI18n 初始化翻译引擎, locale: "zh-CN" / "en-US"
 func InitI18n(locale string) {
@@ -119,13 +124,7 @@ func SyncLocale() {
 	}
 
 	// 统一语言 key 格式
-	normalizedLang := gaLang
-	switch gaLang {
-	case "en", "en-US":
-		normalizedLang = "en-US"
-	case "cn", "zh-CN", "zh-cn":
-		normalizedLang = "zh-CN"
-	}
+	normalizedLang, _ := normalizeLocale(gaLang)
 	// 快速检查：语言未变化则跳过（不影响并发安全）
 	globalTranslator.mu.RLock()
 	same := globalTranslator.locale == normalizedLang
@@ -142,8 +141,6 @@ func SyncLocale() {
 // T 翻译 key, 支持 %s %d 等格式化占位符
 // 查找顺序：messages → aliases → 返回 key 原字符串
 func T(key string, args ...interface{}) string {
-	// 确保翻译器语言与 go-admin 当前语言一致
-	SyncLocale()
 	if globalTranslator == nil {
 		return key
 	}
@@ -186,16 +183,10 @@ func SetLocale(locale string) {
 	if globalTranslator == nil {
 		return
 	}
-	normalized := locale
-	switch locale {
-	case "en", "en-US":
-		normalized = "en-US"
-	case "cn", "zh-CN", "zh-cn":
-		normalized = "zh-CN"
-	}
-	if normalized == "" {
+	if locale == "" {
 		return
 	}
+	normalized, _ := normalizeLocale(locale)
 	globalTranslator.mu.RLock()
 	same := globalTranslator.locale == normalized
 	globalTranslator.mu.RUnlock()
@@ -203,4 +194,64 @@ func SetLocale(locale string) {
 		return
 	}
 	globalTranslator.loadLocale(normalized)
+}
+
+// normalizeLocale 归一化语种标识，返回（项目翻译包语种, go-admin 全局语种）。
+// 支持 "en"/"en-US"→en-US/en；"cn"/"zh"/"zh-CN"/"zh-cn"→zh-CN/cn；其余回退中文。
+func normalizeLocale(lang string) (full string, ga string) {
+	switch lang {
+	case "en", "en-US", "en-us":
+		return "en-US", "en"
+	default:
+		return "zh-CN", "cn"
+	}
+}
+
+// SetGoAdminConfig 注入 go-admin 全局配置指针，供 ApplyLocale 运行期改语种。
+func SetGoAdminConfig(cfg *config.Config) {
+	goAdminConfig = cfg
+}
+
+// CacheSystemDefaultLocale 缓存系统默认语种（site 设置，cookie=auto 时回退目标）。
+func CacheSystemDefaultLocale() {
+	SetSystemDefaultLocale(config.GetLanguage())
+}
+
+// SetSystemDefaultLocale 运行期刷新系统默认语种。
+// 供 site 语言设置变更（/admin/info/site/edit）时调用，避免中间件用旧缓存覆盖新默认。
+func SetSystemDefaultLocale(lang string) {
+	if lang == "" {
+		return
+	}
+	full, _ := normalizeLocale(lang)
+	defaultLocaleMu.Lock()
+	systemDefaultLocale = full
+	defaultLocaleMu.Unlock()
+}
+
+// SystemDefaultLocale 返回缓存的系统默认语种。
+func SystemDefaultLocale() string {
+	defaultLocaleMu.RLock()
+	defer defaultLocaleMu.RUnlock()
+	if systemDefaultLocale == "" {
+		return "zh-CN"
+	}
+	return systemDefaultLocale
+}
+
+// ApplyLocale 切当前请求/会话的有效语种：项目翻译器 + go-admin 全局语言（驱动 language.Get 与菜单）。
+func ApplyLocale(locale string) {
+	full, ga := normalizeLocale(locale)
+	if globalTranslator != nil {
+		globalTranslator.mu.RLock()
+		same := globalTranslator.locale == full && config.GetLanguage() == ga
+		globalTranslator.mu.RUnlock()
+		if same {
+			return
+		}
+		globalTranslator.loadLocale(full)
+	}
+	if goAdminConfig != nil {
+		_ = goAdminConfig.Update(map[string]string{"language": ga})
+	}
 }

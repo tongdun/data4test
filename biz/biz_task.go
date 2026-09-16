@@ -492,7 +492,7 @@ func CopySchedule(id, userName string) (err error) {
 	}
 
 	var schedule Schedule4Copy
-	schedule.TaskName = fmt.Sprintf("%s%s", dbSchedule.TaskName, T("task.copy_suffix"))
+	schedule.TaskName = fmt.Sprintf("%s_%s", dbSchedule.TaskName, T("task.copy_suffix"))
 	schedule.TaskType = dbSchedule.TaskType
 	schedule.SceneList = dbSchedule.SceneList
 	schedule.DataList = dbSchedule.DataList

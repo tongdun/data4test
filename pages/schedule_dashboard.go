@@ -568,14 +568,11 @@ func renderMultiTaskReport(report biz.DashboardReport, dataLocale string) (types
 	// ====== 各任务统计表（移到饼图下方） ======
 	taskTable := buildMultiTaskStatsTable(reportData, dataLocale)
 
-	// ====== 场景执行明细 ======
-	sceneTable := buildMultiTaskSceneTable(reportData, dataLocale)
+	// ====== 执行明细（任务→场景→数据三级折叠，场景+数据合并） ======
+	execTable := buildMultiTaskSceneGroupTable(reportData, dataLocale)
 
-	// ====== 数据执行明细 ======
-	dataTable := buildMultiTaskDataTable(reportData, dataLocale)
-
-	content := headerInfo + template.HTML(kpi2+kpi_scene+kpi_data) + template.HTML(row1) + taskTable + sceneTable + dataTable
-	content += reportStyle()
+	content := headerInfo + template.HTML(kpi2+kpi_scene+kpi_data) + template.HTML(row1) + taskTable + execTable
+	content += reportStyle() + template.HTML(reportCollapseScript())
 
 	return types.Panel{
 		Content:     template.HTML(content),
@@ -777,57 +774,140 @@ func buildMultiTaskDataResultPie(data biz.MultiTaskReportData) template.HTML {
 	return template.HTML(reportPie("multiDataPie", title, "", labels, counts, colors, legendItems))
 }
 
-// buildMultiTaskSceneTable 构建多任务聚合的场景/数据明细表
-func buildMultiTaskSceneTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
-	if len(data.SceneDetails) == 0 {
+// buildMultiTaskSceneGroupTable 将多任务报告的场景/数据明细合并为一张可折叠展开的「执行明细」表：
+// 任务→场景→数据三级折叠，任务头行展开其场景，场景头行再展开其关联数据；默认全部收起。
+func buildMultiTaskSceneGroupTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
+	if len(data.SceneDetails) == 0 && len(data.DataDetails) == 0 {
 		return template.HTML("")
 	}
-	headers := []string{
-		biz.T("common.task_name"), biz.T("schedule_report.scene_name"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"),
+
+	// 数据按 (任务, 场景) 分组
+	grouped := make(map[string]map[string][]biz.DataDetailWithTask)
+	for _, d := range data.DataDetails {
+		if grouped[d.TaskName] == nil {
+			grouped[d.TaskName] = make(map[string][]biz.DataDetailWithTask)
+		}
+		grouped[d.TaskName][d.SceneName] = append(grouped[d.TaskName][d.SceneName], d)
 	}
-	var rows []string
+
+	// 场景按任务分组，保序
+	scenesByTask := make(map[string][]biz.SceneDetailWithTask)
 	for _, s := range data.SceneDetails {
-		label := biz.T("common.pass")
-		color := "green"
-		if s.Result == "fail" {
-			color = "red"
-			label = biz.T("common.fail")
-		} else if s.Result == "未执行" {
-			color = "gray"
-			label = biz.T("schedule_report.status_not_executed")
-		}
-		reason := ""
-		if len(s.FailReason) > 0 && s.FailReason != " " {
-			reason = s.FailReason
-		}
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, biz.GetTaskLocalized(s.TaskName, dataLocale), biz.GetPlaybookLocalized(s.Name, dataLocale), color, label, reason, reason))
+		scenesByTask[s.TaskName] = append(scenesByTask[s.TaskName], s)
 	}
-	return template.HTML(reportCard(biz.T("schedule_report.scene_detail"), "", reportTable(headers, rows)))
+
+	// 任务顺序：优先按 ByTask 顺序，补齐只在明细里出现的任务
+	taskOrder := make([]string, 0, len(data.ByTask)+1)
+	seen := map[string]bool{}
+	for _, t := range data.ByTask {
+		if !seen[t.TaskName] {
+			taskOrder = append(taskOrder, t.TaskName)
+			seen[t.TaskName] = true
+		}
+	}
+	for _, s := range data.SceneDetails {
+		if !seen[s.TaskName] {
+			taskOrder = append(taskOrder, s.TaskName)
+			seen[s.TaskName] = true
+		}
+	}
+	for _, d := range data.DataDetails {
+		if !seen[d.TaskName] {
+			taskOrder = append(taskOrder, d.TaskName)
+			seen[d.TaskName] = true
+		}
+	}
+
+	headers := []string{
+		biz.T("common.task_name") + " / " + biz.T("schedule_report.scene_data_col"), // 任务 / 场景 / 数据
+		biz.T("schedule_report.api_id_col"),          // API_ID
+		biz.T("schedule_report.test_result"),         // 执行结果
+		biz.T("schedule_report.related_data_count"),  // 关联数据
+		biz.T("common.fail_reason"),                  // 失败原因
+	}
+
+	expandAll := fmt.Sprintf(`<span class="sc-btn" onclick="setAllScenes(true)">%s</span><span class="sc-btn" onclick="setAllScenes(false)">%s</span>`,
+		biz.T("schedule_report.expand_all"), biz.T("schedule_report.collapse_all"))
+
+	var rows []string
+	groupIdx := 0
+
+	for taskIdx, taskName := range taskOrder {
+		rows = append(rows, buildMultiTaskTaskHeaderRow(taskIdx, biz.GetTaskLocalized(taskName, dataLocale)))
+
+		// 该任务下的场景（保序），及其关联数据
+		for _, s := range scenesByTask[taskName] {
+			children := grouped[taskName][s.Name]
+			delete(grouped[taskName], s.Name)
+			pass, fail := countDataResultWithTask(children)
+			rows = append(rows, buildMultiTaskSceneHeaderRow(taskIdx, groupIdx, biz.GetPlaybookLocalized(s.Name, dataLocale), s.Result, len(children), pass, fail, s.FailReason))
+			for _, c := range children {
+				rows = append(rows, buildMultiTaskDataChildRow(taskIdx, groupIdx, c, dataLocale))
+			}
+			groupIdx++
+		}
+
+		// 该任务的孤立数据（scene_name 为空或未匹配到任何场景），兜底归入一个分组避免丢数据
+		for sceneName, children := range grouped[taskName] {
+			if len(children) == 0 {
+				continue
+			}
+			pass, fail := countDataResultWithTask(children)
+			orphanResult := "未执行"
+			if fail > 0 {
+				orphanResult = "fail"
+			} else if pass > 0 {
+				orphanResult = "pass"
+			}
+			displayName := sceneName
+			if len(displayName) == 0 {
+				displayName = biz.T("schedule_report.orphan_data")
+			} else {
+				displayName = biz.GetPlaybookLocalized(displayName, dataLocale)
+			}
+			rows = append(rows, buildMultiTaskSceneHeaderRow(taskIdx, groupIdx, displayName, orphanResult, len(children), pass, fail, ""))
+			for _, c := range children {
+				rows = append(rows, buildMultiTaskDataChildRow(taskIdx, groupIdx, c, dataLocale))
+			}
+			groupIdx++
+		}
+	}
+
+	return template.HTML(reportCard(biz.T("schedule_report.exec_detail"), expandAll, reportTable(headers, rows)))
 }
 
-// buildMultiTaskDataTable 构建多任务聚合的数据文件明细表
-func buildMultiTaskDataTable(data biz.MultiTaskReportData, dataLocale string) template.HTML {
-	if len(data.DataDetails) == 0 {
-		return template.HTML("")
+// buildMultiTaskTaskHeaderRow 渲染一个任务头行（可点击展开其下所有场景）。
+func buildMultiTaskTaskHeaderRow(taskIdx int, taskName string) string {
+	return fmt.Sprintf(`<tr class="task-header" data-task="%d" onclick="toggleTaskGroup(%d, this)"><td><span class="scene-arrow">▸</span> <span class="task-name">%s</span></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`,
+		taskIdx, taskIdx, taskName)
+}
+
+// buildMultiTaskSceneHeaderRow 渲染任务下的一个场景头行（可点击展开其关联数据子行）。
+func buildMultiTaskSceneHeaderRow(taskIdx, groupIdx int, name, result string, childCount, pass, fail int, reason string) string {
+	return fmt.Sprintf(`<tr class="task-scene" data-task="%d" data-group="%d" onclick="toggleSceneGroup(%d, this)"><td style="padding-left:28px"><span class="scene-arrow">▸</span> <span class="scene-name">%s</span></td><td>—</td><td>%s</td><td class="sc-count">%s</td>%s</tr>`,
+		taskIdx, groupIdx, groupIdx, name, sceneResultBadge(result), biz.T("schedule_report.related_data_summary", childCount, pass, fail), sceneReasonCell(reason))
+}
+
+// buildMultiTaskDataChildRow 渲染场景下的一个关联数据子行。
+func buildMultiTaskDataChildRow(taskIdx, groupIdx int, d biz.DataDetailWithTask, dataLocale string) string {
+	apiID := d.ApiId
+	if len(apiID) == 0 {
+		apiID = "—"
 	}
-	headers := []string{
-		biz.T("common.task_name"), biz.T("schedule_report.data_name"), biz.T("schedule_report.api_id_col"), biz.T("schedule_report.test_result"), biz.T("common.fail_reason"),
-	}
-	var rows []string
-	for _, d := range data.DataDetails {
-		label := biz.T("common.pass")
-		color := "green"
-		if d.Result == "fail" {
-			color = "red"
-			label = biz.T("common.fail")
+	return fmt.Sprintf(`<tr class="scene-child" data-task="%d" data-group="%d"><td class="sc-data-name" style="padding-left:52px">%s</td><td class="sc-api">%s</td><td>%s</td><td>—</td>%s</tr>`,
+		taskIdx, groupIdx, biz.GetDataLocalized(d.Name, dataLocale), apiID, sceneResultBadge(d.Result), sceneReasonCell(d.FailReason))
+}
+
+// countDataResultWithTask 统计一组多任务数据记录的通过/失败数。
+func countDataResultWithTask(children []biz.DataDetailWithTask) (pass, fail int) {
+	for _, c := range children {
+		if c.Result == "pass" {
+			pass++
+		} else if c.Result == "fail" {
+			fail++
 		}
-		reason := ""
-		if len(d.FailReason) > 0 && d.FailReason != " " {
-			reason = d.FailReason
-		}
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`, biz.GetTaskLocalized(d.TaskName, dataLocale), biz.GetDataLocalized(d.Name, dataLocale), d.ApiId, color, label, reason, reason))
 	}
-	return template.HTML(reportCard(biz.T("schedule_report.data_detail"), "", reportTable(headers, rows)))
+	return
 }
 
 // buildMultiTaskFailTable 构建多任务聚合的失败明细表

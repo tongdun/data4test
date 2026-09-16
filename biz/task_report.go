@@ -588,9 +588,12 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 
 		// 查询该任务的数据文件明细
 		taskDatas := queryDataDetailsForTask(curTaskId, product)
+		// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history）
+		matchDataToScenesForTask(taskDatas, curTaskId, product)
 		for _, dd := range taskDatas {
 			allDataDetails = append(allDataDetails, DataDetailWithTask{
 				TaskName:   t.TaskName,
+				SceneName:  dd.SceneName,
 				Name:       dd.Name,
 				ApiId:      dd.ApiId,
 				Result:     dd.Result,
@@ -1158,9 +1161,19 @@ func QueryTaskRelatedApps(taskIds string) string {
 	return strings.Join(apps, ",")
 }
 
-// matchDataToScenes 按执行顺序将每条数据明细关联到其所属场景
+// matchDataToScenes 按执行顺序将每条数据明细关联到其所属场景（单任务，无 product 过滤）
 // 对于同一数据文件在多个场景中出现的情况，按创建时间正序依次分配
 func matchDataToScenes(dataDetails []DataDetail, taskId string) {
+	matchDataToScenesFiltered(dataDetails, taskId, "")
+}
+
+// matchDataToScenesForTask 多任务报告下的数据-场景匹配，带 product 过滤
+func matchDataToScenesForTask(dataDetails []DataDetail, taskId, product string) {
+	matchDataToScenesFiltered(dataDetails, taskId, product)
+}
+
+// matchDataToScenesFiltered 核心匹配逻辑：按执行顺序将每条数据明细关联到其所属场景
+func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string) {
 	if len(taskId) == 0 || len(dataDetails) == 0 {
 		return
 	}
@@ -1170,11 +1183,13 @@ func matchDataToScenes(dataDetails []DataDetail, taskId string) {
 		DataFileList string `gorm:"column:data_file_list"`
 	}
 	var scenes []sceneRecord
-	models.Orm.Table("scene_test_history").
+	q := models.Orm.Table("scene_test_history").
 		Select("name, data_file_list").
-		Where("task_id = ?", taskId).
-		Order("created_at asc").
-		Find(&scenes)
+		Where("task_id = ?", taskId)
+	if len(product) > 0 {
+		q = q.Where("product = ?", product)
+	}
+	q.Order("created_at asc").Find(&scenes)
 
 	// 解析每个场景的 data_file_list，得到待匹配的数据文件名列表
 	type sceneSlot struct {
