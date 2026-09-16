@@ -100,7 +100,42 @@ func reportStyle() template.HTML {
 .sc-td .sc-truncate{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-td .sc-full{display:none;position:absolute;right:5%;top:50%;background:#fff;border:2px solid #666;padding:15px;z-index:9999;max-width:600px;max-height:80vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;box-shadow:0 4px 20px rgba(0,0,0,0.3);border-radius:4px;font-size:13px;line-height:1.4}
 .sc-td:hover .sc-full{display:block!important}
+.scene-header{cursor:pointer}
+.scene-header:hover{background:#f4f8fb!important}
+.scene-arrow{display:inline-block;width:16px;color:#3c8dbc;font-weight:bold}
+.scene-name{font-weight:600;color:#333}
+.scene-child{display:none;background:#fafbfc}
+.scene-child.open{display:table-row}
+.scene-child:hover{background:#f4f7fa}
+.report-table td.sc-data-name{padding-left:48px;color:#555}
+.report-table td.sc-api{font-family:Menlo,Consolas,monospace;font-size:12px;color:#777}
+.sc-badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;white-space:nowrap}
+.sc-badge-pass{background:#00a65a}
+.sc-badge-fail{background:#dd4b39}
+.sc-badge-na{background:#a0a0a0}
+.report-table td.sc-count{color:#888;font-size:12px;white-space:nowrap}
+.sc-btn{display:inline-block;padding:3px 10px;border:1px solid #d2d6de;border-radius:3px;background:#fff;color:#444;font-size:12px;cursor:pointer;user-select:none;margin-left:6px}
+.sc-btn:hover{border-color:#3c8dbc;color:#3c8dbc}
 </style>`)
+}
+
+// reportCollapseScript 场景折叠展开的前端脚本（点击场景头行展开/收起关联数据，全部展开/收起）。
+func reportCollapseScript() string {
+	return `<script>
+function toggleSceneGroup(idx, el) {
+  var rows = document.querySelectorAll('.scene-child[data-group="' + idx + '"]');
+  var open = rows.length && rows[0].classList.contains('open');
+  for (var i = 0; i < rows.length; i++) { rows[i].classList.toggle('open', !open); }
+  var arrow = el.querySelector('.scene-arrow');
+  if (arrow) { arrow.textContent = open ? '▸' : '▾'; }
+}
+function setAllScenes(open) {
+  var rows = document.querySelectorAll('.scene-child');
+  for (var i = 0; i < rows.length; i++) { rows[i].classList.toggle('open', open); }
+  var arrows = document.querySelectorAll('.scene-arrow');
+  for (var j = 0; j < arrows.length; j++) { arrows[j].textContent = open ? '▾' : '▸'; }
+}
+</script>`
 }
 
 // ==================== 通用构建函数 ====================

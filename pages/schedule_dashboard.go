@@ -139,25 +139,18 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string, dataLocale 
 		row2 = fmt.Sprintf(`<div class="row"><div class="col-md-12">%s</div></div>`, trendHTML)
 	}
 
-	// ====== 第3行: 场景明细表(独占一行) ======
-	sceneTable := buildTaskSceneTable(reportData, dataLocale)
+	// ====== 第3行: 执行明细表(场景+数据合并, 折叠展开, 独占一行) ======
+	sceneTable := buildTaskSceneGroupTable(reportData, dataLocale)
 	row3 := ""
 	if len(sceneTable) > 0 {
 		row3 = fmt.Sprintf(`<div class="row"><div class="col-md-12">%s</div></div>`, sceneTable)
 	}
 
-	// ====== 第4行: 数据文件明细表(独占一行) ======
-	dataTable := buildTaskDataTable(reportData, dataLocale)
-	row4 := ""
-	if len(dataTable) > 0 {
-		row4 = fmt.Sprintf(`<div class="row"><div class="col-md-12">%s</div></div>`, dataTable)
-	}
-
-	// ====== 第5行: 失败明细表 ======
+	// ====== 第4行: 失败明细表 ======
 	failHTML := buildTaskFailTable(reportData, dataLocale)
 
-	content := string(headerInfo) + string(kpiCards) + row1 + row2 + row3 + row4 + string(failHTML)
-	content += string(reportStyle())
+	content := string(headerInfo) + string(kpiCards) + row1 + row2 + row3 + string(failHTML)
+	content += string(reportStyle()) + reportCollapseScript()
 
 	return types.Panel{
 		Content:     template.HTML(content),
@@ -330,91 +323,123 @@ func buildTaskTrendChart(data biz.TaskReportData) template.HTML {
 	return template.HTML(reportLine("trendChart", biz.T("schedule_report.trend_chart"), dayLabels, series))
 }
 
-// ==================== 场景明细表 ====================
+// ==================== 执行明细表（场景+数据合并, 可折叠展开） ====================
 
-func buildTaskSceneTable(data biz.TaskReportData, dataLocale string) template.HTML {
-	if len(data.SceneDetails) == 0 {
+// buildTaskSceneGroupTable 将场景明细与其关联数据合并为一张可折叠展开的「执行明细」表：
+// 每个场景一行头行，点击展开其关联数据子行；默认全部收起。
+func buildTaskSceneGroupTable(data biz.TaskReportData, dataLocale string) template.HTML {
+	if len(data.SceneDetails) == 0 && len(data.DataDetails) == 0 {
 		return template.HTML("")
 	}
 
-	headers := []string{
-		biz.T("schedule_report.scene_name"),
-		biz.T("schedule_report.test_result"),
-		biz.T("common.fail_reason"),
-	}
-	var rows []string
-	for _, s := range data.SceneDetails {
-		label := biz.T("common.pass")
-		color := "green"
-		if s.Result == "fail" {
-			color = "red"
-			label = biz.T("common.fail")
-		} else if s.Result == "未执行" {
-			color = "gray"
-			label = biz.T("schedule_report.status_not_executed")
-		}
-		reason := ""
-		if len(s.FailReason) > 0 && s.FailReason != " " {
-			reason = s.FailReason
-		}
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
-			biz.GetPlaybookLocalized(s.Name, dataLocale), color, label, reason, reason))
+	// 数据明细按场景名分组
+	grouped := make(map[string][]biz.DataDetail)
+	for _, d := range data.DataDetails {
+		grouped[d.SceneName] = append(grouped[d.SceneName], d)
 	}
 
-	return template.HTML(reportCard(biz.T("schedule_report.scene_detail"), "", reportTable(headers, rows)))
+	headers := []string{
+		biz.T("schedule_report.scene_data_col"),       // 场景 / 数据
+		biz.T("schedule_report.api_id_col"),           // API_ID
+		biz.T("schedule_report.test_result"),          // 执行结果
+		biz.T("schedule_report.related_data_count"),   // 关联数据
+		biz.T("common.fail_reason"),                   // 失败原因
+	}
+
+	expandAll := fmt.Sprintf(`<span class="sc-btn" onclick="setAllScenes(true)">%s</span><span class="sc-btn" onclick="setAllScenes(false)">%s</span>`,
+		biz.T("schedule_report.expand_all"), biz.T("schedule_report.collapse_all"))
+
+	var rows []string
+	idx := 0
+
+	// 场景头行 + 其关联数据子行
+	for _, s := range data.SceneDetails {
+		children := grouped[s.Name]
+		delete(grouped, s.Name)
+		pass, fail := countDataResult(children)
+		rows = append(rows, buildSceneGroupHeaderRow(idx, biz.GetPlaybookLocalized(s.Name, dataLocale), s.Result, len(children), pass, fail, s.FailReason))
+		for _, c := range children {
+			rows = append(rows, buildSceneGroupChildRow(idx, c, dataLocale))
+		}
+		idx++
+	}
+
+	// 孤立数据：SceneName 未匹配到任何场景（含 scene_name 为空），兜底归入一个分组避免丢数据
+	for sceneName, children := range grouped {
+		if len(children) == 0 {
+			continue
+		}
+		pass, fail := countDataResult(children)
+		orphanResult := "未执行"
+		if fail > 0 {
+			orphanResult = "fail"
+		} else if pass > 0 {
+			orphanResult = "pass"
+		}
+		displayName := sceneName
+		if len(displayName) == 0 {
+			displayName = biz.T("schedule_report.orphan_data")
+		} else {
+			displayName = biz.GetPlaybookLocalized(displayName, dataLocale)
+		}
+		rows = append(rows, buildSceneGroupHeaderRow(idx, displayName, orphanResult, len(children), pass, fail, ""))
+		for _, c := range children {
+			rows = append(rows, buildSceneGroupChildRow(idx, c, dataLocale))
+		}
+		idx++
+	}
+
+	return template.HTML(reportCard(biz.T("schedule_report.exec_detail"), expandAll, reportTable(headers, rows)))
 }
 
-// ==================== 数据文件明细表 ====================
+// buildSceneGroupHeaderRow 渲染一个场景头行（可点击展开其关联数据子行）。
+func buildSceneGroupHeaderRow(idx int, name, result string, childCount, pass, fail int, reason string) string {
+	return fmt.Sprintf(`<tr class="scene-header" data-group="%d" onclick="toggleSceneGroup(%d, this)"><td><span class="scene-arrow">▸</span> <span class="scene-name">%s</span></td><td>—</td><td>%s</td><td class="sc-count">%s</td>%s</tr>`,
+		idx, idx, name, sceneResultBadge(result), biz.T("schedule_report.related_data_summary", childCount, pass, fail), sceneReasonCell(reason))
+}
 
-func buildTaskDataTable(data biz.TaskReportData, dataLocale string) template.HTML {
-	if len(data.DataDetails) == 0 {
-		return template.HTML("")
+// buildSceneGroupChildRow 渲染场景下的一个关联数据子行。
+func buildSceneGroupChildRow(idx int, d biz.DataDetail, dataLocale string) string {
+	apiID := d.ApiId
+	if len(apiID) == 0 {
+		apiID = "—"
 	}
+	return fmt.Sprintf(`<tr class="scene-child" data-group="%d"><td class="sc-data-name">%s</td><td class="sc-api">%s</td><td>%s</td><td>—</td>%s</tr>`,
+		idx, biz.GetDataLocalized(d.Name, dataLocale), apiID, sceneResultBadge(d.Result), sceneReasonCell(d.FailReason))
+}
 
-	headers := []string{
-		biz.T("schedule_report.scene_name"),
-		biz.T("schedule_report.data_name"),
-		biz.T("schedule_report.api_id_col"),
-		biz.T("schedule_report.test_result"),
-		biz.T("common.fail_reason"),
+// sceneResultBadge 结果徽标（通过绿 / 失败红 / 未执行灰）。
+func sceneResultBadge(result string) string {
+	label := biz.T("common.pass")
+	cls := "sc-badge sc-badge-pass"
+	if result == "fail" {
+		label = biz.T("common.fail")
+		cls = "sc-badge sc-badge-fail"
+	} else if result == "未执行" {
+		label = biz.T("schedule_report.status_not_executed")
+		cls = "sc-badge sc-badge-na"
 	}
-	var rows []string
-	colorA := "#ffffff"
-	colorB := "#f7f9fc"
-	currentColor := colorA
-	prevScene := ""
+	return fmt.Sprintf(`<span class="%s">%s</span>`, cls, label)
+}
 
-	for _, d := range data.DataDetails {
-		// 相邻场景切换时交替底色
-		if len(prevScene) > 0 && d.SceneName != prevScene {
-			if currentColor == colorA {
-				currentColor = colorB
-			} else {
-				currentColor = colorA
-			}
-		}
-		if len(d.SceneName) > 0 {
-			prevScene = d.SceneName
-		}
-
-		label := biz.T("common.pass")
-		color := "green"
-		if d.Result == "fail" {
-			color = "red"
-			label = biz.T("common.fail")
-		} else if d.Result == "未执行" {
-			color = "gray"
-			label = biz.T("schedule_report.status_not_executed")
-		}
-		reason := ""
-		if len(d.FailReason) > 0 && d.FailReason != " " {
-			reason = d.FailReason
-		}
-		rows = append(rows, fmt.Sprintf(`<tr style="background-color:%s"><td>%s</td><td>%s</td><td>%s</td><td style="color:%s">%s</td><td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td></tr>`,
-			currentColor, biz.GetPlaybookLocalized(d.SceneName, dataLocale), biz.GetDataLocalized(d.Name, dataLocale), d.ApiId, color, label, reason, reason))
+// sceneReasonCell 失败原因单元格（截断 + hover 全文）。
+func sceneReasonCell(reason string) string {
+	if len(reason) == 0 || reason == " " {
+		return `<td>—</td>`
 	}
+	return fmt.Sprintf(`<td><div class="sc-td" style="max-width:400px"><span class="sc-truncate">%s</span><div class="sc-full">%s</div></div></td>`, reason, reason)
+}
 
-	return template.HTML(reportCard(biz.T("schedule_report.data_detail"), "", reportTable(headers, rows)))
+// countDataResult 统计一组数据记录的通过/失败数。
+func countDataResult(children []biz.DataDetail) (pass, fail int) {
+	for _, c := range children {
+		if c.Result == "pass" {
+			pass++
+		} else if c.Result == "fail" {
+			fail++
+		}
+	}
+	return
 }
 
 // ==================== 失败明细表 ====================
