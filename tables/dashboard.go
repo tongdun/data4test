@@ -53,7 +53,9 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("product.apps"), "related_apps", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldTrimSpace().FieldWidth(150)
-	info.AddField(biz.T("common.related_task"), "related_task_ids", db.Varchar)
+	info.AddField(biz.T("common.related_task"), "related_task_ids", db.Varchar).
+		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
+		FieldTrimSpace().FieldWidth(150)
 
 	info.AddField(biz.T("common.user_name"), "creator", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
