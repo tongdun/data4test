@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 
+	"github.com/GoAdminGroup/go-admin/modules/config"
+	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
 	"github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/chartjs"
 
@@ -98,25 +100,15 @@ func startServer() {
 	var err error
 	r := gin.Default()
 	r.Use(cors.Default())
-	// 同步 GoAdmin 语种到项目 i18n
-	// 尝试从多个来源检测语种：URL参数 → Cookie → Header
-	//r.Use(func(c *gin.Context) {
-	//	lang := c.Query("__ga_lang")
-	//	if lang == "" {
-	//		if cookie, err := c.Cookie("lang"); err == nil && cookie != "" {
-	//			lang = cookie
-	//		}
-	//	}
-	//	if lang == "" {
-	//		if accept := c.GetHeader("Accept-Language"); len(accept) >= 2 {
-	//			lang = accept[:2]
-	//		}
-	//	}
-	//	if lang != "" {
-	//		biz.SetLocale(lang)
-	//	}
-	//	c.Next()
-	//})
+	// 个人语种：cookie(data_locale) 覆盖系统默认（site 设置），auto/空回退系统默认
+	r.Use(func(c *gin.Context) {
+		eff := biz.SystemDefaultLocale()
+		if ck, err := c.Cookie("data_locale"); err == nil && ck != "" && ck != "auto" {
+			eff = ck
+		}
+		biz.ApplyLocale(eff)
+		c.Next()
+	})
 	//pprof.Register(r)  // 性能查看
 
 	eng := engine.Default()
@@ -124,7 +116,17 @@ func startServer() {
 	template.AddLoginComp(login.Get())
 	template.AddComp(chartjs.NewChart())
 
-	if err := eng.AddConfigFromJSON(args.Config).
+	cfg := config.ReadFromJson(args.Config)
+	biz.SetGoAdminConfig(&cfg)
+	// site 语言设置（/admin/info/site/edit）变更时刷新系统默认语种，
+	// 否则中间件会用启动时的旧缓存覆盖新默认，导致切换不生效。
+	cfg.AddUpdateProcessFn(func(values form.Values) (form.Values, error) {
+		if lang := values.Get("language"); lang != "" {
+			biz.SetSystemDefaultLocale(lang)
+		}
+		return values, nil
+	})
+	if err := eng.AddConfig(&cfg).
 		AddGenerators(tables.Generators).
 		AddPlugins(librarian.NewLibrarianWithConfig(librarian.Config{
 			Path:           biz.DocFilePath,
@@ -135,6 +137,7 @@ func startServer() {
 		Use(r); err != nil {
 		panic(err)
 	}
+	biz.CacheSystemDefaultLocale()
 
 	r.Static("./upload", args.Upload)
 	r.Static("./static", "./web/static")
@@ -1297,12 +1300,15 @@ func startServer() {
 	})
 
 	// 切换用例数据语种（写/清 cookie，默认跟随界面语言）
+	// 切换语种（写/清 cookie，默认跟随系统默认语种；同时切换系统/菜单语种）
 	r.POST("/setDataLocale", func(c *gin.Context) {
 		lang := c.PostForm("lang")
 		if lang == "auto" || lang == "" {
 			c.SetCookie("data_locale", "", -1, "/", "", false, true)
+			biz.ApplyLocale(biz.SystemDefaultLocale())
 		} else {
 			c.SetCookie("data_locale", lang, 60*60*24*365, "/", "", false, true)
+			biz.ApplyLocale(lang)
 		}
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("sys_parameter.data_lang_switched"), "data": map[string]string{}})
 	})
