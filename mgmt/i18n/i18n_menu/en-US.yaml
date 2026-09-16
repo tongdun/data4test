@@ -43,8 +43,9 @@ Swagger文件: Swagger Files
 定时任务: Schedule Task
 任务执行报告: Execution Report
 文件: File
-公共文件: Public File
+公用文件: Public File
 用例文件: Test Case File
+i18n文件: i18n File
 API文件: API File
 上传文件: Upload File
 下载文件: Download File
