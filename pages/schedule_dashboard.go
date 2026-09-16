@@ -556,7 +556,7 @@ func renderMultiTaskReport(report biz.DashboardReport, dataLocale string) (types
 	kpi2 := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
 		reportInfoBox(fmt.Sprintf("%d", o.TaskCount), biz.T("schedule_report.task_list_col"), "fa-tasks", "purple"),
 		reportInfoBox(fmt.Sprintf("%d", o.SceneCount), biz.T("schedule_report.scene_count"), "fa-play-circle", "aqua"),
-		reportInfoBox(fmt.Sprintf("%d", o.DataCount), biz.T("schedule_report.data_count"), "fa-file-text", "lightblue"),
+		reportInfoBox(fmt.Sprintf("%d", o.DataCount), biz.T("schedule_report.data_count"), "fa-file-text", "light-blue"),
 		reportInfoBox(fmt.Sprintf("%d", o.APICount), biz.T("schedule_report.api_count"), "fa-plug", "maroon"))
 
 	// ====== 饼图行：API类型分布 + 场景执行结果 + 数据执行结果 (3并列) ======
