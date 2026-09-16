@@ -308,3 +308,157 @@ CREATE TABLE IF NOT EXISTS `dashboard` (
     INDEX idx_report_type (report_type),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='执行报告汇总表';
+
+# 2026年8月31日
+alter table test_case
+    add test_process longtext null comment '测试过程截图' after intro_version;
+alter table test_case
+    add ext_info longtext null comment '扩展信息(YAML)' after test_process;
+
+# 2026年9月6日 用例统计
+CREATE TABLE IF NOT EXISTS `case_statistics` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    `name` VARCHAR(255) NOT NULL COMMENT '统计定义名称',
+    `definition` LONGTEXT COMMENT 'YAML定义(ext_info + tree)',
+    `intro_versions` VARCHAR(255) DEFAULT '' COMMENT '引入版多选(逗号分隔)',
+    `status` VARCHAR(32) DEFAULT 'none' COMMENT '状态: none/generating/finished/failed',
+    `creator` VARCHAR(64) COMMENT '创建人',
+    `remark` VARCHAR(255) COMMENT '备注',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用例统计定义表';
+
+# 用例报告列表
+CREATE TABLE IF NOT EXISTS `case_statistics_report` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    `name` VARCHAR(255) NOT NULL COMMENT '报告名称',
+    `related_stat_id` INT DEFAULT 0 COMMENT '关联统计定义ID(case_statistics.id)',
+    `intro_versions` VARCHAR(255) DEFAULT '' COMMENT '关联引入版本(逗号分隔)',
+    `stat_start_time` VARCHAR(32) DEFAULT '' COMMENT '统计开始时间(最早测试时间)',
+    `stat_end_time` VARCHAR(32) DEFAULT '' COMMENT '统计结束时间(最晚测试时间)',
+    `status` VARCHAR(32) DEFAULT 'finished' COMMENT '状态: generating/finished/failed',
+    `creator` VARCHAR(100) COMMENT '创建人',
+    `report_data` LONGTEXT COMMENT '统计数据JSON',
+    `remark` VARCHAR(255) COMMENT '备注',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME,
+    INDEX idx_related_stat_id (related_stat_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用例报告列表';
+
+# 2026年9月8日 用例导出Excel模板定义(sys_parameter)
+# 模板名 = JSON key；columns 数组顺序即 Excel 列顺序；
+# field 支持：系统列名(case_number/case_name/module/priority/...) / test_process / ext_info.<key> / ext_info
+insert into sys_parameter (name, value_list, remark) values ('testCaseExportTemplates', '{
+	"标准测试用例模板": {
+		"columns": [{
+				"title": "用例编号",
+				"field": "case_number"
+			},
+			{
+				"title": "用例标题",
+				"field": "case_name"
+			},
+			{
+				"title": "所属模块",
+				"field": "module"
+			},
+			{
+				"title": "优先级",
+				"field": "priority"
+			},
+			{
+				"title": "前置条件",
+				"field": "pre_condition"
+			},
+			{
+				"title": "测试步骤",
+				"field": "test_steps"
+			},
+			{
+				"title": "预期结果",
+				"field": "expect_result"
+			},
+			{
+				"title": "测试过程",
+				"field": "test_process"
+			},
+			{
+				"title": "扩展-金额",
+				"field": "ext_info.amount"
+			},
+			{
+				"title": "扩展-备注",
+				"field": "ext_info.note"
+			}
+		]
+	},
+	"全量模板": {
+      "columns": [
+        {"title": "用例编号", "field": "case_number"},
+        {"title": "所属模块", "field": "module"},
+        {"title": "用例标题", "field": "case_name"},
+        {"title": "用例类型", "field": "case_type"},
+        {"title": "优先级", "field": "priority"},
+        {"title": "前置条件", "field": "pre_condition"},
+        {"title": "测试范围", "field": "test_range"},
+        {"title": "测试步骤", "field": "test_steps"},
+        {"title": "预期结果", "field": "expect_result"},
+        {"title": "是否自动化", "field": "auto"},
+        {"title": "关联场景", "field": "scene"},
+        {"title": "功能开发者", "field": "fun_developer"},
+        {"title": "用例设计者", "field": "case_designer"},
+        {"title": "用例执行者", "field": "case_executor"},
+        {"title": "测试时间", "field": "test_time"},
+        {"title": "测试结果", "field": "test_result"},
+        {"title": "引入版本", "field": "intro_version"},
+        {"title": "产品线", "field": "product"},
+        {"title": "备注", "field": "remark"},
+        {"title": "需求编号", "field": "ext_info.req_id"},
+        {"title": "所属应用", "field": "ext_info.application"},
+        {"title": "测试过程", "field": "test_process"}
+      ]
+    },
+	"评审模板": {
+		"columns": [{
+				"title": "编号",
+				"field": "case_number"
+			},
+			{
+				"title": "标题",
+				"field": "case_name"
+			},
+			{
+				"title": "结论",
+				"field": "test_result"
+			}
+		]
+	}
+}', '用例导出Excel模板定义：key=模板名，columns=列定义(title=表头, field=字段映射)');
+
+alter table test_case
+    add result_history longtext null comment '测试结果历史: 每行 序号|结果|执行人|时间' after test_time;
+
+# 2026年9月8日 修复测试时间字段长度不足(Data too long)，放宽为 varchar(20)
+alter table test_case modify test_time varchar(20) null comment '测试时间';
+alter table test_case modify remark text null comment '备注';
+alter table test_case modify case_designer varchar(64) null comment '用例设计者';
+alter table test_case modify fun_developer varchar(64) null comment '功能开发者';
+alter table test_case modify case_executor varchar(64) null comment '用例执行者';
+
+alter table case_statistics_report modify intro_versions varchar(255) null comment '关联产品线';
+alter table case_statistics_report
+    add stat_start_time DATETIME null comment '测试时间开始时间' after remark;
+alter table case_statistics_report
+    add stat_end_time DATETIME null comment '测试时间结束时间' after stat_start_time;
+
+# 2026年9月9日 用例统计增加关联产品线
+alter table case_statistics
+    add product varchar(255) default '' comment '关联产品线(逗号分隔)' after intro_versions;
+alter table case_statistics_report
+    add product varchar(255) default '' comment '关联产品线(逗号分隔)' after intro_versions;
+
+insert into sys_parameter (name, value_list, remark) values ('supportLanguages', ' {"zh-CN": "中文", "en-US": "English"}', '');
+insert into sys_parameter (name, value_list, remark) values ('caseProduct', '产品线A,产品线B', '');
