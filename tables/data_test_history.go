@@ -205,5 +205,41 @@ func GetSceneDataTestHistoryTable(ctx *context.Context) table.Table {
 		return
 	})
 
+	detail := dataTestHistory.GetDetail()
+	detail.AddField(biz.T("common.id"), "id", db.Int)
+	detail.AddField(biz.T("common.name"), "name", db.Varchar).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetDataLocalized(model.Value, dataLocale)
+		})
+	detail.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar)
+	detail.AddField(biz.T("common.api_id"), "api_id", db.Varchar)
+	detail.AddField(biz.T("common.app"), "app", db.Varchar)
+	detail.AddField(biz.T("common.data_content"), "content", db.Longtext)
+	detail.AddField(biz.T("common.test_result"), "result", db.Varchar)
+	detail.AddField(biz.T("common.fail_reason"), "fail_reason", db.Longtext)
+	detail.AddField(biz.T("common.env_type_label"), "env_type", db.Int).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			if model.Value == "1" {
+				return biz.T("common.env_type._1")
+			} else if model.Value == "2" {
+				return biz.T("common.env_type._2")
+			} else if model.Value == "3" {
+				return biz.T("common.env_type._3")
+			} else if model.Value == "4" {
+				return biz.T("common.env_type._4")
+			} else if model.Value == "5" {
+				return biz.T("common.env_type._5")
+			}
+			return ""
+		})
+	detail.AddField(biz.T("common.product"), "product", db.Varchar)
+	detail.AddField(biz.T("common.user_name"), "user_name", db.Varchar)
+	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
+	detail.AddField(biz.T("common.created_at"), "created_at", db.Timestamp)
+	detail.AddField(biz.T("common.updated_at"), "updated_at", db.Timestamp)
+	detail.AddField(biz.T("common.deleted_at"), "deleted_at", db.Timestamp)
+
+	detail.SetTable("scene_data_test_history").SetTitle(biz.T("common.detail_title")).SetDescription(biz.T("common.detail_description"))
+
 	return dataTestHistory
 }

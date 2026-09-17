@@ -358,6 +358,7 @@ hd.parentNode.appendChild(btn);
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookLocalized(model.Value, dataLocale)
 		})
+	detail.AddField(biz.T("dashboard.task_id"), "task_id", db.Varchar)
 	detail.AddField(biz.T("common.data_file_list"), "data_file_list", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			items := strings.Split(model.Value, ",")
