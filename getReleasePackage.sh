@@ -5,6 +5,7 @@
 
 # Release打包
 curDate=`date +"%Y%m%d"`
+find deploy -name ".DS_Store" -type f -delete
 tar -cvf ./release/data4test_${curDate}.tgz deploy
 
 # 后端各个架构的打包
