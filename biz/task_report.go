@@ -920,6 +920,7 @@ func querySceneDetailsForTask(taskId, product string) (items []SceneDetail) {
 	models.Orm.Table("scene_test_history").
 		Select("name, result, fail_reason").
 		Where("task_id = ? and product = ?", taskId, product).
+		Order("id asc").
 		Find(&results)
 	for _, r := range results {
 		items = append(items, SceneDetail{
@@ -946,6 +947,7 @@ func queryDataDetailsForTask(taskId, product string) (items []DataDetail) {
 	models.Orm.Table("scene_data_test_history").
 		Select("name, api_id, result, fail_reason").
 		Where("task_id = ? and product = ?", taskId, product).
+		Order("id asc").
 		Find(&results)
 	for _, r := range results {
 		items = append(items, DataDetail{
@@ -1106,7 +1108,7 @@ func querySceneDetails(taskId string) (items []SceneDetail) {
 	models.Orm.Table("scene_test_history").
 		Select("name, result, fail_reason").
 		Where("task_id = ?", taskId).
-		Order("created_at asc").
+		Order("id asc").
 		Find(&results)
 	for _, r := range results {
 		items = append(items, SceneDetail{
@@ -1133,7 +1135,7 @@ func queryDataDetails(taskId string) (items []DataDetail) {
 	models.Orm.Table("scene_data_test_history").
 		Select("name, api_id, result, fail_reason").
 		Where("task_id = ?", taskId).
-		Order("created_at asc").
+		Order("id asc").
 		Find(&results)
 	for _, r := range results {
 		items = append(items, DataDetail{
@@ -1189,7 +1191,7 @@ func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string)
 	if len(product) > 0 {
 		q = q.Where("product = ?", product)
 	}
-	q.Order("created_at asc").Find(&scenes)
+	q.Order("id asc").Find(&scenes)
 
 	// 解析每个场景的 data_file_list，得到待匹配的数据文件名列表
 	type sceneSlot struct {
