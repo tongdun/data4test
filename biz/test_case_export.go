@@ -289,7 +289,8 @@ func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode, 
 	case field == "test_process":
 		return resolveScreenshotValue(row.TestProcess, screenshotMode, excelType, host, xlsxFile, sheet, col, rowNum, embedImgs)
 	case field == FieldCaseName || field == FieldCaseModule || field == FieldCaseType ||
-		field == FieldPreCondition || field == FieldTestRange || field == FieldTestSteps || field == FieldExpectResult:
+		field == FieldPreCondition || field == FieldTestRange || field == FieldTestSteps || field == FieldExpectResult ||
+		field == FieldCaseRemark:
 		if v := GetCaseLocalized(row.CaseNumber, row.Module, lang, field); v != "" {
 			return v, nil
 		}

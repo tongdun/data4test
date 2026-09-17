@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// caseI18nRow 同步导出用的用例行（7 个可翻译字段 + 用例编号）
+// caseI18nRow 同步导出用的用例行（8 个可翻译字段 + 用例编号）
 type caseI18nRow struct {
 	CaseNumber   string `gorm:"column:case_number"`
 	CaseName     string `gorm:"column:case_name"`
@@ -20,6 +20,7 @@ type caseI18nRow struct {
 	TestRange    string `gorm:"column:test_range"`
 	TestSteps    string `gorm:"column:test_steps"`
 	ExpectResult string `gorm:"column:expect_result"`
+	Remark       string `gorm:"column:remark"`
 }
 
 // collectLeafModules 收集统计定义树中所有叶子模块名（去重、去空）
@@ -139,7 +140,7 @@ func SyncCaseI18nFromStatistics(idStr string) (int, int, error) {
 		var rows []caseI18nRow
 		if err := models.Orm.Table("test_case").
 			Where("module = ? AND deleted_at IS NULL", m).
-			Select("case_number, case_name, module, case_type, pre_condition, test_range, test_steps, expect_result").
+			Select("case_number, case_name, module, case_type, pre_condition, test_range, test_steps, expect_result, remark").
 			Find(&rows).Error; err != nil {
 			Logger.Error("i18n同步查询模块 %s 用例失败: %v", m, err)
 			continue
@@ -158,6 +159,7 @@ func SyncCaseI18nFromStatistics(idStr string) (int, int, error) {
 				FieldTestRange:    r.TestRange,
 				FieldTestSteps:    r.TestSteps,
 				FieldExpectResult: r.ExpectResult,
+				FieldCaseRemark:   r.Remark,
 			}
 		}
 

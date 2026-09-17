@@ -12,4 +12,5 @@ const (
 	FieldTestRange    = "test_range"
 	FieldTestSteps    = "test_steps"
 	FieldExpectResult = "expect_result"
+	FieldCaseRemark   = "remark"
 )

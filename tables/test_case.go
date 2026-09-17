@@ -537,7 +537,8 @@ $(function () {
 	detail.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar)
 	detail.AddField(biz.T("common.related_scene"), "scene", db.Varchar)
 	detail.AddField(biz.T("common.product_line"), "product", db.Varchar)
-	detail.AddField(biz.T("common.remark"), "remark", db.Varchar)
+	detail.AddField(biz.T("common.remark"), "remark", db.Varchar).
+		FieldDisplay(caseFieldDisplay(dataLocale, "remark", false))
 	detail.AddField(biz.T("test_case.test_process"), "test_process", db.Longtext)
 	detail.AddField(biz.T("test_case.ext_info"), "ext_info", db.Longtext).
 		FieldDisplay(multilineDisplay)
