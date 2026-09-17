@@ -72,14 +72,15 @@ func loadCaseI18nDir(dir string) CaseI18nIndex {
 			}
 			lang = normalizeLang(lang)
 
-			data, err := ioutil.ReadFile(filepath.Join(moduleDir, name))
+			filePath := filepath.Join(moduleDir, name)
+			data, err := ioutil.ReadFile(filePath)
 			if err != nil {
-				Logger.Error("case_i18n read %s failed: %v", name, err)
+				Logger.Error("case_i18n read %s failed: %v", filePath, err)
 				continue
 			}
 			var m map[string]map[string]string
 			if err := yaml.Unmarshal(data, &m); err != nil {
-				Logger.Error("case_i18n parse %s failed: %v", name, err)
+				Logger.Error("case_i18n parse %s failed: %v", filePath, err)
 				continue
 			}
 			if index[lang] == nil {
