@@ -149,9 +149,9 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	reportData.SceneDetails = executedScenes
 
 	reportData.DataDetails = queryDataDetails(taskTag)
-	// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history）
+	// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history），并补全未执行数据
 	if len(taskTag) > 0 {
-		matchDataToScenes(reportData.DataDetails, taskTag)
+		reportData.DataDetails = matchDataToScenes(reportData.DataDetails, taskTag)
 	}
 
 	reportData.ByProduct = productStats
@@ -588,8 +588,8 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 
 		// 查询该任务的数据文件明细
 		taskDatas := queryDataDetailsForTask(curTaskId, product)
-		// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history）
-		matchDataToScenesForTask(taskDatas, curTaskId, product)
+		// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history），并补全未执行数据
+		taskDatas = matchDataToScenesForTask(taskDatas, curTaskId, product)
 		for _, dd := range taskDatas {
 			allDataDetails = append(allDataDetails, DataDetailWithTask{
 				TaskName:   t.TaskName,
@@ -1165,19 +1165,22 @@ func QueryTaskRelatedApps(taskIds string) string {
 
 // matchDataToScenes 按执行顺序将每条数据明细关联到其所属场景（单任务，无 product 过滤）
 // 对于同一数据文件在多个场景中出现的情况，按创建时间正序依次分配
-func matchDataToScenes(dataDetails []DataDetail, taskId string) {
-	matchDataToScenesFiltered(dataDetails, taskId, "")
+// 返回补全未执行数据后的明细列表
+func matchDataToScenes(dataDetails []DataDetail, taskId string) []DataDetail {
+	return matchDataToScenesFiltered(dataDetails, taskId, "")
 }
 
 // matchDataToScenesForTask 多任务报告下的数据-场景匹配，带 product 过滤
-func matchDataToScenesForTask(dataDetails []DataDetail, taskId, product string) {
-	matchDataToScenesFiltered(dataDetails, taskId, product)
+// 返回补全未执行数据后的明细列表
+func matchDataToScenesForTask(dataDetails []DataDetail, taskId, product string) []DataDetail {
+	return matchDataToScenesFiltered(dataDetails, taskId, product)
 }
 
 // matchDataToScenesFiltered 核心匹配逻辑：按执行顺序将每条数据明细关联到其所属场景
-func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string) {
+// 匹配结束后，将执行过场景中未执行的数据补全为「未执行」明细并返回
+func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string) []DataDetail {
 	if len(taskId) == 0 || len(dataDetails) == 0 {
-		return
+		return dataDetails
 	}
 
 	type sceneRecord struct {
@@ -1238,6 +1241,21 @@ func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string)
 			}
 		}
 	}
+
+	// 补全未执行的数据：执行过但中断的场景，其 data_file_list 中剩余未匹配的数据视为未执行
+	// （整场未执行的场景无 scene_test_history 记录，不会进入 slots，故不补数据）
+	// 名称去掉文件后缀，与已执行数据的展示样式保持一致
+	for si := range slots {
+		for _, fileName := range slots[si].FileNames {
+			dataDetails = append(dataDetails, DataDetail{
+				SceneName: slots[si].SceneName,
+				Name:      stripFileExt(fileName),
+				Result:    "未执行",
+			})
+		}
+	}
+
+	return dataDetails
 }
 
 // matchDataFileName 判断 scene_test_history.data_file_list 中的数据文件是否与
