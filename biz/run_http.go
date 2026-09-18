@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"io"
 	"io/ioutil"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	netUrl "net/url"
@@ -17,84 +18,30 @@ import (
 	"time"
 )
 
-func RunHttpUrlencodedRawResp(method, url string, data map[string]interface{}, acceptHeader, responseHeader map[string]interface{}) (res io.Reader, err error) {
-	var req *http.Request
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+// parseDownloadFileName 从 Content-Disposition 响应头解析文件名，
+// 兼容 filename="..."; filename*=UTF-8''... (RFC 2231/5987)、RFC 2047 编码字
+// 以及未加引号的非 ASCII 文件名等写法。
+func parseDownloadFileName(raw string) string {
+	if len(raw) == 0 {
+		return ""
 	}
-
-	client := &http.Client{Transport: tr}
-	methodUpper := strings.ToUpper(method)
-
-	if methodUpper == "GET" && len(data) > 0 {
-		uri, err1 := netUrl.Parse(url)
-		if err1 != nil {
-			err = err1
-			Logger.Error("%s", err)
-			return
+	if _, params, err := mime.ParseMediaType(raw); err == nil {
+		if name := params["filename"]; name != "" {
+			return name
 		}
-
-		tmpData := make(netUrl.Values)
-		for k, v := range data {
-			strK := Interface2Str(v)
-			if len(strK) == 0 { // 为GET请求时，入参值为空时，直接过滤
-				continue
-			}
-			tmpData[k] = []string{strK}
-			uri.RawQuery = tmpData.Encode()
+	}
+	// 兜底：mime.ParseMediaType 会拒绝未加引号的非 ASCII 文件名（如 filename=自动化_xxx.rss），
+	// 这里手工提取 filename= 之后的值（到分号为止，去掉两端引号）。
+	lower := strings.ToLower(raw)
+	if idx := strings.Index(lower, "filename="); idx >= 0 {
+		val := raw[idx+len("filename="):]
+		if semi := strings.Index(val, ";"); semi >= 0 {
+			val = val[:semi]
 		}
-
-		req, err = http.NewRequest(methodUpper, uri.String(), nil)
-	} else {
-		dataPayload := netUrl.Values{}
-		for k, v := range data {
-			strValue := Interface2Str(v)
-
-			dataPayload.Add(k, strValue)
-		}
-
-		payload := strings.NewReader(dataPayload.Encode())
-		req, err = http.NewRequest(methodUpper, url, payload)
+		return strings.Trim(strings.TrimSpace(val), `"`)
 	}
-
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	for k, v := range acceptHeader {
-		vStr := Interface2Str(v)
-		req.Header.Add(k, vStr)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-
-	defer resp.Body.Close()
-
-	return resp.Body, err
+	return ""
 }
-
-//func GetHttpHandle(timeout int64, data map[string]interface{}, header map[string]interface{}) (req *http.Request, client *http.Client) {
-//	tr := &http.Transport{
-//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-//	}
-//	client = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
-//	payload := &bytes.Buffer{}
-//	writer := multipart.NewWriter(payload)
-//	for k, v := range header {
-//		if k == "Content-Type" {
-//			continue
-//		}
-//		valueStr := Interface2Str(v)
-//		req.Header.Add(k, valueStr)
-//	}
-//
-//	return
-//}
 
 func RunHttpFormData(method, url string, data map[string]interface{}, header map[string]interface{}) (res []byte, err error) {
 	var req *http.Request
@@ -306,25 +253,16 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 
 	var downloadFileName, downloadFilePath string
 	if len(downloadInfo) > 0 {
-		tmps := strings.Split(downloadInfo, "=")
-		if len(tmps) > 1 {
-			downloadFileName = tmps[1]
-			if strings.Contains(downloadFileName, "\"") {
-				downloadFileName = strings.Replace(downloadFileName, "\"", "", -1)
-			}
-			if strings.Contains(downloadFileName, "'") {
-				downloadFileName = strings.Replace(downloadFileName, "'", "", -1)
-			}
-
+		downloadFileName = parseDownloadFileName(downloadInfo)
+		if len(downloadFileName) > 0 {
 			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 		}
 	} else {
 		for k, v := range responseHeader {
 			vStr := Interface2Str(v)
 			if k == "Content-Disposition" {
-				tmps := strings.Split(vStr, "=")
-				if len(tmps) > 1 {
-					downloadFileName = tmps[1]
+				downloadFileName = parseDownloadFileName(vStr)
+				if len(downloadFileName) > 0 {
 					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 				}
 				break
@@ -452,25 +390,16 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 
 	var downloadFileName, downloadFilePath string
 	if len(downloadInfo) > 0 {
-		tmps := strings.Split(downloadInfo, "=")
-		if len(tmps) > 1 {
-			downloadFileName = tmps[1]
-			if strings.Contains(downloadFileName, "\"") {
-				downloadFileName = strings.Replace(downloadFileName, "\"", "", -1)
-			}
-			if strings.Contains(downloadFileName, "'") {
-				downloadFileName = strings.Replace(downloadFileName, "'", "", -1)
-			}
-
+		downloadFileName = parseDownloadFileName(downloadInfo)
+		if len(downloadFileName) > 0 {
 			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 		}
 	} else {
 		for k, v := range responseHeader {
 			vStr := Interface2Str(v)
 			if k == "Content-Disposition" {
-				tmps := strings.Split(vStr, "=")
-				if len(tmps) > 1 {
-					downloadFileName = tmps[1]
+				downloadFileName = parseDownloadFileName(vStr)
+				if len(downloadFileName) > 0 {
 					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 				}
 				break
