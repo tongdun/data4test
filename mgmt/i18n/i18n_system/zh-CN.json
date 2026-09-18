@@ -848,6 +848,7 @@
   "common.btn_continue": "继续",
   "playbook.description": "场景列表",
   "playbook.title": "场景列表",
+  "playbook.test": "场景测试",
   "common.edit_type": "编辑模式",
   "playbook.edit_type_input": "输入",
   "playbook.data_input": "输入数据",

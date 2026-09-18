@@ -208,7 +208,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 				}
 
 				if err := biz.RunPlaybookFromMgmt(id, "start", "", "playbook", userNameSub, ""); err == nil {
-					status = biz.T("scene_test_history.title") + biz.T("common.operate_success")
+					status = biz.T("playbook.test") + biz.T("common.operate_success")
 				} else {
 					status = fmt.Sprintf(biz.T("error.exec_fail"), id, err)
 					return false, status, ""

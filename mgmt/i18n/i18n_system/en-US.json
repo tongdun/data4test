@@ -848,6 +848,7 @@
   "common.btn_continue": "Continue",
   "playbook.description": "Playbook List",
   "playbook.title": "Playbook List",
+  "playbook.test": "Playbook Test",
   "common.edit_type": "Edit Mode",
   "playbook.edit_type_input": "Edit Type Input",
   "playbook.data_input": "Data Input",
