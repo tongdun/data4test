@@ -148,11 +148,7 @@ func GenerateTaskReport(taskDB DbSchedule, historyId, taskTag, userName string,
 	}
 	reportData.SceneDetails = executedScenes
 
-	reportData.DataDetails = queryDataDetails(taskTag)
-	// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history），并补全未执行数据
-	if len(taskTag) > 0 {
-		reportData.DataDetails = matchDataToScenes(reportData.DataDetails, taskTag)
-	}
+	reportData.DataDetails = buildDataDetailsFromScenes(taskTag, "")
 
 	reportData.ByProduct = productStats
 
@@ -586,10 +582,8 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 			})
 		}
 
-		// 查询该任务的数据文件明细
-		taskDatas := queryDataDetailsForTask(curTaskId, product)
-		// 按执行顺序为每条数据明细匹配所属场景（关联 scene_test_history），并补全未执行数据
-		taskDatas = matchDataToScenesForTask(taskDatas, curTaskId, product)
+		// 从 scene_test_history.data_file_list 直接构建该任务的数据明细（含未执行补全）
+		taskDatas := buildDataDetailsFromScenes(curTaskId, product)
 		for _, dd := range taskDatas {
 			allDataDetails = append(allDataDetails, DataDetailWithTask{
 				TaskName:   t.TaskName,
@@ -932,34 +926,6 @@ func querySceneDetailsForTask(taskId, product string) (items []SceneDetail) {
 	return
 }
 
-// queryDataDetailsForTask 按taskId和product查询数据文件明细
-func queryDataDetailsForTask(taskId, product string) (items []DataDetail) {
-	if len(taskId) == 0 {
-		return
-	}
-	type dataResult struct {
-		Name       string `gorm:"column:name"`
-		ApiId      string `gorm:"column:api_id"`
-		Result     string `gorm:"column:result"`
-		FailReason string `gorm:"column:fail_reason"`
-	}
-	var results []dataResult
-	models.Orm.Table("scene_data_test_history").
-		Select("name, api_id, result, fail_reason").
-		Where("task_id = ? and product = ?", taskId, product).
-		Order("id asc").
-		Find(&results)
-	for _, r := range results {
-		items = append(items, DataDetail{
-			Name:       r.Name,
-			ApiId:      r.ApiId,
-			Result:     r.Result,
-			FailReason: r.FailReason,
-		})
-	}
-	return
-}
-
 // queryFailItemsForTask 按taskId和product查询失败项
 func queryFailItemsForTask(taskId, product string) (items []FailItem) {
 	if len(taskId) == 0 {
@@ -1120,34 +1086,6 @@ func querySceneDetails(taskId string) (items []SceneDetail) {
 	return
 }
 
-// queryDataDetails 按taskId查询数据文件执行明细
-func queryDataDetails(taskId string) (items []DataDetail) {
-	if len(taskId) == 0 {
-		return
-	}
-	type dataResult struct {
-		Name       string `gorm:"column:name"`
-		ApiId      string `gorm:"column:api_id"`
-		Result     string `gorm:"column:result"`
-		FailReason string `gorm:"column:fail_reason"`
-	}
-	var results []dataResult
-	models.Orm.Table("scene_data_test_history").
-		Select("name, api_id, result, fail_reason").
-		Where("task_id = ?", taskId).
-		Order("id asc").
-		Find(&results)
-	for _, r := range results {
-		items = append(items, DataDetail{
-			Name:       r.Name,
-			ApiId:      r.ApiId,
-			Result:     r.Result,
-			FailReason: r.FailReason,
-		})
-	}
-	return
-}
-
 // QueryTaskRelatedApps 根据任务ID(支持逗号分隔)查询实际执行时关联的应用列表
 func QueryTaskRelatedApps(taskIds string) string {
 	if len(strings.TrimSpace(taskIds)) == 0 {
@@ -1163,123 +1101,75 @@ func QueryTaskRelatedApps(taskIds string) string {
 	return strings.Join(apps, ",")
 }
 
-// matchDataToScenes 按执行顺序将每条数据明细关联到其所属场景（单任务，无 product 过滤）
-// 对于同一数据文件在多个场景中出现的情况，按创建时间正序依次分配
-// 返回补全未执行数据后的明细列表
-func matchDataToScenes(dataDetails []DataDetail, taskId string) []DataDetail {
-	return matchDataToScenesFiltered(dataDetails, taskId, "")
-}
-
-// matchDataToScenesForTask 多任务报告下的数据-场景匹配，带 product 过滤
-// 返回补全未执行数据后的明细列表
-func matchDataToScenesForTask(dataDetails []DataDetail, taskId, product string) []DataDetail {
-	return matchDataToScenesFiltered(dataDetails, taskId, product)
-}
-
-// matchDataToScenesFiltered 核心匹配逻辑：按执行顺序将每条数据明细关联到其所属场景
-// 匹配结束后，将执行过场景中未执行的数据补全为「未执行」明细并返回
-func matchDataToScenesFiltered(dataDetails []DataDetail, taskId, product string) []DataDetail {
-	if len(taskId) == 0 || len(dataDetails) == 0 {
-		return dataDetails
+// buildDataDetailsFromScenes 从 scene_test_history.data_file_list 直接构建场景→数据关联明细。
+// data_file_list 由执行期 GetHistoryApiList 生成：已执行条目带时间戳、未执行条目为配置名，
+// 且均按场景内执行顺序排列，据此无需再做跨场景名称匹配，天然消除同名数据在
+// 不同/同一场景重复引用导致的顺序错乱。
+// 返回按「场景顺序 × 场景内数据顺序」排列的明细列表，并补全「未执行」数据。
+func buildDataDetailsFromScenes(taskId, product string) (details []DataDetail) {
+	if len(taskId) == 0 {
+		return
 	}
 
-	type sceneRecord struct {
+	// 1. 已执行数据记录（全局执行顺序 = id 升序，与各场景 data_file_list 中时间戳条目的顺序 1:1 对应）
+	type execRec struct {
+		Name       string `gorm:"column:name"`
+		ApiId      string `gorm:"column:api_id"`
+		Result     string `gorm:"column:result"`
+		FailReason string `gorm:"column:fail_reason"`
+	}
+	var recs []execRec
+	rq := models.Orm.Table("scene_data_test_history").
+		Select("name, api_id, result, fail_reason").
+		Where("task_id = ?", taskId)
+	if len(product) > 0 {
+		rq = rq.Where("product = ?", product)
+	}
+	rq.Order("id asc").Find(&recs)
+
+	// 2. 场景历史（执行顺序 = id 升序）
+	type sceneRec struct {
 		Name         string `gorm:"column:name"`
 		DataFileList string `gorm:"column:data_file_list"`
 	}
-	var scenes []sceneRecord
-	q := models.Orm.Table("scene_test_history").
+	var scenes []sceneRec
+	sq := models.Orm.Table("scene_test_history").
 		Select("name, data_file_list").
 		Where("task_id = ?", taskId)
 	if len(product) > 0 {
-		q = q.Where("product = ?", product)
+		sq = sq.Where("product = ?", product)
 	}
-	q.Order("id asc").Find(&scenes)
+	sq.Order("id asc").Find(&scenes)
 
-	// 解析每个场景的 data_file_list，得到待匹配的数据文件名列表
-	type sceneSlot struct {
-		SceneName string
-		FileNames []string
-	}
-	var slots []sceneSlot
-	for _, s := range scenes {
-		if len(s.DataFileList) == 0 {
-			continue
-		}
-		parts := strings.Split(s.DataFileList, ",")
-		var names []string
-		for _, part := range parts {
-			name := strings.TrimSpace(part)
-			if len(name) > 0 {
-				names = append(names, name)
+	// 3. 逐场景遍历 data_file_list：时间戳条目=已执行（顺序消费一条记录），否则=未执行
+	recIdx := 0
+	for _, sc := range scenes {
+		for _, entry := range strings.Split(sc.DataFileList, ",") {
+			entry = strings.TrimSpace(entry)
+			if len(entry) == 0 {
+				continue
 			}
-		}
-		if len(names) > 0 {
-			slots = append(slots, sceneSlot{
-				SceneName: s.Name,
-				FileNames: names,
-			})
-		}
-	}
-
-	// 按创建时间顺序为每条数据明细匹配第一个符合条件的场景
-	for i := range dataDetails {
-		dataName := dataDetails[i].Name
-		for si := range slots {
-			found := false
-			for fi, fileName := range slots[si].FileNames {
-				if matchDataFileName(fileName, dataName) {
-					dataDetails[i].SceneName = slots[si].SceneName
-					// 消费该条目——从该场景的剩余数据列表中移除
-					slots[si].FileNames = append(slots[si].FileNames[:fi], slots[si].FileNames[fi+1:]...)
-					found = true
-					break
-				}
-			}
-			if found {
-				break
+			if b, _ := IsStrEndWithTimeFormat(entry); b && recIdx < len(recs) {
+				r := recs[recIdx]
+				recIdx++
+				details = append(details, DataDetail{
+					SceneName:  sc.Name,
+					Name:       r.Name,
+					ApiId:      r.ApiId,
+					Result:     r.Result,
+					FailReason: r.FailReason,
+				})
+			} else {
+				// 未执行数据：名称去后缀，与已执行数据展示样式保持一致
+				details = append(details, DataDetail{
+					SceneName: sc.Name,
+					Name:      GetHistoryDataDirName(entry),
+					Result:    "未执行",
+				})
 			}
 		}
 	}
-
-	// 补全未执行的数据：执行过但中断的场景，其 data_file_list 中剩余未匹配的数据视为未执行
-	// （整场未执行的场景无 scene_test_history 记录，不会进入 slots，故不补数据）
-	// 名称去掉文件后缀，与已执行数据的展示样式保持一致
-	for si := range slots {
-		for _, fileName := range slots[si].FileNames {
-			dataDetails = append(dataDetails, DataDetail{
-				SceneName: slots[si].SceneName,
-				Name:      stripFileExt(fileName),
-				Result:    "未执行",
-			})
-		}
-	}
-
-	return dataDetails
-}
-
-// matchDataFileName 判断 scene_test_history.data_file_list 中的数据文件是否与
-// scene_data_test_history.name 匹配（支持多种格式）
-func matchDataFileName(fromScene, fromDataRecord string) bool {
-	if fromScene == fromDataRecord {
-		return true
-	}
-	if stripFileExt(fromScene) == fromDataRecord {
-		return true
-	}
-	if GetHistoryDataDirName(fromScene) == fromDataRecord {
-		return true
-	}
-	return false
-}
-
-
-// stripFileExt 去除文件名后缀（最后一个 . 及之后的部分）
-func stripFileExt(name string) string {
-	if idx := strings.LastIndex(name, "."); idx > 0 {
-		return name[:idx]
-	}
-	return name
+	return
 }
 
 // BuildTaskCoverageReportData 根据任务配置生成覆盖范围报告数据（无需执行历史）
