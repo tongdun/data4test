@@ -29,6 +29,8 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 	playbookSet := make(map[string]string)
 	dataSet := make(map[string]string)
 	var sceneNames, fileNames []string
+	var playbooks []DbScene
+	var datas []DbSceneData
 
 	add := func(set map[string]string, s string) {
 		s = strings.TrimSpace(s)
@@ -53,7 +55,6 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 
 	// 关联场景的描述 + 场景关联的数据文件（链路：task → playbook → data）
 	if len(sceneNames) > 0 {
-		var playbooks []DbScene
 		models.Orm.Table("playbook").Where("name IN (?)", sceneNames).Find(&playbooks)
 		for _, p := range playbooks {
 			add(playbookSet, p.Name)
@@ -70,7 +71,6 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 	}
 	// 关联数据的名称与描述
 	if len(fileNames) > 0 {
-		var datas []DbSceneData
 		models.Orm.Table("scene_data").Where("file_name IN (?)", fileNames).Find(&datas)
 		for _, d := range datas {
 			add(dataSet, d.FileName)
@@ -90,7 +90,7 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 	}
 
 	ReloadEntityI18n()
-	return len(taskSet), len(dataSet), len(playbookSet), nil
+	return len(schedules), len(datas), len(playbooks), nil
 }
 
 func parseIds(idStr string) []int {
