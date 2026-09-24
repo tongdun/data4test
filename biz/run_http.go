@@ -239,7 +239,6 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 	}
 
 	downloadRawInfo := resp.Header.Get("Content-Disposition")
-	downloadInfo, _ := netUrl.QueryUnescape(downloadRawInfo)
 
 	respHeader = make(map[string]string)
 	for k, v := range resp.Header {
@@ -251,26 +250,21 @@ func RunHttpUrlencoded(method, url string, data map[string]interface{}, acceptHe
 		err = fmt.Errorf(T("error.request_failed_status_code"), resp.StatusCode, string(resBody))
 	}
 
-	var downloadFileName, downloadFilePath string
-	if len(downloadInfo) > 0 {
-		downloadFileName = parseDownloadFileName(downloadInfo)
-		if len(downloadFileName) > 0 {
-			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-		}
-	} else {
+	var downloadFileName string
+	if len(downloadRawInfo) > 0 {
+		downloadFileName = parseDownloadFileName(downloadRawInfo)
+	}
+	if len(downloadFileName) == 0 {
 		for k, v := range responseHeader {
-			vStr := Interface2Str(v)
 			if k == "Content-Disposition" {
-				downloadFileName = parseDownloadFileName(vStr)
-				if len(downloadFileName) > 0 {
-					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-				}
+				downloadFileName = parseDownloadFileName(Interface2Str(v))
 				break
 			}
 		}
 	}
 
-	if len(downloadFilePath) > 0 {
+	if len(downloadFileName) > 0 {
+		downloadFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 		fh, errTmp := os.Create(downloadFilePath)
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
@@ -381,33 +375,27 @@ func RunHttpJson(method, url string, timeout int64, data map[string]interface{},
 	}
 
 	downloadRawInfo := resp.Header.Get("Content-Disposition")
-	downloadInfo, _ := netUrl.QueryUnescape(downloadRawInfo)
 
 	respHeader = make(map[string]string)
 	for k, v := range resp.Header {
 		respHeader[k] = v[0]
 	}
 
-	var downloadFileName, downloadFilePath string
-	if len(downloadInfo) > 0 {
-		downloadFileName = parseDownloadFileName(downloadInfo)
-		if len(downloadFileName) > 0 {
-			downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-		}
-	} else {
+	var downloadFileName string
+	if len(downloadRawInfo) > 0 {
+		downloadFileName = parseDownloadFileName(downloadRawInfo)
+	}
+	if len(downloadFileName) == 0 {
 		for k, v := range responseHeader {
-			vStr := Interface2Str(v)
 			if k == "Content-Disposition" {
-				downloadFileName = parseDownloadFileName(vStr)
-				if len(downloadFileName) > 0 {
-					downloadFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
-				}
+				downloadFileName = parseDownloadFileName(Interface2Str(v))
 				break
 			}
 		}
 	}
 
-	if len(downloadFilePath) > 0 {
+	if len(downloadFileName) > 0 {
+		downloadFilePath := fmt.Sprintf("%s/%s", DownloadBasePath, downloadFileName)
 		fh, errTmp := os.Create(downloadFilePath)
 		if errTmp != nil {
 			Logger.Error("%v", errTmp)
