@@ -313,13 +313,16 @@ $(function () {
 		Id:     "/test_case_batch_update_form",
 		Title:  biz.T("test_case.title_batch_update"),
 		Width:  "700px",
-		Height: "800px",
+		Height: "850px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
 		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
 			FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate().
 			FieldHelpMsg(template.HTML(biz.T("common.help_select_or_filter")))
 		panel.AddField(biz.T("common.case_module"), "module", db.Varchar, form.Text)
+		panel.AddField(biz.T("common.product_line"), "product", db.Varchar, form.SelectSingle).
+			FieldOptions(append(types.FieldOptions{{Value: "", Text: biz.T("test_case.no_change")}}, products...)).
+			FieldDefault("")
 		panel.AddField(biz.T("common.test_result"), "test_result", db.Varchar, form.SelectSingle).
 			FieldOptions(types.FieldOptions{
 				{Value: "", Text: biz.T("test_case.no_change")},

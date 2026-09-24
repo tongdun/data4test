@@ -1317,6 +1317,7 @@ func startServer() {
 	r.POST("/test_case_batch_update", func(c *gin.Context) {
 		idStr := c.PostForm("ids")
 		module := c.PostForm("module")
+		product := c.PostForm("product")
 		testResult := c.PostForm("test_result")
 		introVersion := c.PostForm("intro_version")
 		funDeveloper := c.PostForm("fun_developer")
@@ -1336,11 +1337,11 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("common.btn_select_first"), "data": map[string]string{}})
 			return
 		}
-		if module == "" && testResult == "" && introVersion == "" && funDeveloper == "" && caseDesigner == "" && caseExecutor == "" && testTime == "" {
+		if module == "" && product == "" && testResult == "" && introVersion == "" && funDeveloper == "" && caseDesigner == "" && caseExecutor == "" && testTime == "" {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("test_case.batch_select_field_first"), "data": map[string]string{}})
 			return
 		}
-		if err := biz.BatchUpdateTestCase(ids, module, testResult, introVersion, funDeveloper, caseDesigner, caseExecutor, testTime, userName); err != nil {
+		if err := biz.BatchUpdateTestCase(ids, module, product, testResult, introVersion, funDeveloper, caseDesigner, caseExecutor, testTime, userName); err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf(biz.T("error.update_fail"), err), "data": map[string]string{}})
 			return
 		}
@@ -2235,6 +2236,15 @@ func startServer() {
 		}
 
 		respData := biz.BuildCaseImportCheckResult(result)
+
+		if len(result.Duplicates) > 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("test_case.import_duplicate_title"),
+				"data": respData,
+			})
+			return
+		}
 
 		if len(result.Conflicts) > 0 {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{

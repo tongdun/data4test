@@ -533,7 +533,7 @@ func appendTestCaseResultHistory(history, oldResult, oldExecutor, oldTime string
 
 // BatchUpdateTestCase 批量修改选中用例；空字符串表示不修改该字段。
 // test_result 变化时沿用单条编辑的历史记录逻辑（追加旧结果 + 自动记录执行者/时间）。
-func BatchUpdateTestCase(ids []string, module, testResult, introVersion, funDeveloper, caseDesigner, caseExecutor, testTime, userName string) (err error) {
+func BatchUpdateTestCase(ids []string, module, product, testResult, introVersion, funDeveloper, caseDesigner, caseExecutor, testTime, userName string) (err error) {
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
 		if id == "" {
@@ -557,6 +557,9 @@ func BatchUpdateTestCase(ids []string, module, testResult, introVersion, funDeve
 				}
 			}
 			updates["module"] = module
+		}
+		if product != "" {
+			updates["product"] = product
 		}
 		if introVersion != "" {
 			updates["intro_version"] = introVersion

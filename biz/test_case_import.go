@@ -360,6 +360,7 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 		}
 
 		var item TestCaseImportItem
+		item.Row = r + 1
 
 		// 编号仅来自 Excel（映射且非空）
 		if hasCaseNum && caseNumCol < len(row) {
@@ -406,9 +407,12 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 			cell := columnName(tpCol) + strconv.Itoa(r+1)
 			txt := strings.TrimSpace(row[tpCol])
 			var parts []string
-			if imgURL := extractCellImage(xlsx, sheet, cell, item.CaseNumber, item.Module); imgURL != "" {
-				item.ImageFiles = append(item.ImageFiles, filepath.Base(imgURL))
-				parts = append(parts, fmt.Sprintf(`<img src="%s">`, imgURL))
+			// WPS 嵌入单元格图片（=DISPIMG(...)）不走标准 GetPicture，避免 excelize 对缺失 drawing 关系的单元格 panic
+			if !dispimgRegexp.MatchString(txt) {
+				if imgURL := extractCellImage(xlsx, sheet, cell, item.CaseNumber, item.Module); imgURL != "" {
+					item.ImageFiles = append(item.ImageFiles, filepath.Base(imgURL))
+					parts = append(parts, fmt.Sprintf(`<img src="%s">`, imgURL))
+				}
 			}
 			// WPS 嵌入单元格图片（=DISPIMG(...)）：测试过程列及其右侧溢出列逐列提取
 			for c := tpCol; c < len(row); c++ {
@@ -444,6 +448,9 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 			return
 		}
 	}
+
+	// Excel 内部编号重复检测（case_number + module），重复则不允许导入
+	detectDuplicateCaseNumbers(&result)
 
 	// 截图：从图片包按「编号_N.format」归并
 	if len(strings.TrimSpace(imagePkgPath)) > 0 {
@@ -562,7 +569,52 @@ func BuildCaseImportCheckResult(result TestCaseImportResult) map[string]interfac
 		}
 		resp["conflict_details"] = conflicts
 	}
+
+	if len(result.Duplicates) > 0 {
+		dups := make([]map[string]interface{}, 0, len(result.Duplicates))
+		for _, d := range result.Duplicates {
+			dups = append(dups, map[string]interface{}{
+				"case_number": d.CaseNumber,
+				"module":      d.Module,
+				"count":       d.Count,
+				"rows":        d.Rows,
+			})
+		}
+		resp["duplicate_count"] = len(result.Duplicates)
+		resp["duplicate_details"] = dups
+	}
 	return resp
+}
+
+// detectDuplicateCaseNumbers 检测 Excel 内部用例编号重复（case_number + module 相同视为重复）
+// 只扫描 result.Cases，不查数据库；不同模块下相同编号不算重复
+func detectDuplicateCaseNumbers(result *TestCaseImportResult) {
+	type dupKey struct {
+		caseNumber string
+		module     string
+	}
+	rowsMap := map[dupKey][]int{}
+	order := []dupKey{}
+	for _, item := range result.Cases {
+		k := dupKey{item.CaseNumber, item.Module}
+		if _, ok := rowsMap[k]; !ok {
+			order = append(order, k)
+		}
+		rowsMap[k] = append(rowsMap[k], item.Row)
+	}
+	for _, k := range order {
+		if len(rowsMap[k]) > 1 {
+			result.Duplicates = append(result.Duplicates, DuplicateInfo{
+				CaseNumber: k.caseNumber,
+				Module:     k.module,
+				Count:      len(rowsMap[k]),
+				Rows:       rowsMap[k],
+			})
+		}
+	}
+	sort.Slice(result.Duplicates, func(i, j int) bool {
+		return result.Duplicates[i].CaseNumber < result.Duplicates[j].CaseNumber
+	})
 }
 
 // detectCaseConflicts 按 case_number + module 检测冲突
@@ -613,7 +665,15 @@ func detectCaseConflicts(result *TestCaseImportResult) (err error) {
 }
 
 // extractCellImage 提取单元格内嵌图片并保存到模块目录，返回可访问 URL（无图片返回空串）
+// excelize v1.4.1 的 GetPicture 对 drawing 关系缺失的单元格会空指针 panic，这里用 recover 兜底，
+// 避免单个异常图片关系导致整个导入失败（此类图片由 extractWpsDispimgImage 单独处理）
 func extractCellImage(xlsx *excelize.File, sheet, cell, caseNumber, module string) (imgURL string) {
+	defer func() {
+		if r := recover(); r != nil {
+			Logger.Warning("extractCellImage skip malformed drawing cell %s: %v", cell, r)
+			imgURL = ""
+		}
+	}()
 	name, data := xlsx.GetPicture(sheet, cell)
 	if len(data) == 0 {
 		return ""
