@@ -46,7 +46,6 @@ func GetValueFromSysParameter(lang, src string) (dst string) {
 	if len(valueRaw) > 0 {
 		if strings.Contains(valueRaw, "{") && strings.Contains(valueRaw, "}") {
 			valueDefine := make(map[string]string)
-			tag := 0
 			json.Unmarshal([]byte(valueRaw), &valueDefine)
 			if v, ok := valueDefine[lang]; ok {
 				valueTmp = v
@@ -62,7 +61,7 @@ func GetValueFromSysParameter(lang, src string) (dst string) {
 				dst = GetOneValueFromStringList(valueTmp)
 			}
 
-			if tag == 0 {
+			if len(dst) == 0 {
 				for _, v := range valueDefine {
 					if len(v) > 0 {
 						dst = GetOneValueFromStringList(v)
