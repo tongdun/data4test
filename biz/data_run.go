@@ -601,10 +601,16 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 	}
 
 	// 后续可优化，有依赖和无依赖进行控制
-	go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
-	_ = df.RecordDataOrderByKey(bodys)                     // 有依赖，同步执行记录动作：record_xxx
-	_ = df.ModifyFileWithData(bodys)                       // 有依赖，同步执行模板动作：modify_file
-
+	isOnly := df.IsOnlyGenerateMode() // 任一 action 设 trigger: only 时，只生成文件、不发起请求
+	if isOnly {
+		_ = df.CreateDataOrderByKey(lang, filePath, depOutVars) // only 模式同步执行，保证文件生成完再返回
+	} else {
+		go df.CreateDataOrderByKey(lang, filePath, depOutVars) // 无依赖，异步执行生成动作：create_xxx
+	}
+	_ = df.RecordDataOrderByKey(bodys)       // 有依赖，同步执行记录动作：record_xxx
+	_ = df.ModifyFileWithData(bodys)         // 有依赖，同步执行模板动作：modify_file
+	_ = df.SetSleepActionByTrigger("before") // 请求前 sleep
+	//Logger.Debug("执行请求")
 	if err != nil {
 		Logger.Error("%s", err)
 		urlStr, headerStr, requestStr, responseStr, outputStr, _ = df.GetResponseStr()
@@ -614,46 +620,13 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 	var respHeaderList []map[string]string
 	var resList [][]byte
 	var errs []error
-	tag := 0
-	if df.GetIsParallel() { //控制台过来的并发有bug
-		wg := sync.WaitGroup{}
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						df.Request = []string{string(dJson)}
-					} else {
-						df.Request = append(df.Request, string(dJson))
-					}
-					tag++
-					wg.Add(1)
-					go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
-						defer wg.Add(-1)
-						respHeader, res, err := RunHttp(method, url, data, header, rHeader)
-						resList = append(resList, res)
-						respHeaderList = append(respHeaderList, respHeader)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
-					}(df.Api.Method, url, data, header)
-				}
-			} else if len(bodys) > 0 || len(bodyList) > 0 {
-				if len(bodyList) > 0 {
-					if len(bodyList) > 0 {
-						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-						readerNew, _ := jsonNew.Marshal(&bodyList)
-						df.Request = []string{string(readerNew)}
-						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
-						if err != nil {
-							Logger.Debug("%s", err)
-						}
-						resList = append(resList, res)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
-					}
-				} else {
-					wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
-					for _, data := range bodys {
+	if !isOnly {
+		tag := 0
+		if df.GetIsParallel() { //控制台过来的并发有bug
+			wg := sync.WaitGroup{}
+			for _, url := range urls {
+				if len(querys) > 0 {
+					for _, data := range querys {
 						dJson, _ := json.Marshal(data)
 						if tag == 0 {
 							df.Request = []string{string(dJson)}
@@ -661,122 +634,159 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 							df.Request = append(df.Request, string(dJson))
 						}
 						tag++
-						//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
+						wg.Add(1)
 						go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
 							defer wg.Add(-1)
 							respHeader, res, err := RunHttp(method, url, data, header, rHeader)
-							respHeaderList = append(respHeaderList, respHeader)
 							resList = append(resList, res)
+							respHeaderList = append(respHeaderList, respHeader)
 							df.Response = append(df.Response, string(res))
 							errs = append(errs, err)
 						}(df.Api.Method, url, data, header)
 					}
-				}
-			} else {
-				df.Request = []string{} // 没有请求参数，默认置空
-				wg.Add(1)
-				go func(method, url string, header map[string]interface{}) {
-					respHeader, res, err := RunHttp(method, url, nil, header, rHeader)
-					respHeaderList = append(respHeaderList, respHeader)
-					resList = append(resList, res)
-					df.Response = append(df.Response, string(res))
-					errs = append(errs, err)
-				}(df.Api.Method, url, header)
-			}
-			wg.Wait()
-		}
-	} else {
-		for _, url := range urls {
-			if len(querys) > 0 {
-				for _, data := range querys {
-					var tUrl string
-					dJson, _ := json.Marshal(data)
-					if tag == 0 {
-						df.Request = []string{string(dJson)}
-					} else {
-						df.Request = append(df.Request, string(dJson))
-					}
-					tag++
-					if df.Api.Method == "delete" {
-						subTag := 0
-						for k, v := range data {
-							strV := Interface2Str(v)
-							if subTag == 0 {
-								tUrl = fmt.Sprintf("%s?%s=%s", url, k, strV)
-							} else {
-								tUrl = fmt.Sprintf("%s&%s=%s", tUrl, k, strV)
-							}
-							subTag++
-						}
-						respHeader, res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
-						respHeaderList = append(respHeaderList, respHeader)
-						resList = append(resList, res)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
-					} else {
-						respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
-						respHeaderList = append(respHeaderList, respHeader)
-						resList = append(resList, res)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
-					}
-					_ = df.SetSleepAction()
-				}
-			} else if len(bodys) > 0 || len(bodyList) > 0 {
-				if len(bodyList) > 0 {
+				} else if len(bodys) > 0 || len(bodyList) > 0 {
 					if len(bodyList) > 0 {
-						var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-						readerNew, _ := jsonNew.Marshal(&bodyList)
-						df.Request = []string{string(readerNew)}
-						res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
-						if err != nil {
-							Logger.Debug("%s", err)
+						if len(bodyList) > 0 {
+							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+							readerNew, _ := jsonNew.Marshal(&bodyList)
+							df.Request = []string{string(readerNew)}
+							res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
+							if err != nil {
+								Logger.Debug("%s", err)
+							}
+							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
+							errs = append(errs, err)
 						}
-						resList = append(resList, res)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
+					} else {
+						wg.Add(len(bodys)) // 一次把全部需要等待的任务加上
+						for _, data := range bodys {
+							dJson, _ := json.Marshal(data)
+							if tag == 0 {
+								df.Request = []string{string(dJson)}
+							} else {
+								df.Request = append(df.Request, string(dJson))
+							}
+							tag++
+							//wg.Add(1)  // 定时任务执行过程中，会概率性发生panic
+							go func(method, url string, data map[string]interface{}, header map[string]interface{}) {
+								defer wg.Add(-1)
+								respHeader, res, err := RunHttp(method, url, data, header, rHeader)
+								respHeaderList = append(respHeaderList, respHeader)
+								resList = append(resList, res)
+								df.Response = append(df.Response, string(res))
+								errs = append(errs, err)
+							}(df.Api.Method, url, data, header)
+						}
 					}
 				} else {
-					for _, data := range bodys {
-						var dJson []byte
-						dJson, errTmp := json.Marshal(data)
-						if errTmp != nil {
-							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
-							dJsonTmp, err2 := jsonNew.Marshal(&data)
-							if err2 != nil {
-								Logger.Error("%s", err2)
-								err = err2
-								return
-							}
-							dJson = dJsonTmp
-						}
+					df.Request = []string{} // 没有请求参数，默认置空
+					wg.Add(1)
+					go func(method, url string, header map[string]interface{}) {
+						respHeader, res, err := RunHttp(method, url, nil, header, rHeader)
+						respHeaderList = append(respHeaderList, respHeader)
+						resList = append(resList, res)
+						df.Response = append(df.Response, string(res))
+						errs = append(errs, err)
+					}(df.Api.Method, url, header)
+				}
+				wg.Wait()
+			}
+		} else {
+			for _, url := range urls {
+				if len(querys) > 0 {
+					for _, data := range querys {
+						var tUrl string
+						dJson, _ := json.Marshal(data)
 						if tag == 0 {
 							df.Request = []string{string(dJson)}
 						} else {
 							df.Request = append(df.Request, string(dJson))
 						}
 						tag++
-						respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
-						respHeaderList = append(respHeaderList, respHeader)
-						resList = append(resList, res)
-						df.Response = append(df.Response, string(res))
-						errs = append(errs, err)
-						_ = df.SetSleepAction()
+						if df.Api.Method == "delete" {
+							subTag := 0
+							for k, v := range data {
+								strV := Interface2Str(v)
+								if subTag == 0 {
+									tUrl = fmt.Sprintf("%s?%s=%s", url, k, strV)
+								} else {
+									tUrl = fmt.Sprintf("%s&%s=%s", tUrl, k, strV)
+								}
+								subTag++
+							}
+							respHeader, res, err := RunHttp(df.Api.Method, tUrl, nil, header, rHeader)
+							respHeaderList = append(respHeaderList, respHeader)
+							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
+							errs = append(errs, err)
+						} else {
+							respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+							respHeaderList = append(respHeaderList, respHeader)
+							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
+							errs = append(errs, err)
+						}
+						_ = df.SetSleepActionByTrigger("after")
 					}
+				} else if len(bodys) > 0 || len(bodyList) > 0 {
+					if len(bodyList) > 0 {
+						if len(bodyList) > 0 {
+							var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+							readerNew, _ := jsonNew.Marshal(&bodyList)
+							df.Request = []string{string(readerNew)}
+							res, err := RunHttpJsonList(df.Api.Method, url, bodyList, header)
+							if err != nil {
+								Logger.Debug("%s", err)
+							}
+							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
+							errs = append(errs, err)
+						}
+					} else {
+						for _, data := range bodys {
+							var dJson []byte
+							dJson, errTmp := json.Marshal(data)
+							if errTmp != nil {
+								var jsonNew = jsoniter.ConfigCompatibleWithStandardLibrary
+								dJsonTmp, err2 := jsonNew.Marshal(&data)
+								if err2 != nil {
+									Logger.Error("%s", err2)
+									err = err2
+									return
+								}
+								dJson = dJsonTmp
+							}
+							if tag == 0 {
+								df.Request = []string{string(dJson)}
+							} else {
+								df.Request = append(df.Request, string(dJson))
+							}
+							tag++
+							respHeader, res, err := RunHttp(df.Api.Method, url, data, header, rHeader)
+							respHeaderList = append(respHeaderList, respHeader)
+							resList = append(resList, res)
+							df.Response = append(df.Response, string(res))
+							errs = append(errs, err)
+							_ = df.SetSleepActionByTrigger("after")
+						}
+					}
+				} else {
+					df.Request = []string{} // 当只有路由时，请求数据默认设置为空
+					respHeader, res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
+					if err != nil {
+						Logger.Error("%s", err)
+					}
+					respHeaderList = append(respHeaderList, respHeader)
+					resList = append(resList, res)
+					df.Response = append(df.Response, string(res))
+					errs = append(errs, err)
+					_ = df.SetSleepActionByTrigger("after")
 				}
-			} else {
-				df.Request = []string{} // 当只有路由时，请求数据默认设置为空
-				respHeader, res, err := RunHttp(df.Api.Method, url, nil, header, rHeader)
-				if err != nil {
-					Logger.Error("%s", err)
-				}
-				respHeaderList = append(respHeaderList, respHeader)
-				resList = append(resList, res)
-				df.Response = append(df.Response, string(res))
-				errs = append(errs, err)
-				_ = df.SetSleepAction()
 			}
 		}
+	} else {
+		Logger.Info(T("info.only_generate_file"), filePath)
 	}
 
 	result, dst, df.Output, err = df.GetResult(source, filePath, product, respHeaderList, resList, depOutVars, errs)

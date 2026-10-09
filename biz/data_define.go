@@ -43,8 +43,9 @@ type SceneAssert struct {
 }
 
 type SceneAction struct {
-	Type  string      `json:"type" yaml:"type"`
-	Value interface{} `json:"value" yaml:"value"`
+	Type    string      `json:"type" yaml:"type"`
+	Value   interface{} `json:"value" yaml:"value"`
+	Trigger string      `json:"trigger,omitempty" yaml:"trigger,omitempty"` // before/after/only
 }
 
 type SceneEnv struct {
