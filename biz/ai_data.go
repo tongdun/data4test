@@ -930,13 +930,15 @@ func RunAiData(app, product, filePath string, depOutVars map[string][]interface{
 		}
 	}
 
+	dataFileHeader := CopyMapInterface(df.Single.Header)
+
 	header, err := df.GetHeader(envConfig)
 	df.Single.Header = header
 	if err != nil {
 		return
 	}
 
-	lang := GetRequestLangage(header)
+	lang := GetDataLangage(dataFileHeader, header)
 
 	var querys, bodys []map[string]interface{}
 	var bodyList []interface{}

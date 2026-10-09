@@ -506,6 +506,8 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		}
 	}
 
+	dataFileHeader := CopyMapInterface(df.Single.Header)
+
 	header, err := df.GetHeader(envConfig)
 	df.Single.Header = header
 	if err != nil {
@@ -513,7 +515,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 		return
 	}
 
-	lang := GetRequestLangage(header)
+	lang := GetDataLangage(dataFileHeader, header)
 
 	var querys, bodys []map[string]interface{}
 	var bodyList []interface{}

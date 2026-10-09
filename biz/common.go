@@ -1291,6 +1291,20 @@ func GetRequestLangage(info map[string]interface{}) (lang string) {
 	return
 }
 
+// GetDataLangage 判断断言语种：优先取数据文件自身 header 的语种，
+// 数据文件未设置语种（Cookie 中无 lang= 标记）时，回退到合并后 header（产品环境配置）。
+func GetDataLangage(dataHeader, mergeHeader map[string]interface{}) (lang string) {
+	lang = GetRequestLangage(dataHeader)
+	cookieVal := Interface2Str(dataHeader["Cookie"])
+	if len(cookieVal) == 0 {
+		cookieVal = Interface2Str(dataHeader["cookie"])
+	}
+	if !strings.Contains(cookieVal, "lang=") {
+		lang = GetRequestLangage(mergeHeader)
+	}
+	return
+}
+
 func GetOneValueFromStringList(in string) (out string) {
 	var values []string
 	tmps := strings.Split(in, ",")
