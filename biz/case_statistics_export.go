@@ -13,7 +13,7 @@ import (
 
 // ExportCaseStatistics2Excel 将选中统计定义覆盖的全量用例按模块导出：一个模块一个 xlsx，最终打包为单个 zip。
 // 列结构复用现有导出模板（buildTestCaseXlsx）；数据过滤应用各定义自身的 intro_versions / product。
-func ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excelType, host string) (fileName string, err error) {
+func ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, imageNameMode, excelType, host string) (fileName string, err error) {
 	ids := parseIds(idStr)
 	if len(ids) == 0 {
 		return "", E("common.btn_select_first")
@@ -85,7 +85,6 @@ func ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excel
 
 	curTime := time.Now().Format("20060102150405")
 	entries := make(map[string]string) // zip 条目名 → 本地绝对路径
-	dirRename := map[string]string{}   // 语种导出时模块目录名翻译映射（合并各模块）
 	tempXlsx := make([]string, 0, len(order))
 
 	for i, m := range order {
@@ -106,7 +105,7 @@ func ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excel
 		}
 
 		tempBase := fmt.Sprintf("case_stat_export_%s_%d", curTime, i+1)
-		xlsxPath, imagePaths, embedImgs, dr, berr := buildTestCaseXlsx(template, rows, tempBase, lang, screenshotMode, excelType, host)
+		xlsxPath, images, embedImgs, berr := buildTestCaseXlsx(template, rows, tempBase, lang, screenshotMode, imageNameMode, excelType, host)
 		if berr != nil {
 			return "", berr
 		}
@@ -116,20 +115,14 @@ func ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excel
 				return "", ierr
 			}
 		}
-		for k, v := range dr {
-			dirRename[k] = v
-		}
 
 		entries[entryName] = xlsxPath
 		tempXlsx = append(tempXlsx, xlsxPath)
 
-		// path 模式：把该模块截图一并打入 zip
-		if screenshotMode == "path" {
-			for _, p := range imagePaths {
-				abs := resolveUploadFilePath(p)
-				if _, statErr := os.Stat(abs); statErr == nil {
-					entries[imageEntryName(abs, dirRename)] = abs
-				}
+		// path 模式：把该模块重命名后的截图一并打入 zip（非 path 模式 images 为空）
+		for _, img := range images {
+			if _, statErr := os.Stat(img.absPath); statErr == nil {
+				entries[img.entryName] = img.absPath
 			}
 		}
 	}

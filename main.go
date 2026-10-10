@@ -1233,6 +1233,7 @@ func startServer() {
 		templateName := c.PostForm("template")
 		lang := c.PostForm("lang")
 		screenshotMode := c.PostForm("screenshot_mode")
+		imageNameMode := c.PostForm("image_name_mode")
 		excelType := c.PostForm("excel_type")
 		packFormat := c.PostForm("pack_format")
 
@@ -1248,7 +1249,7 @@ func startServer() {
 			return
 		}
 
-		fileName, err := biz.ExportTestCase2ExcelByTemplate(idStr, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, excelType, packFormat, c.Request.Host)
+		fileName, err := biz.ExportTestCase2ExcelByTemplate(idStr, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, imageNameMode, excelType, packFormat, c.Request.Host)
 		if err != nil {
 			status = fmt.Sprintf(biz.T("error.export_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})
@@ -1268,6 +1269,7 @@ func startServer() {
 		templateName := c.PostForm("template")
 		lang := c.PostForm("lang")
 		screenshotMode := c.PostForm("screenshot_mode")
+		imageNameMode := c.PostForm("image_name_mode")
 		excelType := c.PostForm("excel_type")
 
 		var status string
@@ -1285,7 +1287,7 @@ func startServer() {
 			excelType = "wps"
 		}
 
-		fileName, err := biz.ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, excelType, c.Request.Host)
+		fileName, err := biz.ExportCaseStatistics2Excel(idStr, templateName, lang, screenshotMode, imageNameMode, excelType, c.Request.Host)
 		if err != nil {
 			status = fmt.Sprintf(biz.T("error.export_fail"), err)
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": status, "data": map[string]string{}})

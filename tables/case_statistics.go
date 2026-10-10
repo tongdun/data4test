@@ -100,7 +100,7 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 		Id:     "/case_statistics_export_excel",
 		Title:  biz.T("case_statistics.title_export_excel"),
 		Width:  "900px",
-		Height: "480px",
+		Height: "550px",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
 		templates := biz.GetTestCaseExportTemplates()
@@ -117,7 +117,28 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 				{Value: "", Text: biz.T("test_case.screenshot_mode_none")},
 				{Value: "path", Text: biz.T("test_case.screenshot_mode_path")},
 				{Value: "embed", Text: biz.T("test_case.screenshot_mode_embed")},
-			}).FieldDefault("")
+			}).FieldDefault("").
+			// 图片模式联动：打包图片→显示 图片命名
+			FieldFoot(template.HTML(`<script>
+$(function () {
+    function toggleExportNameMode() {
+        var v = $('select.screenshot_mode').val() || '';
+        if (v === 'path') {
+            $("label[for='image_name_mode']").parent().show();
+        } else {
+            $("label[for='image_name_mode']").parent().hide();
+        }
+    }
+    toggleExportNameMode();
+    $('select.screenshot_mode').on('select2:select change', toggleExportNameMode);
+});
+</script>`))
+		panel.AddField(biz.T("test_case.image_name_mode"), "image_name_mode", db.Varchar, form.SelectSingle).
+			FieldOptions(types.FieldOptions{
+				{Value: "case_number", Text: biz.T("test_case.image_name_case_number")},
+				{Value: "row", Text: biz.T("test_case.image_name_row")},
+			}).FieldDefault("case_number").
+			FieldHelpMsg(template.HTML(biz.T("test_case.help_image_name_mode")))
 		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
 		return panel
 	}, "/case_statistics_export_excel"))

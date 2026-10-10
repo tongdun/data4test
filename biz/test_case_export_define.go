@@ -35,3 +35,10 @@ type TestCaseExportRow struct {
 	TestProcess  string `gorm:"column:test_process" json:"test_process"` // 截图路径列表 JSON 数组
 	ExtInfo      string `gorm:"column:ext_info" json:"ext_info"`         // 扩展信息 YAML
 }
+
+// exportImage 打包模式（screenshot_mode=path）下的一张待打包图片
+type exportImage struct {
+	absPath   string // 本地绝对路径
+	fileName  string // 重命名后的文件名（含扩展名），由 resolveScreenshotValue 生成
+	entryName string // 归档条目名（模块目录/文件名），由 buildTestCaseXlsx 填充
+}

@@ -248,7 +248,7 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 			Id:     "/test_case_export_excel",
 			Title:  biz.T("test_case.title_export_excel"),
 			Width:  "900px",
-			Height: "960px",
+			Height: "1000px",
 		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 			ids := ctx.FormValue("ids")
 			products := biz.GetCaseProducts()
@@ -280,8 +280,10 @@ $(function () {
         }
         if (v === 'path') {
             $("label[for='pack_format']").parent().show();
+            $("label[for='image_name_mode']").parent().show();
         } else {
             $("label[for='pack_format']").parent().hide();
+            $("label[for='image_name_mode']").parent().hide();
         }
     }
     toggleExportPicFields();
@@ -298,6 +300,12 @@ $(function () {
 					{Value: "tgz", Text: biz.T("test_case.pack_tgz")},
 					{Value: "zip", Text: biz.T("test_case.pack_zip")},
 				}).FieldDefault("tgz")
+			panel.AddField(biz.T("test_case.image_name_mode"), "image_name_mode", db.Varchar, form.SelectSingle).
+				FieldOptions(types.FieldOptions{
+					{Value: "case_number", Text: biz.T("test_case.image_name_case_number")},
+					{Value: "row", Text: biz.T("test_case.image_name_row")},
+				}).FieldDefault("case_number").
+				FieldHelpMsg(template.HTML(biz.T("test_case.help_image_name_mode")))
 			panel.AddField(biz.T("common.product_line"), "product", db.Varchar, form.SelectSingle).FieldOptions(products)
 			panel.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar, form.Text).
 				FieldHelpMsg(template.HTML(biz.T("common.help_version_multi")))

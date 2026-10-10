@@ -209,11 +209,35 @@ func resolveUploadFilePath(ref string) string {
 	return filepath.Join(UploadBasePath, ref)
 }
 
-// resolveScreenshotValue 处理 test_process 截图列；返回单元格文本与需打包的图片路径。
+// 图片命名方式（打包图片模式）
+const (
+	imageNameModeCaseNumber = "case_number" // 用例编号_序号
+	imageNameModeRow        = "row"         // Excel行号_序号
+)
+
+// buildImageName 按命名方式生成重命名后的图片文件名（不含目录），如 Login_001_1.png / 2_1.png。
+// idx 为同一用例/行内的图片序号（从 1 起），ext 为原图扩展名（含点）。
+func buildImageName(mode, caseNumber string, rowNum, idx int, ext string) string {
+	if ext == "" {
+		ext = ".png"
+	}
+	prefix := ""
+	if mode == imageNameModeRow {
+		prefix = fmt.Sprintf("%d", rowNum)
+	} else {
+		prefix = sanitizeFileName(caseNumber)
+		if prefix == "" {
+			prefix = fmt.Sprintf("%d", rowNum)
+		}
+	}
+	return fmt.Sprintf("%s_%d%s", prefix, idx, ext)
+}
+
+// resolveScreenshotValue 处理 test_process 截图列；返回单元格文本与需打包的图片。
 // col/rowNum 为当前单元格的列下标与行号，用于嵌入模式把多张图依次放到同行右侧单元格。
 // embedImgs 收集 WPS 嵌入模式的图片（用于导出后注入 cellimages 部件）。
 // excelType 区分嵌入实现：wps 用 DISPIMG 单元格内嵌，office 用 IMAGE() 函数内嵌（需 host 构造图片 URL）。
-func resolveScreenshotValue(raw, screenshotMode, excelType, host string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (text string, imagePaths []string) {
+func resolveScreenshotValue(raw, screenshotMode, imageNameMode, excelType, host, caseNumber string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (text string, images []exportImage) {
 	if screenshotMode == "" {
 		return "", nil
 	}
@@ -260,8 +284,22 @@ func resolveScreenshotValue(raw, screenshotMode, excelType, host string, xlsxFil
 		return "", nil
 	}
 
-	// path 模式：收集图片用于打包，单元格文本留空（打包图片不写路径文本）
-	return "", paths
+	// path 模式：按命名方式重命名图片，测试过程单元格填充图片名（多图用 ",\n" 分隔换行）
+	imgs := make([]exportImage, 0, len(paths))
+	names := make([]string, 0, len(paths))
+	idx := 0
+	for _, p := range paths {
+		absPath := resolveUploadFilePath(p)
+		if _, statErr := os.Stat(absPath); statErr != nil {
+			continue
+		}
+		idx++
+		ext := strings.ToLower(filepath.Ext(absPath))
+		name := buildImageName(imageNameMode, caseNumber, rowNum, idx, ext)
+		names = append(names, name)
+		imgs = append(imgs, exportImage{absPath: absPath, fileName: name})
+	}
+	return strings.Join(names, ",\n"), imgs
 }
 
 // toHTTPImageURL 将图片引用（/uploads/xxx 或相对路径）转为 http 可访问地址，供 IMAGE() 函数使用。
@@ -280,14 +318,14 @@ func toHTTPImageURL(ref, host string) string {
 }
 
 // resolveExportCellValue 按模板列 field 求值
-func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode, excelType, host string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (string, []string) {
+func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode, imageNameMode, excelType, host string, xlsxFile *excelize.File, sheet string, col, rowNum int, embedImgs *[]wpsEmbedImage) (string, []exportImage) {
 	switch {
 	case strings.HasPrefix(field, "ext_info."):
 		return GetExtInfoValue(row.ExtInfo, strings.TrimPrefix(field, "ext_info."), lang), nil
 	case field == "ext_info":
 		return row.ExtInfo, nil
 	case field == "test_process":
-		return resolveScreenshotValue(row.TestProcess, screenshotMode, excelType, host, xlsxFile, sheet, col, rowNum, embedImgs)
+		return resolveScreenshotValue(row.TestProcess, screenshotMode, imageNameMode, excelType, host, row.CaseNumber, xlsxFile, sheet, col, rowNum, embedImgs)
 	case field == FieldCaseName || field == FieldCaseModule || field == FieldCaseType ||
 		field == FieldPreCondition || field == FieldTestRange || field == FieldTestSteps || field == FieldExpectResult ||
 		field == FieldCaseRemark:
@@ -301,7 +339,7 @@ func resolveExportCellValue(row TestCaseExportRow, field, lang, screenshotMode, 
 }
 
 // ExportTestCase2ExcelByTemplate 按模板导出用例为 Excel
-func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, excelType, packFormat, host string) (fileName string, err error) {
+func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesigner, createdAtStart, createdAtEnd, templateName, lang, screenshotMode, imageNameMode, excelType, packFormat, host string) (fileName string, err error) {
 	template, err := GetTestCaseExportTemplateByName(templateName)
 	if err != nil {
 		return
@@ -319,68 +357,122 @@ func ExportTestCase2ExcelByTemplate(ids, product, module, introVersion, caseDesi
 	curTime := time.Now().Format("20060102150405")
 	baseName := fmt.Sprintf("%s_%s", templateName, curTime)
 
-	xlsxPath, imagePaths, embedImgs, dirRename, err := buildTestCaseXlsx(template, rows, baseName, lang, screenshotMode, excelType, host)
-	if err != nil {
-		return
-	}
-
-	if screenshotMode == "embed" && excelType == "wps" {
-		if err = injectWpsCellImages(xlsxPath, embedImgs); err != nil {
-			Logger.Error("inject wps cell images failed: %s", err)
-			return
+	// 嵌入图片 / 不导出图片：保持单 Excel
+	if screenshotMode == "embed" || screenshotMode == "" {
+		xlsxPath, _, embedImgs, err := buildTestCaseXlsx(template, rows, baseName, lang, screenshotMode, imageNameMode, excelType, host)
+		if err != nil {
+			return "", err
 		}
-	}
-
-	if screenshotMode == "embed" || screenshotMode == "" || packFormat == "" {
+		if screenshotMode == "embed" && excelType == "wps" {
+			if err = injectWpsCellImages(xlsxPath, embedImgs); err != nil {
+				Logger.Error("inject wps cell images failed: %s", err)
+				return "", err
+			}
+		}
 		return baseName + ".xlsx", nil
 	}
 
-	switch packFormat {
-	case "zip":
-		fileName = baseName + ".zip"
-		err = zipExportFiles(xlsxPath, imagePaths, fileName, dirRename)
-	case "tgz":
-		fileName = baseName + ".tgz"
-		err = tgzExportFiles(xlsxPath, imagePaths, fileName, dirRename)
-	default:
-		fileName = baseName + ".xlsx"
+	// 打包图片（path）模式：按模块拆分，每个模块一个 Excel，图片重命名后一并打包
+	order, moduleRows := groupTestCaseRowsByModule(rows)
+	entries := make(map[string]string) // 归档条目名 → 本地绝对路径
+	tempXlsx := make([]string, 0, len(order))
+	for i, m := range order {
+		displayName := m
+		if lang != "" && lang != "zh-CN" {
+			if v := GetCaseCountLocalized(m, lang); v != "" {
+				displayName = v
+			}
+		}
+		entryName := sanitizeDirName(displayName) + ".xlsx"
+		if _, exists := entries[entryName]; exists {
+			entryName = fmt.Sprintf("%s_%d.xlsx", sanitizeDirName(displayName), i+1)
+		}
+
+		tempBase := fmt.Sprintf("%s_%d", baseName, i+1)
+		xlsxPath, images, _, berr := buildTestCaseXlsx(template, moduleRows[m], tempBase, lang, screenshotMode, imageNameMode, excelType, host)
+		if berr != nil {
+			return "", berr
+		}
+		entries[entryName] = xlsxPath
+		tempXlsx = append(tempXlsx, xlsxPath)
+		for _, img := range images {
+			entries[img.entryName] = img.absPath
+		}
 	}
-	if err == nil && fileName != baseName+".xlsx" {
-		_ = os.Remove(xlsxPath)
+
+	if packFormat == "" {
+		packFormat = "zip"
+	}
+	if packFormat == "tgz" {
+		fileName = baseName + ".tgz"
+		err = tgzMultipleFiles(fileName, entries)
+	} else {
+		fileName = baseName + ".zip"
+		err = zipMultipleFiles(fileName, entries)
+	}
+	if err != nil {
+		return "", err
+	}
+	for _, p := range tempXlsx {
+		_ = os.Remove(p)
+	}
+	return fileName, nil
+}
+
+// groupTestCaseRowsByModule 按模块分组用例，返回模块出现顺序与模块→行映射（保持 rows 原始顺序）
+func groupTestCaseRowsByModule(rows []TestCaseExportRow) (order []string, moduleRows map[string][]TestCaseExportRow) {
+	moduleRows = make(map[string][]TestCaseExportRow)
+	seen := make(map[string]bool)
+	for _, r := range rows {
+		m := r.Module
+		if !seen[m] {
+			seen[m] = true
+			order = append(order, m)
+		}
+		moduleRows[m] = append(moduleRows[m], r)
 	}
 	return
 }
 
 // buildTestCaseXlsx 按模板将用例行写入 xlsx：写表头 + 逐行填值 + SaveAs 到 CaseFilePath/<baseName>.xlsx。
-// 返回保存路径、打包所需图片路径、WPS 内嵌图片清单、语种目录名映射。
+// 返回保存路径、打包所需图片（含归档条目名）、WPS 内嵌图片清单。
 // 注：embed+WPS 的 injectWpsCellImages 需在 SaveAs 后由调用方执行。
-func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow, baseName, lang, screenshotMode, excelType, host string) (xlsxPath string, imagePaths []string, embedImgs []wpsEmbedImage, dirRename map[string]string, err error) {
+func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow, baseName, lang, screenshotMode, imageNameMode, excelType, host string) (xlsxPath string, images []exportImage, embedImgs []wpsEmbedImage, err error) {
 	xlsxFile := excelize.NewFile()
 	sheet := "Sheet1"
 	for c, col := range template.Columns {
 		xlsxFile.SetCellValue(sheet, columnName(c)+"1", col.Title)
 	}
 
-	// 语种导出时收集「原始模块目录 → 译文目录」映射，用于打包时翻译图片所在模块目录名
-	dirRename = map[string]string{}
+	// 打包图片模式：测试过程单元格写入含换行的图片名，需换行样式
+	wrapStyle := -1
 	for r, row := range rows {
 		rowNum := r + 2
+		// 模块目录（语种导出时翻译），用作图片归档条目名的目录段
+		moduleDir := sanitizeDirName(row.Module)
 		if lang != "" && lang != "zh-CN" {
-			if oldDir := sanitizeDirName(row.Module); oldDir != "" {
-				if newName := GetCaseCountLocalized(row.Module, lang); newName != "" && newName != row.Module {
-					if newDir := sanitizeDirName(newName); newDir != "" && newDir != oldDir {
-						dirRename[oldDir] = newDir
-					}
+			if newName := GetCaseCountLocalized(row.Module, lang); newName != "" && newName != row.Module {
+				if newDir := sanitizeDirName(newName); newDir != "" {
+					moduleDir = newDir
 				}
 			}
 		}
 		for c, col := range template.Columns {
 			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
-			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
+			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, imageNameMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
 			if len(text) > 0 {
 				xlsxFile.SetCellValue(sheet, cell, text)
+				if strings.Contains(text, "\n") {
+					if wrapStyle < 0 {
+						wrapStyle, _ = xlsxFile.NewStyle(`{"alignment":{"wrap_text":true}}`)
+					}
+					xlsxFile.SetCellStyle(sheet, cell, cell, wrapStyle)
+				}
 			}
-			imagePaths = append(imagePaths, imgs...)
+			for i := range imgs {
+				imgs[i].entryName = moduleDir + "/" + imgs[i].fileName
+				images = append(images, imgs[i])
+			}
 		}
 		if screenshotMode == "embed" {
 			xlsxFile.SetRowHeight(sheet, rowNum, 80)
@@ -395,23 +487,43 @@ func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow
 	return
 }
 
-// imageEntryName 计算图片在归档内的条目名：优先保留 /uploads 下的相对目录（模块目录/文件名），
-// 避免不同模块下同名图片在归档内冲突、丢失层级。
-func imageEntryName(absPath string, dirRename map[string]string) string {
-	rel := filepath.Base(absPath)
-	if r, err := filepath.Rel(UploadBasePath, absPath); err == nil &&
-		!strings.HasPrefix(r, "..") && !filepath.IsAbs(r) {
-		rel = filepath.ToSlash(r)
+// tgzMultipleFiles 将多文件按指定条目名打包为 tar.gz，存到 CaseFilePath/<fileName>。
+// entries: 归档条目名(相对路径) → 本地绝对路径；条目名排序保证输出确定性。
+func tgzMultipleFiles(fileName string, entries map[string]string) (err error) {
+	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
+	fw, err := os.Create(filePath)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
 	}
-	// 语种导出时翻译模块目录段（rel 首段为模块目录）
-	if len(dirRename) > 0 {
-		if i := strings.IndexByte(rel, '/'); i > 0 {
-			if newDir, ok := dirRename[rel[:i]]; ok && newDir != "" {
-				rel = newDir + rel[i:]
-			}
+	gw := gzip.NewWriter(fw)
+	tw := tar.NewWriter(gw)
+
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if err = writeTarEntry(tw, entries[name], name); err != nil {
+			Logger.Error("%s", err)
+			return
 		}
 	}
-	return rel
+
+	if err = tw.Close(); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	if err = gw.Close(); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	if err = fw.Close(); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	return
 }
 
 // writeTarEntry 将文件以指定条目名写入 tar，逻辑同 WriteTarFile，仅条目名可定制。
@@ -441,113 +553,6 @@ func writeTarEntry(tw *tar.Writer, filePath, entryName string) (err error) {
 	}
 	_, err = io.Copy(tw, fr)
 	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	return
-}
-
-// tgzExportFiles 打包 xlsx 与图片为 tar.gz
-func tgzExportFiles(xlsxPath string, imagePaths []string, fileName string, dirRename map[string]string) (err error) {
-	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
-	fw, err := os.Create(filePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	gw := gzip.NewWriter(fw)
-	tw := tar.NewWriter(gw)
-
-	if err = WriteTarFile(tw, xlsxPath); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	seen := map[string]bool{}
-	for _, p := range imagePaths {
-		p = strings.TrimSpace(p)
-		if len(p) == 0 {
-			continue
-		}
-		absPath := resolveUploadFilePath(p)
-		if seen[absPath] {
-			continue
-		}
-		seen[absPath] = true
-		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = writeTarEntry(tw, absPath, imageEntryName(absPath, dirRename)); err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	}
-
-	if err = tw.Close(); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	if err = gw.Close(); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	if err = fw.Close(); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	return
-}
-
-// zipExportFiles 打包 xlsx 与图片为 zip
-func zipExportFiles(xlsxPath string, imagePaths []string, fileName string, dirRename map[string]string) (err error) {
-	filePath := fmt.Sprintf("%s/%s", CaseFilePath, fileName)
-	fz, err := os.Create(filePath)
-	if err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	zw := zip.NewWriter(fz)
-
-	addToZip := func(src, entryName string) error {
-		fr, e := os.Open(src)
-		if e != nil {
-			return e
-		}
-		defer fr.Close()
-		w, e := zw.Create(entryName)
-		if e != nil {
-			return e
-		}
-		_, e = io.Copy(w, fr)
-		return e
-	}
-
-	if err = addToZip(xlsxPath, filepath.Base(xlsxPath)); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	seen := map[string]bool{}
-	for _, p := range imagePaths {
-		p = strings.TrimSpace(p)
-		if len(p) == 0 {
-			continue
-		}
-		absPath := resolveUploadFilePath(p)
-		if seen[absPath] {
-			continue
-		}
-		seen[absPath] = true
-		if _, statErr := os.Stat(absPath); statErr == nil {
-			if err = addToZip(absPath, imageEntryName(absPath, dirRename)); err != nil {
-				Logger.Error("%s", err)
-				return
-			}
-		}
-	}
-
-	if err = zw.Close(); err != nil {
-		Logger.Error("%s", err)
-		return
-	}
-	if err = fz.Close(); err != nil {
 		Logger.Error("%s", err)
 		return
 	}
