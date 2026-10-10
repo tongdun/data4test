@@ -242,6 +242,69 @@ func GetSceneDataTable(ctx *context.Context) table.Table {
 			{Value: "99", Text: biz.T("scene_data.file_type_99")},
 		}).FieldDefault("1").FieldHelpMsg(fileTypeMsg)
 	formList.AddField(biz.T("common.data_content"), "content", db.Longtext, form.TextArea).FieldDefault(biz.T("data_content.sample"))
+	fullscreenTitle := biz.T("scene_data.fullscreen")
+	exitFullscreenTitle := biz.T("scene_data.exit_fullscreen")
+	contentEditorJS := `
+$(function () {
+    var ta = $('textarea[name="content"]');
+    if (!ta.length || window.ace === undefined) return;
+    ta.hide();
+
+    if (!$('#content-editor-style').length) $('head').append('<style id="content-editor-style">' +
+        '.content-editor-wrap{position:relative;width:100%;height:320px;}' +
+        '.content-editor-wrap #content-editor{position:absolute;top:0;left:0;right:0;bottom:0;border:1px solid #d2d6de;}' +
+        '.content-editor-fullscreen{position:absolute;top:6px;right:6px;z-index:10;width:30px;height:30px;line-height:30px;text-align:center;border:1px solid #d2d6de;background:#fff;color:#666;border-radius:3px;cursor:pointer;}' +
+        '.content-editor-fullscreen:hover{background:#f4f4f4;}' +
+        '.content-editor-resize{position:absolute;right:0;bottom:0;width:16px;height:16px;z-index:10;cursor:nwse-resize;}' +
+        '.content-editor-resize:after{content:"";position:absolute;right:3px;bottom:3px;width:8px;height:8px;border-right:2px solid #999;border-bottom:2px solid #999;}' +
+        '.content-editor-fullscreen-on{position:fixed!important;top:0;left:0;right:0;bottom:0;width:auto!important;height:auto!important;z-index:9999;background:#fff;}' +
+        '.content-editor-fullscreen-on #content-editor{border:none;}' +
+        '.content-editor-fullscreen-on .content-editor-resize{display:none;}' +
+        '</style>');
+
+    var wrap = $('<div class="content-editor-wrap"></div>').insertBefore(ta);
+    $('<div id="content-editor"></div>').appendTo(wrap);
+
+    var ed = ace.edit('content-editor');
+    ed.session.setMode('ace/mode/text');
+    ed.setValue(ta.val(), -1);
+    ed.setOptions({fontSize: 14, showPrintMargin: false});
+    ed.session.on('change', function () { ta.val(ed.getValue()); });
+
+    var btn = $('<button type="button" class="content-editor-fullscreen" title="__FULLSCREEN__"><i class="fa fa-expand"></i></button>').appendTo(wrap);
+    btn.on('click', function () {
+        var on = wrap.toggleClass('content-editor-fullscreen-on').hasClass('content-editor-fullscreen-on');
+        btn.find('i').toggleClass('fa-expand fa-compress');
+        btn.attr('title', on ? '__EXIT__' : '__FULLSCREEN__');
+        ed.resize();
+        ed.focus();
+    });
+    $(document).on('keydown.content-editor', function (e) {
+        if (e.key === 'Escape' && wrap.hasClass('content-editor-fullscreen-on')) btn.trigger('click');
+    });
+
+    var handle = $('<div class="content-editor-resize"></div>').appendTo(wrap);
+    handle.on('mousedown', function (e) {
+        e.preventDefault();
+        var startX = e.clientX, startY = e.clientY;
+        var startW = wrap.width(), startH = wrap.height();
+        function onMove(ev) {
+            wrap.css('width', Math.max(startW + (ev.clientX - startX), 200) + 'px');
+            wrap.css('height', Math.max(startH + (ev.clientY - startY), 320) + 'px');
+            ed.resize();
+        }
+        function onUp() {
+            $(document).off('mousemove.content-resize mouseup.content-resize');
+            $('body').css('user-select', '');
+        }
+        $(document).on('mousemove.content-resize', onMove).on('mouseup.content-resize', onUp);
+        $('body').css('user-select', 'none');
+    });
+});
+`
+	contentEditorJS = strings.ReplaceAll(contentEditorJS, "__FULLSCREEN__", fullscreenTitle)
+	contentEditorJS = strings.ReplaceAll(contentEditorJS, "__EXIT__", exitFullscreenTitle)
+	formList.AddJS(template.JS(contentEditorJS))
 	formList.AddField(biz.T("common.run_time"), "run_time", db.Int, form.Number).
 		FieldDefault("1")
 	formList.AddField(biz.T("common.test_result"), "result", db.Varchar, form.Text)
