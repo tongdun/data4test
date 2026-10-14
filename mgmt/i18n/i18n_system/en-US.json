@@ -886,6 +886,8 @@
   "scene_data.file_type_99": "Other",
   "scene_data.test_title": "Test Title",
   "scene_data.env_help": "Select an execution environment",
+  "scene_data.fullscreen": "Fullscreen",
+  "scene_data.exit_fullscreen": "Exit Fullscreen",
   "schedule.select_week": "Select Weekday",
   "schedule.week": "Weekday",
   "schedule.select_time4week": "Select Time",

@@ -435,6 +435,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(dataHelp)
+	formList.AddJS(aceEditorJS("input_data", "input-data-editor"))
 
 	//formList.AddTable("关联数据", "data_table", func(panel *types.FormPanel) {
 	//	panel.AddField("序号/标签", "data_number", db.Varchar, form.Text).
@@ -456,6 +457,7 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetTaskDataStr(model.ID)
 		}).FieldHelpMsg(sceneHelp)
+	formList.AddJS(aceEditorJS("input_scene", "input-scene-editor"))
 
 	//formList.AddTable("关联场景", "scene_table", func(panel *types.FormPanel) {
 	//	panel.AddField("序号/标签", "scene_number", db.Varchar, form.Text).

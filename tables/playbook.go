@@ -309,6 +309,7 @@ func GetPlaybookTable(ctx *context.Context) table.Table {
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return biz.GetPlaybookApiStr(model.ID)
 		}).FieldHelpMsg(dataHelp)
+	formList.AddJS(aceEditorJS("input_list", "input-list-editor"))
 
 	formList.AddField(biz.T("common.last_file"), "last_file", db.Varchar, form.SelectSingle).
 		FieldOptions(files)

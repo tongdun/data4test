@@ -886,6 +886,8 @@
   "scene_data.file_type_99": "其他",
   "scene_data.test_title": "数据测试",
   "scene_data.env_help": "选择执行环境",
+  "scene_data.fullscreen": "全屏",
+  "scene_data.exit_fullscreen": "退出全屏",
   "schedule.select_week": "选择星期",
   "schedule.week": "每周",
   "schedule.select_time4week": "选择时刻",
