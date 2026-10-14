@@ -567,7 +567,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		}
 	}
 
-	err = GetAppSQL(productName, filePath, appMap)
+	err = GetAppSQL(filePath, appMap)
 	if err != nil {
 		return
 	}
@@ -599,7 +599,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 	return
 }
 
-func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error) {
+func GetAppSQL(filePath string, appMap map[string]bool) (err error) {
 	appSQLDesc := T("sql.app_config")
 	var appNames []string
 	for k, _ := range appMap {
@@ -623,15 +623,15 @@ func GetAppSQL(productName, filePath string, appMap map[string]bool) (err error)
 			item.Remark = strings.Replace(item.Remark, "'", "\\'", -1)
 		}
 		if index == 0 {
-			appValueStr = fmt.Sprintf("('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
+			appValueStr = fmt.Sprintf("('%s','%s','%s','%s','%s','%s','%s','%s','%s')", item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
 			appNameDesc = fmt.Sprintf(T("sql.export_app_desc"), item.App)
 		} else {
-			appValueStr = fmt.Sprintf("%s, ('%s', '%s','%s','%s','%s','%s','%s','%s','%s','%s')", appValueStr, productName, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
+			appValueStr = fmt.Sprintf("%s, ('%s','%s','%s','%s','%s','%s','%s','%s','%s')", appValueStr, item.App, item.Ip, item.Protocol, item.Prepath, item.Threading, item.Auth, item.Testmode, item.SwaggerPath, item.Remark)
 			appNameDesc = fmt.Sprintf("%s / %s", appNameDesc, item.App)
 		}
 	}
 
-	appSQL := fmt.Sprintf("INSERT IGNORE INTO `env_config`(product, app, ip, protocol, prepath, threading, auth, testmode, swagger_path, remark) VALUES %s;", appValueStr)
+	appSQL := fmt.Sprintf("INSERT IGNORE INTO `env_config`(app, ip, protocol, prepath, threading, auth, testmode, swagger_path, remark) VALUES %s;", appValueStr)
 	_ = WriteDataInCommonFile(filePath, appSQLDesc)
 	_ = WriteDataInCommonFile(filePath, appNameDesc)
 	_ = WriteDataInCommonFile(filePath, appSQL)

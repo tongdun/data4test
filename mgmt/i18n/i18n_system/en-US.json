@@ -577,6 +577,7 @@
   "common.parameter_name": "Parameter Name",
   "common.api_id": "API ID",
   "common.app": "Related Application",
+  "common.app_name": "App Name",
   "common.file_name": "File Name",
   "common.data_file": "Data File",
   "common.data_list": "Related Data",

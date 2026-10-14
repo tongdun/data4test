@@ -21,7 +21,6 @@ import (
 func GetEnvConfigTable(ctx *context.Context) table.Table {
 
 	envConfig := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
-	products := biz.GetProducts()
 	info := envConfig.GetInfo().HideFilterArea()
 	info.SetFilterFormHeadWidth(4)
 	info.SetFilterFormInputWidth(8)
@@ -29,9 +28,7 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 	info.SetFilterFormLayout(form.LayoutThreeCol)
 	info.AddField(biz.T("common.id"), "id", db.Int).
 		FieldHide()
-	info.AddField(biz.T("common.product"), "product", db.Varchar).
-		FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(products)
-	info.AddField(biz.T("common.app"), "app", db.Varchar).
+	info.AddField(biz.T("common.app_name"), "app", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
 		FieldSortable()
 	info.AddField(biz.T("common.ip"), "ip", db.Char).
@@ -269,9 +266,8 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 			return false, status, ""
 		}))
 
-	info.AddSelectBox(biz.T("common.product"), products, action.FieldFilter("product"))
 	apps := biz.GetApps()
-	info.AddSelectBox(biz.T("common.app"), apps, action.FieldFilter("app"))
+	info.AddSelectBox(biz.T("common.app_name"), apps, action.FieldFilter("app"))
 	info.SetTable("env_config").SetTitle(biz.T("env_config.title")).SetDescription(biz.T("env_config.description"))
 
 	formList := envConfig.GetForm()
@@ -282,10 +278,8 @@ func GetEnvConfigTable(ctx *context.Context) table.Table {
 	formList.AddField(biz.T("common.id"), "id", db.Int, form.Default).
 		FieldDisableWhenCreate().
 		FieldDisableWhenUpdate()
-	formList.AddField(biz.T("common.product"), "product", db.Varchar, form.SelectSingle).
-		FieldOptions(products)
-	formList.AddField(biz.T("common.app"), "app", db.Varchar, form.Text).
-		FieldDisableWhenUpdate().
+	formList.AddField(biz.T("common.app_name"), "app", db.Varchar, form.Text).
+		FieldDisplayButCanNotEditWhenUpdate().
 		FieldHelpMsg(appHelpMsg)
 	formList.AddField(biz.T("common.ip"), "ip", db.Char, form.Ip)
 	formList.AddField(biz.T("common.protocol"), "protocol", db.Enum, form.Radio).

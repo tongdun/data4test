@@ -577,6 +577,7 @@
   "common.parameter_name": "参数名称",
   "common.api_id": "接口ID",
   "common.app": "关联应用",
+  "common.app_name": "应用名称",
   "common.file_name": "文件名",
   "common.data_file": "数据文件",
   "common.data_list": "关联数据",
