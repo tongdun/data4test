@@ -1194,6 +1194,8 @@
   "error.update_auth_params_invalid": "Invalid auth update params: product or key is empty",
   "error.auth_marshal_failed": "Auth JSON marshal failed: %s",
   "error.auth_update_db_failed": "Update product[%s] auth info failed: %s",
+  "error.private_parameter_marshal_failed": "Private parameters JSON marshal failed: %s",
+  "error.private_parameter_update_failed": "Update product[%s] private parameters failed: %s",
   "warn.auth_parse_failed": "Parse product auth JSON failed, raw: %s, err: %s, will overwrite with empty config",
   "info.auth_updated": "Product[%s] auth updated: %s = %s",
   "error.content_empty": "Data file content cannot be empty",
