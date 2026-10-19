@@ -1438,6 +1438,7 @@ func (df DataFile) GetDepParams() (depOutDict map[string][]interface{}, err erro
 func (df DataFile) GetResult(source, filePath, product string, respHeaderList []map[string]string, res [][]byte, inOutPutDict map[string][]interface{}, errs []error) (result, dst string, outputDict map[string][]interface{}, err error) {
 	outputDict = make(map[string][]interface{})
 	authUpdates := make(map[string]string)
+	privateParamUpdates := make(map[string]interface{})
 	isPass := 0
 	dst, err = GetResultFilePath(filePath)
 	if err != nil {
@@ -1503,7 +1504,7 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 		for _, assert := range df.Assert {
 			aType := assert.Type
 			// 若返回断言已经失败了，不再进行output动作
-			if inIsPass != 0 && (aType == "output" || aType == "output_re" || aType == "output2auth") {
+			if inIsPass != 0 && (aType == "output" || aType == "output_re" || aType == "output2auth" || aType == "output2env") {
 				continue
 			}
 
@@ -1550,7 +1551,7 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 				}
 
 				switch aType {
-				case "output", "output_re", "output2auth":
+				case "output", "output_re", "output2auth", "output2env":
 					rawValue := Interface2Str(assert.Value)
 					k := rawValue
 					if aType == "output2auth" {
@@ -1566,6 +1567,12 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 							strValue := Interface2Str(vals[len(vals)-1])
 							finalValue := FormatOutput2AuthValue(valueTemplate, authKey, strValue)
 							authUpdates[authKey] = finalValue
+						}
+					}
+					// output2env: 从文件提取值后更新产品专用参数
+					if aType == "output2env" && len(product) > 0 {
+						if vals, ok := outputDict[k]; ok && len(vals) > 0 {
+							privateParamUpdates[k] = vals[len(vals)-1]
 						}
 					}
 				default:
@@ -1635,6 +1642,14 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 						if len(product) > 0 && len(extractedValue) > 0 {
 							finalValue := FormatOutput2AuthValue(valueTemplate, authKey, extractedValue)
 							authUpdates[authKey] = finalValue
+						}
+					} else if assert.Type == "output2env" {
+						headerKeyName := tmpList[1]
+						keyName = Interface2Str(assert.Value)
+						extractedValue := respHeaderList[i][headerKeyName]
+						outputDict[keyName] = append(outputDict[keyName], extractedValue)
+						if len(product) > 0 && len(extractedValue) > 0 {
+							privateParamUpdates[keyName] = extractedValue
 						}
 					} else {
 						Logger.Warning(T("warn.unsupported_assert_type"), assert.Type)
@@ -1760,6 +1775,60 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 						extractedValue := Interface2Str(values[0])
 						finalValue := FormatOutput2AuthValue(valueTemplate, authKey, extractedValue)
 						authUpdates[authKey] = finalValue
+					}
+
+				case "output2env":
+					if len(res[i]) == 0 {
+						errTmp = fmt.Errorf(T("error.response_empty"))
+					} else {
+						errTmp = json.Unmarshal(res[i], &resDict)
+					}
+
+					if errTmp != nil {
+						Logger.Error("err: %v", errTmp)
+						if err != nil {
+							err = fmt.Errorf("%v,%v", err, errTmp)
+						} else {
+							err = errTmp
+						}
+						failReason := fmt.Sprintf("%v", err)
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
+						inIsPass++
+						continue
+					}
+
+					keyName, values, err1 := assert.GetOutput(resDict)
+					if err1 != nil {
+						if err != nil {
+							err = fmt.Errorf("%s, %s", err, err1)
+						} else {
+							err = err1
+						}
+						failReason := fmt.Sprintf("%v", err)
+						if len(df.TestResult) < i+1 {
+							df.TestResult = append(df.TestResult, "fail")
+							df.FailReason = append(df.FailReason, failReason)
+						} else {
+							df.TestResult[i] = "fail"
+							df.FailReason[i] = failReason
+						}
+						isPass++
+						inIsPass++
+						break
+					}
+
+					outputDict[keyName] = append(outputDict[keyName], values...)
+
+					// 收集产品专用参数更新（保留原始类型）
+					if len(values) > 0 && len(product) > 0 {
+						privateParamUpdates[keyName] = values[0]
 					}
 
 				case "output_re":
@@ -1929,6 +1998,13 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 	if len(authUpdates) > 0 && len(product) > 0 {
 		if errAuth := UpdateProductAuthBatch(product, authUpdates); errAuth != nil {
 			Logger.Error("%s", errAuth)
+		}
+	}
+
+	// 批量更新产品专用参数，避免并发竞态
+	if len(privateParamUpdates) > 0 && len(product) > 0 {
+		if errParam := UpdateProductPrivateParameterBatch(product, privateParamUpdates); errParam != nil {
+			Logger.Error("%s", errParam)
 		}
 	}
 

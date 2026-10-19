@@ -91,7 +91,7 @@ func (sceneAssert SceneAssert) GetOutput(data interface{}) (keyName string, valu
 	var tmpInterface interface{}
 
 	targetValueFlowStr := Interface2Str(sceneAssert.Value)
-	if sceneAssert.Type == "output" || sceneAssert.Type == "output2auth" {
+	if sceneAssert.Type == "output" || sceneAssert.Type == "output2auth" || sceneAssert.Type == "output2env" {
 		keyName = targetValueFlowStr
 	} else {
 		keyName = fmt.Sprintf("flowVar_%s", targetValueFlowStr)

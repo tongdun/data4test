@@ -1,6 +1,10 @@
+#### 2026年10月19日
+1、[Feature] 断言类型新增 output2env：从接口返回 ResponseBody 提取值写入产品专用参数(private_parameter)，存在则更新、不存在则追加，值保留原始 JSON 类型；支持 ResponseBody、ResponseHeader、File 三种提取源
+
 #### 2026年10月14日
 1、[Optimize] 场景关联数据编写增加带行号展示，且支持全屏
 2、[Optimize] 任务关联场景/数据编写增加带行号展示，且支持全屏
+3、[Optimize] 应用配置列表去除产品配置的信息，使鉴权为单向依赖逻辑
 
 #### 2026年10月10日
 1、[Feature] 测试用例列表、用例统计定义列表导出 Excel 的「打包图片」模式新增图片命名方式，支持「用例编号_序号.png」与「Excel行号_序号.png」两种命名

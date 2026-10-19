@@ -83,10 +83,10 @@
 - empty: 为空
 - not_empty: 不为空
 - output: {type: output, source: data.contents[0].uuid, value: uuid}, 定义输出变量，提供给其他接口依赖使用
-- output2auth: 从接口返回的ResponseBody中提取值，输出到鉴权信息中，存在则更新，不存在则追加（todo）
+- output2auth: 从接口返回的ResponseBody中提取值，输出到鉴权信息中，存在则更新，不存在则追加
   - e.g.1: ```{type: output2auth:"lang=cn; _qjt_ac_=$Cookie", source: data.XXX, value: Cookie}``` 赋值到鉴权信息中Cookie字段,如果输出信息无法直接满足，可以用冒号在输出动作后追加格式,@Cookie表示输出值的位置，然后再输出到鉴权信息中
   - e.g.2: ```{type: output2auth, source: data.XXX, value: X-Cf-Random}``` 赋值到鉴权信息中X-Cf-Random字段
-- output2env: 从接口返回的ResponseBody中提取值，赋值到专用参数中，存在则更新，不存在则追加（todo）
+- output2env: 从接口返回的ResponseBody中提取值，赋值到专用参数中，存在则更新，不存在则追加
   - e.g.1: ```{type: output2env, source: data.XXXName, value: XXXName}```
 
 ### 其他特性说明

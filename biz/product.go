@@ -160,6 +160,51 @@ func UpdateProductAuth(productName, key, value string) (err error) {
 	return
 }
 
+// UpdateProductPrivateParameterBatch 批量更新产品专用参数（private_parameter JSON 字段），
+// 存在则更新、不存在则追加，值保留原始 JSON 类型。与 UpdateProductAuthBatch 对称。
+func UpdateProductPrivateParameterBatch(productName string, updates map[string]interface{}) (err error) {
+	if len(productName) == 0 || len(updates) == 0 {
+		return
+	}
+
+	var dbProduct DbProduct
+	models.Orm.Table("product").Where("product = ?", productName).Find(&dbProduct)
+	if len(dbProduct.Name) == 0 {
+		err = fmt.Errorf(T("error.product_not_found"), productName)
+		Logger.Error("%s", err)
+		return
+	}
+
+	privateParam := make(map[string]interface{})
+	if len(dbProduct.PrivateParameter) > 2 {
+		if errUnmarshal := json.Unmarshal([]byte(dbProduct.PrivateParameter), &privateParam); errUnmarshal != nil {
+			Logger.Warning(T("error.private_parameter_parse"), errUnmarshal)
+			privateParam = make(map[string]interface{})
+		}
+	}
+
+	for k, v := range updates {
+		privateParam[k] = v
+	}
+
+	newParam, errMarshal := json.MarshalIndent(privateParam, "", "  ")
+	if errMarshal != nil {
+		err = fmt.Errorf(T("error.private_parameter_marshal_failed"), errMarshal)
+		Logger.Error("%s", err)
+		return
+	}
+
+	err = models.Orm.Table("product").
+		Where("product = ?", productName).
+		Update("private_parameter", string(newParam)).Error
+	if err != nil {
+		Logger.Error(T("error.private_parameter_update_failed"), productName, err)
+		return
+	}
+
+	return
+}
+
 // UpdateProductAuthBatch 批量更新产品鉴权配置，一次读取、批量修改、一次写入，避免并发竞态
 func UpdateProductAuthBatch(productName string, updates map[string]string) (err error) {
 	if len(productName) == 0 || len(updates) == 0 {
