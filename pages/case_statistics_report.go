@@ -71,6 +71,9 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 	// ===== 概览 KPI =====
 	kpi := caseStatKpiCards(csData.Overview)
 
+	// ===== 测试时间趋势 =====
+	trend := caseStatTrendBlock(csData)
+
 	// ===== 测试结果分布饼图 =====
 	resultPie := caseStatResultPie(csData.ResultDistribution)
 
@@ -107,7 +110,7 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 		caseStatCountPie("csPriorityPie", biz.T("case_statistics.by_priority"), csData.ByPriority) +
 		`</div>`
 
-	content := kpi + pieRow + personPies + moduleTable + executorTable + drilldown + extHTML + string(reportStyle())
+	content := kpi + trend + pieRow + personPies + moduleTable + executorTable + drilldown + extHTML + string(reportStyle())
 
 	reportName := csData.Overview.Name
 	if reportName == "" {
@@ -371,4 +374,131 @@ func caseStatResultLegendColor(name string) string {
 	default:
 		return "black"
 	}
+}
+
+// trendChartData 趋势图前端数据（日/周一套），序列化后注入页面 JS
+type trendChartData struct {
+	Labels   []string `json:"labels"`
+	ExecCum  []int    `json:"exec_cum"`
+	PassCum  []int    `json:"pass_cum"`
+	FailCum  []int    `json:"fail_cum"`
+	OtherCum []int    `json:"other_cum"`
+	PassNew  []int    `json:"pass_new"`
+	FailNew  []int    `json:"fail_new"`
+	OtherNew []int    `json:"other_new"`
+}
+
+// trendChartDataFrom 将趋势点序列转为前端图表数据
+func trendChartDataFrom(points []biz.CaseStatTrendPoint) trendChartData {
+	d := trendChartData{
+		Labels:   make([]string, 0, len(points)),
+		ExecCum:  make([]int, 0, len(points)),
+		PassCum:  make([]int, 0, len(points)),
+		FailCum:  make([]int, 0, len(points)),
+		OtherCum: make([]int, 0, len(points)),
+		PassNew:  make([]int, 0, len(points)),
+		FailNew:  make([]int, 0, len(points)),
+		OtherNew: make([]int, 0, len(points)),
+	}
+	for _, p := range points {
+		d.Labels = append(d.Labels, p.Label)
+		d.ExecCum = append(d.ExecCum, p.ExecCum)
+		d.PassCum = append(d.PassCum, p.PassCum)
+		d.FailCum = append(d.FailCum, p.FailCum)
+		d.OtherCum = append(d.OtherCum, p.OtherCum)
+		d.PassNew = append(d.PassNew, p.PassNew)
+		d.FailNew = append(d.FailNew, p.FailNew)
+		d.OtherNew = append(d.OtherNew, p.OtherNew)
+	}
+	return d
+}
+
+// caseStatTrendBlock 测试时间趋势区块：单实例折线 + 柱状，日/周数据切换。
+// 不用隐藏容器预渲染两套图（会因 Chart.js responsive 导致高度跳变），只在切换时更新数据。
+// 无趋势数据（历史报告）时返回空，不渲染。
+func caseStatTrendBlock(csData biz.CaseStatisticsReportData) string {
+	if len(csData.TrendDaily) == 0 {
+		return ""
+	}
+	dailyJSON, _ := json.Marshal(trendChartDataFrom(csData.TrendDaily))
+	weeklyJSON, _ := json.Marshal(trendChartDataFrom(csData.TrendWeekly))
+
+	switchHTML := fmt.Sprintf(`<span style="display:inline-flex;border:1px solid #d2d6de;border-radius:4px;overflow:hidden">
+<button id="csTrendBtnDaily" onclick="switchCaseStatTrend('daily')" style="border:none;background:#3c8dbc;color:#fff;font-size:13px;padding:6px 14px;cursor:pointer">%s</button>
+<button id="csTrendBtnWeekly" onclick="switchCaseStatTrend('weekly')" style="border:none;background:#fff;color:#444;font-size:13px;padding:6px 14px;cursor:pointer;border-left:1px solid #d2d6de">%s</button>
+</span>`, biz.T("case_statistics.trend_daily"), biz.T("case_statistics.trend_weekly"))
+
+	body := fmt.Sprintf(`<div class="row">
+<div class="col-md-6">%s</div>
+<div class="col-md-6">%s</div>
+</div>
+<script>%s</script>`,
+		reportCard(biz.T("case_statistics.cumulative_progress"), "", `<div style="position:relative;height:320px"><canvas id="csTrendCum"></canvas></div>`),
+		reportCard(biz.T("case_statistics.daily_increment"), "", `<div style="position:relative;height:320px"><canvas id="csTrendInc"></canvas></div>`),
+		caseStatTrendScript(string(dailyJSON), string(weeklyJSON)))
+
+	return reportCard(biz.T("case_statistics.trend_title"), switchHTML, body)
+}
+
+// caseStatTrendScript 生成趋势图前端脚本：两套数据 + 两个单实例图表 + 切换函数（仅更新数据，不重排布局）。
+// maintainAspectRatio:false + 固定高度容器，保证日/周切换时高度恒定。
+func caseStatTrendScript(dailyJSON, weeklyJSON string) string {
+	execLabel, _ := json.Marshal(biz.T("case_statistics.trend_exec_cum"))
+	passCumLabel, _ := json.Marshal(biz.T("case_statistics.trend_pass_cum"))
+	failCumLabel, _ := json.Marshal(biz.T("case_statistics.trend_fail_cum"))
+	otherCumLabel, _ := json.Marshal(biz.T("case_statistics.trend_other_cum"))
+	passNewLabel, _ := json.Marshal(biz.T("case_statistics.trend_pass_new"))
+	failNewLabel, _ := json.Marshal(biz.T("case_statistics.trend_fail_new"))
+	otherNewLabel, _ := json.Marshal(biz.T("case_statistics.trend_other_new"))
+
+	return fmt.Sprintf(`
+var csTrendDaily = %s;
+var csTrendWeekly = %s;
+var csTrendCumChart = new Chart(document.getElementById('csTrendCum'), {
+  type: 'line',
+  data: {
+    labels: csTrendDaily.labels,
+    datasets: [
+      {label: %s, data: csTrendDaily.exec_cum, borderColor: '#3c8dbc', backgroundColor: '#3c8dbc', fill: false, lineTension: 0.1},
+      {label: %s, data: csTrendDaily.pass_cum, borderColor: '#00a65a', backgroundColor: '#00a65a', fill: false, lineTension: 0.1},
+      {label: %s, data: csTrendDaily.fail_cum, borderColor: '#dd4b39', backgroundColor: '#dd4b39', fill: false, lineTension: 0.1},
+      {label: %s, data: csTrendDaily.other_cum, borderColor: '#a0a0a0', backgroundColor: '#a0a0a0', fill: false, lineTension: 0.1}
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false, legend: { display: true, position: 'bottom' }, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+});
+var csTrendIncChart = new Chart(document.getElementById('csTrendInc'), {
+  type: 'bar',
+  data: {
+    labels: csTrendDaily.labels,
+    datasets: [
+      {label: %s, data: csTrendDaily.pass_new, backgroundColor: '#00a65a'},
+      {label: %s, data: csTrendDaily.fail_new, backgroundColor: '#dd4b39'},
+      {label: %s, data: csTrendDaily.other_new, backgroundColor: '#a0a0a0'}
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false, legend: { display: true, position: 'bottom' }, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+});
+function switchCaseStatTrend(g) {
+  var d = (g === 'daily') ? csTrendDaily : csTrendWeekly;
+  csTrendCumChart.data.labels = d.labels;
+  csTrendCumChart.data.datasets[0].data = d.exec_cum;
+  csTrendCumChart.data.datasets[1].data = d.pass_cum;
+  csTrendCumChart.data.datasets[2].data = d.fail_cum;
+  csTrendCumChart.data.datasets[3].data = d.other_cum;
+  csTrendCumChart.update();
+  csTrendIncChart.data.labels = d.labels;
+  csTrendIncChart.data.datasets[0].data = d.pass_new;
+  csTrendIncChart.data.datasets[1].data = d.fail_new;
+  csTrendIncChart.data.datasets[2].data = d.other_new;
+  csTrendIncChart.update();
+  var daily = (g === 'daily');
+  document.getElementById('csTrendBtnDaily').style.background = daily ? '#3c8dbc' : '#fff';
+  document.getElementById('csTrendBtnDaily').style.color = daily ? '#fff' : '#444';
+  document.getElementById('csTrendBtnWeekly').style.background = daily ? '#fff' : '#3c8dbc';
+  document.getElementById('csTrendBtnWeekly').style.color = daily ? '#444' : '#fff';
+}
+`, dailyJSON, weeklyJSON,
+		execLabel, passCumLabel, failCumLabel, otherCumLabel,
+		passNewLabel, failNewLabel, otherNewLabel)
 }

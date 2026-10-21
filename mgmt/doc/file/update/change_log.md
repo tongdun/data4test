@@ -1,3 +1,6 @@
+#### 2026年10月21日
+1、[Feature] 测试用例统计报告增加测试时间趋势图，支持按日和按周查看
+
 #### 2026年10月19日
 1、[Feature] 断言类型新增 output2env：从接口返回 ResponseBody 提取值写入产品专用参数(private_parameter)，存在则更新、不存在则追加，值保留原始 JSON 类型；支持 ResponseBody、ResponseHeader、File 三种提取源
 

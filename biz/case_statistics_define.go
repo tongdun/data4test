@@ -59,6 +59,20 @@ type CaseStatisticsReportData struct {
 	ExtInfoStats       []CaseStatExtInfoItem  `json:"ext_info_stats"`
 	FailCases          []CaseStatCaseDetail   `json:"fail_cases"`
 	UntestCases        []CaseStatCaseDetail   `json:"untest_cases"`
+	TrendDaily         []CaseStatTrendPoint   `json:"trend_daily"`
+	TrendWeekly        []CaseStatTrendPoint   `json:"trend_weekly"`
+}
+
+// CaseStatTrendPoint 测试时间趋势单点（日/周通用）
+type CaseStatTrendPoint struct {
+	Label    string `json:"label"`     // 日期或周（周一）的 "2006-01-02"
+	ExecCum  int    `json:"exec_cum"`  // 累计执行（= 通过+失败+其他）
+	PassCum  int    `json:"pass_cum"`  // 累计通过
+	FailCum  int    `json:"fail_cum"`  // 累计失败
+	OtherCum int    `json:"other_cum"` // 累计其他（废弃+暂未合入+部分）
+	PassNew  int    `json:"pass_new"`  // 该桶新增通过
+	FailNew  int    `json:"fail_new"`  // 该桶新增失败
+	OtherNew int    `json:"other_new"` // 该桶新增其他
 }
 
 // CaseStatOverview 报告概览

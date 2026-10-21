@@ -245,6 +245,7 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 	executorUntest := map[string]int{}
 	extCount := map[string]map[string]int{}
 	var failCases, untestCases []CaseStatCaseDetail
+	var matchedRows []caseStatRow
 	var totalCases int
 
 	seen := make(map[string]bool)
@@ -256,6 +257,7 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 		if !ok {
 			continue // 未关联到统计定义的模块不纳入统计
 		}
+		matchedRows = append(matchedRows, r)
 		key := p.Level1 + "\x00" + p.Level2 + "\x00" + module
 		if !seen[key] {
 			seen[key] = true
@@ -436,7 +438,103 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 
 	report.FailCases = failCases
 	report.UntestCases = untestCases
+	report.TrendDaily, report.TrendWeekly = buildCaseStatisticsTrend(matchedRows)
 	return report
+}
+
+// caseStatTrendClass 趋势归类：pass/fail/other；空或 untest（未执行）返回空串。
+func caseStatTrendClass(result string) string {
+	switch result {
+	case "pass":
+		return "pass"
+	case "fail":
+		return "fail"
+	case "part", "deprecated", "unmerged":
+		return "other"
+	}
+	return ""
+}
+
+// trendBucket 单个时间桶的新增计数
+type trendBucket struct {
+	pass, fail, other int
+}
+
+// buildCaseStatisticsTrend 构建测试时间趋势（按日/按周两套桶）。
+// 纯快照口径：每个用例只取最新 test_result + test_time；未执行（空或 untest）不参与。
+// 空 test_time 或无法解析的时间直接跳过。
+func buildCaseStatisticsTrend(rows []caseStatRow) (daily, weekly []CaseStatTrendPoint) {
+	dayMap := map[string]*trendBucket{}
+	weekMap := map[string]*trendBucket{}
+	for _, r := range rows {
+		cls := caseStatTrendClass(r.TestResult)
+		if cls == "" {
+			continue
+		}
+		t := strings.TrimSpace(r.TestTime)
+		if len(t) < len("2006-01-02") {
+			continue
+		}
+		tt, err := time.Parse(baseFormat, t)
+		if err != nil {
+			continue
+		}
+		day := t[:10]
+		week := tt.AddDate(0, 0, -((int(tt.Weekday())+6)%7)).Format("2006-01-02")
+
+		db := dayMap[day]
+		if db == nil {
+			db = &trendBucket{}
+			dayMap[day] = db
+		}
+		wb := weekMap[week]
+		if wb == nil {
+			wb = &trendBucket{}
+			weekMap[week] = wb
+		}
+		switch cls {
+		case "pass":
+			db.pass++
+			wb.pass++
+		case "fail":
+			db.fail++
+			wb.fail++
+		case "other":
+			db.other++
+			wb.other++
+		}
+	}
+	daily = trendCumulate(dayMap)
+	weekly = trendCumulate(weekMap)
+	return
+}
+
+// trendCumulate 将分桶计数按桶名（YYYY-MM-DD）升序做前缀累计
+func trendCumulate(m map[string]*trendBucket) []CaseStatTrendPoint {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var passCum, failCum, otherCum int
+	out := make([]CaseStatTrendPoint, 0, len(keys))
+	for _, k := range keys {
+		b := m[k]
+		passCum += b.pass
+		failCum += b.fail
+		otherCum += b.other
+		out = append(out, CaseStatTrendPoint{
+			Label:    k,
+			ExecCum:  passCum + failCum + otherCum,
+			PassCum:  passCum,
+			FailCum:  failCum,
+			OtherCum: otherCum,
+			PassNew:  b.pass,
+			FailNew:  b.fail,
+			OtherNew: b.other,
+		})
+	}
+	return out
 }
 
 // isUntestResult 判断结果是否属于未执行（非 pass/part/fail/deprecated/unmerged 均视为未执行）
