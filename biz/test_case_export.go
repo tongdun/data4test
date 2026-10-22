@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"gopkg.in/yaml.v2"
@@ -172,6 +173,70 @@ func columnName(n int) string {
 		n = n/26 - 1
 	}
 	return name
+}
+
+// 导出 Excel 行高估算参数（单位：磅）
+const (
+	exportLineHeight   = 15.0 // 单行文本行高
+	exportRowMinHeight = 20.0 // 行高下限
+	exportRowMaxHeight = 300.0 // 行高上限（防止单行内容过长撑爆）
+)
+
+// exportColumnWidth 按导出字段返回建议列宽（单位：字符宽）。
+// 长文本/多行字段给足宽度，避免内容被截断。
+func exportColumnWidth(field string) float64 {
+	if strings.HasPrefix(field, "ext_info.") {
+		return 14
+	}
+	switch field {
+	case "pre_condition", "test_steps", "expect_result", "test_range", "remark", "test_process":
+		return 50
+	case "case_name", "module", "product", "scene":
+		return 28
+	case "case_number", "case_type", "priority", "auto", "test_time", "fun_developer", "case_designer", "case_executor", "intro_version", "ext_info", "test_result":
+		return 14
+	default:
+		return 18
+	}
+}
+
+// runeDisplayWidth 估算单个字符显示宽度：中文/日文/韩文及全角符号按 2，其余按 1。
+func runeDisplayWidth(r rune) int {
+	if r < 128 {
+		return 1
+	}
+	if unicode.Is(unicode.Han, r) || unicode.Is(unicode.Hiragana, r) ||
+		unicode.Is(unicode.Katakana, r) || unicode.Is(unicode.Hangul, r) ||
+		(r >= 0x3000 && r <= 0x303F) || // CJK 标点
+		(r >= 0xFF00 && r <= 0xFF60) || // 全角 ASCII
+		(r >= 0xFFE0 && r <= 0xFFE6) { // 全角符号
+		return 2
+	}
+	return 1
+}
+
+// estimateCellLines 按列宽估算单元格折行数，用于计算行高。
+func estimateCellLines(text string, colWidth float64) int {
+	cw := int(colWidth)
+	if cw < 1 {
+		cw = 18
+	}
+	lines := 0
+	for _, line := range strings.Split(text, "\n") {
+		w := 0
+		for _, r := range line {
+			w += runeDisplayWidth(r)
+		}
+		n := (w + cw - 1) / cw
+		if n < 1 {
+			n = 1
+		}
+		lines += n
+	}
+	if lines < 1 {
+		lines = 1
+	}
+	return lines
 }
 
 // imgSrcRegexp 匹配 HTML 中 <img ... src="..."> 的 src 值
@@ -440,12 +505,20 @@ func groupTestCaseRowsByModule(rows []TestCaseExportRow) (order []string, module
 func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow, baseName, lang, screenshotMode, imageNameMode, excelType, host string) (xlsxPath string, images []exportImage, embedImgs []wpsEmbedImage, err error) {
 	xlsxFile := excelize.NewFile()
 	sheet := "Sheet1"
+
+	// 表头样式：蓝色背景 + 白色加粗 + 居中；数据单元格：自动换行 + 垂直居上
+	headerStyle, _ := xlsxFile.NewStyle(`{"fill":{"type":"pattern","color":["#4472C4"],"pattern":1},"font":{"bold":true,"color":"#FFFFFF"},"alignment":{"horizontal":"center","vertical":"center"}}`)
+	wrapStyle, _ := xlsxFile.NewStyle(`{"alignment":{"wrap_text":true,"vertical":"top"}}`)
+
 	for c, col := range template.Columns {
-		xlsxFile.SetCellValue(sheet, columnName(c)+"1", col.Title)
+		colLetter := columnName(c)
+		xlsxFile.SetCellValue(sheet, colLetter+"1", col.Title)
+		xlsxFile.SetColWidth(sheet, colLetter, colLetter, exportColumnWidth(col.Field))
+	}
+	if n := len(template.Columns); n > 0 {
+		xlsxFile.SetCellStyle(sheet, "A1", columnName(n-1)+"1", headerStyle)
 	}
 
-	// 打包图片模式：测试过程单元格写入含换行的图片名，需换行样式
-	wrapStyle := -1
 	for r, row := range rows {
 		rowNum := r + 2
 		// 模块目录（语种导出时翻译），用作图片归档条目名的目录段
@@ -457,16 +530,15 @@ func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow
 				}
 			}
 		}
+		maxLines := 1
 		for c, col := range template.Columns {
 			cell := columnName(c) + fmt.Sprintf("%d", rowNum)
 			text, imgs := resolveExportCellValue(row, col.Field, lang, screenshotMode, imageNameMode, excelType, host, xlsxFile, sheet, c, rowNum, &embedImgs)
 			if len(text) > 0 {
 				xlsxFile.SetCellValue(sheet, cell, text)
-				if strings.Contains(text, "\n") {
-					if wrapStyle < 0 {
-						wrapStyle, _ = xlsxFile.NewStyle(`{"alignment":{"wrap_text":true}}`)
-					}
-					xlsxFile.SetCellStyle(sheet, cell, cell, wrapStyle)
+				xlsxFile.SetCellStyle(sheet, cell, cell, wrapStyle)
+				if lines := estimateCellLines(text, exportColumnWidth(col.Field)); lines > maxLines {
+					maxLines = lines
 				}
 			}
 			for i := range imgs {
@@ -474,9 +546,18 @@ func buildTestCaseXlsx(template TestCaseExportTemplate, rows []TestCaseExportRow
 				images = append(images, imgs[i])
 			}
 		}
-		if screenshotMode == "embed" {
-			xlsxFile.SetRowHeight(sheet, rowNum, 80)
+		// 按折行数估算行高，保证多行内容完整显示
+		height := float64(maxLines) * exportLineHeight
+		if height < exportRowMinHeight {
+			height = exportRowMinHeight
 		}
+		if height > exportRowMaxHeight {
+			height = exportRowMaxHeight
+		}
+		if screenshotMode == "embed" && height < 80 {
+			height = 80
+		}
+		xlsxFile.SetRowHeight(sheet, rowNum, height)
 	}
 
 	xlsxPath = fmt.Sprintf("%s/%s.xlsx", CaseFilePath, baseName)
