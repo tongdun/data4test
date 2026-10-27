@@ -1,6 +1,6 @@
 module data4test
 
-go 1.23
+go 1.17
 
 require (
 	github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9
@@ -121,4 +121,4 @@ require (
 	xorm.io/xorm v1.0.2 // indirect
 )
 
-replace github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => github.com/JosingCai/filemanager v0.0.8
+replace github.com/GoAdminGroup/filemanager v0.0.7-0.20200920142100-04648eca30c9 => github.com/JosingCai/filemanager v0.0.9
