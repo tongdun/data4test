@@ -14,23 +14,53 @@ import (
 // SyncEntityI18n 按选中任务导出中文骨架：仅覆盖选中任务的任务名 + 关联场景 + 关联数据
 // 返回（任务数, 数据数, 场景数, error）；仅重写 zh-CN.yaml，保留 en-US.yaml 等其他语种文件
 func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err error) {
+	keys, err := collectEntityI18nKeys(idStr)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := writeEntityI18n(i18nTaskDir(), keys.taskSet); err != nil {
+		return 0, 0, 0, err
+	}
+	if err := writeEntityI18n(i18nPlaybookDir(), keys.playbookSet); err != nil {
+		return 0, 0, 0, err
+	}
+	if err := writeEntityI18n(i18nDataDir(), keys.dataSet); err != nil {
+		return 0, 0, 0, err
+	}
+
+	ReloadEntityI18n()
+	return keys.taskCount, keys.dataCount, keys.playbookCount, nil
+}
+
+// entityI18nKeys 任务链路（task → playbook → data）上用到的语料 key 集合（中文原文）及命中记录数。
+type entityI18nKeys struct {
+	taskSet       map[string]string
+	playbookSet   map[string]string
+	dataSet       map[string]string
+	taskCount     int
+	dataCount     int
+	playbookCount int
+}
+
+// collectEntityI18nKeys 收集选中任务链路（task → playbook → data）上的语料 key 集合。
+// playbook.last_file 必然落在 data_file_list 中，故无需单独计算。
+// 供 SyncEntityI18n（写中文骨架）与离线导出（按需过滤语料）共用。
+func collectEntityI18nKeys(idStr string) (keys entityI18nKeys, err error) {
 	ids := parseIds(idStr)
 	if len(ids) == 0 {
-		return 0, 0, 0, E("common.btn_select_first")
+		return keys, E("common.btn_select_first")
 	}
 
 	var schedules []Schedule
 	models.Orm.Table("schedule").Where("id IN (?)", ids).Find(&schedules)
 	if len(schedules) == 0 {
-		return 0, 0, 0, E("error.task_info_not_found", idStr)
+		return keys, E("error.task_info_not_found", idStr)
 	}
 
-	taskSet := make(map[string]string)
-	playbookSet := make(map[string]string)
-	dataSet := make(map[string]string)
-	var sceneNames, fileNames []string
-	var playbooks []DbScene
-	var datas []DbSceneData
+	keys.taskSet = make(map[string]string)
+	keys.playbookSet = make(map[string]string)
+	keys.dataSet = make(map[string]string)
 
 	add := func(set map[string]string, s string) {
 		s = strings.TrimSpace(s)
@@ -40,15 +70,19 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 		set[s] = s
 	}
 
+	var sceneNames, fileNames []string
+	var playbooks []DbScene
+	var datas []DbSceneData
+
 	for _, s := range schedules {
-		add(taskSet, s.TaskName)
-		add(taskSet, s.Remark)
+		add(keys.taskSet, s.TaskName)
+		add(keys.taskSet, s.Remark)
 		for _, name := range splitNames(s.SceneList) {
-			add(playbookSet, name)
+			add(keys.playbookSet, name)
 			sceneNames = append(sceneNames, name)
 		}
 		for _, name := range splitNames(s.DataList) {
-			add(dataSet, name)
+			add(keys.dataSet, name)
 			fileNames = append(fileNames, name)
 		}
 	}
@@ -57,15 +91,11 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 	if len(sceneNames) > 0 {
 		models.Orm.Table("playbook").Where("name IN (?)", sceneNames).Find(&playbooks)
 		for _, p := range playbooks {
-			add(playbookSet, p.Name)
-			add(playbookSet, p.Remark)
+			add(keys.playbookSet, p.Name)
+			add(keys.playbookSet, p.Remark)
 			for _, name := range splitNames(p.DataFileList) {
-				add(dataSet, name)
+				add(keys.dataSet, name)
 				fileNames = append(fileNames, name)
-			}
-			if strings.TrimSpace(p.LastFile) != "" {
-				add(dataSet, p.LastFile)
-				fileNames = append(fileNames, p.LastFile)
 			}
 		}
 	}
@@ -73,24 +103,16 @@ func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err 
 	if len(fileNames) > 0 {
 		models.Orm.Table("scene_data").Where("file_name IN (?)", fileNames).Find(&datas)
 		for _, d := range datas {
-			add(dataSet, d.FileName)
-			add(dataSet, d.Name)
-			add(dataSet, d.Remark)
+			add(keys.dataSet, d.FileName)
+			add(keys.dataSet, d.Name)
+			add(keys.dataSet, d.Remark)
 		}
 	}
 
-	if err := writeEntityI18n(i18nTaskDir(), taskSet); err != nil {
-		return 0, 0, 0, err
-	}
-	if err := writeEntityI18n(i18nPlaybookDir(), playbookSet); err != nil {
-		return 0, 0, 0, err
-	}
-	if err := writeEntityI18n(i18nDataDir(), dataSet); err != nil {
-		return 0, 0, 0, err
-	}
-
-	ReloadEntityI18n()
-	return len(schedules), len(datas), len(playbooks), nil
+	keys.taskCount = len(schedules)
+	keys.dataCount = len(datas)
+	keys.playbookCount = len(playbooks)
+	return keys, nil
 }
 
 func parseIds(idStr string) []int {

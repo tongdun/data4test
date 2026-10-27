@@ -12,6 +12,7 @@ import (
 	"github.com/robfig/cron/v3"
 	uuid "github.com/satori/go.uuid"
 	"gopkg.in/yaml.v2"
+	yamlv3 "gopkg.in/yaml.v3"
 	"io"
 	"io/ioutil"
 	"os"
@@ -561,6 +562,12 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
+	// CLI 数据包只导出数据真正用到的 App（scene_data.app），先保留纯数据 App 集合
+	dataAppMap := make(map[string]bool)
+	for k, _ := range appMap {
+		dataAppMap[k] = true
+	}
+
 	for k, _ := range appMapFromProduct {
 		if _, ok := appMap[k]; !ok {
 			appMap[k] = true
@@ -591,7 +598,7 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 
 	exportDataFilePackageName := fmt.Sprintf("%s_%s.tgz", T("file.data_file_package_prefix"), curTime)
 	exportDataFileAsPackagePath := fmt.Sprintf("%s/%s", DownloadBasePath, exportDataFilePackageName)
-	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, id, dataMap, playbookMap) // 导出数据文件包
+	isExist, err = ExportDataFilePackage(exportDataFileAsPackagePath, id, productName, dataMap, playbookMap, assertMap, sysParameterMap, dataAppMap, fileNameImportMap) // 导出数据文件包（App 仅取数据用到的）
 	if isExist {
 		fileName = fmt.Sprintf("%s,%s", fileName, exportDataFilePackageName)
 	}
@@ -805,6 +812,14 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 	return
 }
 
+// builtinSysParams 引擎按固定名读取的保留系统参数（非数据文件 {name} 占位符），
+// 导出任务包/SQL 时无条件并入，保证离线执行环境完整：
+//   fileName          multipart/form-data 文件字段名列表（run_http.go IsValueInSysParameter）
+//   scriptRunEngine   脚本执行引擎映射（data_run.go GetValueFromMapDef）
+//   Sex / Bool / YorN mock 取值生成器（mock_server.go）
+//   MockTemplateFile  mock 模板文件列表（GetDataSQL 亦按 /mock/file/ 条件收集其文件名）
+var builtinSysParams = []string{"fileName", "scriptRunEngine", "Sex", "Bool", "YorN", "MockTemplateFile"}
+
 func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap, appMap, fileNameImportMap map[string]bool, err error) {
 	dataSQLDesc := T("sql.data_info")
 	var dataNameList []string
@@ -843,6 +858,11 @@ func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, 
 	assertMap = make(map[string]bool)
 	sysParameterMap = make(map[string]bool)
 	fileNameImportMap = make(map[string]bool)
+
+	// 引擎按固定名读取的保留系统参数，无条件并入导出（不在数据文件中以 {name} 形式出现，扫描不到）。
+	for _, name := range builtinSysParams {
+		sysParameterMap[name] = true
+	}
 
 	var isGetMockFile bool
 	for index, item := range dataList {
@@ -1344,7 +1364,7 @@ func GetPlaybookLinkByPlaybookStr(pStr, lang string) (linkStr string) {
 	return
 }
 
-func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookNameMap map[string]bool) (isExist bool, err error) {
+func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportMap, playbookNameMap, assertMap, sysParameterMap, appMap, uploadFileMap map[string]bool) (isExist bool, err error) {
 	var dataNameList []string
 	for k, _ := range fileNameImportMap {
 		dataNameList = append(dataNameList, k)
@@ -1437,6 +1457,83 @@ func ExportDataFilePackage(filePath, taskId string, fileNameImportMap, playbookN
 	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 	_ = WriteTarFile(tw, taskFilePath)
 
+	// 导出 CLI 元信息文件：env_config.yaml / upload/*（离线执行包模板）
+	// 环境类信息（product / app / sys_parameter / assert_template / mock）全部集中到 env_config.yaml。
+	if len(productName) > 0 {
+		if cliCfgBytes, e := buildCliConfigYaml(productName, appMap, sysParameterMap, assertMap); e == nil {
+			cliCfgPath := fmt.Sprintf("%s/env_config.yaml", exportDataFileDir)
+			_ = ioutil.WriteFile(cliCfgPath, cliCfgBytes, 0644)
+			_ = WriteTarFile(tw, cliCfgPath)
+		} else {
+			Logger.Warning("%s", e)
+		}
+	}
+
+	for item := range uploadFileMap {
+		srcFilePath := fmt.Sprintf("%s/%s", UploadBasePath, item)
+		if _, e := os.Stat(srcFilePath); e != nil {
+			srcFilePath = fmt.Sprintf("%s/%s", DownloadBasePath, item)
+			if _, e := os.Stat(srcFilePath); e != nil {
+				Logger.Warning(T("sql.file_not_found"), item)
+				continue
+			}
+		}
+		prefix := "upload/"
+		if idx := strings.LastIndex(item, "/"); idx >= 0 {
+			prefix = "upload/" + item[:idx+1]
+		}
+		_ = WriteTarFileWithPrefix(tw, srcFilePath, prefix)
+	}
+
+	// 打包实体多语言语料（i18n_task / i18n_playbook / i18n_data），供离线 CLI 英文模式翻译业务名称。
+	// 语料源为 mgmt/i18n/<子目录>/*.yaml，tar 内统一放 i18n/<子目录>/ 前缀；解包后由 CLI 挪到 mgmt/i18n 下。
+	// 按本次任务链路（task → playbook → data）用到的中文 key 过滤，用多少导出多少。
+	keys, keyErr := collectEntityI18nKeys(taskId)
+	for _, cd := range []struct {
+		name, dir string
+		set       map[string]string
+	}{
+		{"i18n_task", i18nTaskDir(), keys.taskSet},
+		{"i18n_playbook", i18nPlaybookDir(), keys.playbookSet},
+		{"i18n_data", i18nDataDir(), keys.dataSet},
+	} {
+		files, e := ioutil.ReadDir(cd.dir)
+		if e != nil {
+			continue // 语料目录不存在则跳过，保持向后兼容
+		}
+		for _, f := range files {
+			if f.IsDir() || (!strings.HasSuffix(f.Name(), ".yaml") && !strings.HasSuffix(f.Name(), ".yml")) {
+				continue
+			}
+			// key 集合不可用 / 读取或解析失败时，回退为整文件导出，保持向后兼容
+			if keyErr != nil || cd.set == nil {
+				_ = WriteTarFileWithPrefix(tw, filepath.Join(cd.dir, f.Name()), "i18n/"+cd.name+"/")
+				continue
+			}
+			raw, re := ioutil.ReadFile(filepath.Join(cd.dir, f.Name()))
+			if re != nil {
+				_ = WriteTarFileWithPrefix(tw, filepath.Join(cd.dir, f.Name()), "i18n/"+cd.name+"/")
+				continue
+			}
+			var m map[string]string
+			if yaml.Unmarshal(raw, &m) != nil {
+				_ = WriteTarFileWithPrefix(tw, filepath.Join(cd.dir, f.Name()), "i18n/"+cd.name+"/")
+				continue
+			}
+			filtered := make(map[string]string)
+			for k, v := range m {
+				if _, ok := cd.set[k]; ok {
+					filtered[k] = v
+				}
+			}
+			out, me := yaml.Marshal(filtered)
+			if me != nil {
+				continue
+			}
+			_ = WriteTarBytesWithPrefix(tw, f.Name(), "i18n/"+cd.name+"/", out)
+		}
+	}
+
 	fileName := "playbook_info.yaml"
 	playbookFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, fileName)
 	var playbookList []Scene
@@ -1515,6 +1612,153 @@ func WriteTarFile(tw *tar.Writer, filePath string) (err error) {
 	}
 
 	return
+}
+
+// WriteTarFileWithPrefix 将 filePath 写入 tar，头名称带目录前缀（如 upload/subdir/name）。
+func WriteTarFileWithPrefix(tw *tar.Writer, filePath, prefix string) (err error) {
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		Logger.Warning("filePath: %v", filePath)
+		Logger.Error("%s", err)
+		return
+	}
+
+	fr, err := os.Open(filePath)
+	if err != nil {
+		Logger.Warning("filePath: %v", filePath)
+		Logger.Error("%s", err)
+		return
+	}
+	defer fr.Close()
+
+	h := new(tar.Header)
+	h.Name = prefix + fi.Name()
+	h.Size = fi.Size()
+	h.Mode = int64(fi.Mode())
+	h.ModTime = fi.ModTime()
+
+	// 写信息头
+	err = tw.WriteHeader(h)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	// 写文件
+	_, err = io.Copy(tw, fr)
+	if err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+
+	return
+}
+
+// WriteTarBytesWithPrefix 将内存内容 data 写入 tar，头名称带目录前缀（如 i18n/i18n_task/zh-CN.yaml）。
+func WriteTarBytesWithPrefix(tw *tar.Writer, name, prefix string, data []byte) (err error) {
+	h := new(tar.Header)
+	h.Name = prefix + name
+	h.Size = int64(len(data))
+	h.Mode = 0644
+	h.ModTime = time.Now()
+
+	if err = tw.WriteHeader(h); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
+	_, err = tw.Write(data)
+	return
+}
+
+// buildCliConfigYaml 生成 env_config.yaml：product.name 原样导出，ip/auth 原样导出，
+// 其余字段（protocol/apps/threading/private_* 等）保留真实值作为模板。
+// 环境类信息（sys_parameter / assert_template）一并写入 env_config.yaml。
+func buildCliConfigYaml(productName string, appMap, sysParameterMap, assertMap map[string]bool) ([]byte, error) {
+	var dbProduct DbProduct
+	models.Orm.Table("product").Where("product = ?", productName).Limit(1).Find(&dbProduct)
+	if len(dbProduct.Name) == 0 {
+		return nil, fmt.Errorf(T("error.product_not_found"), productName)
+	}
+
+	product := CliProduct{
+		Name:             dbProduct.Name,
+		Protocol:         dbProduct.Protocol,
+		Ip:               dbProduct.Ip,
+		Auth:             CliJSONField(dbProduct.Auth),
+		EnvType:          dbProduct.EnvType,
+		Threading:        dbProduct.Threading,
+		ThreadNumber:     dbProduct.ThreadNumber,
+		Apps:             dbProduct.Apps,
+		Testmode:         dbProduct.Testmode,
+		PrivateAppPrefix: CliJSONField(dbProduct.PrivateAppPrefix),
+		PrivateParameter: CliJSONField(dbProduct.PrivateParameter),
+		Remark:           dbProduct.Remark,
+	}
+
+	apps := make(map[string]CliApp)
+	for appName := range appMap {
+		if len(appName) == 0 {
+			continue
+		}
+		var e EnvConfig
+		models.Orm.Table("env_config").Where("app = ?", appName).Limit(1).Find(&e)
+		if len(e.App) == 0 {
+			continue
+		}
+		apps[appName] = CliApp{
+			Protocol:  e.Protocol,
+			Ip:        e.Ip,
+			Prepath:   e.Prepath,
+			Auth:      CliJSONField(e.Auth),
+			Threading: e.Threading,
+			Testmode:  e.Testmode,
+			Swagger:   e.SwaggerPath,
+			Remark:    e.Remark,
+		}
+	}
+
+	cfg := CliConfig{
+		Product:         product,
+		App:             apps,
+		SysParameter:    buildSysParameterMap(sysParameterMap),
+		AssertTemplates: buildAssertTemplateMap(assertMap),
+		Mock:            CliMock{Port: 9066},
+	}
+	return yamlv3.Marshal(cfg)
+}
+
+// buildSysParameterMap 根据引用的系统参数名集合，从 sys_parameter 表取回 name → value_list 映射。
+func buildSysParameterMap(sysParameterMap map[string]bool) map[string]CliJSONField {
+	out := make(map[string]CliJSONField)
+	for name := range sysParameterMap {
+		if len(name) == 0 {
+			continue
+		}
+		var sp SysParameter
+		models.Orm.Table("sys_parameter").Where("name = ?", name).Limit(1).Find(&sp)
+		if len(sp.Name) == 0 {
+			continue
+		}
+		out[name] = CliJSONField(sp.ValueList)
+	}
+	return out
+}
+
+// buildAssertTemplateMap 根据引用的断言模板名集合，从 assert_template 表取回 name → value 映射。
+func buildAssertTemplateMap(assertMap map[string]bool) map[string]CliJSONField {
+	out := make(map[string]CliJSONField)
+	for name := range assertMap {
+		if len(name) == 0 {
+			continue
+		}
+		var av AssertValueDefine
+		models.Orm.Table("assert_template").Where("name = ?", name).Limit(1).Find(&av)
+		if len(av.Name) == 0 {
+			continue
+		}
+		out[name] = CliJSONField(av.Value)
+	}
+	return out
 }
 
 func GetTaskName(id string) (taskName, productName string, err error) {
@@ -1633,12 +1877,18 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 		}
 	}
 
-	// 4. 扫描包内所有数据文件（排除 task_info.yaml 和 playbook_info.yaml 两个元信息文件）
+	// 4. 扫描包内所有数据文件（排除 task_info.yaml / playbook_info.yaml 元信息文件，及 CLI 元信息文件 env_config.yaml / upload/ 目录）
 	var dataFiles []string
 	collectDataFiles(tmpDir, &dataFiles)
 	for _, filePath := range dataFiles {
 		baseName := filepath.Base(filePath)
-		if baseName == "task_info.yaml" || baseName == "playbook_info.yaml" {
+		if baseName == "task_info.yaml" || baseName == "playbook_info.yaml" ||
+			baseName == "env_config.yaml" {
+			continue
+		}
+		relPath, relErr := filepath.Rel(tmpDir, filePath)
+		if relErr == nil && (relPath == "upload" || strings.HasPrefix(relPath, "upload"+string(os.PathSeparator)) ||
+			relPath == "i18n" || strings.HasPrefix(relPath, "i18n"+string(os.PathSeparator))) {
 			continue
 		}
 		content, readErr := ioutil.ReadFile(filePath)
@@ -2225,6 +2475,10 @@ func extractZip(data []byte, destDir string) error {
 			Logger.Warning("skip suspicious path: %s", fileName)
 			continue
 		}
+		// 跳过 macOS 元数据文件（.DS_Store、AppleDouble ._* 等），它们不是包内容。
+		if strings.HasPrefix(filepath.Base(fileName), ".") {
+			continue
+		}
 
 		targetPath := fmt.Sprintf("%s/%s", destDir, fileName)
 		targetDir := targetPath[:strings.LastIndex(targetPath, "/")]
@@ -2286,6 +2540,10 @@ func extractTarReader(r io.Reader, destDir string) error {
 		fileName := hdr.Name
 		if strings.Contains(fileName, "..") {
 			Logger.Warning("skip suspicious path: %s", fileName)
+			continue
+		}
+		// 跳过 macOS 元数据文件（.DS_Store、AppleDouble ._* 等），它们不是包内容。
+		if strings.HasPrefix(filepath.Base(fileName), ".") {
 			continue
 		}
 

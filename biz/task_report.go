@@ -265,7 +265,7 @@ func queryExecutionTrend(scheduleId, excludeHistoryId string) (items []TrendItem
 	var histories []historyResult
 	models.Orm.Table("dashboard").
 		Select("id, report_data, created_at").
-		Where("related_task_ids like CONCAT(?, '\\_%') and id <> ? and status = ?", scheduleId, excludeHistoryId, "finished").
+		Where("related_task_ids like ? ESCAPE '!' and id <> ? and status = ?", scheduleId+"!_%", excludeHistoryId, "finished").
 		Order("created_at desc").
 		Limit(7).
 		Find(&histories)
@@ -490,7 +490,7 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 		// 优先从 dashboard 表查（单任务执行报告），查不到则回退到历史表直接查 task_id
 		var history DashboardReport
 		models.Orm.Table("dashboard").
-			Where("related_task_ids like CONCAT(?, '\\_%') and related_products like ? and status = ?", t.Id, "%"+product+"%", "finished").
+			Where("related_task_ids like ? ESCAPE '!' and related_products like ? and status = ?", t.Id+"!_%", "%"+product+"%", "finished").
 			Order("created_at desc").
 			Limit(1).
 			Find(&history)
@@ -502,14 +502,14 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 			// 回退：直接从执行历史表查找最新 task_id（格式: scheduleId_timestamp）
 			models.Orm.Table("scene_test_history").
 				Select("task_id").
-				Where("task_id like CONCAT(?, '\\_%') and product = ?", t.Id, product).
+				Where("task_id like ? ESCAPE '!' and product = ?", t.Id+"!_%", product).
 				Order("created_at desc").
 				Limit(1).
 				Row().Scan(&curTaskId)
 			if len(curTaskId) == 0 {
 				models.Orm.Table("scene_data_test_history").
 					Select("task_id").
-					Where("task_id like CONCAT(?, '\\_%') and product = ?", t.Id, product).
+					Where("task_id like ? ESCAPE '!' and product = ?", t.Id+"!_%", product).
 					Order("created_at desc").
 					Limit(1).
 					Row().Scan(&curTaskId)
@@ -961,17 +961,26 @@ func queryFailItemsForTask(taskId, product string) (items []FailItem) {
 		Find(&dfList)
 	for _, df := range dfList {
 		items = append(items, FailItem{
-			Name:   df.Name,
-			Type:   "data",
-			APIId:  df.ApiId,
-			Reason: df.FailReason,
+			Name:    df.Name,
+			Type:    "data",
+			APIId:   df.ApiId,
+			Reason:  df.FailReason,
 		})
 	}
 	return
 }
 
+// apiMethodFromId 从 api_id（格式 {method}_{path}）解析 HTTP 方法，无法识别时返回空串。
+func apiMethodFromId(apiId string) string {
+	idx := strings.Index(apiId, "_")
+	if idx <= 0 {
+		return ""
+	}
+	return apiId[:idx]
+}
+
 // queryAPITypeDistributionForTask 按taskId和product查询API类型分布
-// 与单任务 queryAPITypeDistribution 逻辑一致，查 api_definition 表获取真实 http_method
+// 与单任务 queryAPITypeDistribution 逻辑一致，从 api_id 解析 http_method，不依赖 api_definition 表。
 func queryAPITypeDistributionForTask(taskId, product string) (items []CountItem) {
 	if len(taskId) == 0 {
 		return
@@ -986,25 +995,16 @@ func queryAPITypeDistributionForTask(taskId, product string) (items []CountItem)
 		return
 	}
 
-	var httpMethods []string
-	models.Orm.Table("api_definition").
-		Group("http_method").
-		Where("api_id in (?)", apiList).
-		Pluck("http_method", &httpMethods)
-
-	for _, method := range httpMethods {
-		var cntResult struct {
-			Cnt int64
+	methodCount := make(map[string]int)
+	for _, apiId := range apiList {
+		method := apiMethodFromId(apiId)
+		if len(method) == 0 {
+			method = "其他"
 		}
-		models.Orm.Raw(
-			"SELECT COUNT(DISTINCT api_id) as cnt FROM api_definition WHERE http_method = ? AND api_id IN (?)",
-			method, apiList).Scan(&cntResult)
-		methodName := method
-		cnt := cntResult.Cnt
-		if len(methodName) == 0 {
-			methodName = "其他"
-		}
-		items = append(items, CountItem{Name: methodName, Count: int(cnt)})
+		methodCount[method]++
+	}
+	for method, count := range methodCount {
+		items = append(items, CountItem{Name: method, Count: count})
 	}
 
 	if len(items) == 0 {
@@ -1023,39 +1023,31 @@ func queryAPITypeDistribution(taskId string) (items []CountItem) {
 	if len(taskId) == 0 {
 		return
 	}
-	type apiMethodResult struct {
-		Method string
-		Count  int
-	}
-	var results []apiMethodResult
 
-	var apiList, httpMethods []string
-	models.Orm.Table("scene_data_test_history").Group("api_id").Where("task_id = ?", taskId).Pluck("api_id", &apiList)
-	models.Orm.Table("api_definition").Group("http_method").Where("api_id in (?)", apiList).Pluck("http_method", &httpMethods)
-	for _, method := range httpMethods {
-		var methodCount apiMethodResult
-		methodCount.Method = method
-		models.Orm.Raw(
-			"SELECT COUNT(DISTINCT api_id) as count FROM api_definition WHERE http_method = ? AND api_id IN (?)",
-			method, apiList).Scan(&methodCount)
-		results = append(results, methodCount)
+	var apiList []string
+	models.Orm.Table("scene_data_test_history").
+		Group("api_id").
+		Where("task_id = ? and api_id IS NOT NULL and api_id <> ''", taskId).
+		Pluck("api_id", &apiList)
+
+	methodCount := make(map[string]int)
+	for _, apiId := range apiList {
+		method := apiMethodFromId(apiId)
+		if len(method) == 0 {
+			method = "其他"
+		}
+		methodCount[method]++
+	}
+	for method, count := range methodCount {
+		items = append(items, CountItem{Name: method, Count: count})
 	}
 
-	if len(results) == 0 {
+	if len(items) == 0 {
 		var total int64
 		models.Orm.Table("scene_data_test_history").Where("task_id = ?", taskId).Count(&total)
 		if total > 0 {
 			items = append(items, CountItem{Name: "全部", Count: int(total)})
 		}
-		return
-	}
-
-	for _, r := range results {
-		method := r.Method
-		if len(method) == 0 {
-			method = "其他"
-		}
-		items = append(items, CountItem{Name: method, Count: r.Count})
 	}
 	return
 }
@@ -1268,38 +1260,33 @@ func BuildTaskCoverageReportData(scheduleId string) (TaskReportData, error) {
 		}
 	}
 
-		// 按场景顺序 + 场景内数据文件顺序排序
-		sort.SliceStable(dataDetails, func(i, j int) bool {
-			oi := dataOrderMap[dataDetails[i].Name]
-			oj := dataOrderMap[dataDetails[j].Name]
-			if oi != oj {
-				return oi < oj
-			}
-			return dataDetails[i].SceneName < dataDetails[j].SceneName
-		})
+	// 按场景顺序 + 场景内数据文件顺序排序
+	sort.SliceStable(dataDetails, func(i, j int) bool {
+		oi := dataOrderMap[dataDetails[i].Name]
+		oj := dataOrderMap[dataDetails[j].Name]
+		if oi != oj {
+			return oi < oj
+		}
+		return dataDetails[i].SceneName < dataDetails[j].SceneName
+	})
 
-	// API 类型分布：照 api_definition 按 http_method 聚合
+	// API 类型分布：从 api_id 解析 http_method 计数，不依赖 api_definition 表
 	var apiDistItems []CountItem
 	apiIds := make([]string, 0, len(apis))
 	for _, a := range apis {
 		apiIds = append(apiIds, a.Name)
 	}
 	if len(apiIds) > 0 {
-		var httpMethods []string
-		models.Orm.Table("api_definition").
-			Where("api_id IN (?)", apiIds).
-			Group("http_method").
-			Pluck("http_method", &httpMethods)
-		for _, method := range httpMethods {
-			var cnt struct{ Cnt int64 }
-			models.Orm.Raw(
-				"SELECT COUNT(DISTINCT api_id) as cnt FROM api_definition WHERE http_method = ? AND api_id IN (?)",
-				method, apiIds).Scan(&cnt)
-			methodName := method
-			if len(methodName) == 0 {
-				methodName = "其他"
+		methodCount := make(map[string]int)
+		for _, apiId := range apiIds {
+			method := apiMethodFromId(apiId)
+			if len(method) == 0 {
+				method = "其他"
 			}
-			apiDistItems = append(apiDistItems, CountItem{Name: methodName, Count: int(cnt.Cnt)})
+			methodCount[method]++
+		}
+		for method, count := range methodCount {
+			apiDistItems = append(apiDistItems, CountItem{Name: method, Count: count})
 		}
 	}
 
