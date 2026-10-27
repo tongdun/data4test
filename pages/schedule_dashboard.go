@@ -61,7 +61,7 @@ func GetScheduleReportContent(ctx *gin.Context) (types.Panel, error) {
 	var report biz.DashboardReport
 	if len(taskId) > 0 {
 		models.Orm.Table("dashboard").
-			Where("report_type = ? and status = ? and related_task_ids like CONCAT(?, '\\_%')", "task", "finished", taskId).
+			Where("report_type = ? and status = ? and related_task_ids like ? ESCAPE '!'", "task", "finished", taskId+"!_%").
 			Order("created_at desc").
 			Limit(1).
 			Find(&report)
@@ -114,7 +114,7 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string, dataLocale 
 		var latestReport biz.DashboardReport
 		models.Orm.Table("dashboard").
 			Select("related_task_ids").
-			Where("report_type = ? and status = ? and related_task_ids like CONCAT(?, '\\_%')", "task", "finished", scheduleId).
+			Where("report_type = ? and status = ? and related_task_ids like ? ESCAPE '!'", "task", "finished", scheduleId+"!_%").
 			Order("created_at desc").
 			Limit(1).
 			Find(&latestReport)
@@ -263,7 +263,11 @@ func buildTaskSceneResultPie(data biz.TaskReportData, taskId string) template.HT
 
 	extra := ""
 	if len(taskId) > 0 {
-		extra = fmt.Sprintf(`<a href="/admin/info/scene_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		if offlineReportExport {
+			extra = fmt.Sprintf(`<a href="%s" style="font-size:12px">%s &raquo;</a>`, offlineViewDetailHref("/admin/info/scene_test_history", taskId), biz.T("schedule_report.view_detail"))
+		} else {
+			extra = fmt.Sprintf(`<a href="/admin/info/scene_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		}
 	}
 	return template.HTML(reportPie("scenePie", title, extra, labels, counts, colors, legendItems))
 }
@@ -287,7 +291,11 @@ func buildTaskDataResultPie(data biz.TaskReportData, taskId string) template.HTM
 
 	extra := ""
 	if len(taskId) > 0 {
-		extra = fmt.Sprintf(`<a href="/admin/info/scene_data_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		if offlineReportExport {
+			extra = fmt.Sprintf(`<a href="%s" style="font-size:12px">%s &raquo;</a>`, offlineViewDetailHref("/admin/info/scene_data_test_history", taskId), biz.T("schedule_report.view_detail"))
+		} else {
+			extra = fmt.Sprintf(`<a href="/admin/info/scene_data_test_history?task_id=%s" target="_blank" style="font-size:12px">%s &raquo;</a>`, taskId, biz.T("schedule_report.view_detail"))
+		}
 	}
 	return template.HTML(reportPie("dataPie", title, extra, labels, counts, colors, legendItems))
 }
@@ -339,11 +347,11 @@ func buildTaskSceneGroupTable(data biz.TaskReportData, dataLocale string) templa
 	}
 
 	headers := []string{
-		biz.T("schedule_report.scene_data_col"),       // 场景 / 数据
-		biz.T("schedule_report.api_id_col"),           // API_ID
-		biz.T("schedule_report.test_result"),          // 执行结果
-		biz.T("schedule_report.related_data_count"),   // 关联数据
-		biz.T("common.fail_reason"),                   // 失败原因
+		biz.T("schedule_report.scene_data_col"),     // 场景 / 数据
+		biz.T("schedule_report.api_id_col"),         // API_ID
+		biz.T("schedule_report.test_result"),        // 执行结果
+		biz.T("schedule_report.related_data_count"), // 关联数据
+		biz.T("common.fail_reason"),                 // 失败原因
 	}
 
 	expandAll := fmt.Sprintf(`<span class="sc-btn" onclick="setAllScenes(true)">%s</span><span class="sc-btn" onclick="setAllScenes(false)">%s</span>`,
@@ -440,6 +448,12 @@ func countDataResult(children []biz.DataDetail) (pass, fail int) {
 		}
 	}
 	return
+}
+
+// offlineViewDetailHref 返回离线报告「查看详情」指向的本地服务 URL（listPath 如 /admin/info/scene_data_test_history）。
+// 附带 lang 参数，使跳转后的列表页按报告当前语种渲染（与 Web 每请求携带语种一致）。
+func offlineViewDetailHref(listPath, taskId string) string {
+	return fmt.Sprintf("%s%s?task_id=%s&lang=%s", biz.CliViewBaseURL(), listPath, taskId, biz.GetLocale())
 }
 
 // ==================== 失败明细表 ====================
@@ -820,10 +834,10 @@ func buildMultiTaskSceneGroupTable(data biz.MultiTaskReportData, dataLocale stri
 
 	headers := []string{
 		biz.T("common.task_name") + " / " + biz.T("schedule_report.scene_data_col"), // 任务 / 场景 / 数据
-		biz.T("schedule_report.api_id_col"),          // API_ID
-		biz.T("schedule_report.test_result"),         // 执行结果
-		biz.T("schedule_report.related_data_count"),  // 关联数据
-		biz.T("common.fail_reason"),                  // 失败原因
+		biz.T("schedule_report.api_id_col"),                                         // API_ID
+		biz.T("schedule_report.test_result"),                                        // 执行结果
+		biz.T("schedule_report.related_data_count"),                                 // 关联数据
+		biz.T("common.fail_reason"),                                                 // 失败原因
 	}
 
 	expandAll := fmt.Sprintf(`<span class="sc-btn" onclick="setAllScenes(true)">%s</span><span class="sc-btn" onclick="setAllScenes(false)">%s</span>`,

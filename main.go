@@ -2,10 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/mritd/chinaid"
 	"runtime/debug"
 	"strconv"
-	"time"
 
 	//"encoding/json"
 	"errors"
@@ -81,6 +79,15 @@ func init() {
 }
 
 func main() {
+	// 离线 CLI 分支：run/report/help 子命令不进 Web、不连 MySQL、不启动 GoAdmin
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "run", "report", "help", "-h", "--help":
+			biz.ExportReportHTMLFunc = pages.ExportReportHTML
+			os.Exit(biz.RunCLI(os.Args[1:]))
+		}
+	}
+
 	flag.Parse()
 	defer func() {
 		err := recover()
@@ -871,107 +878,7 @@ func startServer() {
 	})
 
 	// Mock数据
-	r.GET("/mock/file/:name", func(c *gin.Context) {
-		fileName := c.Param("name")
-		lang := c.Query("lang")
-		data := biz.GetFileContent(lang, fileName)
-		c.String(http.StatusOK, data)
-	})
-
-	r.GET("/mock/file", func(c *gin.Context) {
-		fileName := c.Query("name")
-		lang := c.Query("lang")
-		data := biz.GetFileContent(lang, fileName)
-		c.String(http.StatusOK, data)
-	})
-
-	r.GET("/mock/systemParameter/:name", func(c *gin.Context) {
-		name := c.Param("name")
-		lang := c.Query("lang")
-		data := biz.GetValueFromSysParameter(lang, name)
-		c.String(http.StatusOK, data)
-	})
-
-	r.GET("/mock/data/slow", func(c *gin.Context) {
-		sleep := c.Query("sleep")
-		sleepSecond, err := strconv.Atoi(sleep)
-		if err != nil {
-			fmt.Printf("Error: %s", err)
-		} else {
-			time.Sleep(time.Duration(sleepSecond) * time.Second)
-		}
-		sex := biz.GetValueFromSysParameter("", "Sex")
-		age := strconv.Itoa(biz.GetRandomInt(2, 130))
-		weight := strconv.Itoa(biz.GetRandomInt(80, 250))
-		grade := strconv.Itoa(biz.GetRandomInt(1, 12))
-		yesOrNo := biz.GetValueFromSysParameter("", "YorN")
-		boolValue := biz.GetValueFromSysParameter("", "Bool")
-		c.JSON(http.StatusOK, gin.H{
-			"name":     chinaid.Name(),
-			"age":      age,
-			"sex":      sex,
-			"id_no":    chinaid.IDNo(),
-			"addr":     chinaid.Address(),
-			"weight":   weight,
-			"mobile":   chinaid.Mobile(),
-			"grade":    grade,
-			"bool":     boolValue,
-			"yesOrNo":  yesOrNo,
-			"bankCard": chinaid.BankNo(),
-		})
-	})
-
-	r.GET("/mock/data/certid/:idno", func(c *gin.Context) {
-		idno := c.Param("idno")
-		data := biz.GetInfoFromIDNo(idno)
-		c.JSON(http.StatusOK, gin.H{
-			"city":     data.City,
-			"sex":      data.Sex,
-			"code":     data.Code,
-			"birthday": data.Birthday,
-			"district": data.District,
-			"province": data.Province,
-			"address":  data.Addr,
-			"country":  "中国",
-		})
-	})
-
-	r.GET("/mock/data/certid", func(c *gin.Context) {
-		idno := c.Query("idno")
-		data := biz.GetInfoFromIDNo(idno)
-		c.JSON(http.StatusOK, gin.H{
-			"city":     data.City,
-			"sex":      data.Sex,
-			"code":     data.Code,
-			"birthday": data.Birthday,
-			"district": data.District,
-			"province": data.Province,
-			"address":  data.Addr,
-			"country":  "中国",
-		})
-	})
-
-	r.GET("/mock/data/quick", func(c *gin.Context) {
-		sex := biz.GetValueFromSysParameter("", "Sex")
-		age := strconv.Itoa(biz.GetRandomInt(2, 130))
-		weight := strconv.Itoa(biz.GetRandomInt(80, 250))
-		grade := strconv.Itoa(biz.GetRandomInt(1, 12))
-		yesOrNo := biz.GetValueFromSysParameter("", "YorN")
-		boolValue := biz.GetValueFromSysParameter("", "Bool")
-		c.JSON(http.StatusOK, gin.H{
-			"name":     chinaid.Name(),
-			"age":      age,
-			"sex":      sex,
-			"id_no":    chinaid.IDNo(),
-			"addr":     chinaid.Address(),
-			"weight":   weight,
-			"mobile":   chinaid.Mobile(),
-			"grade":    grade,
-			"bool":     boolValue,
-			"yesOrNo":  yesOrNo,
-			"bankCard": chinaid.BankNo(),
-		})
-	})
+	biz.RegisterMockRoutes(r)
 
 	// 导入接口
 	r.POST("/api_define_import", func(c *gin.Context) {

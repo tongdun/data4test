@@ -328,6 +328,14 @@ checkBtn.addEventListener('click', function() {
         modeCancelLabel.style.display = '';
         document.querySelector('input[name="importMode"][value="skip"]').checked = true;
         confirmBtn.textContent = '确认导入';
+        confirmActions.style.display = '';
+        resultSection.style.display = 'block';
+      } else if (data.code === 400 && d && d.duplicate_count > 0) {
+        // Excel 内部编号重复，不允许导入
+        resultTitle.innerHTML = '&#9940; 检测到用例编号重复（' + d.duplicate_count + ' 组），无法导入';
+        resultTitle.style.color = '#cf1322';
+        conflictList.innerHTML = buildDuplicateHtml(d);
+        confirmActions.style.display = 'none';
         resultSection.style.display = 'block';
       } else if (data.code === 400 && d && d.conflicts > 0) {
         // 有冲突
@@ -339,6 +347,7 @@ checkBtn.addEventListener('click', function() {
         modeCancelLabel.style.display = '';
         document.querySelector('input[name="importMode"][value="skip"]').checked = true;
         confirmBtn.textContent = '跳过冲突项，导入其余';
+        confirmActions.style.display = '';
         resultSection.style.display = 'block';
       } else {
         // 其它错误
@@ -367,6 +376,22 @@ function buildConflictHtml(d) {
     var c = details[i];
     html += '<tr><td>' + esc(c.case_number) + '</td><td>' + esc(c.module) + '</td>' +
       '<td>' + esc(c.exist_name) + '</td><td>' + esc(c.import_name) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+function buildDuplicateHtml(d) {
+  var details = d.duplicate_details || [];
+  var html = '<div class="summary-bar">请修正源 Excel 中重复的用例编号后重新上传</div>';
+  html += '<table class="conflict-table"><thead><tr>' +
+    '<th>用例编号</th><th>用例模块</th><th>出现次数</th><th>所在行</th>' +
+    '</tr></thead><tbody>';
+  for (var i = 0; i < details.length; i++) {
+    var c = details[i];
+    var rows = (c.rows || []).join(', ');
+    html += '<tr><td>' + esc(c.case_number) + '</td><td>' + esc(c.module) + '</td>' +
+      '<td>' + c.count + '</td><td>' + rows + '</td></tr>';
   }
   html += '</tbody></table>';
   return html;
