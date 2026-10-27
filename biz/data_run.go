@@ -1946,6 +1946,19 @@ func (df DataFile) GetResult(source, filePath, product string, respHeaderList []
 		}
 	}
 
+	// rsa_encrypt 动作结果并入输出变量，随 df.Output 写回源文件 output: 段供下游引用
+	rsaOut, errRsa := df.GetRsaEncryptOutput(inOutPutDict)
+	if errRsa != nil {
+		Logger.Error("%s", errRsa)
+		if err == nil {
+			err = errRsa
+		}
+	} else {
+		for k, v := range rsaOut {
+			outputDict[k] = append(outputDict[k], v)
+		}
+	}
+
 	df.Output = outputDict
 
 	if strings.HasSuffix(filePath, ".json") {
