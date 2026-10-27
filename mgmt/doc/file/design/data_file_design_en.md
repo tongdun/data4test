@@ -225,7 +225,13 @@ actions:
   - type: modify_file
     value: name.yaml:{phoneno}.yaml  # Similar to above, but for YAML files  
   - type: modify_file
-    value: name.yml:{phoneno}.yml  # Similar to above, but for YML files (an alternate YAML file extension)  
+    value: name.yml:{phoneno}.yml  # Similar to above, but for YML files (an alternate YAML file extension)
+  - type: rsa_encrypt:plaintext:outputVar   # Type:plaintext:output variable name; encrypted string written to the output section, referenced downstream via {outputVar}
+    trigger: only                            # Encrypt only, no HTTP request is sent
+    value: |                                 # RSA public key PEM (multi-line inline, or {pubKey} referencing a product private parameter)
+      -----BEGIN PUBLIC KEY-----
+      ...
+      -----END PUBLIC KEY-----
 
 # Dependent data output for other interfaces, automatically generated from 'output' type assertions, retrieved using '{self}' or '{uuid}'  
 output_dependencies:

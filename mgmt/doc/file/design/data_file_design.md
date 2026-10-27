@@ -226,6 +226,12 @@ action:
     value: name.yml:{phoneno}.yml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
   - type: modify_output            // todo
     value: data[1]:str1:str2:-1    // output参数名称[索引]:原值:新值:替换个数，索引中-N，表示从后往前，替换个数-1替换全部，
+  - type: rsa_encrypt:明文:结果变量名   // 类型:明文:结果变量名，加密串写入 output 段供下游 {结果变量名} 引用
+    trigger: only                        // 只加密、不发送请求
+    value: |                             // RSA公钥PEM（多行内联，或 {pubKey} 引用产品私有参数）
+      -----BEGIN PUBLIC KEY-----
+      ...
+      -----END PUBLIC KEY-----
 
 # 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
 output:

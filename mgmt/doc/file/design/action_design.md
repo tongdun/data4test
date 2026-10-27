@@ -7,7 +7,8 @@
 - record_xls / record_excel / record_xlsx   动作相同，记录当前的请求数据为EXCEL文件
 - modify_file   根据模板文件内容生成新的带请求数据的文件
 - change_output  通过查询接口获取到数据，针对获取到的数据值进行一定的变化再输出
-- loop      // 循环执行
+- rsa_encrypt  使用RSA公钥对明文做PKCS1_v1_5加密（兼容JSEncrypt），结果Base64输出为变量，供下游用例引用
+- loop      // 循环执行 (todo)
 
 ##### 使用示例：
 ```action:
@@ -29,6 +30,12 @@
   value: record_template.yml:record_template_{certid}.xml  // 模板文件名称:生成文件名称；生成文件名用的占位符取值最好是唯一的，否则数据会发生覆盖
 - type: change_output
   value: parameter_name:old:new:num  // 输出参数名称:替换前的字符串:替换后的字符串:替换范围  ，替换范围无或为-1表示全局替换，为正整数，表示替换前N个匹配到的字符串。 todo: old可以是正则表达式，需要替换的用()匹配出来
+- type: rsa_encrypt:明文:结果变量名   // 类型:明文:结果变量名，加密串写入 output 段，下游用例用 {结果变量名} 引用
+  trigger: only    // 只做加密、不发送HTTP请求
+  value: |         // RSA公钥PEM（多行内联），也可写 {pubKey} 引用产品私有参数（变量值需含真实换行）
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+    -----END PUBLIC KEY-----
 - type: loop     // todo
   value: 5:10    // 冒号前是间隔时间，冒号后是循环次数，循环次数不写默认3次。每隔5秒请求一次接口，断言通过则退出循环，共循环请求10次，如果最后一次请求断言存在失败，则失败
 ```

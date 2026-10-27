@@ -6,6 +6,7 @@
 - record_csv (Records the current request data as a CSV file)
 - record_xls / record_excel / record_xlsx (Same action, records the current request data as an Excel file)
 - modify_file (Generates a new file with request data based on the template file)
+- rsa_encrypt (Encrypts plaintext with an RSA public key using PKCS1_v1_5 padding, JSEncrypt-compatible, and outputs the Base64 result as a variable for downstream cases)
 
 ##### Usage Examples:
 ```action:
@@ -27,6 +28,12 @@
   value: record_template.yml:record_template_{certid}.xml  // Template file name: Generated file name; It is best to make the placeholders used in the generated file name unique, otherwise data may be overwritten.
 - type: change_output
   value: parameter_name:old:new:num  // Output parameter names:String to be replaced:Replacement string:Replacement scope, If the replacement scope is empty or -1, it indicates a global replacement; If the replacement scope is a positive integer, it means replacing the first N matched strings; TODO: The "old" parameter can be a regular expression, and the parts to be replaced should be matched using parentheses.
+- type: rsa_encrypt:plaintext:outputVar   // Type:plaintext:output variable name; encrypted string written to the output section, referenced downstream via {outputVar}
+  trigger: only    // Encrypt only, no HTTP request is sent
+  value: |         // RSA public key PEM (multi-line inline, or {pubKey} referencing a product private parameter whose value contains real newlines)
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+    -----END PUBLIC KEY-----
 - type: loop     // todo
   value: 5:10    // Before the colon is the interval time, after the colon is the number of cycles. If the number of cycles is not specified, it defaults to 3 times. Request the interface every 5 seconds. Exit the loop if the assertion passes, for a total of 10 cycles. If the assertion fails on the last request, the entire process is considered a failure.
 ```
