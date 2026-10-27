@@ -716,7 +716,7 @@ func BakOldVer(id, content, fileName string) (err error) {
 	if os.IsNotExist(err) {
 		//mask := syscall.Umask(0)  // 后续根据系统不同做适配
 		//defer syscall.Umask(mask)
-		err = os.MkdirAll(targetDirName, 0644)
+		err = os.MkdirAll(targetDirName, 0755)
 		if err != nil {
 			Logger.Error("%s", err)
 			return
