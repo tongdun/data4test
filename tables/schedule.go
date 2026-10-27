@@ -159,18 +159,19 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	info.AddButton(template2.HTML(biz.T("schedule.import_check_btn")), icon.FolderO,
 		action.Jump("/admin/schedule_import"))
 
-	info.AddButton(template2.HTML(biz.T("common.btn_i18n_sync")), icon.Android, action.Ajax("schedule_i18n_sync",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			if idStr == "," {
-				return false, biz.T("common.btn_select_first"), ""
-			}
-			tc, dc, pc, err := biz.SyncEntityI18n(idStr)
-			if err != nil {
-				return false, fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), ""
-			}
-			return true, fmt.Sprintf(biz.T("common.i18n_sync_done"), tc, dc, pc), ""
-		}))
+	info.AddButton(template2.HTML(biz.T("common.btn_i18n_sync")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/schedule_i18n_sync",
+		Title:  biz.T("common.btn_i18n_sync"),
+		Width:  "900px",
+		Height: "500px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
+			FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate()
+		addI18nTranslateFields(panel)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
+		return panel
+	}, "/schedule_i18n_sync"))
 
 	info.AddButton(template2.HTML(biz.T("schedule_report.btn_generate")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
 		Id:     "/generate_task_report",

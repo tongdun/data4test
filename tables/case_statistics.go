@@ -82,18 +82,19 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 	info.AddActionButton(template.HTML(biz.T("case_statistics.btn_report")), action.Jump("/admin/case_statistics_report?id={{.Id}}"))
 
 	// i18n同步（批量）：导出选中定义的叶子模块用例原始数据 → mgmt/i18n/i18n_case/<模块>/zh-CN.yaml
-	info.AddButton(template.HTML(biz.T("case_statistics.btn_i18n_sync")), icon.Android, action.Ajax("case_statistics_i18n_sync",
-		func(ctx *context.Context) (success bool, msg string, data interface{}) {
-			idStr := ctx.FormValue("ids")
-			if idStr == "," {
-				return false, biz.T("common.btn_select_first"), ""
-			}
-			mc, cc, err := biz.SyncCaseI18nFromStatistics(idStr)
-			if err != nil {
-				return false, fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), ""
-			}
-			return true, fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc), ""
-		}))
+	info.AddButton(template.HTML(biz.T("case_statistics.btn_i18n_sync")), icon.Android, action.PopUpWithCtxForm(action.PopUpData{
+		Id:     "/case_statistics_i18n_sync",
+		Title:  biz.T("case_statistics.btn_i18n_sync"),
+		Width:  "900px",
+		Height: "500px",
+	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+		ids := ctx.FormValue("ids")
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
+			FieldDefault(ids).FieldDisplayButCanNotEditWhenCreate()
+		addI18nTranslateFields(panel)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
+		return panel
+	}, "/case_statistics_i18n_sync"))
 
 	// 导出Excel（批量）：选中定义覆盖的全量用例按模块导出，一个模块一个 xlsx，打包为单个 zip
 	info.AddButton(template.HTML(biz.T("case_statistics.btn_export_excel")), icon.Download, action.PopUpWithCtxForm(action.PopUpData{

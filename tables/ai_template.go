@@ -37,6 +37,7 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 		{Value: "5", Text: biz.T("ai_template.type_issue")},
 		{Value: "6", Text: biz.T("ai_template.type_report")},
 		{Value: "7", Text: biz.T("ai_template.type_analysis")},
+		{Value: "8", Text: biz.T("ai_template.type_translate")},
 	}
 	info.AddField(biz.T("ai_template.category"), "template_type", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
@@ -54,6 +55,8 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 				return biz.T("ai_template.type_report")
 			} else if model.Value == "7" {
 				return biz.T("ai_template.type_analysis")
+			} else if model.Value == "8" {
+				return biz.T("ai_template.type_translate")
 			}
 			return biz.T("ai_template.type_case")
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(pTypes).
@@ -152,6 +155,7 @@ func GetAiTemplateTable(ctx *context.Context) table.Table {
 			{Value: "5", Text: biz.T("ai_template.type_issue")},
 			{Value: "6", Text: biz.T("ai_template.type_report")},
 			{Value: "7", Text: biz.T("ai_template.type_analysis")},
+			{Value: "8", Text: biz.T("ai_template.type_translate")},
 		})
 	formList.AddField(biz.T("common.data_content"), "template_content", db.Text, form.TextArea).
 		FieldMust()

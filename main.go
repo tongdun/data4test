@@ -1210,6 +1210,37 @@ func startServer() {
 
 	// 切换用例数据语种（写/清 cookie，默认跟随界面语言）
 	// 切换语种（写/清 cookie，默认跟随系统默认语种；同时切换系统/菜单语种）
+	// i18n同步（批量）：导出选中用例原始数据，可选 AI 自动翻译
+	r.POST("/case_statistics_i18n_sync", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		translateEnable := c.PostForm("translate_enable")
+		translateTemplate := c.PostForm("translate_template")
+		langs := c.PostForm("langs")
+		platform := c.PostForm("platform")
+		user, _ := engine.User(c)
+		userName := user.Name
+
+		if idStr == "," || strings.TrimSpace(idStr) == "" {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("common.btn_select_first"), "data": map[string]string{}})
+			return
+		}
+		mc, cc, err := biz.SyncCaseI18nFromStatistics(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), "data": map[string]string{}})
+			return
+		}
+		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, biz.TranslateCaseI18n)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
+			return
+		}
+		status := fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc)
+		if translating {
+			status = fmt.Sprintf("%s %s", status, biz.T("common.ai_translating"))
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
+	})
+
 	r.POST("/setDataLocale", func(c *gin.Context) {
 		lang := c.PostForm("lang")
 		if lang == "auto" || lang == "" {
@@ -1968,6 +1999,37 @@ func startServer() {
 	})
 
 	// 导入任务数据包-阶段1：上传并检查冲突
+	// i18n同步（批量）：导出选中任务实体语料，可选 AI 自动翻译
+	r.POST("/schedule_i18n_sync", func(c *gin.Context) {
+		idStr := c.PostForm("ids")
+		translateEnable := c.PostForm("translate_enable")
+		translateTemplate := c.PostForm("translate_template")
+		langs := c.PostForm("langs")
+		platform := c.PostForm("platform")
+		user, _ := engine.User(c)
+		userName := user.Name
+
+		if idStr == "," || strings.TrimSpace(idStr) == "" {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("common.btn_select_first"), "data": map[string]string{}})
+			return
+		}
+		tc, dc, pc, err := biz.SyncEntityI18n(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), "data": map[string]string{}})
+			return
+		}
+		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, biz.TranslateEntityI18n)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
+			return
+		}
+		status := fmt.Sprintf(biz.T("common.i18n_sync_done"), tc, dc, pc)
+		if translating {
+			status = fmt.Sprintf("%s %s", status, biz.T("common.ai_translating"))
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
+	})
+
 	r.POST("/schedule_import_check", func(c *gin.Context) {
 		user, _ := engine.User(c)
 		uploadFile, errTmp := c.FormFile("upload_file")

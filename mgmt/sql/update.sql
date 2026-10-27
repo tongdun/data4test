@@ -462,3 +462,17 @@ alter table case_statistics_report
 
 insert into sys_parameter (name, value_list, remark) values ('supportLanguages', ' {"zh-CN": "中文", "en-US": "English"}', '');
 insert into sys_parameter (name, value_list, remark) values ('caseProduct', '产品线A,产品线B', '');
+
+# 2026年10月27日
+-- AI 自动翻译（i18n 同步）
+-- 1) 扩展 ai_template.template_type 枚举，加入「8: 翻译」
+alter table ai_template modify template_type enum('1','2','3','4','5','6','7','8') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '1' NULL COMMENT '模板类型，1:用例，2:数据，3:场景，4:任务, 5:Issue, 6: 报告， 7: 分析, 8: 翻译';
+
+-- 2) 默认翻译模板（幂等：按唯一键 (template_name, template_type, applicable_platform) 去重）
+insert into ai_template
+(template_name, template_type, template_content, append_conversion, use_status, applicable_platform, create_user)
+values
+    ('i18n语料翻译', '8', '你是一名专业的软件界面与业务术语翻译专家。请将下方 JSON 中每个字符串类型的"值"翻译成{目标语种}语言，并输出翻译后的 JSON。\r\n\r\n要求：\r\n1. 只翻译每个字段的值，所有键（key）保持原样不翻译；\r\n2. JSON 结构必须与输入完全一致，输出必须是合法 JSON；\r\n3. 保留占位符与特殊内容原样不译：%s、{}、{{}}、$、<...>、数字、日期、URL、接口路径、代码、变量名、产品名、字段名、模块名；\r\n4. 专有名词、品牌、系统名（如 Data4Test、GoAdmin 等）不翻译；\r\n5. 不要输出任何解释、说明或多余文字，不要使用 Markdown 代码块，只输出一个纯 JSON。\r\n\r\n待翻译内容如下：\r\n{待翻译内容}', ' ', 'apply', '通用', 'admin')
+on duplicate key update
+                     template_content = values(template_content),
+                     use_status = 'apply';
