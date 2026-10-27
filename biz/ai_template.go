@@ -86,7 +86,7 @@ func GetAiCreatePlatform() (platformList []types.FieldOption) {
 func GetAiTemplateOptions(tType string) (aiTemplates []types.FieldOption) {
 	var templateNames []string
 	templateStatus := "apply"
-	aiTypeDefine := map[string]string{"1": T("type.test_case"), "2": T("type.data"), "3": T("type.scene"), "4": T("type.task"), "5": "Issue", "6": T("type.report"), "7": T("type.analysis")}
+	aiTypeDefine := map[string]string{"1": T("type.test_case"), "2": T("type.data"), "3": T("type.scene"), "4": T("type.task"), "5": "Issue", "6": T("type.report"), "7": T("type.analysis"), "8": T("ai_template.type_translate")}
 	models.Orm.Table("ai_template").Where("use_status = ? and template_type = ?", templateStatus, tType).Order("updated_at DESC").Pluck("template_name", &templateNames)
 	if len(templateNames) == 0 {
 		err := fmt.Errorf(T("error.template_not_found"), aiTypeDefine[tType])

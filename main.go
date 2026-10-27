@@ -1215,7 +1215,7 @@ func startServer() {
 		idStr := c.PostForm("ids")
 		translateEnable := c.PostForm("translate_enable")
 		translateTemplate := c.PostForm("translate_template")
-		langs := c.PostForm("langs")
+		langs := strings.Join(c.PostFormArray("langs[]"), ",")
 		platform := c.PostForm("platform")
 		user, _ := engine.User(c)
 		userName := user.Name
@@ -1236,7 +1236,7 @@ func startServer() {
 		}
 		status := fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc)
 		if translating {
-			status = fmt.Sprintf("%s %s", status, biz.T("common.ai_translating"))
+			status = fmt.Sprintf("%s\n%s", status, biz.T("common.ai_translating"))
 		}
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
 	})
@@ -2004,7 +2004,7 @@ func startServer() {
 		idStr := c.PostForm("ids")
 		translateEnable := c.PostForm("translate_enable")
 		translateTemplate := c.PostForm("translate_template")
-		langs := c.PostForm("langs")
+		langs := strings.Join(c.PostFormArray("langs[]"), ",")
 		platform := c.PostForm("platform")
 		user, _ := engine.User(c)
 		userName := user.Name
@@ -2025,7 +2025,7 @@ func startServer() {
 		}
 		status := fmt.Sprintf(biz.T("common.i18n_sync_done"), tc, dc, pc)
 		if translating {
-			status = fmt.Sprintf("%s %s", status, biz.T("common.ai_translating"))
+			status = fmt.Sprintf("%s\n%s", status, biz.T("common.ai_translating"))
 		}
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
 	})

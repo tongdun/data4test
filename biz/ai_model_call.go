@@ -52,7 +52,6 @@ func CallDifyChat(aiConnect AIConnect, query string, userId, cId, fileId, fileTy
 
 	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 	if err != nil {
-		Logger.Error("err: %s", err)
 		// 如果请求遇错，直接退出，不再进行后续会话
 		return "", "", fmt.Errorf(T("error.response_parse_failed"), err, string(respBody))
 
