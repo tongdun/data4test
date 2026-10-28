@@ -1,9 +1,17 @@
 package biz
 
+// AI 连接协议类型
+const (
+	AIProtocolDify  = "dify"
+	AIProtocolOpenAI = "openai"
+)
+
 type AIConnect struct {
-	BaseUrl string `json:"baseUrl"`
-	ApiKey  string `json:"apiKey"`
-	Timeout int64  `json:"timeout"`
+	BaseUrl  string `json:"baseUrl"`
+	ApiKey   string `json:"apiKey"`
+	Timeout  int64  `json:"timeout"`
+	Protocol string `json:"protocol"` // "" 或 "dify" = Dify（缺省向后兼容）；"openai" = OpenAI 兼容协议
+	Model    string `json:"model"`    // 仅 openai 协议必需，如 "deepseek-chat" / "gpt-4o"
 }
 
 // 请求体结构
@@ -87,4 +95,32 @@ type RetrieverResource struct {
 	SegmentId    string  `json:"segment_id"`
 	Score        float64 `json:"score"`
 	Content      string  `json:"content"`
+}
+
+// OpenAI 兼容协议（chat/completions）请求/响应结构体
+type OpenAIMessage struct {
+	Role    string `json:"role"`    // "system" | "user" | "assistant"
+	Content string `json:"content"`
+}
+
+type OpenAIChatRequest struct {
+	Model    string          `json:"model"`
+	Messages []OpenAIMessage `json:"messages"`
+}
+
+type OpenAIChatResponse struct {
+	Id      string        `json:"id"`
+	Choices []OpenAIChoice `json:"choices"`
+	Error   *OpenAIError  `json:"error,omitempty"`
+}
+
+type OpenAIChoice struct {
+	Message OpenAIMessage `json:"message"`
+}
+
+type OpenAIError struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Param   string `json:"param"`
+	Code    string `json:"code"`
 }

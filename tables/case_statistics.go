@@ -86,7 +86,7 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 		Id:     "/case_statistics_i18n_sync",
 		Title:  biz.T("case_statistics.btn_i18n_sync"),
 		Width:  "900px",
-		Height: "500px",
+		Height: "auto",
 	}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
 		ids := ctx.FormValue("ids")
 		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).

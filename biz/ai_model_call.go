@@ -49,6 +49,7 @@ func CallDifyChat(aiConnect AIConnect, query string, userId, cId, fileId, fileTy
 	header["Authorization"] = fmt.Sprintf("Bearer %s", aiConnect.ApiKey)
 	header["Content-Type"] = "application/json"
 	url := fmt.Sprintf("%s/chat-messages", aiConnect.BaseUrl)
+	Logger.Info("连接大模型 URL: %s", url)
 
 	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
 	if err != nil {
@@ -154,10 +155,95 @@ func CallDify2UploadFile(aiConnect AIConnect, filePath, userCode string) (fileID
 	return fileID, fileType, fmt.Errorf(T("error.get_fileid_failed"))
 }
 
+// buildOpenAIChatURL 构造 OpenAI 兼容 chat/completions 地址，兼容 baseUrl 是否已带 /v1 前缀
+func buildOpenAIChatURL(baseUrl string) string {
+	base := strings.TrimRight(baseUrl, "/")
+	if strings.HasSuffix(base, "/v1") {
+		return base + "/chat/completions"
+	}
+	return base + "/v1/chat/completions"
+}
+
+// CallOpenAIChat 调用 OpenAI 兼容协议的 chat/completions 接口，返回首个回复内容
+func CallOpenAIChat(aiConnect AIConnect, messages []OpenAIMessage) (reply string, err error) {
+	reqBody := OpenAIChatRequest{Model: aiConnect.Model, Messages: messages}
+
+	data := make(map[string]interface{})
+	jsonBytes, _ := json.Marshal(reqBody)
+	if err = json.Unmarshal(jsonBytes, &data); err != nil {
+		return "", err
+	}
+
+	header := make(map[string]interface{})
+	header["Authorization"] = fmt.Sprintf("Bearer %s", aiConnect.ApiKey)
+	header["Content-Type"] = "application/json"
+
+	url := buildOpenAIChatURL(aiConnect.BaseUrl)
+	Logger.Info("连接大模型 URL: %s", url)
+
+	_, respBody, err := RunHttpJson("POST", url, aiConnect.Timeout, data, header, nil)
+	if err != nil {
+		return "", fmt.Errorf(T("error.response_parse_failed"), err, string(respBody))
+	}
+
+	var chatResp OpenAIChatResponse
+	if err = json.Unmarshal(respBody, &chatResp); err != nil {
+		return "", fmt.Errorf(T("error.response_parse_failed"), err, string(respBody))
+	}
+
+	if chatResp.Error != nil {
+		return "", fmt.Errorf("code=%s type=%s: %s", chatResp.Error.Code, chatResp.Error.Type, chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf(T("error.no_reply_info"))
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
+}
+
+// CallOpenAIModel 以 OpenAI 兼容协议对话：文本优先，不支持文件上传
+func CallOpenAIModel(query, appendQuery, uploadFilePath string, aiConnect AIConnect) (replyList []string, err error) {
+	if len(uploadFilePath) > 0 {
+		return nil, fmt.Errorf(T("error.openai_no_file_upload"))
+	}
+
+	messages := []OpenAIMessage{{Role: "user", Content: query}}
+	reply, err := CallOpenAIChat(aiConnect, messages)
+	if err != nil {
+		return nil, err
+	}
+	replyList = append(replyList, reply)
+
+	for _, item := range strings.Split(appendQuery, "|**|") {
+		if item == " " {
+			continue
+		}
+		messages = append(messages, OpenAIMessage{Role: "assistant", Content: reply})
+		messages = append(messages, OpenAIMessage{Role: "user", Content: item})
+		reply, err = CallOpenAIChat(aiConnect, messages)
+		if err != nil {
+			return nil, err
+		}
+		replyList = append(replyList, reply)
+	}
+
+	return
+}
+
 func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode string) (replyList []string, err error) {
 	aiConnect, err := GetAIModelConnectInfo(aiPlatform)
 	if err != nil {
 		return
+	}
+	return ConnetAIModelWithConnect(query, appendQuery, uploadFilePath, userCode, aiPlatform, aiConnect)
+}
+
+// ConnetAIModelWithConnect 用已解析好的连接信息调用大模型（openai/dify 分流）。
+// 独立于 ConnetAIModel，供「实时覆盖 baseUrl/apiKey」的场景复用：覆盖值已在 aiConnect 中，全程不再查库。
+func ConnetAIModelWithConnect(query, appendQuery, uploadFilePath, userCode, platform string, aiConnect AIConnect) (replyList []string, err error) {
+	if aiConnect.Protocol == AIProtocolOpenAI {
+		return CallOpenAIModel(query, appendQuery, uploadFilePath, aiConnect)
 	}
 
 	var fileId, fileType string
@@ -171,7 +257,7 @@ func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode stri
 
 	reply1, cId, err := CallDifyChat(aiConnect, query, userCode, "", fileId, fileType)
 	if err != nil {
-		Logger.Error(T("error.call_model_failed"), aiPlatform, err)
+		Logger.Error(T("error.call_model_failed"), platform, err)
 		return
 	}
 	replyList = append(replyList, reply1)
@@ -183,7 +269,7 @@ func ConnetAIModel(query, appendQuery, uploadFilePath, aiPlatform, userCode stri
 		}
 		answer, _, errTmp := CallDifyChat(aiConnect, item, userCode, cId, fileId, fileType)
 		if errTmp != nil {
-			Logger.Error(T("error.call_model_failed"), aiPlatform, err)
+			Logger.Error(T("error.call_model_failed"), platform, err)
 			err = errTmp
 			return
 		}
@@ -209,6 +295,9 @@ func (input ImportCommon) ConnectModel2GetMessage() (replyList []string, err err
 }
 
 func (aiConnect AIConnect) CallModel2GetMessage(userCode, conversationID string) (replyList []string, err error) {
+	if aiConnect.Protocol == AIProtocolOpenAI {
+		return nil, fmt.Errorf(T("error.openai_no_history"))
+	}
 	url := fmt.Sprintf("%s/messages", aiConnect.BaseUrl)
 	header := make(map[string]interface{})
 	header["Authorization"] = fmt.Sprintf("Bearer %s", aiConnect.ApiKey)
@@ -219,7 +308,6 @@ func (aiConnect AIConnect) CallModel2GetMessage(userCode, conversationID string)
 	replyList, err = aiConnect.CallModel2Get("GET", url, data, header)
 	if err != nil {
 		Logger.Debug("url: %s", url)
-		Logger.Debug("header: %s", header)
 		Logger.Debug("data: %s", data)
 		Logger.Error("%s", err)
 

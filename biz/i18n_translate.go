@@ -69,12 +69,12 @@ func extractJSON(s string) string {
 }
 
 // translateToJSON 把结构 JSON 化后交给 AI 翻译 value，返回同构的 JSON 字节
-func translateToJSON(content, lang, platform, userCode string, v interface{}) ([]byte, error) {
+func translateToJSON(content, lang, platform, userCode string, aiConnect AIConnect, v interface{}) ([]byte, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	replies, err := ConnetAIModel(buildTranslateQuery(content, lang, string(raw)), "", "", platform, userCode)
+	replies, err := ConnetAIModelWithConnect(buildTranslateQuery(content, lang, string(raw)), "", "", userCode, platform, aiConnect)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +94,7 @@ func writeTranslateYaml(path string, v interface{}) error {
 }
 
 // caseSnapDir 返回用例翻译源内容快照目录（位于 i18n/ 之外，避免被 loader 扫描误读）
+// 每个模块一个 zh-CN.yaml，记录「上次翻译时的源内容」，用于差异化比较（当前源 vs 快照）
 func caseSnapDir() string {
 	return fmt.Sprintf("%s/i18n_snap/i18n_case", BASEPATH)
 }
@@ -138,10 +139,13 @@ func writeSnapYaml(path string, v interface{}) error {
 	return writeTranslateYaml(path, v)
 }
 
-// StartTranslateIfEnabled 校验「是否翻译/目标语种/AI引擎/翻译模板」，满足则取模板内容后台 go fn
-// 返回 translating 表示是否已启动后台翻译；err 表示校验失败（模板缺失/语种或引擎未选）
+// StartTranslateIfEnabled 校验「是否翻译/目标语种/AI引擎/翻译模板」，满足且存在待翻译内容时后台 go fn
+// hasPending 可选：返回是否存在待翻译增量；为 nil 表示不预检（始终翻译）
+// 返回 translating 表示已启动后台翻译；err 表示校验失败；开启翻译但 hasPending 判定无增量时返回 (false, nil)
 func StartTranslateIfEnabled(translateEnable, langsStr, platform, templateName, userCode string,
-	fn func(userCode, platform, content string, langs []string)) (translating bool, err error) {
+	override *AIConnectOverride,
+	fn func(userCode, platform string, aiConnect AIConnect, content string, langs []string),
+	hasPending func(langs []string) bool) (translating bool, err error) {
 	if translateEnable != "1" {
 		return false, nil
 	}
@@ -156,13 +160,21 @@ func StartTranslateIfEnabled(translateEnable, langsStr, platform, templateName, 
 	if err != nil {
 		return false, err
 	}
-	go fn(userCode, platform, content, langs)
+	if hasPending != nil && !hasPending(langs) {
+		return false, nil
+	}
+	aiConnect, err := ResolveAIConnect(strings.TrimSpace(platform), override)
+	if err != nil {
+		return false, err
+	}
+	go fn(userCode, platform, aiConnect, content, langs)
 	return true, nil
 }
 
 // translateFlatI18n 增量翻译扁平身份映射（map[string]string，key 即原文）到目标语种
 // 只翻新增/空译文，移除源里已删的 key；未变的复用已有译文
-func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode string) error {
+// exclude 中的 key 不参与 LLM 翻译，也不会被当作「已删除」移除（用于保留由其它语料回填的译文，如模块名）
+func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode string, aiConnect AIConnect, exclude map[string]bool) error {
 	source, err := readFlatYaml(zhPath)
 	if err != nil {
 		Logger.Error("i18n translate read %s failed: %v", zhPath, err)
@@ -176,12 +188,18 @@ func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode strin
 
 	toTranslate := map[string]string{}
 	for k, v := range source {
+		if exclude[k] {
+			continue
+		}
 		if tv, ok := existing[k]; !ok || strings.TrimSpace(tv) == "" {
 			toTranslate[k] = v
 		}
 	}
 	toRemove := make([]string, 0)
 	for k := range existing {
+		if exclude[k] {
+			continue
+		}
 		if _, ok := source[k]; !ok {
 			toRemove = append(toRemove, k)
 		}
@@ -201,7 +219,7 @@ func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode strin
 
 	translated := map[string]string{}
 	if len(toTranslate) > 0 {
-		out, err := translateToJSON(content, lang, platform, userCode, toTranslate)
+		out, err := translateToJSON(content, lang, platform, userCode, aiConnect, toTranslate)
 		if err != nil {
 			return err
 		}
@@ -222,20 +240,16 @@ func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode strin
 	return nil
 }
 
-// translateCaseModuleI18n 增量翻译某个用例模块到目标语种（含源内容快照，检测新增/内容变更/删除）
-func translateCaseModuleI18n(moduleDir, content, lang, platform, userCode string) error {
+// translateCaseModuleAllLangs 增量翻译某个用例模块到多个目标语种（含模块级源内容快照 zh-CN.yaml）
+// 源变更集只算一次（当前源 vs 共享快照），复用到所有语种；翻译完统一推进快照
+// 快照只推进「所有选中语种都已有译文」的用例，单个语种翻译失败/缺失时保持旧值，下次重试
+func translateCaseModuleAllLangs(moduleDir, content string, langs []string, platform, userCode string, aiConnect AIConnect) error {
 	zhPath := filepath.Join(moduleDir, "zh-CN.yaml")
-	langPath := filepath.Join(moduleDir, lang+".yaml")
-	snapPath := filepath.Join(caseSnapDir(), filepath.Base(moduleDir), lang+".yaml")
+	snapPath := filepath.Join(caseSnapDir(), filepath.Base(moduleDir), "zh-CN.yaml")
 
 	source, err := readCaseModuleYaml(zhPath)
 	if err != nil {
 		Logger.Error("case i18n translate read %s failed: %v", zhPath, err)
-		return nil
-	}
-	existing, err := readCaseModuleYaml(langPath)
-	if err != nil {
-		Logger.Error("case i18n translate read %s failed: %v", langPath, err)
 		return nil
 	}
 	snap, err := readCaseModuleYaml(snapPath)
@@ -244,72 +258,86 @@ func translateCaseModuleI18n(moduleDir, content, lang, platform, userCode string
 		return nil
 	}
 
-	// toTranslate：新增（无译文）或内容变更（有旧快照且源值变了）
-	// 冷启动（有译文但无快照）不重翻，由下方回填快照兜底
-	toTranslate := map[string]map[string]string{}
+	// 源变更集（相对共享快照）：快照里存在且源值变了 → 各语种都需重翻
+	changed := map[string]bool{}
 	for c, sv := range source {
-		if len(existing[c]) == 0 {
-			toTranslate[c] = sv
-		} else if oldSnap, ok := snap[c]; ok && !reflect.DeepEqual(oldSnap, sv) {
-			toTranslate[c] = sv
-		}
-	}
-	// toRemove：源里已删的 key
-	toRemove := make([]string, 0)
-	for c := range existing {
-		if _, ok := source[c]; !ok {
-			toRemove = append(toRemove, c)
+		if oldSnap, ok := snap[c]; ok && !reflect.DeepEqual(oldSnap, sv) {
+			changed[c] = true
 		}
 	}
 
-	result := map[string]map[string]string{}
-	for c, tv := range existing {
-		result[c] = tv
-	}
-	for _, c := range toRemove {
-		delete(result, c)
-	}
-
-	// 新快照：以旧快照为底去掉源里已删的 key；冷启动（有译文但无快照）按当前源值回填；
-	// 之后成功翻译的新增/变更 key 再覆盖为当前源值
-	newSnap := map[string]map[string]string{}
-	for c, sv := range snap {
-		newSnap[c] = sv
-	}
-	for c := range newSnap {
-		if _, ok := source[c]; !ok {
-			delete(newSnap, c)
+	// 各语种最终译文，用于推进快照时判断用例是否在所有选中语种都有译文
+	final := make(map[string]map[string]map[string]string, len(langs))
+	for _, lang := range langs {
+		langPath := filepath.Join(moduleDir, lang+".yaml")
+		existing, err := readCaseModuleYaml(langPath)
+		if err != nil {
+			Logger.Error("case i18n translate read %s failed: %v", langPath, err)
+			return nil
 		}
-	}
-	for c, sv := range source {
-		if len(existing[c]) > 0 {
-			if _, ok := newSnap[c]; !ok {
-				newSnap[c] = sv
+
+		// toTranslate：新增（无译文）或源变更（shared changed）
+		toTranslate := map[string]map[string]string{}
+		for c, sv := range source {
+			if len(existing[c]) == 0 {
+				toTranslate[c] = sv
+			} else if changed[c] {
+				toTranslate[c] = sv
 			}
 		}
-	}
+		// toRemove：源里已删的 key
+		toRemove := make([]string, 0)
+		for c := range existing {
+			if _, ok := source[c]; !ok {
+				toRemove = append(toRemove, c)
+			}
+		}
 
-	translated := map[string]map[string]string{}
-	if len(toTranslate) > 0 {
-		out, err := translateToJSON(content, lang, platform, userCode, toTranslate)
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(out, &translated); err != nil {
-			return err
-		}
-	}
-	// 仅合并预期 key（忽略 AI 幻觉）；翻译失败的 key 保留旧译文、旧快照（下次重试）
-	for c := range toTranslate {
-		if tv, ok := translated[c]; ok && len(tv) > 0 {
+		result := map[string]map[string]string{}
+		for c, tv := range existing {
 			result[c] = tv
-			newSnap[c] = source[c]
 		}
+		for _, c := range toRemove {
+			delete(result, c)
+		}
+
+		translated := map[string]map[string]string{}
+		if len(toTranslate) > 0 {
+			out, err := translateToJSON(content, lang, platform, userCode, aiConnect, toTranslate)
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(out, &translated); err != nil {
+				return err
+			}
+		}
+		// 仅合并预期 key（忽略 AI 幻觉）；翻译失败的 key 保留旧译文（下次重试）
+		for c := range toTranslate {
+			if tv, ok := translated[c]; ok && len(tv) > 0 {
+				result[c] = tv
+			}
+		}
+
+		if err := writeTranslateYaml(langPath, result); err != nil {
+			Logger.Error("case i18n translate write %s of %s failed: %v", lang, filepath.Base(moduleDir), err)
+			return nil
+		}
+		final[lang] = result
 	}
 
-	if err := writeTranslateYaml(langPath, result); err != nil {
-		Logger.Error("case i18n translate write %s of %s failed: %v", lang, filepath.Base(moduleDir), err)
-		return nil
+	// 推进快照：只推进在所有选中语种都有译文的用例（任一语种缺失则保持旧值，下次重试）
+	newSnap := map[string]map[string]string{}
+	for c, sv := range source {
+		complete := true
+		for _, lang := range langs {
+			if len(final[lang][c]) == 0 {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			newSnap[c] = sv
+		}
 	}
 	if err := writeSnapYaml(snapPath, newSnap); err != nil {
 		Logger.Error("case i18n translate write snapshot %s failed: %v", snapPath, err)
@@ -317,32 +345,145 @@ func translateCaseModuleI18n(moduleDir, content, lang, platform, userCode string
 	return nil
 }
 
-// TranslateCaseI18n 后台把用例统计语料（i18n_case/<模块>/ + i18n_caseCount/）增量翻译到目标语种
-func TranslateCaseI18n(userCode, platform, content string, langs []string) {
+// moduleNameTranslation 从已翻译的用例模块语料中取模块名译文（FieldCaseModule 字段，取首个非空值）
+func moduleNameTranslation(module, lang string) string {
+	m, err := readCaseModuleYaml(filepath.Join(caseI18nDir(), module, lang+".yaml"))
+	if err != nil {
+		return ""
+	}
+	for _, fields := range m {
+		if v := strings.TrimSpace(fields[FieldCaseModule]); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// propagateModuleNamesToCaseCount 把模块名译文从用例内容语料回填到 i18n_caseCount/<lang>.yaml
+// 模块名随内容一起翻译，不再单独调用大模型，保证两处译文一致
+func propagateModuleNamesToCaseCount(modules []string, lang string) error {
+	langPath := filepath.Join(caseCountI18nDir(), lang+".yaml")
+	existing, err := readFlatYaml(langPath)
+	if err != nil {
+		Logger.Error("case i18n translate read %s failed: %v", langPath, err)
+		return nil
+	}
+	changed := false
+	for _, m := range modules {
+		tv := moduleNameTranslation(m, lang)
+		if tv == "" {
+			continue
+		}
+		if existing[m] == tv {
+			continue
+		}
+		existing[m] = tv
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	if err := writeTranslateYaml(langPath, existing); err != nil {
+		Logger.Error("case i18n translate write %s failed: %v", langPath, err)
+	}
+	return nil
+}
+
+// hasCaseModulePending 判断某模块某语种是否存在增量差异（新增/变更/删除），与 translateCaseModuleAllLangs 的判定保持一致
+func hasCaseModulePending(module, lang string) bool {
+	zhPath := filepath.Join(caseI18nDir(), module, "zh-CN.yaml")
+	langPath := filepath.Join(caseI18nDir(), module, lang+".yaml")
+	snapPath := filepath.Join(caseSnapDir(), module, "zh-CN.yaml")
+	source, _ := readCaseModuleYaml(zhPath)
+	existing, _ := readCaseModuleYaml(langPath)
+	snap, _ := readCaseModuleYaml(snapPath)
+	for c, sv := range source {
+		if len(existing[c]) == 0 {
+			return true
+		}
+		if oldSnap, ok := snap[c]; ok && !reflect.DeepEqual(oldSnap, sv) {
+			return true
+		}
+	}
+	for c := range existing {
+		if _, ok := source[c]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
+// hasFlatPending 判断扁平语料（排除 exclude 中的 key）是否存在增量差异，与 translateFlatI18n 的判定保持一致
+func hasFlatPending(dir, lang string, exclude map[string]bool) bool {
+	source, _ := readFlatYaml(filepath.Join(dir, "zh-CN.yaml"))
+	existing, _ := readFlatYaml(filepath.Join(dir, lang+".yaml"))
+	for k := range source {
+		if exclude[k] {
+			continue
+		}
+		if tv, ok := existing[k]; !ok || strings.TrimSpace(tv) == "" {
+			return true
+		}
+	}
+	for k := range existing {
+		if exclude[k] {
+			continue
+		}
+		if _, ok := source[k]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
+// HasPendingCaseI18nTranslate 判断本次选中模块（含一级/二级菜单名）是否存在待翻译增量，不做任何翻译
+func HasPendingCaseI18nTranslate(modules, langs []string) bool {
+	exclude := make(map[string]bool, len(modules))
+	for _, m := range modules {
+		exclude[m] = true
+	}
+	for _, lang := range langs {
+		for _, m := range modules {
+			if hasCaseModulePending(m, lang) {
+				return true
+			}
+		}
+		if hasFlatPending(caseCountI18nDir(), lang, exclude) {
+			return true
+		}
+	}
+	return false
+}
+
+// TranslateCaseI18n 后台把「本次同步选中的模块」用例内容增量翻译到目标语种，并翻译一级/二级菜单名
+// modules 为本次选中的叶子模块清单（收窄范围，避免翻译 i18n_case/ 下所有历史模块目录）
+// 模块名随用例内容 FieldCaseModule 一起翻译，再回填到 i18n_caseCount/，不再单独调用大模型
+func TranslateCaseI18n(userCode, platform string, aiConnect AIConnect, content string, langs, modules []string) {
 	defer func() {
 		if e := recover(); e != nil {
 			Logger.Error("case i18n translate panic: %v\n%s", e, debug.Stack())
 		}
 	}()
-	for _, lang := range langs {
-		modules, err := ioutil.ReadDir(caseI18nDir())
-		if err != nil {
-			Logger.Error("case i18n translate read dir %s failed: %v", caseI18nDir(), err)
-			continue
+	// 用例内容：按模块翻译（源变更集在模块内只算一次，复用到所有语种）
+	for _, m := range modules {
+		if err := translateCaseModuleAllLangs(filepath.Join(caseI18nDir(), m), content, langs, platform, userCode, aiConnect); err != nil {
+			Logger.Error("case i18n translate aborted at %s: %v", m, err)
+			return
 		}
-		for _, mod := range modules {
-			if !mod.IsDir() {
-				continue
-			}
-			if err := translateCaseModuleI18n(filepath.Join(caseI18nDir(), mod.Name()), content, lang, platform, userCode); err != nil {
-				Logger.Error("case i18n translate aborted at %s: %v", mod.Name(), err)
-				return
-			}
-		}
+	}
 
-		// 菜单/模块名扁平语料
+	// 模块名译文回填 + 一级/二级菜单名扁平语料（按语种，排除模块名）
+	exclude := make(map[string]bool, len(modules))
+	for _, m := range modules {
+		exclude[m] = true
+	}
+	for _, lang := range langs {
+		// 模块名译文随内容回填（不另起 LLM 调用）
+		propagateModuleNamesToCaseCount(modules, lang)
+
+		// 一级/二级菜单名扁平语料（排除模块名，一次独立小调用）
 		if err := translateFlatI18n(filepath.Join(caseCountI18nDir(), "zh-CN.yaml"),
-			filepath.Join(caseCountI18nDir(), lang+".yaml"), content, lang, platform, userCode); err != nil {
+			filepath.Join(caseCountI18nDir(), lang+".yaml"), content, lang, platform, userCode, aiConnect, exclude); err != nil {
 			Logger.Error("case i18n translate aborted at caseCount: %v", err)
 			return
 		}
@@ -352,7 +493,7 @@ func TranslateCaseI18n(userCode, platform, content string, langs []string) {
 }
 
 // TranslateEntityI18n 后台把任务实体语料（i18n_task/ i18n_playbook/ i18n_data/）增量翻译到目标语种
-func TranslateEntityI18n(userCode, platform, content string, langs []string) {
+func TranslateEntityI18n(userCode, platform string, aiConnect AIConnect, content string, langs []string) {
 	defer func() {
 		if e := recover(); e != nil {
 			Logger.Error("entity i18n translate panic: %v\n%s", e, debug.Stack())
@@ -361,7 +502,7 @@ func TranslateEntityI18n(userCode, platform, content string, langs []string) {
 	for _, lang := range langs {
 		for _, dir := range []string{i18nTaskDir(), i18nPlaybookDir(), i18nDataDir()} {
 			if err := translateFlatI18n(filepath.Join(dir, "zh-CN.yaml"),
-				filepath.Join(dir, lang+".yaml"), content, lang, platform, userCode); err != nil {
+				filepath.Join(dir, lang+".yaml"), content, lang, platform, userCode, aiConnect, nil); err != nil {
 				Logger.Error("entity i18n translate aborted at %s: %v", filepath.Base(dir), err)
 				return
 			}

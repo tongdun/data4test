@@ -1217,6 +1217,8 @@ func startServer() {
 		translateTemplate := c.PostForm("translate_template")
 		langs := strings.Join(c.PostFormArray("langs[]"), ",")
 		platform := c.PostForm("platform")
+		translateBaseUrl := c.PostForm("translate_base_url")
+		translateApiKey := c.PostForm("translate_api_key")
 		user, _ := engine.User(c)
 		userName := user.Name
 
@@ -1224,12 +1226,22 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": biz.T("common.btn_select_first"), "data": map[string]string{}})
 			return
 		}
-		mc, cc, err := biz.SyncCaseI18nFromStatistics(idStr)
+		modules, mc, cc, err := biz.SyncCaseI18nFromStatistics(idStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), "data": map[string]string{}})
 			return
 		}
-		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, biz.TranslateCaseI18n)
+		var override *biz.AIConnectOverride
+		if strings.TrimSpace(translateBaseUrl) != "" || strings.TrimSpace(translateApiKey) != "" {
+			override = &biz.AIConnectOverride{BaseUrl: translateBaseUrl, ApiKey: translateApiKey}
+		}
+		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, override,
+			func(userCode, platform string, aiConnect biz.AIConnect, content string, langs []string) {
+				biz.TranslateCaseI18n(userCode, platform, aiConnect, content, langs, modules)
+			},
+			func(langsList []string) bool {
+				return biz.HasPendingCaseI18nTranslate(modules, langsList)
+			})
 		if err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
 			return
@@ -1237,8 +1249,31 @@ func startServer() {
 		status := fmt.Sprintf(biz.T("case_statistics.i18n_sync_done"), mc, cc)
 		if translating {
 			status = fmt.Sprintf("%s\n%s", status, biz.T("common.ai_translating"))
+		} else if translateEnable == "1" {
+			status = fmt.Sprintf("%s\n%s", status, biz.T("common.i18n_no_update"))
 		}
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
+	})
+
+	// getAiConnectInfo 返回所选平台的连接信息（含已存储的 apiKey，用于弹窗预填）。
+	// 仅限已登录用户访问；响应中的 apiKey 是引擎已配置值（与查看系统参数同权限），不新增泄漏。
+	r.POST("/get_ai_connect_info", func(c *gin.Context) {
+		user, ok := engine.User(c)
+		if !ok || strings.TrimSpace(user.Name) == "" {
+			c.JSON(http.StatusUnauthorized, map[string]interface{}{"code": 401, "msg": biz.T("error.unauthorized"), "data": map[string]string{}})
+			return
+		}
+		aiConnect, err := biz.GetAIModelConnectInfo(c.PostForm("platform"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
+			return
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("common.operate_success"), "data": map[string]string{
+			"baseUrl":  aiConnect.BaseUrl,
+			"apiKey":   aiConnect.ApiKey,
+			"protocol": aiConnect.Protocol,
+			"model":    aiConnect.Model,
+		}})
 	})
 
 	r.POST("/setDataLocale", func(c *gin.Context) {
@@ -2006,6 +2041,8 @@ func startServer() {
 		translateTemplate := c.PostForm("translate_template")
 		langs := strings.Join(c.PostFormArray("langs[]"), ",")
 		platform := c.PostForm("platform")
+		translateBaseUrl := c.PostForm("translate_base_url")
+		translateApiKey := c.PostForm("translate_api_key")
 		user, _ := engine.User(c)
 		userName := user.Name
 
@@ -2018,7 +2055,11 @@ func startServer() {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": fmt.Sprintf("%s: %v", biz.T("common.operate_fail"), err), "data": map[string]string{}})
 			return
 		}
-		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, biz.TranslateEntityI18n)
+		var override *biz.AIConnectOverride
+		if strings.TrimSpace(translateBaseUrl) != "" || strings.TrimSpace(translateApiKey) != "" {
+			override = &biz.AIConnectOverride{BaseUrl: translateBaseUrl, ApiKey: translateApiKey}
+		}
+		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, override, biz.TranslateEntityI18n, nil)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
 			return
