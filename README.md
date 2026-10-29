@@ -129,7 +129,7 @@
 - [发布记录](./mgmt/doc/file/update/release.md)
 
 #### 生产环境
-[生产环境部署](./deploy/README.md)
+[生产环境部署](build/web/README.md)
 
 #### 开发环境
 [开发环境部署](./mgmt/doc/file/development/dev_env.md)

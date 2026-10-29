@@ -128,7 +128,7 @@
 - [Release Notes](./mgmt/doc/file/update/release_en.md)
 
 #### Production Environment
-[Production Environment Deployment](./deploy/README_EN.md)
+[Production Environment Deployment](build/web/README_EN.md)
 
 #### Development Environment
 [Development Environment Deployment](./mgmt/doc/file/development/dev_env_en.md)
