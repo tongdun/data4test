@@ -476,3 +476,7 @@ values
 on duplicate key update
                      template_content = values(template_content),
                      use_status = 'apply';
+
+# 2026年10月28日 用例统计增加计划排期（计划 vs 实际进度）
+alter table case_statistics
+    add plan longtext null comment '计划排期(YAML)：start_date/end_date/daily_count/rest_mode/holidays/workdays' after definition;

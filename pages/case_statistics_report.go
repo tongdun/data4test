@@ -71,8 +71,11 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 	// ===== 概览 KPI =====
 	kpi := caseStatKpiCards(csData.Overview)
 
-	// ===== 测试时间趋势 =====
+	// ===== 测试执行趋势 =====
 	trend := caseStatTrendBlock(csData)
+
+	// ===== 计划 vs 实际进度 =====
+	plan := caseStatPlanBlock(csData)
 
 	// ===== 测试结果分布饼图 =====
 	resultPie := caseStatResultPie(csData.ResultDistribution)
@@ -110,7 +113,7 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 		caseStatCountPie("csPriorityPie", biz.T("case_statistics.by_priority"), csData.ByPriority) +
 		`</div>`
 
-	content := kpi + trend + pieRow + personPies + moduleTable + executorTable + drilldown + extHTML + string(reportStyle())
+	content := kpi + pieRow + personPies + plan + trend + moduleTable + executorTable + drilldown + extHTML + string(reportStyle())
 
 	reportName := csData.Overview.Name
 	if reportName == "" {
@@ -413,7 +416,7 @@ func trendChartDataFrom(points []biz.CaseStatTrendPoint) trendChartData {
 	return d
 }
 
-// caseStatTrendBlock 测试时间趋势区块：单实例折线 + 柱状，日/周数据切换。
+// caseStatTrendBlock 测试执行趋势区块：单实例折线 + 柱状，日/周数据切换。
 // 不用隐藏容器预渲染两套图（会因 Chart.js responsive 导致高度跳变），只在切换时更新数据。
 // 无趋势数据（历史报告）时返回空，不渲染。
 func caseStatTrendBlock(csData biz.CaseStatisticsReportData) string {
@@ -465,7 +468,7 @@ var csTrendCumChart = new Chart(document.getElementById('csTrendCum'), {
       {label: %s, data: csTrendDaily.other_cum, borderColor: '#a0a0a0', backgroundColor: '#a0a0a0', fill: false, lineTension: 0.1}
     ]
   },
-  options: { responsive: true, maintainAspectRatio: false, legend: { display: true, position: 'bottom' }, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
 });
 var csTrendIncChart = new Chart(document.getElementById('csTrendInc'), {
   type: 'bar',
@@ -477,7 +480,7 @@ var csTrendIncChart = new Chart(document.getElementById('csTrendInc'), {
       {label: %s, data: csTrendDaily.other_new, backgroundColor: '#a0a0a0'}
     ]
   },
-  options: { responsive: true, maintainAspectRatio: false, legend: { display: true, position: 'bottom' }, scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
 });
 function switchCaseStatTrend(g) {
   var d = (g === 'daily') ? csTrendDaily : csTrendWeekly;
@@ -501,4 +504,155 @@ function switchCaseStatTrend(g) {
 `, dailyJSON, weeklyJSON,
 		execLabel, passCumLabel, failCumLabel, otherCumLabel,
 		passNewLabel, failNewLabel, otherNewLabel)
+}
+
+// planChartData 计划 vs 实际进度前端数据，序列化后注入页面 JS
+type planChartData struct {
+	Labels       []string `json:"labels"`
+	IsWorkDay    []bool   `json:"is_work_day"`
+	PlannedDaily []int    `json:"planned_daily"`
+	ActualDaily  []int    `json:"actual_daily"`
+	PlannedCum   []int    `json:"planned_cum"`
+	ActualCum    []int    `json:"actual_cum"`
+}
+
+// planChartDataFrom 将计划进度点序列转为前端图表数据
+func planChartDataFrom(pp biz.CaseStatPlanProgress) planChartData {
+	d := planChartData{
+		Labels:       make([]string, 0, len(pp.Points)),
+		IsWorkDay:    make([]bool, 0, len(pp.Points)),
+		PlannedDaily: make([]int, 0, len(pp.Points)),
+		ActualDaily:  make([]int, 0, len(pp.Points)),
+		PlannedCum:   make([]int, 0, len(pp.Points)),
+		ActualCum:    make([]int, 0, len(pp.Points)),
+	}
+	for _, p := range pp.Points {
+		label := p.Date
+		if len(label) >= 6 { // 只展示 MM-DD，避免整段日期过长导致 x 轴标签重叠
+			label = label[5:]
+		}
+		d.Labels = append(d.Labels, label)
+		d.IsWorkDay = append(d.IsWorkDay, p.IsWorkDay)
+		d.PlannedDaily = append(d.PlannedDaily, p.PlannedDaily)
+		d.ActualDaily = append(d.ActualDaily, p.ActualDaily)
+		d.PlannedCum = append(d.PlannedCum, p.PlannedCum)
+		d.ActualCum = append(d.ActualCum, p.ActualCum)
+	}
+	return d
+}
+
+// caseStatPlanBlock 计划 vs 实际进度区块。未启用计划排期（plan 为空）时返回空串，整块不渲染。
+func caseStatPlanBlock(csData biz.CaseStatisticsReportData) string {
+	pp := csData.PlanProgress
+	if !pp.Enabled {
+		return ""
+	}
+	dataJSON, _ := json.Marshal(planChartDataFrom(pp))
+
+	finishDate := pp.PlannedFinishDate
+	if finishDate == "" {
+		finishDate = biz.T("case_statistics.plan_not_filled")
+	}
+
+	// 排期信息条（对齐下方 KPI 四列：计划开始→计划总量、计划结束→预计完成日、计划执行→工作日数）
+	dailyText := biz.T("case_statistics.plan_daily_auto")
+	if pp.DailyCount > 0 {
+		dailyText = fmt.Sprintf("%d %s", pp.DailyCount, biz.T("case_statistics.plan_daily_unit"))
+	}
+	info := fmt.Sprintf(`<div class="row report-plan-info">
+<div class="col-md-3 col-sm-6 col-xs-12"><b>%s：</b>%s</div>
+<div class="col-md-3 col-sm-6 col-xs-12"><b>%s：</b>%s</div>
+<div class="col-md-3 col-sm-6 col-xs-12"><b>%s：</b>%s</div>
+</div>`,
+		biz.T("case_statistics.plan_start_date"), pp.StartDate,
+		biz.T("case_statistics.plan_end_date"), pp.EndDate,
+		biz.T("case_statistics.plan_daily_count"), dailyText)
+
+	kpi := fmt.Sprintf(`<div class="row">%s%s%s%s</div>`,
+		reportInfoBox(fmt.Sprintf("%d", pp.Total), biz.T("case_statistics.plan_total"), "fa-clipboard", "aqua"),
+		reportInfoBox(finishDate, biz.T("case_statistics.plan_finish_date"), "fa-flag-checkered", "purple"),
+		reportInfoBox(fmt.Sprintf("%d", pp.WorkDays), biz.T("case_statistics.plan_work_days"), "fa-calendar", "yellow"),
+		reportInfoBox(fmt.Sprintf("%.1f%%", pp.Progress), biz.T("case_statistics.plan_progress"), "fa-tasks", "green"))
+
+	charts := fmt.Sprintf(`<div class="row">
+<div class="col-md-6">%s</div>
+<div class="col-md-6">%s</div>
+</div>
+<script>%s</script>`,
+		reportCard(biz.T("case_statistics.plan_daily"), "", `<div style="position:relative;height:320px"><canvas id="csPlanDaily"></canvas></div>`),
+		reportCard(biz.T("case_statistics.plan_cumulative"), "", `<div style="position:relative;height:320px"><canvas id="csPlanCum"></canvas></div>`),
+		caseStatPlanScript(string(dataJSON)))
+
+	return reportCard(biz.T("case_statistics.plan_progress_title"), "", info+kpi+charts)
+}
+
+// caseStatPlanScript 生成计划 vs 实际进度前端脚本（Chart.js v3 API）。
+// 非工作日：计划量=0、灰色竖带 + 灰色 x 轴标签。计划橙 #f39c12，实际蓝 #3c8dbc。
+func caseStatPlanScript(dataJSON string) string {
+	dailyPlanLabel, _ := json.Marshal(biz.T("case_statistics.plan_daily_plan"))
+	dailyActualLabel, _ := json.Marshal(biz.T("case_statistics.plan_daily_actual"))
+	cumPlanLabel, _ := json.Marshal(biz.T("case_statistics.plan_cum_plan"))
+	cumActualLabel, _ := json.Marshal(biz.T("case_statistics.plan_cum_actual"))
+
+	return fmt.Sprintf(`
+var csPlanData = %s;
+var csPlanRest = [];
+for (var i = 0; i < csPlanData.is_work_day.length; i++) { if (!csPlanData.is_work_day[i]) csPlanRest.push(i); }
+if (!Chart.registry.plugins.get('csPlanRestBand')) {
+  Chart.register({
+    id: 'csPlanRestBand',
+    beforeDatasetsDraw: function(chart) {
+      if (!csPlanRest.length) return;
+      var x = chart.scales.x, a = chart.chartArea, ctx = chart.ctx;
+      if (!x || !a) return;
+      var w = x.getPixelForValue(1) - x.getPixelForValue(0);
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      for (var j = 0; j < csPlanRest.length; j++) {
+        var px = x.getPixelForValue(csPlanRest[j]);
+        ctx.fillRect(px - w / 2, a.top, w, a.bottom - a.top);
+      }
+      ctx.restore();
+    }
+  });
+}
+function csPlanTickColor(c) { return csPlanRest.indexOf(c.index) >= 0 ? '#c2c2c2' : '#555'; }
+var csPlanDailyChart = new Chart(document.getElementById('csPlanDaily'), {
+  type: 'bar',
+  data: {
+    labels: csPlanData.labels,
+    datasets: [
+      {label: %s, data: csPlanData.planned_daily, backgroundColor: '#f39c12', barPercentage: 0.85, categoryPercentage: 0.7},
+      {label: %s, data: csPlanData.actual_daily, backgroundColor: '#3c8dbc', barPercentage: 0.85, categoryPercentage: 0.7}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+      x: { grid: { display: false }, ticks: { color: csPlanTickColor, maxRotation: 0, maxTicksLimit: 14 } }
+    }
+  }
+});
+var csPlanCumChart = new Chart(document.getElementById('csPlanCum'), {
+  type: 'line',
+  data: {
+    labels: csPlanData.labels,
+    datasets: [
+      {label: %s, data: csPlanData.planned_cum, borderColor: '#f39c12', backgroundColor: '#f39c12', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0, fill: false},
+      {label: %s, data: csPlanData.actual_cum, borderColor: '#3c8dbc', backgroundColor: '#3c8dbc', borderWidth: 2, pointRadius: 2, pointBackgroundColor: '#3c8dbc', tension: 0.1, fill: false}
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+      x: { grid: { display: false }, ticks: { color: csPlanTickColor, maxRotation: 0, maxTicksLimit: 14 } }
+    }
+  }
+});
+`, dataJSON, dailyPlanLabel, dailyActualLabel, cumPlanLabel, cumActualLabel)
 }

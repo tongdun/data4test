@@ -111,6 +111,15 @@ func yamlStringList(v interface{}) []string {
 	return out
 }
 
+// ParseCaseStatisticsPlan 解析计划排期配置（case_statistics.plan YAML）
+func ParseCaseStatisticsPlan(plan string) (CaseStatisticsPlan, error) {
+	var p CaseStatisticsPlan
+	if err := yaml.Unmarshal([]byte(plan), &p); err != nil {
+		return p, err
+	}
+	return p, nil
+}
+
 // GenerateCaseStatisticsReport 生成用例统计报告（异步调用）
 func GenerateCaseStatisticsReport(caseStatId int, userName string) {
 	var cs CaseStatistics
@@ -148,7 +157,8 @@ func GenerateCaseStatisticsReport(caseStatId int, userName string) {
 		return
 	}
 
-	reportData := buildCaseStatisticsReport(def, cs.IntroVersions, rows)
+	plan, _ := ParseCaseStatisticsPlan(cs.Plan) // 解析失败/为空 → 零值 → 计划块不启用
+	reportData := buildCaseStatisticsReport(def, cs.IntroVersions, rows, plan)
 	reportData.Overview.Name = cs.Name
 	reportData.Overview.Product = cs.Product
 
@@ -204,7 +214,7 @@ func GenerateCaseStatisticsReport(caseStatId int, userName string) {
 }
 
 // buildCaseStatisticsReport 聚合生成统计报告数据
-func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions string, rows []caseStatRow) CaseStatisticsReportData {
+func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions string, rows []caseStatRow, plan CaseStatisticsPlan) CaseStatisticsReportData {
 	var report CaseStatisticsReportData
 	report.Overview.IntroVersions = introVersions
 
@@ -439,6 +449,7 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 	report.FailCases = failCases
 	report.UntestCases = untestCases
 	report.TrendDaily, report.TrendWeekly = buildCaseStatisticsTrend(matchedRows)
+	report.PlanProgress = buildCaseStatPlanProgress(plan, matchedRows, totalCases)
 	return report
 }
 
@@ -460,7 +471,7 @@ type trendBucket struct {
 	pass, fail, other int
 }
 
-// buildCaseStatisticsTrend 构建测试时间趋势（按日/按周两套桶）。
+// buildCaseStatisticsTrend 构建测试执行趋势（按日/按周两套桶）。
 // 纯快照口径：每个用例只取最新 test_result + test_time；未执行（空或 untest）不参与。
 // 空 test_time 或无法解析的时间直接跳过。
 func buildCaseStatisticsTrend(rows []caseStatRow) (daily, weekly []CaseStatTrendPoint) {
@@ -577,4 +588,131 @@ func splitTrim(s string) []string {
 		}
 	}
 	return out
+}
+
+// stringSet 将 []string 转为 map 用于 O(1) 命中判断
+func stringSet(list []string) map[string]bool {
+	set := make(map[string]bool, len(list))
+	for _, s := range list {
+		if s = strings.TrimSpace(s); s != "" {
+			set[s] = true
+		}
+	}
+	return set
+}
+
+// caseStatPlanIsWorkDay 判定某日期是否工作日（优先级：workdays > holidays > rest_mode）
+func caseStatPlanIsWorkDay(d time.Time, restMode string, holidays, workdays map[string]bool) bool {
+	dateStr := d.Format("2006-01-02")
+	if workdays[dateStr] {
+		return true // 补班/加班日
+	}
+	if holidays[dateStr] {
+		return false // 节假日
+	}
+	switch restMode {
+	case "none":
+		return true
+	case "sun": // 单休，休周日
+		return d.Weekday() != time.Sunday
+	case "sat": // 单休，休周六
+		return d.Weekday() != time.Saturday
+	default: // weekend / 未识别：双休，去周六日
+		return d.Weekday() != time.Saturday && d.Weekday() != time.Sunday
+	}
+}
+
+// buildCaseStatPlanProgress 构建计划 vs 实际进度（plan 为空/非法 → Enabled=false）
+func buildCaseStatPlanProgress(plan CaseStatisticsPlan, rows []caseStatRow, totalCases int) CaseStatPlanProgress {
+	progress := CaseStatPlanProgress{
+		StartDate:  plan.StartDate,
+		EndDate:    plan.EndDate,
+		DailyCount: plan.DailyCount,
+		RestMode:   plan.RestMode,
+		Total:      totalCases,
+	}
+
+	start, err1 := time.Parse("2006-01-02", plan.StartDate)
+	end, err2 := time.Parse("2006-01-02", plan.EndDate)
+	if err1 != nil || err2 != nil || start.After(end) || totalCases == 0 {
+		return progress // 日期缺失/非法/无用例 → 未启用
+	}
+
+	holidays := stringSet(plan.Holidays)
+	workdays := stringSet(plan.Workdays)
+
+	// 工作日数与每日步长
+	workDays := 0
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		if caseStatPlanIsWorkDay(d, plan.RestMode, holidays, workdays) {
+			workDays++
+		}
+	}
+	if workDays == 0 {
+		return progress // 无工作日 → 未启用
+	}
+	daily := plan.DailyCount
+	if daily <= 0 {
+		daily = (totalCases + workDays - 1) / workDays // ceil(总量/工作日)
+	}
+
+	// 实际每日执行量 + 已完成(已执行)用例数
+	actualDaily := map[string]int{}
+	executed := 0
+	for _, r := range rows {
+		if isUntestResult(r.TestResult) {
+			continue
+		}
+		executed++
+		t := strings.TrimSpace(r.TestTime)
+		if len(t) >= len("2006-01-02") {
+			actualDaily[t[:10]]++
+		}
+	}
+
+	// 逐日累计
+	progress.Enabled = true
+	progress.WorkDays = workDays
+	var planCum, actCum int
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		work := caseStatPlanIsWorkDay(d, plan.RestMode, holidays, workdays)
+		pd, ad := 0, 0
+		if work {
+			pd = daily
+			ad = actualDaily[dateStr]
+			planCum += pd
+			if planCum > totalCases {
+				planCum = totalCases
+			}
+			actCum += ad
+			if actCum > totalCases {
+				actCum = totalCases
+			}
+			if progress.PlannedFinishDate == "" && planCum >= totalCases {
+				progress.PlannedFinishDate = dateStr
+			}
+		}
+		progress.Points = append(progress.Points, CaseStatPlanPoint{
+			Date:         dateStr,
+			IsWorkDay:    work,
+			PlannedDaily: pd,
+			ActualDaily:  ad,
+			PlannedCum:   planCum,
+			ActualCum:    actCum,
+		})
+	}
+	// 实际累计曲线仅在工作日推进，无时间戳/休息日/窗口外的已执行用例未体现在曲线中，
+	// 补齐到最后一个点，保证曲线终点与执行进度一致（同样受总量上限约束）
+	if len(progress.Points) > 0 {
+		lastCum := executed
+		if lastCum > totalCases {
+			lastCum = totalCases
+		}
+		progress.Points[len(progress.Points)-1].ActualCum = lastCum
+	}
+	if totalCases > 0 {
+		progress.Progress = float64(executed) / float64(totalCases) * 100
+	}
+	return progress
 }

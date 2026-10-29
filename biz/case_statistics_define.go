@@ -5,6 +5,7 @@ type CaseStatistics struct {
 	Id            int    `gorm:"column:id" json:"id"`
 	Name          string `gorm:"column:name" json:"name"`
 	Definition    string `gorm:"column:definition" json:"definition"`
+	Plan          string `gorm:"column:plan" json:"plan"`
 	IntroVersions string `gorm:"column:intro_versions" json:"intro_versions"`
 	Product       string `gorm:"column:product" json:"product"`
 	Status        string `gorm:"column:status" json:"status"`
@@ -46,6 +47,16 @@ type CaseStatTreeNode struct {
 	Modules  []string           // 三级 = test_case.module 值
 }
 
+// CaseStatisticsPlan 计划排期配置（case_statistics.plan YAML 解析结果）
+type CaseStatisticsPlan struct {
+	StartDate  string   `yaml:"start_date"`  // 计划开始日期 YYYY-MM-DD
+	EndDate    string   `yaml:"end_date"`    // 计划结束日期 YYYY-MM-DD
+	DailyCount int      `yaml:"daily_count"` // 计划每日执行用例数；0/空 = 自动均摊
+	RestMode   string   `yaml:"rest_mode"`   // none/weekend/sun/sat
+	Holidays   []string `yaml:"holidays"`    // 节假日日期列表 YYYY-MM-DD（按休息日处理，可选）
+	Workdays   []string `yaml:"workdays"`    // 补班/加班日期列表 YYYY-MM-DD（标为工作日，可选）
+}
+
 // CaseStatisticsReportData 用例统计报告数据（序列化到 dashboard.report_data）
 type CaseStatisticsReportData struct {
 	Overview           CaseStatOverview       `json:"overview"`
@@ -61,9 +72,10 @@ type CaseStatisticsReportData struct {
 	UntestCases        []CaseStatCaseDetail   `json:"untest_cases"`
 	TrendDaily         []CaseStatTrendPoint   `json:"trend_daily"`
 	TrendWeekly        []CaseStatTrendPoint   `json:"trend_weekly"`
+	PlanProgress       CaseStatPlanProgress   `json:"plan_progress"`
 }
 
-// CaseStatTrendPoint 测试时间趋势单点（日/周通用）
+// CaseStatTrendPoint 测试执行趋势单点（日/周通用）
 type CaseStatTrendPoint struct {
 	Label    string `json:"label"`     // 日期或周（周一）的 "2006-01-02"
 	ExecCum  int    `json:"exec_cum"`  // 累计执行（= 通过+失败+其他）
@@ -73,6 +85,30 @@ type CaseStatTrendPoint struct {
 	PassNew  int    `json:"pass_new"`  // 该桶新增通过
 	FailNew  int    `json:"fail_new"`  // 该桶新增失败
 	OtherNew int    `json:"other_new"` // 该桶新增其他
+}
+
+// CaseStatPlanPoint 计划/实际曲线单点（按日期，含每日与累计）
+type CaseStatPlanPoint struct {
+	Date         string `json:"date"`          // YYYY-MM-DD
+	IsWorkDay    bool   `json:"is_work_day"`   // 是否工作日（false 时前端置灰）
+	PlannedDaily int    `json:"planned_daily"` // 每日计划量（非工作日=0）
+	ActualDaily  int    `json:"actual_daily"`  // 每日实际量（非工作日=0）
+	PlannedCum   int    `json:"planned_cum"`   // 计划累计
+	ActualCum    int    `json:"actual_cum"`    // 实际累计
+}
+
+// CaseStatPlanProgress 计划 vs 实际进度（内嵌进报告数据）
+type CaseStatPlanProgress struct {
+	Enabled           bool                `json:"enabled"`
+	StartDate         string              `json:"start_date"`
+	EndDate           string              `json:"end_date"`
+	DailyCount        int                 `json:"daily_count"`
+	RestMode          string              `json:"rest_mode"`
+	Total             int                 `json:"total"`               // 计划总量 = 全量用例数
+	WorkDays          int                 `json:"work_days"`           // 工作日数
+	Progress          float64             `json:"progress"`            // 进度 % = 已完成/总量
+	PlannedFinishDate string              `json:"planned_finish_date"` // 预计完成日
+	Points            []CaseStatPlanPoint `json:"points"`              // 计划+实际对齐曲线
 }
 
 // CaseStatOverview 报告概览

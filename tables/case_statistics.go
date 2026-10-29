@@ -153,6 +153,9 @@ $(function () {
 	formList.AddField(biz.T("case_statistics.definition"), "definition", db.Longtext, form.TextArea).
 		FieldDefault(biz.T("case_statistics.sample_definition")).
 		FieldHelpMsg(template.HTML(biz.T("case_statistics.help_definition")))
+	formList.AddField(biz.T("case_statistics.plan"), "plan", db.Longtext, form.TextArea).
+		FieldDefault(biz.T("case_statistics.sample_plan")).
+		FieldHelpMsg(template.HTML(biz.T("case_statistics.help_plan")))
 	formList.AddField(biz.T("case_statistics.intro_versions"), "intro_versions", db.Varchar, form.Select).
 		FieldOptions(versions).
 		FieldHelpMsg(template.HTML(biz.T("case_statistics.help_intro_versions")))
@@ -176,6 +179,10 @@ $(function () {
 	detail.AddField(biz.T("case_statistics.intro_versions"), "intro_versions", db.Varchar)
 	detail.AddField(biz.T("case_statistics.product"), "product", db.Varchar)
 	detail.AddField(biz.T("case_statistics.definition"), "definition", db.Longtext).
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return fmt.Sprintf("<pre style='white-space:pre-wrap'>%s</pre>", template.HTMLEscapeString(model.Value))
+		})
+	detail.AddField(biz.T("case_statistics.plan"), "plan", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			return fmt.Sprintf("<pre style='white-space:pre-wrap'>%s</pre>", template.HTMLEscapeString(model.Value))
 		})

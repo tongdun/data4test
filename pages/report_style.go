@@ -91,6 +91,8 @@ func reportStyle() template.HTML {
 .report-card-title{font-weight:600;font-size:15px;color:#333}
 .report-card-tools{font-size:12px}
 .report-card-body{padding:20px}
+.report-plan-info{font-size:13px;color:#555;padding:0 0 18px}
+.report-plan-info b{color:#333;font-weight:600}
 .report-card-footer{padding:10px 20px;border-top:1px solid #eee;text-align:center;font-size:12px}
 .report-table{width:100%;border-collapse:collapse;margin-bottom:0}
 .report-table thead th{background:#f7f7f7;font-weight:600;color:#555;border-bottom:2px solid #e9ecef;padding:10px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}

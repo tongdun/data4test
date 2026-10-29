@@ -34,7 +34,13 @@ func GetAIModelConnectInfo(aiType string) (aiConnect AIConnect, err error) {
 	aiConnect.Protocol = NormalizeAIProtocol(aiConnect.Protocol)
 
 	if len(aiConnect.BaseUrl) == 0 || len(aiConnect.ApiKey) == 0 {
-		err = fmt.Errorf(T("error.connect_info_incomplete"), aiType)
+		missing := "baseUrl/apiKey"
+		if len(aiConnect.BaseUrl) > 0 {
+			missing = "apiKey"
+		} else if len(aiConnect.ApiKey) > 0 {
+			missing = "baseUrl"
+		}
+		err = fmt.Errorf(T("error.connect_info_incomplete"), aiType, missing)
 		Logger.Error("%s", err)
 		return
 	}
