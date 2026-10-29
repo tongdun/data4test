@@ -229,7 +229,7 @@ func runCLI(args []string) int {
 	// 本地 Mock 服务：--mock / mock.enable 显式开启，或检测到数据引用 /mock/ 时自动启动
 	mockPort := cfg.Mock.Port
 	if mockPort == 0 {
-		mockPort = 9066
+		mockPort = SERVER_PORT
 	}
 	mockUsed := detectCliMockUsage()
 	if opts.mock || cfg.Mock.Enable || mockUsed {
@@ -237,8 +237,8 @@ func runCLI(args []string) int {
 			defer shutdownCliMock(srv)
 		}
 		if cfg.Mock.BaseURL != "" {
-			replaceCliMockURLs(cfg.Mock.BaseURL, mockPort)
-			fmt.Printf("[cli] "+T("cli.mock_started")+"\n", mockPort)
+			mockURL := replaceCliMockURLs(cfg.Mock.BaseURL, mockPort)
+			fmt.Printf("[cli] "+T("cli.mock_started")+"\n", mockURL)
 		} else if mockUsed {
 			fmt.Printf("[cli] %s\n", T("cli.mock_no_base_url"))
 		}
@@ -1166,7 +1166,7 @@ func exportReportHTML(reportId string) int {
 		return 1
 	}
 
-	srv := startCliView(CliViewPort)
+	srv := startCliView(CliViewPort())
 	if srv != nil {
 		defer shutdownCliMock(srv)
 		fmt.Printf("[cli] "+T("cli.view_server_started")+"\n", CliViewBaseURL())

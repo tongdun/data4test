@@ -19,11 +19,14 @@ import (
 )
 
 // CliViewPort 本地「查看详情」服务端口（report 命令专用，独立于 run 命令的 mock 端口）。
-const CliViewPort = 9066
+// 默认取 config.json 的 server_port，不写死，随配置变更。
+func CliViewPort() int {
+	return SERVER_PORT
+}
 
 // CliViewBaseURL 返回离线报告「查看详情」链接的绝对前缀。
 func CliViewBaseURL() string {
-	return fmt.Sprintf("http://127.0.0.1:%d", CliViewPort)
+	return fmt.Sprintf("http://127.0.0.1:%d", CliViewPort())
 }
 
 // RegisterViewRoutes 注册离线「查看详情」路由（列表 ×2 + 文件预览 ×2）。

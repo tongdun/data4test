@@ -1722,7 +1722,7 @@ func buildCliConfigYaml(productName string, appMap, sysParameterMap, assertMap m
 		App:             apps,
 		SysParameter:    buildSysParameterMap(sysParameterMap),
 		AssertTemplates: buildAssertTemplateMap(assertMap),
-		Mock:            CliMock{Port: 9066},
+		Mock:            CliMock{Port: SERVER_PORT},
 	}
 	return yamlv3.Marshal(cfg)
 }
