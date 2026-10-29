@@ -788,7 +788,7 @@ func (df DataFile) RunStandard(product, filePath, mode, source, dataContent stri
 			}
 		}
 	} else {
-		Logger.Info(T("info.only_generate_file"), filePath)
+		//Logger.Info(T("info.only_generate_file"), filePath)
 	}
 
 	result, dst, df.Output, err = df.GetResult(source, filePath, product, respHeaderList, resList, depOutVars, errs)
