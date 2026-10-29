@@ -106,7 +106,7 @@ func cliSceneHistoryList(c *gin.Context) {
 	}
 	for _, r := range rows {
 		b.WriteString(`<tr>`)
-		b.WriteString(`<td>` + html.EscapeString(r.Name) + `</td>`)
+		b.WriteString(`<td>` + html.EscapeString(GetPlaybookLocalized(r.Name, GetLocale())) + `</td>`)
 		// 复用 Web 端同款 /admin/fm/... 锚点，交互与 Web 一致
 		b.WriteString(`<td>` + GetHistoryDataLinkByDataStr(r.DataFileList, GetLocale()) + `</td>`)
 		b.WriteString(`<td>` + cliLastFileLink(r.LastFile) + `</td>`)
@@ -149,9 +149,9 @@ func cliDataHistoryList(c *gin.Context) {
 	}
 	for _, r := range rows {
 		b.WriteString(`<tr>`)
-		b.WriteString(`<td>` + html.EscapeString(r.Name) + `</td>`)
+		b.WriteString(`<td>` + html.EscapeString(GetDataLocalized(r.Name, GetLocale())) + `</td>`)
 		b.WriteString(`<td>` + html.EscapeString(r.ApiId) + `</td>`)
-		b.WriteString(`<td>` + r.Content + `</td>`) // 既有锚点，原样输出
+		b.WriteString(`<td>` + GetDataHistoryContentLocalized(r.Content, GetLocale()) + `</td>`) // 文件名本地化后重建锚点
 		b.WriteString(`<td>` + cliResultBadge(r.Result) + `</td>`)
 		b.WriteString(`<td>` + html.EscapeString(r.FailReason) + `</td>`)
 		b.WriteString(`<td>` + html.EscapeString(r.CreatedAt) + `</td>`)

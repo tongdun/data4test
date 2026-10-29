@@ -80,8 +80,10 @@ func ensureEntityI18nLoaded() {
 	ReloadEntityI18n()
 }
 
-// getLocalized 从指定索引取译文，未命中回退中文原值
-func getLocalized(index map[string]map[string]string, zhValue, lang string) string {
+// getLocalized 从指定索引取译文，未命中回退中文原值。
+// index 传全局索引变量的指针：必须在 ensureEntityI18nLoaded() 重载之后读取，
+// 否则首次调用会捕获到 nil 索引（map 入参在调用时求值），导致回退中文。
+func getLocalized(index *map[string]map[string]string, zhValue, lang string) string {
 	if zhValue == "" {
 		return ""
 	}
@@ -91,7 +93,7 @@ func getLocalized(index map[string]map[string]string, zhValue, lang string) stri
 	ensureEntityI18nLoaded()
 	entityI18nMu.RLock()
 	defer entityI18nMu.RUnlock()
-	if byLang, ok := index[lang]; ok {
+	if byLang, ok := (*index)[lang]; ok {
 		if v, ok := byLang[zhValue]; ok && v != "" {
 			return v
 		}
@@ -101,15 +103,15 @@ func getLocalized(index map[string]map[string]string, zhValue, lang string) stri
 
 // GetDataLocalized 数据名/数据文件名/数据描述
 func GetDataLocalized(zhValue, lang string) string {
-	return getLocalized(dataI18nIndex, zhValue, lang)
+	return getLocalized(&dataI18nIndex, zhValue, lang)
 }
 
 // GetPlaybookLocalized 场景名/场景描述
 func GetPlaybookLocalized(zhValue, lang string) string {
-	return getLocalized(playbookI18nIndex, zhValue, lang)
+	return getLocalized(&playbookI18nIndex, zhValue, lang)
 }
 
 // GetTaskLocalized 任务名/任务描述
 func GetTaskLocalized(zhValue, lang string) string {
-	return getLocalized(taskI18nIndex, zhValue, lang)
+	return getLocalized(&taskI18nIndex, zhValue, lang)
 }

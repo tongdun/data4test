@@ -1528,6 +1528,28 @@ func GetHistoryDataLinkByDataStr(pStr, lang string) (linkStr string) {
 	return
 }
 
+// GetDataHistoryContentLocalized 将 scene_data_test_history.content 里已存的文件锚点中的
+// 文件名本地化后重建链接。content 在执行期以原始文件名写入（GetLastFileLink），
+// 需在渲染期再按当前语种本地化，与场景历史的关联数据文件保持一致。
+func GetDataHistoryContentLocalized(content, lang string) string {
+	if content == "" {
+		return content
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	if err != nil {
+		return content
+	}
+	fileName := strings.TrimSpace(doc.Text())
+	if fileName == "" {
+		return content
+	}
+	localized := GetHistoryDataLinkByDataStr(fileName, lang)
+	if localized == "" {
+		return content
+	}
+	return localized
+}
+
 func GetDataDetailLinkByDataStr(dStr, lang string) (linkStr string) {
 	dList := strings.Split(dStr, ",")
 	for _, item := range dList {

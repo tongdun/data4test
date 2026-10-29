@@ -1847,6 +1847,10 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 		return
 	}
 
+	// 归一化解包目录：部分导出包会在包根下再包一层目录（如「数据文件包_xxx/」），
+	// 上提后 i18n/、upload/ 的前缀排除判断才能命中，避免语料/上传文件被误当数据导入。
+	normalizeCliExtractDir(tmpDir)
+
 	// 2. 读取 task_info.yaml
 	taskFilePath := findFileInDir(tmpDir, "task_info.yaml")
 	if len(taskFilePath) > 0 {
