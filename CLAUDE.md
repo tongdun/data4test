@@ -11,12 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 设计阶段
 - 复杂变更先进入 Plan mode，输出实现方案后 ExitPlanMode 征求用户确认
 - 多方案并存时，用 AskUserQuestion 的 preview 字段让用户并排比较；先定方向，再写正式代码
-- 新增页面/功能需要同时配好：后端路由(main.go) + 业务逻辑(biz/xxx.go) + 管理面板(tables/xxx.go) + i18n翻译(mgmt/i18n/*.json)
+- 新增页面/功能需要同时配好：后端路由(main.go) + 业务逻辑(biz/xxx.go) + 管理面板(tables/xxx.go) + i18n翻译(mgmt/i18n/i18n_system/*.json)
 
 ### 实现阶段
 - ❗ 人工改过的代码不要随便改回去，人工删除的代码不要随意加回。修改前先确认文件状态，区分"用户有意为之"和"遗漏"
 - `define.go`与`xxx.go`成对出现：先确保`define.go`中类型完整，再写实现逻辑
 - 涉及数据库查询的统一用`models.Orm.Table("table_name")`，不引入额外 ORM 层
+- 数据库结构变更（加字段/改枚举/建表）只追加到 `mgmt/sql/update.sql`，禁止修改 `mgmt/sql/init_all_*.sql`（已定型发布，不可变更）
 - 用户可见的字符串都用`biz.T("key")`包裹，翻译 key 按层级用点号命名（如 `"error.api_id_not_found"`）
 - API 响应统一格式：`{ code: 200|400, msg: biz.T("..."), data: {...} }`
 - 异步任务（AI生成、报告生成等）用 `go func() { ... }()` ，耗时操作不要阻塞 HTTP handler
@@ -30,6 +31,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 写变更日志时，先通过 `git log --since/--until` 查看指定日期范围的提交记录，再按日期分组整理
 - 日志格式：`#### 2026年X月X日` 日期标题 + 编号列表，每项以 `[Feature]`/`[Bug]`/`[Optimize]` 分类
 - 写入文件 `mgmt/doc/file/update/change_log.md`，按日期倒序插入新条目
+
+### 提交规范
+- ❗ 提交代码时，只允许提交以下目录/文件下的变更，其他变更一律不得私自提交（需用户显式确认）：
+  - `biz/`
+  - `tables/`
+  - `main.go`
+  - `build/`
+  - `html/`
+  - `mgmt/doc/file/update/`
+  - `mgmt/i18n/`
 
 ## Project Overview
 
@@ -70,7 +81,7 @@ main.go                   — Entry point: flag parsing, Gin routes + GoAdmin pa
 - **Routing**: All routes defined in `main.go` as `r.GET()`/`r.POST()` (JSON API) or `eng.HTMLFile()` (admin pages). GoAdmin auto-generates CRUD routes for each table generator in `tables.Generators`.
 - **Business Logic**: Every domain has `<name>.go` + `<name>_define.go` — types in define, logic in the other.
 - **Database**: `models.Orm.Table("table_name").Where(...).Find(&dest)` — raw GORM, no repository layer.
-- **i18n**: `biz.T("key.with.dots")` reads from `mgmt/i18n/{locale}.json`. Key uses flattened dot-notation. Always wrap user-facing strings.
+- **i18n**: `biz.T("key.with.dots")` reads from `mgmt/i18n/i18n_system/{locale}.json`. Key uses flattened dot-notation. Always wrap user-facing strings.
 - **Async Tasks**: `go func() { ... }()` in route handlers. AI generation, report generation run in background.
 - **API Response**: Uniform `{ code: 200|400, msg: "...", data: {...} }`.
 - **Logging**: `biz.Logger.Info/Warning/Error/Debug(format, args...)`.
