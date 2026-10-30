@@ -115,7 +115,7 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 
 	content := kpi + pieRow + personPies + plan + trend + moduleTable + executorTable + drilldown + extHTML + string(reportStyle())
 
-	reportName := csData.Overview.Name
+	reportName := biz.GetCaseCountLocalized(csData.Overview.Name, dataLocale)
 	if reportName == "" {
 		reportName = biz.T("case_statistics.description")
 	}

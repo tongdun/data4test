@@ -71,14 +71,23 @@ func collectMenuNames(def CaseStatisticsDefinition) map[string]string {
 	return set
 }
 
-// writeCaseCountI18n 写 i18n_caseCount 目录下的 zh-CN.yaml（一级/二级菜单名身份映射骨架），保留其他语种文件
+// writeCaseCountI18n 合并写入 i18n_caseCount 目录下的 zh-CN.yaml（一级/二级菜单名 + 定义名称身份映射骨架），保留其他语种文件
+// 采用合并而非覆盖，避免跨多次同步（每次只选部分定义）时丢失历史菜单名/定义名称的译文
 func writeCaseCountI18n(data map[string]string) error {
 	dir := caseCountI18nDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		Logger.Error("case_count i18n sync mkdir %s failed: %v", dir, err)
 		return err
 	}
-	bytes, err := yaml.Marshal(data)
+	merged, err := readFlatYaml(filepath.Join(dir, "zh-CN.yaml"))
+	if err != nil {
+		Logger.Error("case_count i18n sync read zh-CN.yaml failed: %v", err)
+		merged = map[string]string{}
+	}
+	for k, v := range data {
+		merged[k] = v
+	}
+	bytes, err := yaml.Marshal(merged)
 	if err != nil {
 		Logger.Error("case_count i18n sync marshal failed: %v", err)
 		return err
@@ -92,7 +101,8 @@ func writeCaseCountI18n(data map[string]string) error {
 
 // SyncCaseI18nFromStatistics 将选中统计定义的叶子模块内全部用例原始数据导出为 zh-CN.yaml
 // 支持一次选中多个定义（逗号分隔 id），跨定义去重后按模块写文件
-// 返回（模块清单, 模块数, 用例数, error）；仅重写 zh-CN.yaml，保留 en-US.yaml 等其他语种文件
+// 同时把一级/二级菜单名与定义名称合并写入 i18n_caseCount/zh-CN.yaml（保留历史条目，不覆盖）
+// 返回（模块清单, 模块数, 用例数, error）；仅写 zh-CN.yaml，保留 en-US.yaml 等其他语种文件
 func SyncCaseI18nFromStatistics(idStr string) ([]string, int, int, error) {
 	ids := parseIds(idStr)
 	if len(ids) == 0 {
@@ -105,7 +115,7 @@ func SyncCaseI18nFromStatistics(idStr string) ([]string, int, int, error) {
 		return nil, 0, 0, E("case_statistics.not_found")
 	}
 
-	// 汇总所有选中定义涉及的叶子模块（跨定义去重）+ 菜单树名称
+	// 汇总所有选中定义涉及的叶子模块（跨定义去重）+ 菜单树名称 + 定义名称
 	moduleSet := make(map[string]struct{})
 	caseCountSet := make(map[string]string)
 	for _, cs := range css {
@@ -119,6 +129,9 @@ func SyncCaseI18nFromStatistics(idStr string) ([]string, int, int, error) {
 		}
 		for k, v := range collectMenuNames(def) {
 			caseCountSet[k] = v
+		}
+		if name := strings.TrimSpace(cs.Name); name != "" {
+			caseCountSet[name] = name
 		}
 	}
 	if len(moduleSet) == 0 {
@@ -177,7 +190,7 @@ func SyncCaseI18nFromStatistics(idStr string) ([]string, int, int, error) {
 		Logger.Info("i18n同步导出模块 %s：%d 条用例", m, len(data))
 	}
 
-	// 一级/二级菜单名 → i18n_caseCount/zh-CN.yaml
+	// 一级/二级菜单名 + 定义名称 → i18n_caseCount/zh-CN.yaml（合并写入）
 	if err := writeCaseCountI18n(caseCountSet); err != nil {
 		return nil, 0, 0, err
 	}

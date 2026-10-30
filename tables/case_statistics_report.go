@@ -34,7 +34,7 @@ func GetCaseStatisticsReportTable(ctx *context.Context) table.Table {
 				return model.Value
 			}
 			if name := biz.GetCaseStatisticsName(id); name != "" {
-				return name
+				return biz.GetCaseCountLocalized(name, biz.GetLocale())
 			}
 			return model.Value
 		}).FieldWidth(110)

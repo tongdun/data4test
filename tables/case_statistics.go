@@ -38,7 +38,10 @@ func GetCaseStatisticsTable(ctx *context.Context) table.Table {
 	info.AddField(biz.T("common.id"), "id", db.Int).FieldWidth(100)
 	info.AddField(biz.T("case_statistics.name"), "name", db.Varchar).
 		FieldFilterable(types.FilterType{Operator: types.FilterOperatorLike}).
-		FieldTrimSpace()
+		FieldTrimSpace().
+		FieldDisplay(func(model types.FieldModel) interface{} {
+			return biz.GetCaseCountLocalized(model.Value, biz.GetLocale())
+		})
 	info.AddField(biz.T("case_statistics.intro_versions"), "intro_versions", db.Varchar).
 		FieldWidth(160)
 	info.AddField(biz.T("case_statistics.product"), "product", db.Varchar).
