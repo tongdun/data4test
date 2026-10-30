@@ -916,7 +916,8 @@ func copyCliUploads(tmpDir string) error {
 	return nil
 }
 
-// selectCliTasks 根据导入结果与 --task 过滤，返回待执行任务名（排序后）。
+// selectCliTasks 根据导入结果与 --task 过滤，返回待执行任务名。
+// 任务按 schedule 表 id 升序排序（id 即导入顺序，与 task_info.yaml 内顺序一致），保证多任务执行顺序正确。
 func selectCliTasks(tasks []KTask, filter string) ([]string, error) {
 	all := make([]string, 0, len(tasks))
 	for _, t := range tasks {
@@ -924,7 +925,9 @@ func selectCliTasks(tasks []KTask, filter string) ([]string, error) {
 			all = append(all, t.Name)
 		}
 	}
-	sort.Strings(all)
+
+	// 按任务 id 从小到大排序（id 即导入顺序，与 task_info.yaml 内顺序一致）
+	all = sortTaskNamesById(all)
 
 	if filter == "" {
 		return all, nil
@@ -956,6 +959,30 @@ func selectCliTasks(tasks []KTask, filter string) ([]string, error) {
 		}
 	}
 	return selected, nil
+}
+
+// sortTaskNamesById 按 schedule 表 id 升序排序任务名；缺失记录的任务保持原相对顺序。
+func sortTaskNamesById(names []string) []string {
+	if len(names) <= 1 {
+		return names
+	}
+	var rows []struct {
+		Id   int64  `gorm:"column:id"`
+		Name string `gorm:"column:task_name"`
+	}
+	models.Orm.Table("schedule").Select("id, task_name").Where("task_name in (?)", names).Find(&rows)
+	if len(rows) == 0 {
+		return names
+	}
+	idByName := make(map[string]int64, len(rows))
+	for _, r := range rows {
+		idByName[r.Name] = r.Id
+	}
+	sorted := append([]string(nil), names...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return idByName[sorted[i]] < idByName[sorted[j]]
+	})
+	return sorted
 }
 
 // runCliTask 执行单个任务，返回 schedule id 与场景/数据统计。

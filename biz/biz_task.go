@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1429,7 +1430,13 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 	ids := strings.Split(taskId, ",")
 	models.Orm.Table("schedule").Where("id in (?)", ids).Find(&taskList)
 
-	allTask := make(map[string]KTask)
+	// 按 id 升序（自增主键，等价于创建时间正序）组装 task_info.yaml，替代原先 map（无序）+ 任务名字典序
+	sort.SliceStable(taskList, func(i, j int) bool {
+		idI, _ := strconv.Atoi(taskList[i].Id)
+		idJ, _ := strconv.Atoi(taskList[j].Id)
+		return idI < idJ
+	})
+	taskSlice := make(yaml.MapSlice, 0, len(taskList))
 	for _, task := range taskList {
 		var kTask KTask
 		kTask.Name = task.TaskName
@@ -1448,12 +1455,12 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 			kTask.PlaybookList = kTask.PlaybookList[:len(kTask.PlaybookList)-1]
 		}
 		kTask.Remark = task.Remark
-		allTask[task.TaskName] = kTask
+		taskSlice = append(taskSlice, yaml.MapItem{Key: task.TaskName, Value: kTask})
 	}
 
 	taskFileName := "task_info.yaml"
 	taskFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, taskFileName)
-	kTaskByte, _ := sortedTaskYaml(allTask)
+	kTaskByte, _ := yaml.Marshal(taskSlice)
 	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 	_ = WriteTarFile(tw, taskFilePath)
 
@@ -1536,7 +1543,7 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 
 	fileName := "playbook_info.yaml"
 	playbookFilePath := fmt.Sprintf("%s/%s", exportDataFileDir, fileName)
-	var playbookList []Scene
+	var playbookList []DbScene
 	var playbookNameList []string
 
 	for k := range playbookNameMap {
@@ -1548,7 +1555,13 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 		return
 	}
 
-	allPlaybook := make(map[string]KPlaybook)
+	// 按 id 升序（自增主键，等价于创建时间正序）组装 playbook_info.yaml，替代原先 map（无序）+ 场景名字典序
+	sort.SliceStable(playbookList, func(i, j int) bool {
+		idI, _ := strconv.Atoi(playbookList[i].Id)
+		idJ, _ := strconv.Atoi(playbookList[j].Id)
+		return idI < idJ
+	})
+	playbookSlice := make(yaml.MapSlice, 0, len(playbookList))
 
 	for _, playbook := range playbookList {
 		var kPlaybook KPlaybook
@@ -1560,10 +1573,9 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 		if runType, ok := SceneTypeToRunType[playbook.SceneType]; ok {
 			kPlaybook.RunType = runType
 		}
-		allPlaybook[playbook.Name] = kPlaybook
-
+		playbookSlice = append(playbookSlice, yaml.MapItem{Key: playbook.Name, Value: kPlaybook})
 	}
-	kByte, _ := sortedPlaybookYaml(allPlaybook)
+	kByte, _ := yaml.Marshal(playbookSlice)
 	WriteDataInCommonFile(playbookFilePath, string(kByte))
 	WriteTarFile(tw, playbookFilePath)
 
@@ -1851,14 +1863,23 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 	// 上提后 i18n/、upload/ 的前缀排除判断才能命中，避免语料/上传文件被误当数据导入。
 	normalizeCliExtractDir(tmpDir)
 
-	// 2. 读取 task_info.yaml
+	// 2. 读取 task_info.yaml（用 yaml.MapSlice 保留文件内顺序，供 CLI 按 task_info.yaml 顺序执行）
 	taskFilePath := findFileInDir(tmpDir, "task_info.yaml")
 	if len(taskFilePath) > 0 {
 		taskData, readErr := ioutil.ReadFile(taskFilePath)
 		if readErr == nil {
-			var taskMap map[string]KTask
-			if yaml.Unmarshal(taskData, &taskMap) == nil {
-				for name, t := range taskMap {
+			var taskSlice yaml.MapSlice
+			if yaml.Unmarshal(taskData, &taskSlice) == nil {
+				for _, item := range taskSlice {
+					name, ok := item.Key.(string)
+					if !ok {
+						continue
+					}
+					valBytes, _ := yaml.Marshal(item.Value)
+					var t KTask
+					if yaml.Unmarshal(valBytes, &t) != nil {
+						continue
+					}
 					t.Name = name
 					result.Tasks = append(result.Tasks, t)
 				}
