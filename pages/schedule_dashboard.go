@@ -95,6 +95,27 @@ func GetScheduleReportContent(ctx *gin.Context) (types.Panel, error) {
 	return renderTaskReport(report, taskId, dataLocale)
 }
 
+// localizedReportTitle 单任务报告标题：任务名译文，缺失时回退快照报告名
+func localizedReportTitle(taskName, snapshot, dataLocale string) string {
+	if n := biz.GetTaskLocalized(taskName, dataLocale); n != "" {
+		return n
+	}
+	return snapshot
+}
+
+// multiTaskReportTitle 多任务报告标题：首个任务名本地化，多任务时追加数量后缀；旧报告缺失任务名时回退快照报告名
+func multiTaskReportTitle(data biz.MultiTaskReportData, report biz.DashboardReport, dataLocale string) string {
+	o := data.Overview
+	if o.TaskName == "" {
+		return report.ReportName
+	}
+	name := biz.GetTaskLocalized(o.TaskName, dataLocale)
+	if o.TaskCount > 1 {
+		name = name + " " + biz.T("schedule_report.multi_task_suffix", o.TaskCount)
+	}
+	return name
+}
+
 // renderTaskReport 解析 TaskReportData JSON 并渲染完整报告页面
 func renderTaskReport(report biz.DashboardReport, scheduleId string, dataLocale string) (types.Panel, error) {
 	var reportData biz.TaskReportData
@@ -155,7 +176,7 @@ func renderTaskReport(report biz.DashboardReport, scheduleId string, dataLocale 
 	return types.Panel{
 		Content:     template.HTML(content),
 		Title:       template.HTML(biz.T("schedule_report.page_title")),
-		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, report.ReportName, biz.T("schedule_report.generated_at"), report.CreatedAt)),
+		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, localizedReportTitle(reportData.Overview.TaskName, report.ReportName, dataLocale), biz.T("schedule_report.generated_at"), report.CreatedAt)),
 	}, nil
 }
 
@@ -531,7 +552,7 @@ func renderMultiTaskReport(report biz.DashboardReport, dataLocale string) (types
 	o := reportData.Overview
 
 	// ====== 顶部任务信息 ======
-	headerInfo := buildMultiTaskHeader(reportData, report)
+	headerInfo := buildMultiTaskHeader(reportData, report, dataLocale)
 
 	// ====== 从 ByTask 聚合数据维度和场景维度统计 ======
 	var dataTotal, dataPass, dataFail, sceneTotal, scenePass, sceneFail int
@@ -591,12 +612,12 @@ func renderMultiTaskReport(report biz.DashboardReport, dataLocale string) (types
 	return types.Panel{
 		Content:     template.HTML(content),
 		Title:       template.HTML(biz.T("schedule_report.page_title")),
-		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, report.ReportName, biz.T("schedule_report.generated_at"), report.CreatedAt)),
+		Description: template.HTML(fmt.Sprintf(`<div style="display:flex;justify-content:space-between"><span>%s</span><span style="color:#888">%s: %s</span></div>`, multiTaskReportTitle(reportData, report, dataLocale), biz.T("schedule_report.generated_at"), report.CreatedAt)),
 	}, nil
 }
 
 // buildMultiTaskHeader 多任务报告顶部信息
-func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardReport) template.HTML {
+func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardReport, dataLocale string) template.HTML {
 	o := data.Overview
 
 	// 计算场景维度的预计总数 / 已执行 / 未执行
@@ -655,7 +676,7 @@ func buildMultiTaskHeader(data biz.MultiTaskReportData, report biz.DashboardRepo
 		<div class="col-md-4"><strong>%s</strong> %d | <strong>%s</strong> %d | <strong>%s</strong> %d</div>
 		<div class="col-md-2"><strong>%s</strong> <span style="color:green">%s</span></div>
 	</div>`,
-		biz.T("schedule_report.task_name_label"), report.ReportName,
+		biz.T("schedule_report.task_name_label"), multiTaskReportTitle(data, report, dataLocale),
 		biz.T("schedule_report.task_count_label"), o.TaskCount,
 		biz.T("schedule_report.environment"), o.Product,
 		biz.T("schedule_report.executor"), report.Creator,
