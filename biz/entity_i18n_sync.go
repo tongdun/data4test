@@ -11,8 +11,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// SyncEntityI18n 按选中任务导出中文骨架：仅覆盖选中任务的任务名 + 关联场景 + 关联数据
-// 返回（任务数, 数据数, 场景数, error）；仅重写 zh-CN.yaml，保留 en-US.yaml 等其他语种文件
+// SyncEntityI18n 按选中任务导出中文骨架：合并选中任务的任务名 + 关联场景 + 关联数据（保留历史条目，不覆盖）
+// 返回（任务数, 数据数, 场景数, error）；仅合并 zh-CN.yaml，保留 en-US.yaml 等其他语种文件
 func SyncEntityI18n(idStr string) (taskCount, dataCount, playbookCount int, err error) {
 	keys, err := collectEntityI18nKeys(idStr)
 	if err != nil {
@@ -140,13 +140,22 @@ func splitNames(s string) []string {
 	return out
 }
 
-// writeEntityI18n 写某个目录下的 zh-CN.yaml（身份映射骨架），保留其他语种文件
+// writeEntityI18n 合并写某个目录下的 zh-CN.yaml（身份映射骨架），保留其他语种文件
+// 采用合并而非覆盖，避免跨多次同步（每次只选部分任务）时丢失历史任务/场景/数据名的译文
 func writeEntityI18n(dir string, data map[string]string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		Logger.Error("entity_i18n sync mkdir %s failed: %v", dir, err)
 		return err
 	}
-	bytes, err := yaml.Marshal(data)
+	merged, err := readFlatYaml(filepath.Join(dir, "zh-CN.yaml"))
+	if err != nil {
+		Logger.Error("entity_i18n sync read zh-CN.yaml failed: %v", err)
+		merged = map[string]string{}
+	}
+	for k, v := range data {
+		merged[k] = v
+	}
+	bytes, err := yaml.Marshal(merged)
 	if err != nil {
 		Logger.Error("entity_i18n sync marshal failed: %v", err)
 		return err

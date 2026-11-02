@@ -65,6 +65,8 @@ type RunSchecdule struct {
 type ImportResult struct {
 	ImportId         string            `json:"import_id"`
 	UserName         string            `json:"user_name"`
+	StagingDir       string            `json:"staging_dir"`
+	ProductName      string            `json:"product_name"`
 	Tasks            []KTask           `json:"tasks"`
 	Playbooks        []KPlaybook       `json:"playbooks"`
 	DataFiles        []KData           `json:"data_files"`

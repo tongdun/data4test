@@ -916,6 +916,78 @@ func copyCliUploads(tmpDir string) error {
 	return nil
 }
 
+// importScheduleMeta 导入任务包附带的元信息（Web 导入路径）：
+// env_config.yaml（product / app / sys_parameter / assert_template）落库、upload/* 复制、i18n 语料逐 key 合并。
+// 各子项缺失时静默跳过，兼容旧包；mock 为 CLI 专属，不落库。
+func importScheduleMeta(stagingDir string) error {
+	// 1. env_config.yaml → product / env_config(app) / sys_parameter / assert_template 同名 upsert
+	envPath := filepath.Join(stagingDir, "env_config.yaml")
+	if _, e := os.Stat(envPath); e == nil {
+		var cfg CliConfig
+		if err := readCliConfigFile(envPath, &cfg); err == nil && cfg.Product.Name != "" {
+			if e := upsertCliConfig(cfg, cfg.SysParameter); e != nil {
+				Logger.Warning("import env_config failed: %s", e)
+			}
+		}
+	}
+
+	// 2. upload/* → UploadBasePath（同名覆盖）
+	_ = copyCliUploads(stagingDir)
+
+	// 3. i18n 语料逐 key 合并并重载索引
+	mergeI18nDir(stagingDir)
+	ReloadEntityI18n()
+
+	return nil
+}
+
+// mergeI18nDir 把任务包 i18n/ 下附带的实体语料（i18n_task / i18n_playbook / i18n_data）
+// 逐 key 合并到 BASEPATH/i18n 对应目录的 <语种>.yaml，包内 key 覆盖同名、保留目标其它 key。
+func mergeI18nDir(stagingDir string) {
+	for _, name := range []string{"i18n_task", "i18n_playbook", "i18n_data"} {
+		srcDir := filepath.Join(stagingDir, "i18n", name)
+		if _, err := os.Stat(srcDir); err != nil {
+			continue // 包内没有该语料，跳过
+		}
+		dstDir := filepath.Join(BASEPATH, "i18n", name)
+		if err := os.MkdirAll(dstDir, 0755); err != nil {
+			Logger.Warning("i18n merge mkdir %s failed: %v", dstDir, err)
+			continue
+		}
+		files, err := ioutil.ReadDir(srcDir)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if f.IsDir() || (!strings.HasSuffix(f.Name(), ".yaml") && !strings.HasSuffix(f.Name(), ".yml")) {
+				continue
+			}
+			srcMap, e := readFlatYaml(filepath.Join(srcDir, f.Name()))
+			if e != nil {
+				Logger.Warning("i18n merge read %s failed: %v", f.Name(), e)
+				continue
+			}
+			dstPath := filepath.Join(dstDir, f.Name())
+			dstMap, e := readFlatYaml(dstPath)
+			if e != nil {
+				Logger.Warning("i18n merge read %s failed: %v", dstPath, e)
+				dstMap = map[string]string{}
+			}
+			for k, v := range srcMap {
+				dstMap[k] = v
+			}
+			out, e := yaml.Marshal(dstMap)
+			if e != nil {
+				Logger.Warning("i18n merge marshal %s failed: %v", f.Name(), e)
+				continue
+			}
+			if e := ioutil.WriteFile(dstPath, out, 0644); e != nil {
+				Logger.Warning("i18n merge write %s failed: %v", dstPath, e)
+			}
+		}
+	}
+}
+
 // selectCliTasks 根据导入结果与 --task 过滤，返回待执行任务名。
 // 任务按 schedule 表 id 升序排序（id 即导入顺序，与 task_info.yaml 内顺序一致），保证多任务执行顺序正确。
 func selectCliTasks(tasks []KTask, filter string) ([]string, error) {

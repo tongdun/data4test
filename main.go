@@ -2059,7 +2059,10 @@ func startServer() {
 		if strings.TrimSpace(translateBaseUrl) != "" || strings.TrimSpace(translateApiKey) != "" {
 			override = &biz.AIConnectOverride{BaseUrl: translateBaseUrl, ApiKey: translateApiKey}
 		}
-		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, override, biz.TranslateEntityI18n, nil)
+		translating, err := biz.StartTranslateIfEnabled(translateEnable, langs, platform, translateTemplate, userName, override, biz.TranslateEntityI18n,
+			func(langsList []string) bool {
+				return biz.HasPendingEntityI18nTranslate(langsList)
+			})
 		if err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{"code": 400, "msg": err.Error(), "data": map[string]string{}})
 			return
@@ -2067,6 +2070,8 @@ func startServer() {
 		status := fmt.Sprintf(biz.T("common.i18n_sync_done"), tc, dc, pc)
 		if translating {
 			status = fmt.Sprintf("%s\n%s", status, biz.T("common.ai_translating"))
+		} else if translateEnable == "1" {
+			status = fmt.Sprintf("%s\n%s", status, biz.T("common.i18n_no_update"))
 		}
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": status, "data": map[string]string{}})
 	})

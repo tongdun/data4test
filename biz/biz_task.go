@@ -1827,8 +1827,15 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 	result.ConflictCreators = make(map[string]string)
 
 	// 1. 读取文件并检测格式
-	tmpDir := fmt.Sprintf("%s/import_tmp_%s", DownloadBasePath, importId)
-	defer os.RemoveAll(tmpDir)
+	// 解包目录持久化到 staging 目录：confirm 阶段需读取 env_config.yaml / upload / i18n
+	tmpDir := fmt.Sprintf("%s/import_stage_%s", DownloadBasePath, importId)
+	result.StagingDir = tmpDir
+	// 出错（读文件/解压/写结果失败）时清理 staging；成功时留给 confirm 阶段读取
+	defer func() {
+		if err != nil {
+			os.RemoveAll(tmpDir)
+		}
+	}()
 
 	if err = os.MkdirAll(tmpDir, 0755); err != nil {
 		Logger.Error("create tmp dir failed: %s", err)
@@ -1862,6 +1869,15 @@ func ImportScheduleCheck(tgzFilePath, userName string) (result ImportResult, err
 	// 归一化解包目录：部分导出包会在包根下再包一层目录（如「数据文件包_xxx/」），
 	// 上提后 i18n/、upload/ 的前缀排除判断才能命中，避免语料/上传文件被误当数据导入。
 	normalizeCliExtractDir(tmpDir)
+
+	// 读取 env_config.yaml 中的产品名，作为导入任务/场景的默认关联产品
+	envConfigPath := findFileInDir(tmpDir, "env_config.yaml")
+	if len(envConfigPath) > 0 {
+		var cfg CliConfig
+		if readCliConfigFile(envConfigPath, &cfg) == nil {
+			result.ProductName = cfg.Product.Name
+		}
+	}
 
 	// 2. 读取 task_info.yaml（用 yaml.MapSlice 保留文件内顺序，供 CLI 按 task_info.yaml 顺序执行）
 	taskFilePath := findFileInDir(tmpDir, "task_info.yaml")
@@ -2002,6 +2018,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 
 	if mode == "cancel" {
 		os.Remove(resultFilePath)
+		os.RemoveAll(fmt.Sprintf("%s/import_stage_%s", DownloadBasePath, importId))
 		Logger.Info("Import cancelled: id=%s, user=%s", importId, userName)
 		return
 	}
@@ -2053,7 +2070,15 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 
 	if len(newTasks) == 0 && len(newPlaybooks) == 0 && len(newDataFiles) == 0 &&
 		len(overwriteTasks) == 0 && len(overwritePlaybooks) == 0 && len(overwriteDataFiles) == 0 {
+		if userName != "cli" {
+			if metaErr := importScheduleMeta(result.StagingDir); metaErr != nil {
+				Logger.Warning("import meta failed: %s", metaErr)
+			}
+		}
 		os.Remove(resultFilePath)
+		if len(result.StagingDir) > 0 {
+			os.RemoveAll(result.StagingDir)
+		}
 		Logger.Info("Import skipped (all conflicts): id=%s", importId)
 		return
 	}
@@ -2163,7 +2188,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 				Name:         kp.Name,
 				DataFileList: strings.Join(kp.DataList, ","),
 				SceneType:    sceneType,
-				Product:      "",
+				Product:      result.ProductName,
 				UserName:     userName,
 				Remark:       "",
 				Priority:     999,
@@ -2234,7 +2259,7 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 				Threading:   "no",
 				SceneList:   strings.Join(sceneNameList, ","),
 				DataList:    "",
-				ProductList: "",
+				ProductList: result.ProductName,
 				TaskStatus:  "not_started",
 				Crontab:     "",
 				UserName:    userName,
@@ -2281,7 +2306,15 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		overwriteCount++
 	}
 
+	if userName != "cli" {
+		if metaErr := importScheduleMeta(result.StagingDir); metaErr != nil {
+			Logger.Warning("import meta failed: %s", metaErr)
+		}
+	}
 	os.Remove(resultFilePath)
+	if len(result.StagingDir) > 0 {
+		os.RemoveAll(result.StagingDir)
+	}
 	Logger.Info("Import done: id=%s, imported=%d, overwritten=%d, skipped=%d", importId, importedCount, overwriteCount, skippedCount)
 	return
 }

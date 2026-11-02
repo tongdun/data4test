@@ -99,6 +99,11 @@ func caseSnapDir() string {
 	return fmt.Sprintf("%s/i18n_snap/i18n_case", BASEPATH)
 }
 
+// entitySnapDir 返回实体（任务/场景/数据）翻译源内容快照目录，结构与 i18n/ 下实体目录镜像
+func entitySnapDir(name string) string {
+	return fmt.Sprintf("%s/i18n_snap/%s", BASEPATH, name)
+}
+
 // readCaseModuleYaml 读用例模块 yaml（map[用例编号]map[字段]值），文件不存在返回空 map
 func readCaseModuleYaml(path string) (map[string]map[string]string, error) {
 	m := map[string]map[string]string{}
@@ -236,6 +241,111 @@ func translateFlatI18n(zhPath, langPath, content, lang, platform, userCode strin
 
 	if err := writeTranslateYaml(langPath, result); err != nil {
 		Logger.Error("i18n translate write %s failed: %v", langPath, err)
+	}
+	return nil
+}
+
+// translateFlatI18nWithSnapshot 增量翻译某实体扁平语料到多个目标语种（含源内容快照 zh-CN.yaml）
+// 源变更集只算一次（当前源 vs 共享快照），复用到所有语种；翻译完统一推进快照
+// 快照只推进「所有选中语种都已有译文」的 key，单个语种翻译失败/缺失时保持旧值，下次重试
+func translateFlatI18nWithSnapshot(dir, content string, langs []string, platform, userCode string, aiConnect AIConnect) error {
+	zhPath := filepath.Join(dir, "zh-CN.yaml")
+	snapPath := filepath.Join(entitySnapDir(filepath.Base(dir)), "zh-CN.yaml")
+
+	source, err := readFlatYaml(zhPath)
+	if err != nil {
+		Logger.Error("entity i18n translate read %s failed: %v", zhPath, err)
+		return nil
+	}
+	snap, err := readFlatYaml(snapPath)
+	if err != nil {
+		Logger.Error("entity i18n translate read snapshot %s failed: %v", snapPath, err)
+		return nil
+	}
+
+	// 源变更集（相对共享快照）：快照里存在且源值变了 → 各语种都需重翻
+	changed := map[string]bool{}
+	for k, sv := range source {
+		if oldSnap, ok := snap[k]; ok && oldSnap != sv {
+			changed[k] = true
+		}
+	}
+
+	// 各语种最终译文，用于推进快照时判断 key 是否在所有选中语种都有译文
+	final := make(map[string]map[string]string, len(langs))
+	for _, lang := range langs {
+		langPath := filepath.Join(dir, lang+".yaml")
+		existing, err := readFlatYaml(langPath)
+		if err != nil {
+			Logger.Error("entity i18n translate read %s failed: %v", langPath, err)
+			return nil
+		}
+
+		// toTranslate：新增（无译文）或源变更（shared changed）
+		toTranslate := map[string]string{}
+		for k, sv := range source {
+			if tv, ok := existing[k]; !ok || strings.TrimSpace(tv) == "" {
+				toTranslate[k] = sv
+			} else if changed[k] {
+				toTranslate[k] = sv
+			}
+		}
+		// toRemove：源里已删的 key
+		toRemove := make([]string, 0)
+		for k := range existing {
+			if _, ok := source[k]; !ok {
+				toRemove = append(toRemove, k)
+			}
+		}
+
+		result := map[string]string{}
+		for k, v := range existing {
+			result[k] = v
+		}
+		for _, k := range toRemove {
+			delete(result, k)
+		}
+
+		translated := map[string]string{}
+		if len(toTranslate) > 0 {
+			out, err := translateToJSON(content, lang, platform, userCode, aiConnect, toTranslate)
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(out, &translated); err != nil {
+				return err
+			}
+		}
+		// 仅合并预期 key（忽略 AI 幻觉）；翻译失败的 key 保留旧译文（下次重试）
+		for k := range toTranslate {
+			if tv, ok := translated[k]; ok && strings.TrimSpace(tv) != "" {
+				result[k] = tv
+			}
+		}
+
+		if err := writeTranslateYaml(langPath, result); err != nil {
+			Logger.Error("entity i18n translate write %s of %s failed: %v", lang, filepath.Base(dir), err)
+			return nil
+		}
+		final[lang] = result
+	}
+
+	// 推进快照：只推进在所有选中语种都有译文的 key（任一语种缺失则保持旧值，下次重试）
+	newSnap := map[string]string{}
+	for k, sv := range source {
+		complete := true
+		for _, lang := range langs {
+			if strings.TrimSpace(final[lang][k]) == "" {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			newSnap[k] = sv
+		}
+	}
+	if err := writeSnapYaml(snapPath, newSnap); err != nil {
+		Logger.Error("entity i18n translate write snapshot %s failed: %v", snapPath, err)
 	}
 	return nil
 }
@@ -436,6 +546,30 @@ func hasFlatPending(dir, lang string, exclude map[string]bool) bool {
 	return false
 }
 
+// hasFlatPendingWithSnapshot 判断某实体目录某语种是否存在增量差异（新增/变更/删除），与 translateFlatI18nWithSnapshot 的判定保持一致
+func hasFlatPendingWithSnapshot(dir, lang string) bool {
+	zhPath := filepath.Join(dir, "zh-CN.yaml")
+	langPath := filepath.Join(dir, lang+".yaml")
+	snapPath := filepath.Join(entitySnapDir(filepath.Base(dir)), "zh-CN.yaml")
+	source, _ := readFlatYaml(zhPath)
+	existing, _ := readFlatYaml(langPath)
+	snap, _ := readFlatYaml(snapPath)
+	for k, sv := range source {
+		if tv, ok := existing[k]; !ok || strings.TrimSpace(tv) == "" {
+			return true
+		}
+		if oldSnap, ok := snap[k]; ok && oldSnap != sv {
+			return true
+		}
+	}
+	for k := range existing {
+		if _, ok := source[k]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
 // HasPendingCaseI18nTranslate 判断本次选中模块（含一级/二级菜单名）是否存在待翻译增量，不做任何翻译
 func HasPendingCaseI18nTranslate(modules, langs []string) bool {
 	exclude := make(map[string]bool, len(modules))
@@ -450,6 +584,18 @@ func HasPendingCaseI18nTranslate(modules, langs []string) bool {
 		}
 		if hasFlatPending(caseCountI18nDir(), lang, exclude) {
 			return true
+		}
+	}
+	return false
+}
+
+// HasPendingEntityI18nTranslate 判断任务/场景/数据实体语料是否存在待翻译增量，不做任何翻译
+func HasPendingEntityI18nTranslate(langs []string) bool {
+	for _, lang := range langs {
+		for _, dir := range []string{i18nTaskDir(), i18nPlaybookDir(), i18nDataDir()} {
+			if hasFlatPendingWithSnapshot(dir, lang) {
+				return true
+			}
 		}
 	}
 	return false
@@ -492,20 +638,17 @@ func TranslateCaseI18n(userCode, platform string, aiConnect AIConnect, content s
 	ReloadCaseCountI18n()
 }
 
-// TranslateEntityI18n 后台把任务实体语料（i18n_task/ i18n_playbook/ i18n_data/）增量翻译到目标语种
+// TranslateEntityI18n 后台把任务实体语料（i18n_task/ i18n_playbook/ i18n_data/）增量翻译到目标语种（含源内容快照）
 func TranslateEntityI18n(userCode, platform string, aiConnect AIConnect, content string, langs []string) {
 	defer func() {
 		if e := recover(); e != nil {
 			Logger.Error("entity i18n translate panic: %v\n%s", e, debug.Stack())
 		}
 	}()
-	for _, lang := range langs {
-		for _, dir := range []string{i18nTaskDir(), i18nPlaybookDir(), i18nDataDir()} {
-			if err := translateFlatI18n(filepath.Join(dir, "zh-CN.yaml"),
-				filepath.Join(dir, lang+".yaml"), content, lang, platform, userCode, aiConnect, nil); err != nil {
-				Logger.Error("entity i18n translate aborted at %s: %v", filepath.Base(dir), err)
-				return
-			}
+	for _, dir := range []string{i18nTaskDir(), i18nPlaybookDir(), i18nDataDir()} {
+		if err := translateFlatI18nWithSnapshot(dir, content, langs, platform, userCode, aiConnect); err != nil {
+			Logger.Error("entity i18n translate aborted at %s: %v", filepath.Base(dir), err)
+			return
 		}
 	}
 	ReloadEntityI18n()
