@@ -665,6 +665,7 @@ func generateSingleProductReport(tasks []taskInfo, product, reportUser, now, rep
 	}
 	reportData.Overview.Product = product
 	reportData.Overview.TaskCount = len(tasks)
+	reportData.Overview.TaskName = tasks[0].TaskName
 	reportData.Overview.TotalCases = totalExecuted
 	reportData.Overview.PassCases = totalPass
 	reportData.Overview.FailCases = totalFail

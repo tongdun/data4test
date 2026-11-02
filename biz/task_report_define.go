@@ -120,6 +120,7 @@ type MultiTaskReportData struct {
 
 // MultiTaskOverview 多任务报告概览
 type MultiTaskOverview struct {
+	TaskName        string  `json:"task_name"` // 首个任务名（多任务报告头部展示，本地化）
 	ReportName      string  `json:"report_name"`
 	Product         string  `json:"product"`
 	TaskCount       int     `json:"task_count"`
