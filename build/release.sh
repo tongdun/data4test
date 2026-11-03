@@ -14,7 +14,8 @@
 #   darwin/amd64 → data4test_darwin_x86_64（Intel Mac）；darwin/arm64 → data4test_darwin_aarch64（Apple Silicon）
 #
 # 说明：
-#   - sqlite 使用 mattn/go-sqlite3（CGO），CLI/Web 均 CGO_ENABLED=1 编译；交叉编译需各平台可用的 C 编译器（可用 CC=... 指定）。
+#   - sqlite 使用 mattn/go-sqlite3（CGO），CLI/Web 均 CGO_ENABLED=1 编译；darwin 本机用系统 clang，
+#     linux/windows 交叉编译用 zig cc（内置 musl/mingw 头文件，需先安装 zig：brew install zig 或 ziglang.org 官方二进制）。
 #   - Web 收集逻辑内联自 getDeployContent.sh（yarn build + 清理 + sed + 生产 config.json + 示例 yml），
 #     但 yarn install/build 降级为 best-effort：失败不中断，回退复用仓库中已构建好的 web/static。
 #     该旧脚本与 getReleasePackage.sh 不动，待新脚本跑通后人工处理；build/cli_release.sh 已废弃删除（功能已并入本脚本）。
@@ -89,8 +90,40 @@ bin_name() {
   echo "$name"
 }
 
+# 交叉编译目标三元组：linux→musl（静态）、windows→gnu；darwin 本机编译返回空（用系统 clang）。
+zig_target() {
+  local goos="$1" goarch="$2" arch
+  case "$goarch" in
+    amd64) arch=x86_64 ;;
+    386)   arch=x86 ;;
+    arm64) arch=aarch64 ;;
+    *)     arch="$goarch" ;;
+  esac
+  case "$goos" in
+    linux)   echo "${arch}-linux-musl" ;;
+    windows) echo "${arch}-windows-gnu" ;;
+    *)       echo "" ;;
+  esac
+}
+
 build() {
   local goos="$1" goarch="$2" out="$3"
+  local target
+  target="$(zig_target "$goos" "$goarch")"
+  if [ -n "$target" ]; then
+    if ! command -v zig >/dev/null 2>&1; then
+      echo "    错误: 未安装 zig，无法交叉编译 ${goos}/${goarch}（CGO 需交叉 C 编译器）；请安装 zig 后重试" >&2
+      return 1
+    fi
+    # 交叉编译用 zig cc：CC 指向无空格的包装脚本（规避 Go 1.17 cgo 拆分含空格 CC 的问题），
+    # 目标三元组经 ZIG_TARGET 透传。zig cc 默认对 C 开启 UBSan，需 -fno-sanitize=undefined 关闭
+    # （否则链接报 __ubsan_* 未定义）；musl 需 -D_LARGEFILE64_SOURCE 提供 sqlite 的 pread64/pwrite64。
+    export CC="$ROOT/build/zig-cc.sh"
+    export ZIG_TARGET="${target}"
+    export CGO_CFLAGS="-O2 -D_LARGEFILE64_SOURCE -fno-sanitize=undefined"
+  else
+    unset CC ZIG_TARGET CGO_CFLAGS
+  fi
   echo "    build $goos/$goarch -> ${out#"$ROOT"/}"
   CGO_ENABLED=1 GOOS="$goos" GOARCH="$goarch" go build -o "$out" .
 }
