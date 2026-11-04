@@ -434,15 +434,18 @@ func buildCaseStatisticsReport(def CaseStatisticsDefinition, introVersions strin
 		report.ExecutorStats = append(report.ExecutorStats, item)
 	}
 
-	extKeys := make([]string, 0, len(extCount))
-	for k := range extCount {
-		extKeys = append(extKeys, k)
-	}
-	sort.Strings(extKeys)
-	for _, k := range extKeys {
+	// 按定义中 ext_info 的顺序输出扩展信息（保序），跳过无数据的字段
+	for _, k := range def.ExtInfo {
+		if k = strings.TrimSpace(k); k == "" {
+			continue
+		}
+		m, ok := extCount[k]
+		if !ok {
+			continue
+		}
 		report.ExtInfoStats = append(report.ExtInfoStats, CaseStatExtInfoItem{
 			Key:   k,
-			Items: sortCountMap(extCount[k]),
+			Items: sortCountMap(m),
 		})
 	}
 
