@@ -185,7 +185,10 @@ func runCLI(args []string) int {
 	// 系统参数与断言模板均取自 env_config.yaml
 	sysParam := cfg.SysParameter
 
-	// 检测并交互填写 {Name} 占位符（替代原 --ip 覆盖与 ${ENV} 展开）
+	// 命令行注入参数：替换 {Name} 占位符并写回（首次执行 / --reconfig 场景直接注入）
+	injectCliParams(&cfg, opts.params)
+
+	// 检测并交互填写剩余 {Name} 占位符（注入不全时补填；全部注入则自动跳过直接执行）
 	if err := fillCliPlaceholders(&cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "[cli] %v\n", err)
 		return 1
@@ -325,6 +328,22 @@ func parseCliRunFlags(args []string) cliRunOptions {
 			opts.mock = true
 		case "--reconfig":
 			opts.reconfig = true
+		case "--param":
+			if i+1 < len(args) {
+				if opts.params == nil {
+					opts.params = make(map[string]string)
+				}
+				// 支持单次多值（逗号分隔 A=A1,B=B1）与可重复 --param 混用
+				for _, kv := range strings.Split(args[i+1], ",") {
+					kv = strings.TrimSpace(kv)
+					if eq := strings.Index(kv, "="); eq > 0 {
+						if name := strings.TrimSpace(kv[:eq]); name != "" {
+							opts.params[name] = kv[eq+1:]
+						}
+					}
+				}
+				i++
+			}
 		}
 	}
 	return opts
@@ -681,6 +700,51 @@ func stdinIsTTY() bool {
 		return false
 	}
 	return (fi.Mode() & os.ModeCharDevice) != 0
+}
+
+// injectCliParams 把命令行注入的 name→value 替换到配置中的 {Name} 占位符并写回本地 env_config.yaml。
+// 规则：name 不在配置占位符中则告警忽略（不报错）；值为空等同回车跳过、保留占位符；
+// 其余做内存替换（本次运行生效）并写回（持久化，下次免填）。
+func injectCliParams(cfg *CliConfig, params map[string]string) {
+	if len(params) == 0 {
+		return
+	}
+	existing := make(map[string]bool)
+	for _, n := range collectParamNames(*cfg) {
+		existing[n] = true
+	}
+
+	matched := make(map[string]string)
+	var unknown []string
+	for name, val := range params {
+		if !existing[name] {
+			unknown = append(unknown, name)
+			continue
+		}
+		if strings.TrimSpace(val) == "" {
+			continue // 空值等同回车跳过，保留占位符
+		}
+		matched[name] = val
+	}
+
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		fmt.Printf("[cli] %s\n", fmt.Sprintf(T("cli.param_unknown"), strings.Join(unknown, ", ")))
+	}
+
+	if len(matched) == 0 {
+		return
+	}
+	replaceCliPlaceholders(cfg, matched)
+	if err := writeBackPlaceholders(matched); err != nil {
+		Logger.Warning("write back env_config.yaml failed: %s", err)
+	}
+	names := make([]string, 0, len(matched))
+	for n := range matched {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	fmt.Printf("[cli] %s\n", fmt.Sprintf(T("cli.param_injected"), strings.Join(names, ", ")))
 }
 
 // fillCliPlaceholders 检测配置中的 {Name} 占位符并交互式引导填写。
@@ -1313,6 +1377,7 @@ run 选项:
   --task 任务A,任务B    只执行指定任务（默认执行全部）
   --pkg task/xxx.tgz    显式指定任务包（默认取 task/ 下最新修改的包）
   --reconfig            从任务包重新复制原始 env_config.yaml 覆盖本地，重置环境信息
+  --param Name=值       命令行注入占位符值，多个用逗号分隔、可重复，如 --param A=1,B=2
   --language en        本次运行语言，覆盖 config.json 默认语种
   --mock                后台启动本地 Mock 服务（默认检测到 /mock/ 引用时自动启动）
 
@@ -1321,6 +1386,7 @@ report 选项:
 
 占位符说明:
   配置文件中如有{NameXXX} 占位符, 执行前检测并提示补充；
+  可用 --param Name=值 从命令行直接注入（多个逗号分隔、可重复），注入后自动回写、下次免填；
   回车跳过则保持原样并继续执行；
   填写后自动回写配置文件，下次免填；
   可手动编辑env_config.yaml, 把 {NameXXX} 占位符改成实际值。

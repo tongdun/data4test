@@ -81,9 +81,10 @@ type CliConfig struct {
 
 // cliRunOptions 解析 ./data4test run 子命令后的运行选项
 type cliRunOptions struct {
-	taskFilter string // 逗号分隔的任务名，空表示全部
-	pkgPath    string // 显式指定的任务包路径，空表示自动选择 task/ 下最新包
-	language   string // 覆盖 config.json 默认语种
-	mock       bool   // 显式开启本地 mock 服务
-	reconfig   bool   // 从任务包重新复制原始 env_config.yaml 覆盖本地
+	taskFilter string            // 逗号分隔的任务名，空表示全部
+	pkgPath    string            // 显式指定的任务包路径，空表示自动选择 task/ 下最新包
+	language   string            // 覆盖 config.json 默认语种
+	mock       bool              // 显式开启本地 mock 服务
+	reconfig   bool              // 从任务包重新复制原始 env_config.yaml 覆盖本地
+	params     map[string]string // 命令行注入的 {Name} 占位符值，替换并写回 env_config.yaml
 }
