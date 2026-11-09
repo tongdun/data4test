@@ -45,4 +45,4 @@
 
 #### 鉴权
 - CLI 执行直接使用 env_config.yaml 中的鉴权信息
-- 另提供 CLI HTTP 接口（/cli/login、/cli/dataRun、/cli/playbookRun），供外部通过接口获取 TOKEN 并执行数据 / 场景
+- 或在数据中配置output2auth动作获取鉴权信息

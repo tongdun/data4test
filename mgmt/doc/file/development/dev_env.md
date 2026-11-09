@@ -1,4 +1,10 @@
 #### 开发环境
+
+#### 运行环境要求
+- Go 版本：go.mod 的 go 指令要求 ≥ 1.23，推荐使用 Go 1.27.3 工具链构建
+- 国内网络执行 go mod tidy 时需设置 GOSUMDB=off（GOPROXY 已指向阿里云镜像）
+- linux/arm64 交叉打包需 Go ≥ 1.25（低于该版本会报 ARM external linker must be gold）
+
 #### 控制台前端
 - 命令1：yarn install
 - 命令2：yarn run  选择dev模式

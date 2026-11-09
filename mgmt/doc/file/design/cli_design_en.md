@@ -45,4 +45,3 @@
 
 #### Authentication
 - CLI offline execution directly uses the auth info in env_config.yaml.
-- CLI HTTP interfaces (/cli/login, /cli/dataRun, /cli/playbookRun) are also provided for external callers to obtain a TOKEN and execute data/scenarios.
