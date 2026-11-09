@@ -20,7 +20,9 @@ const message: i18nModel = {
         isMust: '必填',
         testValue: '测试值',
         egValue: '示例值',
-        desc: '描述'
+        desc: '描述',
+        key: '键',
+        value: '值'
     },
 
     actionList: {
@@ -42,8 +44,6 @@ const message: i18nModel = {
     },
     envList: {
         product: '关联产品',
-        // hostIp: '环境IP',
-        // protocol: '请求协议',
     },
     relatedApiList: {
         dataFile: '数据文件',
@@ -89,6 +89,71 @@ const message: i18nModel = {
         advancedTitle: "高级选项",
         outputTitle: "输出参数"
     },
+
+    // 报告相关
+    req: {
+        report: {
+            title: "性能报告",
+            summary: {
+                total: "总耗时",
+                slowest: "最慢",
+                fastest: "最快",
+                average: "平均",
+                rps: "每秒请求数"
+            },
+            table: {
+                type: "类型",
+                average: "平均",
+                slowest: "最慢",
+                fastest: "最快",
+                dns: "DNS查询",
+                conn: "连接",
+                req: "请求",
+                delay: "延迟",
+                res: "响应"
+            },
+            chart: {
+                title: "耗时分布",
+                serieName: "耗时"
+            }
+        },
+        pre: {
+            title: "预处理",
+            code: "代码",
+            report: "报告",
+            body: {
+                pretty: "格式化",
+                raw: "原始",
+                language: "语言"
+            },
+            listTable: {
+                duration: "耗时",
+                hasError: "是否有错"
+            },
+            cookie: {
+                name: "名称",
+                value: "值",
+                domain: "域名",
+                path: "路径",
+                expires: "过期时间"
+            }
+        }
+    },
+
+    // 表头相关
+    headerList: {
+        name: "名称",
+        valueType: "值类型",
+        isDisable: "是否禁用",
+        assertResult: "断言结果"
+    },
+
+    // go-admin 兼容
+    goman: {
+        general: {
+            noFilterData: "暂无筛选结果"
+        }
+    }
 }
 
 export default message
