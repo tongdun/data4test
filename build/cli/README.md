@@ -24,6 +24,22 @@ data4test-cli/
 └── mgmt/                    # 运行数据（cli.db、历史、上传文件等）
 ```
 
+## 支持平台
+
+默认平台 linux/amd64 直接产出裸 `data4test`，其余平台产出 `data4test_<os>_<arch>[.exe]`；`start.sh` 检测当前平台运行对应二进制。
+
+| 平台 | 二进制名 |
+|---|---|
+| linux/amd64 | `data4test` |
+| linux/386 | `data4test_linux_i386` |
+| linux/arm64 | `data4test_linux_aarch64` |
+| darwin/amd64（Intel Mac） | `data4test_darwin_x86_64` |
+| darwin/arm64（Apple Silicon） | `data4test_darwin_aarch64` |
+| windows/amd64 | `data4test_windows_x86_64.exe` |
+| windows/386 | `data4test_windows_i386.exe` |
+
+> 单平台包只含一个 `data4test`，直接运行即可；多平台包用 `./start.sh` 免认平台。
+
 ## 命令
 
 | 命令 | 说明 |
