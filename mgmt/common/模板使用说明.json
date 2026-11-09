@@ -35,8 +35,7 @@
       "condition": "{\"children\":[{\"name\":\"definitionList\",\"type\":\"string\",\"value\":\"{nameList}\"}]",
       "vaLue": "{FlowType}",
       "name": "*{Name}*",
-      "name2": "**{Name}**",
-      "XXName": "{self}"
+      "name2": "**{Name}**"
     },
     "bodyList": [
       {
