@@ -34,10 +34,11 @@
 - 单值参数定义:由使用者定义，或自动生成，选择单条，生成单值模式
 - 多值参数定义:由使用者定义，或自动生成，选择多条，生成多值模式，一个字段多值，一一对应关系
 - 输出参数：由提供的参数关系定义解析出来
-- 动作定义: 支持暂停，生成CSV, EXCEL海量数据，也可记录实时请求的数据为CSV, EXCEL，也可根据文件模板记录实时请求的数据等
+- 动作定义: 支持暂停(sleep)，生成CSV/EXCEL海量数据，记录实时请求的数据为CSV/EXCEL，根据文件模板记录实时请求的数据，rsa_encrypt 加密，支持 trigger 执行时机(before/after/only)与仅生成文件等
 - 断言关系：由使用者定义，支持为空，不为空，等于，不等于，包含， 不包含，关键字等等
 - 测试结果：通过断言关系判断，符合要求则 PASS, 无断言定义则接口请求成功即为 PASS， 多值多结果
 - 返回信息: 记录接口返回的信息，多值多返回
+- 编辑体验: 数据文件内容编写支持带行号展示，且支持全屏编辑
 
 #### header设置
 - header：鉴权数据， 请求类型等, application/json， form/data, 文件等
@@ -117,7 +118,6 @@ single:
     vaLue: '{FlowType}'   # 在'系统参数'菜单下，进行参数定义定义，支持多语种定
     name: '*{Name}*'      # 引用上文Name变量，当做一个整体，JSON格式
     name2: '**{Name}**'   # 引用上文Name变量，当做一个整体，字符串格式
-    XXName: '{self}'      # 引用上文XXName变量的值，{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
   bodyList:               # 当请求body直接是List时，相关请求参数放到bodyList下
     - name: '{Name}'
       sex: '{Sex}'
@@ -180,6 +180,9 @@ assert:
   - type: output_re  # 定义输出变量, ([a-zA-Z0-9]+)中匹配到的值赋值给taskId, 提供给其他接口依赖使用
     source: '\\"taskId\":\\"([a-zA-Z0-9]+)\\"'
     value: taskId
+  - type: output2env  # 从返回中提取值写入产品专用参数，存在则更新、不存在则追加，值保留原始 JSON 类型；支持响应体（字段路径）/ResponseHeader/File
+    source: data.XXXName
+    value: XXXName
   - type: output  # 返回值为文件时，从输出的文件中取第一行第一列的值，赋值给taskId
     source: File:TXT:1:1:,
     value: taskId
@@ -233,7 +236,7 @@ action:
       ...
       -----END PUBLIC KEY-----
 
-# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
+# 输出其他接口需要的依赖数据, 由断言中类型为 output / output2env / output2auth 定义，自动生成, 定义为 '{uuid}' 从此处取值
 output:
   uuid:
     - XXX

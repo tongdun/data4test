@@ -44,6 +44,8 @@
 ##### Field Value Assertions
 - Same as overall response assertions, plus:
     - `output`: Defines an output variable for use in subsequent API calls.
+    - `output2auth`: Extracts a value from the response body and outputs it to authentication information; updates if it exists, appends if not.
+    - `output2env`: Extracts a value from the response and writes it to product-specific parameters (`private_parameter`); updates if it exists, appends if not, preserving the original JSON type. Supports the response body (via field path, e.g. `data.xxx`), `ResponseHeader`, and `File` extraction sources.
     - `>`, `<`, `>=`, `<=`: Compares numeric values.
 
 #### Other Features

@@ -7,6 +7,7 @@ nav:
       - 数据管理: design/data_file_design.md
       - 场景管理: design/playbook_design.md
       - 任务管理: design/task_design.md
+      - CLI运行模式: design/cli_design.md
       - Mock使用: design/mock_design.md
       - 公共管理: design/common_design.md
       - 常见问题: question/FAQ.md

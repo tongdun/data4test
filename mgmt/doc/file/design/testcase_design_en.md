@@ -67,3 +67,19 @@
   - **Package Format**: `tgz` or `zip` (applies only to the "path" image mode).
   - **Filters**: product / module / introduced version / case designer / creation time — or export the checked cases directly.
 - The result is a downloadable `.xlsx`, or a `.tgz`/`.zip` package containing the `.xlsx` and the referenced images.
+
+##### Export Excel from Case Statistics Definitions
+- In the Case Statistics Definitions list, check the definitions and click the "Export Excel" button.
+- Configuration:
+  - **Template**: select a predefined export template.
+  - **Language**: select the export language.
+  - **Image Mode**: no image export / package images / embed images.
+- The export scope is determined by the selected definitions: all cases covered by each definition are exported, grouped by module — one `.xlsx` per module, finally packaged into a single `.zip`.
+- Data filtering applies each definition's own "Introduced Version" and "Product" configuration, deduplicating across definitions by case number.
+
+#### Case Statistics Report
+- View the statistics report via "View Report" in the Case Statistics Definitions list. The report includes:
+  - Test-time trend chart: viewable by day or by week.
+  - Plan-type data display.
+  - Extension-info dimension statistics: displayed in definition order — a single field takes a full row, two fields each take half a row, at most three per row; the statistic numbers support clicking to jump to the case list.
+- "Refresh Report" recalculates statistics based on the latest execution data.

@@ -219,7 +219,7 @@ action:
     value: name:number    // 生成文件名:生成的数据条数，默认生成10条
   - type: create_xls
     value: name:number    // 生成文件名:生成的数据条数, 默认生成10条
-# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
+# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为 '{uuid}' 从此处取值
 output:
   uuid:
     - XXX

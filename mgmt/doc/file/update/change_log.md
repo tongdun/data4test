@@ -1,3 +1,14 @@
+#### 2026年11月9日
+1、[Optimize] 升级 Go 工具链至 1.27.3，go.mod 的 go 指令由 1.17 提升至 1.23，解决 linux/arm64 交叉打包报错（ARM external linker must be gold，Go ≤1.24 限制），并同步清理冗余依赖
+2、[Optimize] 发布脚本 release.sh 打包 Web 包时补充 README 拷贝
+3、[Optimize] 停止支持 {self} 入参占位符：删除参数替换引擎中 {self} 的跳过与替换逻辑（biz/data.go）及相关死代码（biz/common.go 的 GetStrType/RawStr2MadeStr），移除前端值类型下拉的 {self} 选项，并同步清理文档、模板、示例数据中的 {self} 说明
+
+#### 2026年11月6日
+1、[Optimize] CLI --param 参数注入功能补充 i18n 翻译 key（cli.param_injected / cli.param_unknown）
+
+#### 2026年11月5日
+1、[Feature] CLI执行工具支持 --param 命令行注入占位符参数：单次多值逗号分隔、可重复，注入后自动写回 env_config.yaml，全部注入直接执行、注入不全交互补填剩余变量
+
 #### 2026年11月4日
 1、[Optimize] 用例统计定义查看报告，扩展信息的展示未按定义的顺序展示
 2、[Optimize] 用例统计报告扩展信息维度布局优化：单字段占满整行、两个字段各半行、每行最多三个，多余字段另起一行铺满
@@ -28,7 +39,7 @@
 1、[Feature] 测试用例统计报告增加测试时间趋势图，支持按日和按周查看
 
 #### 2026年10月19日
-1、[Feature] 断言类型新增 output2env：从接口返回 ResponseBody 提取值写入产品专用参数(private_parameter)，存在则更新、不存在则追加，值保留原始 JSON 类型；支持 ResponseBody、ResponseHeader、File 三种提取源
+1、[Feature] 断言类型新增 output2env：从接口返回体（经字段路径）提取值写入产品专用参数(private_parameter)，存在则更新、不存在则追加，值保留原始 JSON 类型；支持响应体（字段路径）、ResponseHeader、File 三种提取源
 
 #### 2026年10月14日
 1、[Optimize] 场景关联数据编写增加带行号展示，且支持全屏

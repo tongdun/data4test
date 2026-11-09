@@ -38,6 +38,14 @@
   value: 5:10    // Before the colon is the interval time, after the colon is the number of cycles. If the number of cycles is not specified, it defaults to 3 times. Request the interface every 5 seconds. Exit the loop if the assertion passes, for a total of 10 cycles. If the assertion fails on the last request, the entire process is considered a failure.
 ```
 
+##### Action Execution Timing (trigger)
+- Each action can define a `trigger` field with values `before` / `after` / `only`:
+  - `before`: execute before sending the HTTP request.
+  - `after`: execute after sending the HTTP request (default).
+  - `only`: execute only this action without sending an HTTP request (e.g., rsa_encrypt only encrypts, or only generates a file).
+- When any action sets `trigger: only`, the entire execution skips the HTTP request and only runs the actions.
+- Actions support file-generation-only usage (e.g., create_csv / create_xls / modify_file) without depending on a real API response.
+
 ##### Example of modify_file Action Template Files
 - [JSON type](../../../upload/record_template.json)
 - [XML type](../../../upload/record_template.xml)

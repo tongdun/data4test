@@ -265,35 +265,6 @@ func GetSpecialStr(lang, rawStr string) (newStr string) {
 	return
 }
 
-func GetStrType(lang, s string) (t int, v string, allDef map[string]string, allListDef map[string][]string) {
-	//var allListDef map[string][]string
-	// 判断参数是否为其他用例提供的参数
-	if s == "{self}" {
-		t = 1
-		v = s
-		return
-	}
-	// 判断程序自动生成的一些特征数据
-	tmpStr := GetSpecialStr(lang, s)
-	if tmpStr != s {
-		t = 2
-		v = tmpStr
-		allDef, allListDef = GetInStrDef(v)
-		if len(allDef) > 0 {
-			t = 3
-		}
-		return
-	}
-	// 判断字符串中依赖output变量的信息
-	allDef, allListDef = GetInStrDef(s)
-	if len(allDef) > 0 {
-		t = 3
-		return
-	}
-
-	return
-}
-
 func GetTimeFormatData(rawStr string) (newStr string) {
 	strByte := []byte(rawStr)
 	newStr = rawStr
@@ -1103,93 +1074,6 @@ func Reverse(arr *[]string) {
 	}
 }
 
-func RawStr2MadeStr(lang, keyName, value string, order int, depOutVars map[string][]interface{}) (afterStr interface{}, err error) {
-	t, subV, allDef, allListDef := GetStrType(lang, value)
-	if len(keyName) == 0 {
-		keyName = subV
-	}
-
-	if t == 1 {
-		if value, ok := depOutVars[keyName]; ok {
-			afterStr = value[0]
-		} else {
-			err = E("error.variable_not_found", keyName)
-			Logger.Error("%s", err)
-			Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
-			return
-		}
-	} else if t == 2 {
-		afterStr = subV
-	} else if t == 3 {
-		var tmpKey, tmpStr string
-		count := 0
-		for defKey, defValue := range allDef {
-			if value, ok := depOutVars[defKey]; ok {
-				if len(value) > order {
-					if order < 0 {
-						tmpKey = Interface2Str(value[len(value)+order])
-					} else {
-						tmpKey = Interface2Str(value[order])
-					}
-				} else {
-					tmpKey = Interface2Str(value[0])
-				}
-			} else {
-				err = E("error.variable_not_found", defKey)
-				Logger.Error("%s", err)
-				Logger.Debug("t: %v, keyName: %s, subV: %v, allDef: %v", t, keyName, subV, allDef)
-				return
-			}
-			if count == 0 {
-				if len(subV) == 0 {
-					tmpStr = strings.Replace(value, defValue, tmpKey, -1)
-				} else {
-					tmpStr = strings.Replace(subV, defValue, tmpKey, -1)
-				}
-			} else {
-				tmpStr = strings.Replace(tmpStr, defValue, tmpKey, -1)
-			}
-			count++
-		}
-
-		for defKey, defValue := range allListDef {
-			if inValue, ok := depOutVars[defKey]; ok {
-				for _, subValue := range defValue {
-					strReg := regexp.MustCompile(`\{([-a-zA-Z0-9_]+)(\[(\W*\d+)\])*\}`)
-					strMatch := strReg.FindAllSubmatch([]byte(subValue), -1)
-					for _, item := range strMatch {
-						rawStrDef := string(item[0])
-						order, _ := strconv.Atoi(string(item[3]))
-						if len(value) > order {
-							if order < 0 {
-								tmpKey = Interface2Str(inValue[len(inValue)+order])
-							} else {
-								tmpKey = Interface2Str(inValue[order])
-							}
-							tmpStr = strings.Replace(tmpStr, rawStrDef, tmpKey, -1)
-						} else {
-							err = E("error.param_index_out_of_range", string(item[1]), inValue, rawStrDef)
-							Logger.Error("%s", err)
-							Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
-							return
-						}
-					}
-				}
-			} else {
-				err = E("error.variable_not_found", defKey)
-				Logger.Error("%s", err)
-				Logger.Debug("t: %v, keyName: %s, subV: %v, allListDef: %v", t, keyName, subV, allListDef)
-				return
-			}
-		}
-
-		afterStr = tmpStr
-	} else {
-		return value, err
-	}
-	return
-}
-
 func GetAbDef() (inDef map[string]string) {
 	inDef = make(map[string]string)
 	inDef["intAb"] = "65536,-1"
@@ -1337,7 +1221,8 @@ func GetScriptRunEngin(filePath string) (runEngine string, err error) {
 		err = errTmp
 		return
 	}
-	defer fHandle.Close()
+
+	//defer fHandle.Close()
 	scanner := bufio.NewScanner(fHandle)
 	var firstLine string
 	for scanner.Scan() {

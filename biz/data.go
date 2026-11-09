@@ -1399,9 +1399,6 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 
 	for _, item := range strMatch {
 		key := string(item[1])
-		if key == "self" {
-			continue
-		}
 
 		rawStrDef := string(item[0])
 		isReplace := 1
@@ -1492,26 +1489,6 @@ func GetIndexStr(lang, rawStr, startStr, endStr string, depOutVars map[string][]
 						indexStr = strings.Replace(indexStr, rawStrDef, value, -1)
 					}
 				}
-			}
-		}
-	}
-
-	// Single下支持{self}占位符的使用，Multi不再支持，后续考虑停用该变量
-	strReg3 := regexp.MustCompile(`(([-a-zA-Z0-9_]+)\:\s{1}['"]{1}\{self\}['"]{1})`)
-	strMatch3 := strReg3.FindAllSubmatch([]byte(indexStr), -1)
-	for _, item := range strMatch3 {
-		key := string(item[2])
-		rawStrDef := string(item[0])
-		if value, ok := depOutVars[key]; ok {
-			var vStr string
-			vStr = Interface2Str(value[0])
-			tmpStrDef := strings.Replace(rawStrDef, "{self}", vStr, -1)
-			indexStr = strings.Replace(indexStr, rawStrDef, tmpStrDef, 1)
-		} else {
-			value := GetValueFromSysParameter(lang, key)
-			if len(value) > 0 {
-				tmpStrDef := strings.Replace(rawStrDef, "{self}", value, -1)
-				indexStr = strings.Replace(indexStr, rawStrDef, tmpStrDef, 1)
 			}
 		}
 	}

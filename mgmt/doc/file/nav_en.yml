@@ -1,0 +1,28 @@
+nav:
+  - System Usage:
+      - Console Usage: design/console_design_en.md
+      - API Management: design/api_mgmt_design_en.md
+      - Test Case Management: design/testcase_design_en.md
+      - Data Management: design/data_file_design_en.md
+      - Scenario Management: design/playbook_design_en.md
+      - Task Management: design/task_design_en.md
+      - CLI Run Mode: design/cli_design_en.md
+      - Mock Usage: design/mock_design_en.md
+      - FAQ: question/FAQ_EN.md
+  - Data Files:
+      - Parameter Reference: design/parameter_design_en.md
+      - Action Reference: design/action_design_en.md
+      - Assertion Reference: design/assert_design_en.md
+      - Script Reference: design/script_design_en.md
+  - System Design:
+      - Architecture: arch/arch_en.md
+      - Development Plan: plan/blue_print_en.md
+      - Feature Introduction: function/feature_introduction_en.md
+      - Module Functions: function/module_function_en.md
+      - Performance Testing: design/perf_design_en.md
+  - Development:
+      - Development Todo: plan/todo_en.md
+      - Development Guide: development/must_know_en.md
+      - Development Environment: development/dev_env_en.md
+  - System Changes:
+      - Change Log: update/change_log_en.md

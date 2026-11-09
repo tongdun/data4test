@@ -7,7 +7,7 @@
 - record_xls / record_excel / record_xlsx   动作相同，记录当前的请求数据为EXCEL文件
 - modify_file   根据模板文件内容生成新的带请求数据的文件
 - change_output  通过查询接口获取到数据，针对获取到的数据值进行一定的变化再输出
-- rsa_encrypt  使用RSA公钥对明文做PKCS1_v1_5加密（兼容JSEncrypt），结果Base64输出为变量，供下游用例引用
+- rsa_encrypt  使用RSA公钥对明文做加密
 - loop      // 循环执行 (todo)
 
 ##### 使用示例：
@@ -39,6 +39,14 @@
 - type: loop     // todo
   value: 5:10    // 冒号前是间隔时间，冒号后是循环次数，循环次数不写默认3次。每隔5秒请求一次接口，断言通过则退出循环，共循环请求10次，如果最后一次请求断言存在失败，则失败
 ```
+
+##### 动作执行时机（trigger）
+- 每个 action 可定义 trigger 字段，取值 before / after / only：
+  - before：在发送 HTTP 请求前执行
+  - after：在发送 HTTP 请求后执行（默认）
+  - only：仅执行该动作、不发送 HTTP 请求（如 rsa_encrypt 仅加密、仅生成文件）
+- 任一 action 设置 trigger: only 时，整个执行跳过 HTTP 请求，只执行动作
+- 动作支持仅生成文件（如 create_csv / create_xls / modify_file 等），不依赖真实接口返回
 
 #### modify_file动作模板文件示例
 - [JSON类型](../../../upload/record_template.json)
