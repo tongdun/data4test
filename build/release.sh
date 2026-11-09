@@ -576,6 +576,8 @@ response:
   - "response2"
 EOF
 
+  cp "$ROOT/build/web/README.md" "$WEB_DIR/README.md"
+
   build_for_dir "$WEB_DIR"
   write_launcher "$WEB_DIR"
   echo "  ✓ $WEB_DIR"
