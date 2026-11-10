@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jinzhu/gorm"
 	"gopkg.in/yaml.v2"
 
 	"data4test/models"
@@ -802,96 +803,98 @@ func writeBackPlaceholders(m map[string]string) error {
 
 // upsertCliConfig 同步 env_config.yaml 到本地库（同名覆盖）。
 func upsertCliConfig(cfg CliConfig, sysParam map[string]CliJSONField) error {
+	return upsertCliConfigMode(cfg, sysParam, "overwrite")
+}
+
+func upsertCliConfigMode(cfg CliConfig, sysParam map[string]CliJSONField, mode string) error {
+	tx := models.Orm.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer tx.Rollback()
+	if err := upsertCliConfigTx(tx, cfg, sysParam, mode); err != nil {
+		return err
+	}
+	return tx.Commit().Error
+}
+
+// Metadata is one dependency unit: preserve skip semantics and roll back all
+// its database changes when any product/app/parameter/template write fails.
+func upsertCliConfigTx(tx *gorm.DB, cfg CliConfig, sysParam map[string]CliJSONField, mode string) error {
 	cur := time.Now().Format(baseFormat)
-
-	// product：同名覆盖
-	if cfg.Product.Testmode == "" {
-		cfg.Product.Testmode = "fuzzing"
+	if cfg.Product.Name != "" {
+		if cfg.Product.Testmode == "" {
+			cfg.Product.Testmode = "fuzzing"
+		}
+		p := Product{Name: cfg.Product.Name, Ip: cfg.Product.Ip, Protocol: cfg.Product.Protocol,
+			Threading: cfg.Product.Threading, ThreadNumber: cfg.Product.ThreadNumber, Auth: string(cfg.Product.Auth),
+			Apps: cfg.Product.Apps, Testmode: cfg.Product.Testmode, EnvType: cfg.Product.EnvType,
+			PrivateAppPrefix: string(cfg.Product.PrivateAppPrefix), PrivateParameter: string(cfg.Product.PrivateParameter), Remark: cfg.Product.Remark}
+		changes := map[string]interface{}{"ip": p.Ip, "protocol": p.Protocol, "threading": p.Threading, "thread_number": p.ThreadNumber, "auth": p.Auth, "apps": p.Apps, "testmode": p.Testmode, "env_type": p.EnvType, "private_app_prefix": p.PrivateAppPrefix, "private_parameter": p.PrivateParameter, "remark": p.Remark, "updated_at": cur}
+		if err := upsertImportConfigRecord(tx, "product", "product", p.Name, &p, changes, mode); err != nil {
+			return err
+		}
 	}
-	p := Product{
-		Name:             cfg.Product.Name,
-		Ip:               cfg.Product.Ip,
-		Protocol:         cfg.Product.Protocol,
-		Threading:        cfg.Product.Threading,
-		ThreadNumber:     cfg.Product.ThreadNumber,
-		Auth:             string(cfg.Product.Auth),
-		Apps:             cfg.Product.Apps,
-		Testmode:         cfg.Product.Testmode,
-		EnvType:          cfg.Product.EnvType,
-		PrivateAppPrefix: string(cfg.Product.PrivateAppPrefix),
-		PrivateParameter: string(cfg.Product.PrivateParameter),
-		Remark:           cfg.Product.Remark,
-	}
-	var exist Product
-	models.Orm.Table("product").Where("product = ?", p.Name).Find(&exist)
-	if exist.Name == "" {
-		models.Orm.Table("product").Create(&p)
-	} else {
-		models.Orm.Table("product").Where("product = ?", p.Name).Updates(map[string]interface{}{
-			"ip": p.Ip, "protocol": p.Protocol, "threading": p.Threading,
-			"thread_number": p.ThreadNumber, "auth": p.Auth, "apps": p.Apps,
-			"testmode": p.Testmode, "env_type": p.EnvType,
-			"private_app_prefix": p.PrivateAppPrefix, "private_parameter": p.PrivateParameter,
-			"remark": p.Remark, "updated_at": cur,
-		})
-	}
-
-	// env_config：按 app 同名覆盖
-	for appName, a := range cfg.App {
+	for name, a := range cfg.App {
 		if a.Testmode == "" {
 			a.Testmode = "fuzzing"
 		}
-		var e EnvConfig
-		models.Orm.Table("env_config").Where("app = ?", appName).Find(&e)
-		if e.App == "" {
-			models.Orm.Table("env_config").Create(&EnvConfig{
-				App: appName, Product: cfg.Product.Name, Ip: a.Ip, Protocol: a.Protocol,
-				Prepath: a.Prepath, Auth: string(a.Auth), Threading: a.Threading,
-				MaxThreadNum: cfg.Product.ThreadNumber, Testmode: a.Testmode,
-				SwaggerPath: a.Swagger, Remark: a.Remark,
-			})
-		} else {
-			models.Orm.Table("env_config").Where("app = ?", appName).Updates(map[string]interface{}{
-				"product": cfg.Product.Name, "ip": a.Ip, "protocol": a.Protocol,
-				"prepath": a.Prepath, "auth": string(a.Auth), "threading": a.Threading,
-				"testmode": a.Testmode, "swagger_path": a.Swagger, "remark": a.Remark,
-				"updated_at": cur,
-			})
+		product, threads := cfg.Product.Name, cfg.Product.ThreadNumber
+		if a.Product != nil {
+			product = *a.Product
+		}
+		if a.ThreadNumber != nil {
+			threads = *a.ThreadNumber
+		}
+		app := EnvConfig{App: name, Product: product, Ip: a.Ip, Protocol: a.Protocol, Prepath: a.Prepath, Auth: string(a.Auth), Threading: a.Threading, MaxThreadNum: threads, Testmode: a.Testmode, SwaggerPath: a.Swagger, Remark: a.Remark}
+		changes := map[string]interface{}{"product": app.Product, "ip": app.Ip, "protocol": app.Protocol, "prepath": app.Prepath, "auth": app.Auth, "threading": app.Threading, "thread_number": app.MaxThreadNum, "testmode": app.Testmode, "swagger_path": app.SwaggerPath, "remark": app.Remark, "updated_at": cur}
+		if err := upsertImportConfigRecord(tx, "env_config", "app", name, &app, changes, mode); err != nil {
+			return err
 		}
 	}
-
-	// sys_parameter：按 name 同名覆盖
 	for name, val := range sysParam {
-		var sp SysParameter
-		models.Orm.Table("sys_parameter").Where("name = ?", name).Find(&sp)
-		if sp.Name == "" {
-			models.Orm.Table("sys_parameter").Create(&SysParameter{Name: name, ValueList: string(val)})
-		} else {
-			models.Orm.Table("sys_parameter").Where("name = ?", name).Updates(map[string]interface{}{
-				"value_list": string(val), "updated_at": cur,
-			})
+		param := SysParameter{Name: name, ValueList: string(val)}
+		if err := upsertImportConfigRecord(tx, "sys_parameter", "name", name, &param, map[string]interface{}{"value_list": string(val), "updated_at": cur}, mode); err != nil {
+			return err
 		}
 	}
-
-	// assert_template：取自 env_config.yaml，按 name 同名覆盖
 	for name, val := range cfg.AssertTemplates {
-		var cnt int
-		models.Orm.Table("assert_template").Where("name = ?", name).Count(&cnt)
-		if cnt == 0 {
-			models.Orm.Table("assert_template").Exec("INSERT INTO assert_template (name, value, created_at, updated_at) VALUES (?, ?, ?, ?)",
-				name, string(val), cur, cur)
-		} else {
-			models.Orm.Table("assert_template").Where("name = ?", name).Updates(map[string]interface{}{
-				"value": string(val), "updated_at": cur,
-			})
+		record := struct {
+			Name      string
+			Value     string
+			CreatedAt string
+			UpdatedAt string
+		}{name, string(val), cur, cur}
+		if err := upsertImportConfigRecord(tx, "assert_template", "name", name, &record, map[string]interface{}{"value": string(val), "updated_at": cur}, mode); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
+func upsertImportConfigRecord(tx *gorm.DB, table, key, name string, record interface{}, changes map[string]interface{}, mode string) error {
+	var count int
+	if err := tx.Table(table).Where(key+" = ?", name).Count(&count).Error; err != nil {
+		return fmt.Errorf("%s[%s]: %w", table, name, err)
+	}
+	var err error
+	if count == 0 {
+		err = tx.Table(table).Create(record).Error
+	} else if mode == "overwrite" {
+		err = tx.Table(table).Where(key+" = ?", name).Updates(changes).Error
+	}
+	if err != nil {
+		return fmt.Errorf("%s[%s]: %w", table, name, err)
+	}
 	return nil
 }
 
 // copyCliUploads 复制任务包内 upload/ 目录到 UploadBasePath。
 func copyCliUploads(tmpDir string) error {
+	return copyCliUploadsMode(tmpDir, "overwrite")
+}
+
+func copyCliUploadsMode(tmpDir, mode string) error {
 	src := filepath.Join(tmpDir, "upload")
 	if _, err := os.Stat(src); err != nil {
 		return err
@@ -907,11 +910,20 @@ func copyCliUploads(tmpDir string) error {
 		if f.IsDir() {
 			continue
 		}
+		if mode != "overwrite" {
+			if _, err := os.Stat(filepath.Join(UploadBasePath, f.Name())); err == nil {
+				continue
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+		}
 		b, e := ioutil.ReadFile(filepath.Join(src, f.Name()))
 		if e != nil {
-			continue
+			return e
 		}
-		_ = ioutil.WriteFile(filepath.Join(UploadBasePath, f.Name()), b, 0644)
+		if e = ioutil.WriteFile(filepath.Join(UploadBasePath, f.Name()), b, 0644); e != nil {
+			return e
+		}
 	}
 	return nil
 }
@@ -920,30 +932,37 @@ func copyCliUploads(tmpDir string) error {
 // env_config.yaml（product / app / sys_parameter / assert_template）落库、upload/* 复制、i18n 语料逐 key 合并。
 // 各子项缺失时静默跳过，兼容旧包；mock 为 CLI 专属，不落库。
 func importScheduleMeta(stagingDir string) error {
-	// 1. env_config.yaml → product / env_config(app) / sys_parameter / assert_template 同名 upsert
+	return importScheduleMetaMode(stagingDir, "overwrite")
+}
+
+func importScheduleMetaMode(stagingDir, mode string) error {
 	envPath := filepath.Join(stagingDir, "env_config.yaml")
-	if _, e := os.Stat(envPath); e == nil {
+	if _, err := os.Stat(envPath); err == nil {
 		var cfg CliConfig
-		if err := readCliConfigFile(envPath, &cfg); err == nil && cfg.Product.Name != "" {
-			if e := upsertCliConfig(cfg, cfg.SysParameter); e != nil {
-				Logger.Warning("import env_config failed: %s", e)
-			}
+		if err = readCliConfigFile(envPath, &cfg); err != nil {
+			return err
 		}
+		if err = upsertCliConfigMode(cfg, cfg.SysParameter, mode); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
 	}
-
-	// 2. upload/* → UploadBasePath（同名覆盖）
-	_ = copyCliUploads(stagingDir)
-
-	// 3. i18n 语料逐 key 合并并重载索引
-	mergeI18nDir(stagingDir)
+	if err := copyCliUploadsMode(stagingDir, mode); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	mergeI18nDirMode(stagingDir, mode)
 	ReloadEntityI18n()
-
 	return nil
 }
 
 // mergeI18nDir 把任务包 i18n/ 下附带的实体语料（i18n_task / i18n_playbook / i18n_data）
 // 逐 key 合并到 BASEPATH/i18n 对应目录的 <语种>.yaml，包内 key 覆盖同名、保留目标其它 key。
 func mergeI18nDir(stagingDir string) {
+	mergeI18nDirMode(stagingDir, "overwrite")
+}
+
+func mergeI18nDirMode(stagingDir, mode string) {
 	for _, name := range []string{"i18n_task", "i18n_playbook", "i18n_data"} {
 		srcDir := filepath.Join(stagingDir, "i18n", name)
 		if _, err := os.Stat(srcDir); err != nil {
@@ -974,7 +993,9 @@ func mergeI18nDir(stagingDir string) {
 				dstMap = map[string]string{}
 			}
 			for k, v := range srcMap {
-				dstMap[k] = v
+				if _, exists := dstMap[k]; !exists || mode == "overwrite" {
+					dstMap[k] = v
+				}
 			}
 			out, e := yaml.Marshal(dstMap)
 			if e != nil {
@@ -1205,6 +1226,11 @@ func genMultiTaskReportCLI(reportIds string) int {
 		models.Orm.Table("dashboard").Where("id = ?", n).Find(&d)
 		if d.Id == "" {
 			fmt.Fprintf(os.Stderr, "[cli] %s\n", fmt.Sprintf(T("cli.report_id_not_found"), n))
+			return 1
+		}
+		// 编排报告的 related_task_ids 为 orch:<id>:<tag>，不是任务 id，不能参与合并
+		if d.ReportType != "task" {
+			fmt.Fprintf(os.Stderr, "[cli] %s\n", fmt.Sprintf(T("cli.report_type_unsupported"), d.ReportType))
 			return 1
 		}
 		// 多任务报告（related_task_ids 含逗号，如 "2,1"）已合并了多个任务，

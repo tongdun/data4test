@@ -43,6 +43,7 @@ type KData struct {
 }
 
 type KTask struct {
+	ProductList  *string  `json:"product_list,omitempty" yaml:"product_list,omitempty"`
 	Name         string   `json:"name" yaml:"-"`
 	TaskMode     string   `json:"任务模式" yaml:"任务模式"`
 	TaskType     string   `json:"任务类型" yaml:"任务类型"`

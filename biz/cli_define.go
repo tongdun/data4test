@@ -53,14 +53,16 @@ type CliProduct struct {
 
 // CliApp 对应 env_config.yaml 的 app.* 块（字段名与 env_config 表保持一致）
 type CliApp struct {
-	Protocol  string       `yaml:"protocol" json:"protocol"`
-	Ip        string       `yaml:"ip" json:"ip"`
-	Prepath   string       `yaml:"prepath" json:"prepath"`
-	Auth      CliJSONField `yaml:"auth" json:"auth"`
-	Threading string       `yaml:"threading" json:"threading"`
-	Testmode  string       `yaml:"testmode" json:"testmode"`
-	Swagger   string       `yaml:"swagger_path" json:"swagger_path"`
-	Remark    string       `yaml:"remark" json:"remark"`
+	Product      *string      `yaml:"product,omitempty" json:"product,omitempty"`
+	ThreadNumber *int         `yaml:"thread_number,omitempty" json:"thread_number,omitempty"`
+	Protocol     string       `yaml:"protocol" json:"protocol"`
+	Ip           string       `yaml:"ip" json:"ip"`
+	Prepath      string       `yaml:"prepath" json:"prepath"`
+	Auth         CliJSONField `yaml:"auth" json:"auth"`
+	Threading    string       `yaml:"threading" json:"threading"`
+	Testmode     string       `yaml:"testmode" json:"testmode"`
+	Swagger      string       `yaml:"swagger_path" json:"swagger_path"`
+	Remark       string       `yaml:"remark" json:"remark"`
 }
 
 // CliMock 对应 env_config.yaml 的 mock 块

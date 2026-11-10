@@ -154,8 +154,6 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 	timeNos := biz.Get24No()
 	weekNos := biz.Get7No()
 
-
-
 	info.AddButton(template2.HTML(biz.T("schedule.import_check_btn")), icon.FolderO,
 		action.Jump("/admin/schedule_import"))
 
@@ -291,6 +289,36 @@ func GetScheduleTable(ctx *context.Context) table.Table {
 			}
 			return true, status, ""
 		}))
+
+	orchestrationOptions := biz.GetOrchestrationOptions()
+	buildJoinPanel := func(ctx *context.Context, panel *types.FormPanel, defaultIds string) *types.FormPanel {
+		panel.AddField(biz.T("common.selected_ids"), "ids", db.Varchar, form.Text).
+			FieldDefault(defaultIds).FieldDisplayButCanNotEditWhenCreate()
+		panel.AddField(biz.T("task_orchestration.join_select"), "orchestration_id", db.Varchar, form.SelectSingle).
+			FieldOptions(orchestrationOptions)
+		panel.EnableAjaxData(types.AjaxData{DisableJump: true, SuccessJS: `$.pjax.reload('#pjax-container');`})
+		return panel
+	}
+
+	info.AddButton(template.HTML(biz.T("task_orchestration.btn_add_to_orchestration")), icon.Android,
+		action.PopUpWithCtxForm(action.PopUpData{
+			Id:     "/orchestration_join",
+			Title:  biz.T("task_orchestration.join_title"),
+			Width:  "600px",
+			Height: "auto",
+		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+			return buildJoinPanel(ctx, panel, ctx.FormValue("ids"))
+		}, "/orchestration_join"))
+
+	info.AddActionButton(template.HTML(biz.T("task_orchestration.btn_add_to_orchestration")),
+		action.PopUpWithCtxForm(action.PopUpData{
+			Id:     "/orchestration_join_row",
+			Title:  biz.T("task_orchestration.join_title"),
+			Width:  "600px",
+			Height: "auto",
+		}, func(ctx *context.Context, panel *types.FormPanel) *types.FormPanel {
+			return buildJoinPanel(ctx, panel, ctx.FormValue("id"))
+		}, "/orchestration_join_row"))
 
 	info.AddButton(template.HTML(biz.T("common.btn_run")), icon.Android, action.Ajax("run_batch_task",
 		func(ctx *context.Context) (success bool, msg string, data interface{}) {

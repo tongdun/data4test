@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="task_orchestration.import_title">导入任务编排</title>
+    <style>
+        body { padding: 24px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f4f6f9; color: #333; }
+        .card { max-width: 860px; margin: 0 auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 24px; }
+        h3 { margin: 0 0 6px; }
+        .desc { color: #888; font-size: 13px; margin-bottom: 20px; }
+        .row { margin-bottom: 16px; }
+        .btn { display: inline-block; padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #2f7ff0; color: #fff; }
+        .btn-success { background: #21a86b; color: #fff; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .msg { margin: 12px 0; padding: 10px 12px; border-radius: 4px; font-size: 13px; display: none; }
+        .msg.ok { background: #e8f7ef; color: #1b7a4b; display: block; }
+        .msg.err { background: #fdecec; color: #b23b3b; display: block; }
+        .conflict-item { padding: 4px 0; font-size: 13px; border-bottom: 1px dashed #eee; }
+        .type-tag { display: inline-block; padding: 1px 6px; margin-right: 6px; background: #eef3fb; color: #2f7ff0; border-radius: 3px; font-size: 12px; }
+        .summary-bar { margin: 8px 0; color: #666; font-size: 13px; }
+        .hidden { display: none; }
+        label { margin-right: 18px; font-size: 14px; }
+        .section-title { font-weight: 600; margin: 14px 0 6px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h3 data-i18n="task_orchestration.import_title">导入任务编排</h3>
+    <div class="desc" data-i18n="task_orchestration.import_desc">上传任务编排导出包，先检查同名冲突，再选择处理方式确认导入。</div>
+
+    <div class="row">
+        <input type="file" id="fileInput" accept=".zip">
+    </div>
+    <div class="row">
+        <button class="btn btn-primary" id="checkBtn" data-i18n="task_orchestration.import_check_btn">上传并检查</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div id="conflictBox" class="hidden">
+        <div class="section-title" data-i18n="task_orchestration.check_result_title">检查结果</div>
+        <div id="orchestrationConflicts"></div>
+        <div id="scheduleConflicts"></div>
+        <div class="section-title" data-i18n="task_orchestration.check_task_mapping">任务映射</div>
+        <div id="orchestrationDetails"></div>
+    </div>
+
+    <div id="modeBox" class="hidden" style="margin-top:18px;">
+        <div class="section-title" data-i18n="task_orchestration.import_mode">同名冲突处理</div>
+        <div class="row">
+            <label><input type="radio" name="importMode" value="skip" checked> <span data-i18n="task_orchestration.import_mode_skip">跳过同名</span></label>
+            <label><input type="radio" name="importMode" value="overwrite"> <span data-i18n="task_orchestration.import_mode_overwrite">覆盖同名</span></label>
+            <label><input type="radio" name="importMode" value="cancel"> <span data-i18n="task_orchestration.import_mode_cancel">取消导入</span></label>
+        </div>
+        <button class="btn btn-success" id="confirmBtn" data-i18n="task_orchestration.import_confirm_btn">确认导入</button>
+    </div>
+</div>
+
+<script>
+    var LABELS = {};
+    var importId = '';
+    var msgEl = document.getElementById('msg');
+    var conflictBox = document.getElementById('conflictBox');
+    var modeBox = document.getElementById('modeBox');
+    var checkBtn = document.getElementById('checkBtn');
+    var confirmBtn = document.getElementById('confirmBtn');
+
+    function T(key, fallback) {
+        return LABELS[key] || fallback || key;
+    }
+
+    function applyLabels() {
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var key = el.getAttribute('data-i18n');
+            if (LABELS[key]) {
+                el.textContent = LABELS[key];
+            }
+        });
+        document.title = T('task_orchestration.import_title', document.title);
+    }
+
+    fetch('/task_orchestration_import_labels')
+        .then(function (resp) { return resp.json(); })
+        .then(function (json) {
+            LABELS = (json && json.data) || {};
+            applyLabels();
+        })
+        .catch(function () { applyLabels(); });
+
+    function showMsg(text, ok) {
+        msgEl.textContent = text;
+        msgEl.className = 'msg ' + (ok ? 'ok' : 'err');
+    }
+
+    checkBtn.onclick = function () {
+        var fileInput = document.getElementById('fileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showMsg(T('task_orchestration.import_no_file', '请选择导入包'), false);
+            return;
+        }
+        var formData = new FormData();
+        formData.append('upload_file', fileInput.files[0]);
+
+        checkBtn.disabled = true;
+        showMsg('...', true);
+        conflictBox.className = 'hidden';
+        modeBox.className = 'hidden';
+
+        fetch('/task_orchestration_import_check', { method: 'POST', body: formData })
+            .then(function (resp) { return resp.json(); })
+            .then(function (json) {
+                checkBtn.disabled = false;
+                if (json.code !== 200 && json.code !== 400) {
+                    showMsg(json.msg || T('task_orchestration.import_failed', '检查失败'), false);
+                    return;
+                }
+                var data = json.data || {};
+                importId = data.import_id || '';
+                if (!importId) {
+                    showMsg(json.msg || T('task_orchestration.import_failed', '检查失败'), false);
+                    return;
+                }
+
+                document.getElementById('orchestrationConflicts').innerHTML = data.orchestration_conflicts_html || '';
+                document.getElementById('scheduleConflicts').innerHTML = (data.schedule && data.schedule.conflicts_html) || '';
+                document.getElementById('orchestrationDetails').innerHTML = data.orchestration_details_html || '';
+
+                if (data.orchestration_conflicts_html || (data.schedule && data.schedule.conflicts_html) || data.orchestration_details_html) {
+                    conflictBox.className = '';
+                }
+                if (data.blocked) {
+                    modeBox.className = 'hidden';
+                    showMsg(T('task_orchestration.import_blocked_missing', '存在缺失依赖，无法导入'), false);
+                    return;
+                }
+                modeBox.className = '';
+                showMsg(json.msg || T('task_orchestration.import_check_ok', '检查完成'), json.code === 200);
+            })
+            .catch(function (err) {
+                checkBtn.disabled = false;
+                showMsg(T('task_orchestration.import_failed', '检查失败') + ': ' + err, false);
+            });
+    };
+
+    function pollStatus(times) {
+        if (times > 30) {
+            showMsg(T('task_orchestration.import_processing', '导入仍在处理中'), true);
+            return;
+        }
+        setTimeout(function () {
+            fetch('/task_orchestration_import_status?import_id=' + encodeURIComponent(importId))
+                .then(function (resp) { return resp.json(); })
+                .then(function (json) {
+                    var data = json.data || {};
+                    if (data.status === 'done') {
+                        showMsg(T('task_orchestration.import_completed', '导入完成'), true);
+                        return;
+                    }
+                    if (data.status === 'error') {
+                        showMsg(T('task_orchestration.import_failed', '导入失败') + ': ' + (data.message || ''), false);
+                        return;
+                    }
+                    pollStatus(times + 1);
+                })
+                .catch(function () { pollStatus(times + 1); });
+        }, 2000);
+    }
+
+    confirmBtn.onclick = function () {
+        if (!importId) {
+            showMsg(T('task_orchestration.import_no_file', '请先上传并检查'), false);
+            return;
+        }
+        var mode = document.querySelector('input[name="importMode"]:checked').value;
+        var body = new URLSearchParams();
+        body.append('import_id', importId);
+        body.append('import_mode', mode);
+
+        confirmBtn.disabled = true;
+        fetch('/task_orchestration_import_confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+            .then(function (resp) { return resp.json(); })
+            .then(function (json) {
+                confirmBtn.disabled = false;
+                showMsg(json.msg || '', json.code === 200);
+                if (json.code === 200 && mode !== 'cancel') {
+                    pollStatus(0);
+                }
+            })
+            .catch(function (err) {
+                confirmBtn.disabled = false;
+                showMsg(T('task_orchestration.import_failed', '导入失败') + ': ' + err, false);
+            });
+    };
+</script>
+</body>
+</html>

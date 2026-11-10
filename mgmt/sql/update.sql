@@ -480,3 +480,53 @@ on duplicate key update
 # 2026年10月28日 用例统计增加计划排期（计划 vs 实际进度）
 alter table case_statistics
     add plan longtext null comment '计划排期(YAML)：start_date/end_date/daily_count/rest_mode/holidays/workdays' after definition;
+
+# 2026年11月5日 新增任务编排
+CREATE TABLE IF NOT EXISTS `task_orchestration` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `orchestration_name` varchar(255) NOT NULL COMMENT '编排名称',
+  `task_list` longtext COMMENT '关联任务名称，换行分隔，行序即步骤顺序',
+  `product_list` varchar(64) DEFAULT NULL COMMENT '编排级产品(逗号分隔)，非空时覆盖所有步骤任务的产品',
+  `orchestration_status` enum('running','stopped','finished','not_started') NOT NULL DEFAULT 'not_started' COMMENT '编排状态',
+  `orchestration_mode` enum('cron','once','day','week') NOT NULL DEFAULT 'once' COMMENT '预留：编排模式(本期仅手动立即执行)',
+  `crontab` varchar(64) DEFAULT NULL COMMENT '预留：cron表达式',
+  `week` varchar(64) DEFAULT NULL COMMENT '预留：每周几',
+  `time4week` varchar(64) DEFAULT NULL COMMENT '预留：每周执行小时',
+  `time4day` varchar(64) DEFAULT NULL COMMENT '预留：每天执行小时',
+  `remark` longtext COMMENT '备注',
+  `last_at` datetime DEFAULT NULL COMMENT '上次执行时间',
+  `next_at` datetime DEFAULT NULL COMMENT '预留：下次执行时间',
+  `user_name` varchar(100) DEFAULT NULL COMMENT '创建人',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_orchestration_name` (`orchestration_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务编排';
+
+INSERT IGNORE INTO `goadmin_menu` (`id`,`parent_id`,`type`,`order`,`title`,`icon`,`uri`,`header`,`plugin_name`,`uuid`,`created_at`,`updated_at`) VALUES
+(2765,203,1,20,'任务编排','fa-tasks','/info/task_orchestration','','',NULL,NOW(),NOW());
+
+INSERT IGNORE INTO `goadmin_permissions` (`id`,`name`,`slug`,`http_method`,`http_path`,`created_at`,`updated_at`) VALUES
+(301,'task_orchestration 查询','task_orchestration_query','GET','/info/task_orchestration',NOW(),NOW()),
+(302,'task_orchestration 新建页面','task_orchestration_new','GET','/info/task_orchestration/new',NOW(),NOW()),
+(303,'task_orchestration 编辑页面','task_orchestration_edit','GET','/info/task_orchestration/edit',NOW(),NOW()),
+(304,'task_orchestration 新建','task_orchestration_insert','POST','/new/task_orchestration',NOW(),NOW()),
+(305,'task_orchestration 编辑','task_orchestration_update','POST','/edit/task_orchestration',NOW(),NOW()),
+(306,'task_orchestration 删除','task_orchestration_delete','POST','/delete/task_orchestration',NOW(),NOW()),
+(307,'task_orchestration 导出','task_orchestration_export','POST','/export/task_orchestration',NOW(),NOW()),
+(308,'task_orchestration 报告','task_orchestration_report','GET','/orchestration_dashboard',NOW(),NOW());
+
+INSERT IGNORE INTO `goadmin_role_permissions` (`role_id`,`permission_id`,`created_at`,`updated_at`) VALUES
+(1,301,NOW(),NOW()),(1,302,NOW(),NOW()),(1,303,NOW(),NOW()),(1,304,NOW(),NOW()),
+(1,305,NOW(),NOW()),(1,306,NOW(),NOW()),(1,307,NOW(),NOW()),(1,308,NOW(),NOW());
+
+-- 任务编排：导入页权限 + 角色菜单（role_menu 需显式授权，菜单才会出现在角色侧）
+INSERT IGNORE INTO `goadmin_permissions` (`id`,`name`,`slug`,`http_method`,`http_path`,`created_at`,`updated_at`) VALUES
+(309,'task_orchestration 导入页','task_orchestration_import','GET','/task_orchestration_import',NOW(),NOW());
+
+INSERT IGNORE INTO `goadmin_role_permissions` (`role_id`,`permission_id`,`created_at`,`updated_at`) VALUES
+(1,309,NOW(),NOW());
+
+INSERT IGNORE INTO `goadmin_role_menu` (`role_id`,`menu_id`,`created_at`,`updated_at`) VALUES
+(1,2765,NOW(),NOW());

@@ -11,9 +11,11 @@ import (
 	"github.com/gin-contrib/cors"
 
 	"github.com/GoAdminGroup/go-admin/modules/config"
+	adminModels "github.com/GoAdminGroup/go-admin/plugins/admin/models"
 	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
 	"github.com/GoAdminGroup/go-admin/template"
 	"github.com/GoAdminGroup/go-admin/template/chartjs"
+	"net/url"
 
 	"data4test/login"
 	"flag"
@@ -22,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 
 	//_ "github.com/mkevac/debugcharts"
@@ -100,6 +103,20 @@ func main() {
 	startServer()
 }
 
+// requireOrchestrationImport 校验登录与任务编排导入页权限
+func requireOrchestrationImport(c *gin.Context) (adminModels.UserModel, bool) {
+	user, ok := engine.User(c)
+	if !ok || user.Id == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": biz.T("error.unauthorized")})
+		return user, false
+	}
+	if !auth.CheckPermissions(user, config.Url("/task_orchestration_import"), http.MethodGet, url.Values{}) {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": biz.T("error.permission_denied")})
+		return user, false
+	}
+	return user, true
+}
+
 func startServer() {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = ioutil.Discard
@@ -152,6 +169,12 @@ func startServer() {
 
 	eng.HTMLFile("GET", "/admin/likePostman", "./html/index.html", nil)
 	eng.HTMLFile("GET", "/admin/schedule_import", "./html/schedule_import.html", nil)
+	r.GET("/admin/task_orchestration_import", func(c *gin.Context) {
+		if _, ok := requireOrchestrationImport(c); !ok {
+			return
+		}
+		c.File("./html/task_orchestration_import.html")
+	})
 	eng.HTMLFile("GET", "/admin/case_import", "./html/case_import.html", nil)
 
 	eng.Data("GET", "/admin/librarian", func(ctx *context.Context) {
@@ -217,6 +240,10 @@ func startServer() {
 
 	r.GET("/admin/report_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
 		return pages.GetDashboardByReportId(ctx)
+	}))
+
+	r.GET("/admin/orchestration_dashboard", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
+		return pages.GetOrchestrationReportContent(ctx)
 	}))
 
 	r.GET("/admin/case_statistics_report", ada.Content(func(ctx *gin.Context) (panel types.Panel, e error) {
@@ -2157,6 +2184,185 @@ func startServer() {
 			})
 		}
 	})
+	// 任务编排导入-阶段1：上传检查
+	r.POST("/task_orchestration_import_check", func(c *gin.Context) {
+		user, ok := requireOrchestrationImport(c)
+		if !ok {
+			return
+		}
+		uploadFile, errTmp := c.FormFile("upload_file")
+		if errTmp != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("task_orchestration.import_no_file"),
+			})
+			return
+		}
+		uploadFilePath := fmt.Sprintf("%s/%s", biz.UploadBasePath, filepath.Base(uploadFile.Filename))
+		c.SaveUploadedFile(uploadFile, uploadFilePath)
+
+		result, err := biz.ImportTaskOrchestrationCheck(uploadFilePath, user.Name)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  fmt.Sprintf(biz.T("task_orchestration.import_parse_error"), err),
+			})
+			return
+		}
+
+		hasConflict := len(result["orchestration_conflicts"].(map[string]string)) > 0
+		if schedule, ok := result["schedule"].(map[string]interface{}); ok {
+			if count, ok := schedule["conflicts"].(int); ok && count > 0 {
+				hasConflict = true
+			}
+		}
+		// 缺失任务/场景/数据文件直接阻断确认
+		if blocked, ok := result["blocked"].(bool); ok && blocked {
+			hasConflict = true
+		}
+		if hasConflict {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("task_orchestration.import_conflict_title"),
+				"data": result,
+			})
+			return
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  biz.T("task_orchestration.import_check_ok"),
+			"data": result,
+		})
+	})
+
+	// 任务编排导入-阶段2：确认导入
+	r.POST("/task_orchestration_import_confirm", func(c *gin.Context) {
+		importId := c.PostForm("import_id")
+		mode := c.PostForm("import_mode")
+		user, ok := requireOrchestrationImport(c)
+		if !ok {
+			return
+		}
+
+		if len(importId) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("schedule.import_id_required"),
+				"data": map[string]string{},
+			})
+			return
+		}
+
+		go func() {
+			defer func() {
+				if e := recover(); e != nil {
+					biz.Logger.Error("orchestration import confirm panic: %v", e)
+				}
+			}()
+			if err := biz.ImportTaskOrchestrationConfirm(importId, mode, user.Name); err != nil {
+				biz.Logger.Error("orchestration import confirm failed: %s", err)
+			}
+		}()
+
+		msg := biz.T("task_orchestration.import_processing")
+		if mode == "cancel" {
+			msg = biz.T("task_orchestration.import_cancelled")
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  msg,
+			"data": map[string]string{},
+		})
+	})
+
+	// 任务编排导入-页面文案（静态页按当前语种渲染）
+	r.GET("/task_orchestration_import_labels", func(c *gin.Context) {
+		if _, ok := requireOrchestrationImport(c); !ok {
+			return
+		}
+		keys := []string{
+			"task_orchestration.import_title",
+			"task_orchestration.import_desc",
+			"task_orchestration.import_check_btn",
+			"task_orchestration.import_confirm_btn",
+			"task_orchestration.import_mode",
+			"task_orchestration.import_mode_skip",
+			"task_orchestration.import_mode_overwrite",
+			"task_orchestration.import_mode_cancel",
+			"task_orchestration.import_no_file",
+			"task_orchestration.import_check_ok",
+			"task_orchestration.import_conflict_title",
+			"task_orchestration.import_processing",
+			"task_orchestration.import_cancelled",
+			"task_orchestration.import_completed",
+			"task_orchestration.import_failed",
+			"task_orchestration.check_result_title",
+			"task_orchestration.check_task_mapping",
+			"task_orchestration.import_blocked_missing",
+		}
+		labels := make(map[string]string, len(keys))
+		for _, k := range keys {
+			labels[k] = biz.T(k)
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  "",
+			"data": labels,
+		})
+	})
+
+	// 任务编排导入-状态查询
+	r.GET("/task_orchestration_import_status", func(c *gin.Context) {
+		if _, ok := requireOrchestrationImport(c); !ok {
+			return
+		}
+		importId := c.Query("import_id")
+		status, message, err := biz.GetTaskOrchestrationImportStatus(importId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  "",
+			"data": map[string]string{"status": status, "message": message},
+		})
+	})
+	// 加入编排：把选中任务追加到目标编排末尾
+	joinOrchestration := func(c *gin.Context) {
+		orchestrationId := c.PostForm("orchestration_id")
+		ids := c.PostForm("ids")
+		if len(strings.TrimSpace(ids)) == 0 || ids == "," {
+			ids = c.PostForm("id")
+		}
+		if len(strings.TrimSpace(orchestrationId)) == 0 {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  biz.T("task_orchestration.join_select"),
+				"data": map[string]string{},
+			})
+			return
+		}
+		added, skipped, err := biz.AddTasksToOrchestration(orchestrationId, ids)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"code": 400,
+				"msg":  err.Error(),
+				"data": map[string]string{},
+			})
+			return
+		}
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"code": 200,
+			"msg":  fmt.Sprintf(biz.T("task_orchestration.join_success"), added, skipped),
+			"data": map[string]string{},
+		})
+	}
+	registerOrchestrationJoinRoutes(r, joinOrchestration)
+
 	// 测试用例导入Excel-获取可选模板列表
 	r.GET("/case_import_templates", func(c *gin.Context) {
 		templates := biz.GetTestCaseExportTemplates()

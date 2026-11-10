@@ -31,6 +31,8 @@ func GetDashboardByReportId(ctx *gin.Context) (types.Panel, error) {
 		return renderTaskReport(report, "", dataLocale)
 	case "product":
 		return renderProductReport(report.RelatedProducts, report)
+	case "orchestration":
+		return renderOrchestrationReport(report)
 	case "app":
 		return renderApplicationReport(report.RelatedApps, report)
 	case "global":

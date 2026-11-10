@@ -53,6 +53,7 @@ var Generators = map[string]table.Generator{
 	"playbook":                GetPlaybookTable,
 	"product":                 GetProductTable,
 	"schedule":                GetScheduleTable,
+	"task_orchestration":      GetTaskOrchestrationTable,
 	"sys_parameter":           GetSysParameterTable,
 	"scene_test_history":      GetSceneTestHistoryTable,
 	"scene_data_test_history": GetSceneDataTestHistoryTable,

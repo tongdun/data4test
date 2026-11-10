@@ -38,6 +38,8 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 				return biz.T("schedule_report.report_type_app")
 			case "task":
 				return biz.T("schedule_report.report_type_task")
+			case "orchestration":
+				return biz.T("schedule_report.report_type_orchestration")
 			}
 			return model.Value
 		}).FieldFilterable(types.FilterType{FormType: form.Select}).FieldFilterOptions(types.FieldOptions{
@@ -45,6 +47,7 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 		{Value: "product", Text: biz.T("schedule_report.report_type_product")},
 		{Value: "app", Text: biz.T("schedule_report.report_type_app")},
 		{Value: "task", Text: biz.T("schedule_report.report_type_task")},
+		{Value: "orchestration", Text: biz.T("schedule_report.report_type_orchestration")},
 	}).FieldWidth(100)
 
 	info.AddField(biz.T("common.product_list"), "related_products", db.Varchar).
@@ -138,6 +141,8 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 				return biz.T("schedule_report.report_type_app")
 			case "task":
 				return biz.T("schedule_report.report_type_task")
+			case "orchestration":
+				return biz.T("schedule_report.report_type_orchestration")
 			}
 			return model.Value
 		})
@@ -149,7 +154,11 @@ func GetDashboardTable(ctx *context.Context) table.Table {
 	detail.AddField(biz.T("common.status"), "status", db.Varchar)
 	detail.AddField(biz.T("schedule_report.report_data"), "report_data", db.Longtext).
 		FieldDisplay(func(model types.FieldModel) interface{} {
-			return fmt.Sprintf("<a href=\"/admin/schedule_report?report_id=%s\">%s</a>", model.Row["id"], biz.T("schedule_report.btn_view_report"))
+			href := fmt.Sprintf("/admin/schedule_report?report_id=%v", model.Row["id"])
+			if model.Row["report_type"] == "orchestration" {
+				href = fmt.Sprintf("/admin/report_dashboard?id=%v", model.Row["id"])
+			}
+			return fmt.Sprintf("<a href=\"%s\">%s</a>", href, biz.T("schedule_report.btn_view_report"))
 		})
 	detail.AddField(biz.T("common.remark"), "remark", db.Longtext)
 	detail.AddField(biz.T("common.user_name"), "creator", db.Varchar)

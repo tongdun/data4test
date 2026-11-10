@@ -2,7 +2,6 @@ package biz
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"data4test/models"
@@ -17,6 +16,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -32,6 +32,7 @@ var LastImportId string
 func Init() {
 	InitMenuI18n()
 	ServiceRestart()
+	ResetRunningOrchestrations()
 	ReloadCaseI18n()
 }
 
@@ -343,7 +344,39 @@ func StopTask(ids string) (err error) {
 	return
 }
 
+var authFailurePattern = regexp.MustCompile(`(?i)(返回码|status code)\s*[:：]?\s*401`)
+
+// isAuthFailureError 判断执行错误是否为 401 鉴权失败，不依赖当前请求语种
+func isAuthFailureError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	if strings.Contains(msg, T("error.auth_fail_prefix")) {
+		return true
+	}
+	return authFailurePattern.MatchString(msg)
+}
+
+// firstProduct 取产品列表中的第一个产品（data 链路按单产品执行）
+func firstProduct(productList string) string {
+	for _, p := range strings.Split(productList, ",") {
+		p = strings.TrimSpace(p)
+		if len(p) > 0 {
+			return p
+		}
+	}
+	return ""
+}
+
+// RunOnceTask 立即执行任务（兼容包装）
 func RunOnceTask(id, userName string) (err error) {
+	_, err = RunTaskOnce(id, userName, TaskRunOptions{UpdateTaskStatus: true})
+	return
+}
+
+// RunTaskOnce 立即执行任务，支持外部指定 runTag、产品覆盖、是否改写任务状态
+func RunTaskOnce(id, userName string, opts TaskRunOptions) (result TaskRunResult, err error) {
 	var taskDb DbSchedule
 	models.Orm.Table("schedule").Where("id = ?", id).Find(&taskDb)
 	if len(taskDb.TaskName) == 0 {
@@ -351,37 +384,111 @@ func RunOnceTask(id, userName string) (err error) {
 		return
 	}
 
-	// 获取执行项列表
-	//var executeItems string
-	totalExpected := 0
-	switch taskDb.TaskType {
-	case "data":
-		dataIds, _ := taskDb.GetDataIds()
-		totalExpected = len(dataIds)
-	case "scene":
-		sceneIds, _, _ := taskDb.GetSceneIds()
-		totalExpected = len(sceneIds)
+	// 编排级产品覆盖任务自身产品（data 链路只支持单产品，取第一个）
+	effectiveProduct := taskDb.ProductList
+	if len(strings.TrimSpace(opts.ProductOverride)) > 0 {
+		effectiveProduct = opts.ProductOverride
 	}
-	startTime, err := time.Parse("2006-01-02 15:04:05", taskDb.LastAt)
+	execProduct := effectiveProduct
+	if opts.StrictExecution && taskDb.TaskType == "data" {
+		execProduct = firstProduct(effectiveProduct)
+	}
+	// 执行与报告使用有效产品；不直接改 taskDb.ProductList，避免 UpdateTaskStatus 时把覆盖值写回任务配置
+	reportTask := taskDb
+	reportTask.ProductList = execProduct
 
-	timeTag := startTime.Format("20060102150405")
-	taskTag := fmt.Sprintf("%s_%s", id, timeTag)
+	var itemIDs []string
+	var totalExpected int
+	var dependencyErr error
+	if opts.StrictExecution {
+		itemIDs, totalExpected, dependencyErr = resolveTaskRunItems(taskDb)
+	} else {
+		// 存量行为：缺失依赖只截断执行项，空列表视为空跑
+		switch taskDb.TaskType {
+		case "data":
+			itemIDs, _ = taskDb.GetDataIds()
+			totalExpected = len(itemIDs)
+		case "scene":
+			itemIDs, _, _ = taskDb.GetSceneIds()
+			totalExpected = len(itemIDs)
+		}
+	}
+	startTime, parseErr := time.Parse("2006-01-02 15:04:05", taskDb.LastAt)
+	if parseErr != nil || len(opts.RunTag) > 0 {
+		// 编排调用时以当前时间为本轮起点，避免沿用任务上次执行时间导致耗时异常
+		startTime = time.Now()
+	}
+
+	taskTag := opts.RunTag
+	if len(taskTag) == 0 {
+		taskTag = fmt.Sprintf("%s_%s", id, startTime.Format("20060102150405"))
+	}
 	// 创建执行历史
 
-	historyId, err := CreateDashboardRecord(taskTag, userName, taskDb)
-	if err != nil {
-		Logger.Error("创建执行历史失败: %s", err)
+	historyId, reportErr := CreateDashboardRecord(taskTag, userName, reportTask)
+	if reportErr != nil {
+		Logger.Error("创建执行历史失败: %s", reportErr)
+		if opts.StrictExecution {
+			err = reportErr
+			return
+		}
 	}
+	err = nil
 
 	successCount := 0
 	failCount := 0
 	executedCount := 0
 
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("task execution panic: %v", recovered)
+			failCount++
+		}
+		if opts.UpdateTaskStatus {
+			taskDb.TaskStatus = "finished"
+			if updateErr := models.Orm.Table("schedule").Where("id = ?", taskDb.Id).Update(&taskDb).Error; updateErr != nil {
+				Logger.Error("%s", updateErr)
+			}
+		}
+		result = TaskRunResult{
+			TaskTag:         taskTag,
+			DashboardId:     historyId,
+			Total:           totalExpected,
+			SuccessCount:    successCount,
+			FailCount:       failCount,
+			StartAt:         startTime.Format(baseFormat),
+			EndAt:           time.Now().Format(baseFormat),
+			DurationSeconds: int(time.Since(startTime).Seconds()),
+			Err:             err,
+		}
+		if err == nil {
+			result.Status = "success"
+		} else {
+			result.Status = "fail"
+			result.AuthFailed = isAuthFailureError(err)
+		}
+		endTime := time.Now()
+		durationSeconds := int(endTime.Sub(startTime).Seconds())
+		if opts.SyncReport {
+			GenerateTaskReport(reportTask, historyId, taskTag, userName,
+				totalExpected, successCount, failCount, durationSeconds, startTime.Format(baseFormat), endTime.Format(baseFormat))
+		} else {
+			// 异步生成任务报告
+			go GenerateTaskReport(reportTask, historyId, taskTag, userName,
+				totalExpected, successCount, failCount, durationSeconds, startTime.Format(baseFormat), endTime.Format(baseFormat))
+		}
+
+	}()
+
+	if dependencyErr != nil {
+		err = combineRunErrors(err, dependencyErr)
+		return
+	}
+
 	switch taskDb.TaskType {
 	case "data":
-		dataIds, _ := taskDb.GetDataIds()
-		for _, dataId := range dataIds {
-			err1 := RepeatRunDataFile(userName, dataId, taskDb.ProductList, "task", taskTag)
+		for _, dataId := range itemIDs {
+			err1 := RepeatRunDataFile(userName, dataId, execProduct, "task", taskTag)
 			executedCount++
 			if err1 != nil {
 				failCount++
@@ -393,10 +500,9 @@ func RunOnceTask(id, userName string) (err error) {
 			}
 		}
 	case "scene":
-		sceneIds, _, _ := taskDb.GetSceneIds()
-		for index, sceneId := range sceneIds {
+		for index, sceneId := range itemIDs {
 			var err1 error
-			err1 = RunPlaybookFromMgmt(sceneId, "start", taskDb.ProductList, "task", userName, taskTag)
+			err1 = RunPlaybookFromMgmt(sceneId, "start", execProduct, "task", userName, taskTag)
 			executedCount++
 			if err1 != nil {
 				failCount++
@@ -405,7 +511,7 @@ func RunOnceTask(id, userName string) (err error) {
 				} else {
 					err = err1
 				}
-				if index == 0 && strings.Contains(err.Error(), T("error.auth_fail_prefix")) {
+				if index == 0 && isAuthFailureError(err) {
 					Logger.Error(T("error.auth_fail_stop"), sceneId)
 					break
 				}
@@ -414,18 +520,6 @@ func RunOnceTask(id, userName string) (err error) {
 			}
 		}
 	}
-
-	taskDb.TaskStatus = "finished"
-	err = models.Orm.Table("schedule").Where("id = ?", taskDb.Id).Update(&taskDb).Error
-	if err != nil {
-		Logger.Error("%s", err)
-	}
-
-	endTime := time.Now()
-	durationSeconds := int(endTime.Sub(startTime).Seconds())
-	// 异步生成任务报告
-	go GenerateTaskReport(taskDb, historyId, taskTag, userName,
-		totalExpected, successCount, failCount, durationSeconds, startTime.Format(baseFormat), endTime.Format(baseFormat))
 
 	return
 }
@@ -519,6 +613,10 @@ func CopySchedule(id, userName string) (err error) {
 }
 
 func ExportSchedule(id, userName string) (fileName string, err error) {
+	return exportSchedule(id, userName, nil, false)
+}
+
+func exportSchedule(id, userName string, extraProducts []string, allowMissingEnvironment bool) (fileName string, err error) {
 	sqlRule1 := T("sql.gen_rule")
 	sqlRule2 := T("sql.rule1")
 	sqlRule3 := T("sql.rule2")
@@ -543,14 +641,21 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 		return
 	}
 
+	for _, product := range extraProducts {
+		productMap[product] = true
+	}
 	productName, appMapFromProduct, err := GetProductSQL(filePath, productMap)
-	if err != nil {
+	if err != nil && !allowMissingEnvironment {
 		return
 	}
+	err = nil
 
-	dataMap, err := GetPlaybookSQL(userName, productName, filePath, playbookMap)
-	if err != nil {
-		return
+	dataMap := make(map[string]bool)
+	if len(playbookMap) > 0 {
+		dataMap, err = GetPlaybookSQL(userName, productName, filePath, playbookMap)
+		if err != nil {
+			return
+		}
 	}
 	for k, _ := range dataMapFromTask {
 		if _, ok := dataMap[k]; !ok {
@@ -576,9 +681,10 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 	}
 
 	err = GetAppSQL(filePath, appMap)
-	if err != nil {
+	if err != nil && !allowMissingEnvironment {
 		return
 	}
+	err = nil
 
 	err = GetAssertTemplateSQL(filePath, assertMap)
 	if err != nil {
@@ -815,10 +921,11 @@ func GetPlaybookSQL(userName, productName, filePath string, playbookMap map[stri
 
 // builtinSysParams 引擎按固定名读取的保留系统参数（非数据文件 {name} 占位符），
 // 导出任务包/SQL 时无条件并入，保证离线执行环境完整：
-//   fileName          multipart/form-data 文件字段名列表（run_http.go IsValueInSysParameter）
-//   scriptRunEngine   脚本执行引擎映射（data_run.go GetValueFromMapDef）
-//   Sex / Bool / YorN mock 取值生成器（mock_server.go）
-//   MockTemplateFile  mock 模板文件列表（GetDataSQL 亦按 /mock/file/ 条件收集其文件名）
+//
+//	fileName          multipart/form-data 文件字段名列表（run_http.go IsValueInSysParameter）
+//	scriptRunEngine   脚本执行引擎映射（data_run.go GetValueFromMapDef）
+//	Sex / Bool / YorN mock 取值生成器（mock_server.go）
+//	MockTemplateFile  mock 模板文件列表（GetDataSQL 亦按 /mock/file/ 条件收集其文件名）
 var builtinSysParams = []string{"fileName", "scriptRunEngine", "Sex", "Bool", "YorN", "MockTemplateFile"}
 
 func GetDataSQL(userName, filePath string, dataMap map[string]bool) (assertMap, sysParameterMap, appMap, fileNameImportMap map[string]bool, err error) {
@@ -1441,6 +1548,8 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 		var kTask KTask
 		kTask.Name = task.TaskName
 		kTask.TaskMode = task.TaskMode
+		products := task.ProductList
+		kTask.ProductList = &products
 		if yamlType, ok := TaskTypeToYaml[task.TaskType]; ok {
 			kTask.TaskType = yamlType
 		} else {
@@ -1464,16 +1573,17 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 	_ = ioutil.WriteFile(taskFilePath, kTaskByte, 0644)
 	_ = WriteTarFile(tw, taskFilePath)
 
-	// 导出 CLI 元信息文件：env_config.yaml / upload/*（离线执行包模板）
-	// 环境类信息（product / app / sys_parameter / assert_template / mock）全部集中到 env_config.yaml。
-	if len(productName) > 0 {
-		if cliCfgBytes, e := buildCliConfigYaml(productName, appMap, sysParameterMap, assertMap); e == nil {
-			cliCfgPath := fmt.Sprintf("%s/env_config.yaml", exportDataFileDir)
-			_ = ioutil.WriteFile(cliCfgPath, cliCfgBytes, 0644)
-			_ = WriteTarFile(tw, cliCfgPath)
-		} else {
-			Logger.Warning("%s", e)
-		}
+	// 元信息独立于产品存在；无产品的任务仍需迁移应用环境、参数和断言。
+	cliCfgBytes, err := buildCliConfigYaml(productName, appMap, sysParameterMap, assertMap)
+	if err != nil {
+		return false, err
+	}
+	cliCfgPath := fmt.Sprintf("%s/env_config.yaml", exportDataFileDir)
+	if err = ioutil.WriteFile(cliCfgPath, cliCfgBytes, 0644); err != nil {
+		return false, err
+	}
+	if err = WriteTarFile(tw, cliCfgPath); err != nil {
+		return false, err
 	}
 
 	for item := range uploadFileMap {
@@ -1552,6 +1662,8 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 
 	models.Orm.Table("playbook").Where("name in (?)", playbookNameList).Find(&playbookList)
 	if len(playbookList) == 0 {
+		// data-only 任务也已生成数据文件与 task_info.yaml，必须返回该依赖包。
+		isExist = count > 0
 		return
 	}
 
@@ -1687,9 +1799,13 @@ func WriteTarBytesWithPrefix(tw *tar.Writer, name, prefix string, data []byte) (
 // 环境类信息（sys_parameter / assert_template）一并写入 env_config.yaml。
 func buildCliConfigYaml(productName string, appMap, sysParameterMap, assertMap map[string]bool) ([]byte, error) {
 	var dbProduct DbProduct
-	models.Orm.Table("product").Where("product = ?", productName).Limit(1).Find(&dbProduct)
-	if len(dbProduct.Name) == 0 {
-		return nil, fmt.Errorf(T("error.product_not_found"), productName)
+	if productName != "" {
+		if err := models.Orm.Table("product").Where("product = ?", productName).Limit(1).Find(&dbProduct).Error; err != nil {
+			return nil, err
+		}
+		if dbProduct.Name == "" {
+			return nil, fmt.Errorf(T("error.product_not_found"), productName)
+		}
 	}
 
 	product := CliProduct{
@@ -1717,15 +1833,18 @@ func buildCliConfigYaml(productName string, appMap, sysParameterMap, assertMap m
 		if len(e.App) == 0 {
 			continue
 		}
+		appProduct, appThreads := e.Product, e.MaxThreadNum
 		apps[appName] = CliApp{
-			Protocol:  e.Protocol,
-			Ip:        e.Ip,
-			Prepath:   e.Prepath,
-			Auth:      CliJSONField(e.Auth),
-			Threading: e.Threading,
-			Testmode:  e.Testmode,
-			Swagger:   e.SwaggerPath,
-			Remark:    e.Remark,
+			Product:      &appProduct,
+			ThreadNumber: &appThreads,
+			Protocol:     e.Protocol,
+			Ip:           e.Ip,
+			Prepath:      e.Prepath,
+			Auth:         CliJSONField(e.Auth),
+			Threading:    e.Threading,
+			Testmode:     e.Testmode,
+			Swagger:      e.SwaggerPath,
+			Remark:       e.Remark,
 		}
 	}
 
@@ -2071,8 +2190,8 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 	if len(newTasks) == 0 && len(newPlaybooks) == 0 && len(newDataFiles) == 0 &&
 		len(overwriteTasks) == 0 && len(overwritePlaybooks) == 0 && len(overwriteDataFiles) == 0 {
 		if userName != "cli" {
-			if metaErr := importScheduleMeta(result.StagingDir); metaErr != nil {
-				Logger.Warning("import meta failed: %s", metaErr)
+			if metaErr := importScheduleMetaMode(result.StagingDir, mode); metaErr != nil {
+				return metaErr
 			}
 		}
 		os.Remove(resultFilePath)
@@ -2232,12 +2351,8 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		models.Orm.Table("schedule").Where("task_name = ?", kt.Name).Find(&dbSchedule)
 
 		if len(dbSchedule.TaskName) == 0 {
-			var sceneNameList []string
-			for _, playbookName := range kt.PlaybookList {
-				if _, isConflict := result.Conflicts[playbookName]; !isConflict {
-					sceneNameList = append(sceneNameList, playbookName)
-				}
-			}
+			// 同名依赖在 skip 模式下复用，关联名称始终保留。
+			sceneNameList := kt.PlaybookList
 
 			taskMode := kt.TaskMode
 			if len(taskMode) == 0 {
@@ -2257,15 +2372,20 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 				TaskMode:    taskMode,
 				TaskType:    taskType,
 				Threading:   "no",
-				SceneList:   strings.Join(sceneNameList, ","),
+				SceneList:   "",
 				DataList:    "",
-				ProductList: result.ProductName,
+				ProductList: importedTaskProducts(kt, result.ProductName),
 				TaskStatus:  "not_started",
 				Crontab:     "",
 				UserName:    userName,
 				Remark:      kt.Remark,
 			}
 
+			if taskType == "data" {
+				schedule.DataList = strings.Join(sceneNameList, ",")
+			} else {
+				schedule.SceneList = strings.Join(sceneNameList, ",")
+			}
 			createErr := models.Orm.Table("schedule").Create(&schedule).Error
 			if createErr != nil {
 				Logger.Error("create schedule failed: %s, %s", kt.Name, createErr)
@@ -2296,19 +2416,28 @@ func ImportScheduleConfirm(importId, mode, userName string) (err error) {
 		}
 
 		updateMap := map[string]interface{}{
-			"task_mode":  taskMode,
-			"task_type":  taskType,
-			"scene_list": strings.Join(kt.PlaybookList, ","),
-			"remark":     kt.Remark,
-			"updated_at": time.Now().Format("2006-01-02 15:04:05"),
+			"task_mode":    taskMode,
+			"task_type":    taskType,
+			"scene_list":   "",
+			"data_list":    "",
+			"product_list": importedTaskProducts(kt, result.ProductName),
+			"remark":       kt.Remark,
+			"updated_at":   time.Now().Format("2006-01-02 15:04:05"),
 		}
-		models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Updates(updateMap)
+		if taskType == "data" {
+			updateMap["data_list"] = strings.Join(kt.PlaybookList, ",")
+		} else {
+			updateMap["scene_list"] = strings.Join(kt.PlaybookList, ",")
+		}
+		if err = models.Orm.Table("schedule").Where("id = ?", dbSchedule.Id).Updates(updateMap).Error; err != nil {
+			return
+		}
 		overwriteCount++
 	}
 
 	if userName != "cli" {
-		if metaErr := importScheduleMeta(result.StagingDir); metaErr != nil {
-			Logger.Warning("import meta failed: %s", metaErr)
+		if metaErr := importScheduleMetaMode(result.StagingDir, mode); metaErr != nil {
+			return metaErr
 		}
 	}
 	os.Remove(resultFilePath)
@@ -2518,108 +2647,21 @@ func BuildConflictMsg(result ImportResult) string {
 
 // extractZip 解压 ZIP 格式数据到目标目录
 func extractZip(data []byte, destDir string) error {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return fmt.Errorf("zip reader failed: %s", err)
-	}
-
-	for _, f := range zipReader.File {
-		if f.FileInfo().IsDir() {
-			continue
-		}
-
-		fileName := f.Name
-		if strings.Contains(fileName, "..") {
-			Logger.Warning("skip suspicious path: %s", fileName)
-			continue
-		}
-		// 跳过 macOS 元数据文件（.DS_Store、AppleDouble ._* 等），它们不是包内容。
-		if strings.HasPrefix(filepath.Base(fileName), ".") {
-			continue
-		}
-
-		targetPath := fmt.Sprintf("%s/%s", destDir, fileName)
-		targetDir := targetPath[:strings.LastIndex(targetPath, "/")]
-		if _, statErr := os.Stat(targetDir); os.IsNotExist(statErr) {
-			os.MkdirAll(targetDir, 0755)
-		}
-
-		rc, openErr := f.Open()
-		if openErr != nil {
-			Logger.Error("open zip entry failed: %s, %s", fileName, openErr)
-			continue
-		}
-
-		fw, fwErr := os.Create(targetPath)
-		if fwErr != nil {
-			Logger.Error("create file failed: %s", fwErr)
-			rc.Close()
-			continue
-		}
-		io.Copy(fw, rc)
-		fw.Close()
-		rc.Close()
-	}
-	return nil
+	return extractBoundedZip(data, destDir, archiveMaxFiles, archiveMaxBytes)
 }
-
-// extractGzipTar 解压 gzip+tar 格式数据到目标目录
 func extractGzipTar(data []byte, destDir string) error {
 	gr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("gzip reader failed: %s", err)
+		return err
 	}
 	defer gr.Close()
-
 	return extractTarReader(gr, destDir)
 }
-
-// extractRawTar 解压原始 tar 格式数据到目标目录
 func extractRawTar(data []byte, destDir string) error {
 	return extractTarReader(bytes.NewReader(data), destDir)
 }
-
-// extractTarReader 从 tar reader 提取文件到目标目录
 func extractTarReader(r io.Reader, destDir string) error {
-	tr := tar.NewReader(r)
-	for {
-		hdr, errHdr := tr.Next()
-		if errHdr == io.EOF {
-			break
-		}
-		if errHdr != nil {
-			return fmt.Errorf("tar read failed: %s", errHdr)
-		}
-
-		if hdr.FileInfo().IsDir() {
-			continue
-		}
-
-		fileName := hdr.Name
-		if strings.Contains(fileName, "..") {
-			Logger.Warning("skip suspicious path: %s", fileName)
-			continue
-		}
-		// 跳过 macOS 元数据文件（.DS_Store、AppleDouble ._* 等），它们不是包内容。
-		if strings.HasPrefix(filepath.Base(fileName), ".") {
-			continue
-		}
-
-		targetPath := fmt.Sprintf("%s/%s", destDir, fileName)
-		targetDir := targetPath[:strings.LastIndex(targetPath, "/")]
-		if _, statErr := os.Stat(targetDir); os.IsNotExist(statErr) {
-			os.MkdirAll(targetDir, 0755)
-		}
-
-		fw, fwErr := os.Create(targetPath)
-		if fwErr != nil {
-			Logger.Error("create file failed: %s", fwErr)
-			continue
-		}
-		io.Copy(fw, tr)
-		fw.Close()
-	}
-	return nil
+	return extractBoundedTar(r, destDir, archiveMaxFiles, archiveMaxBytes)
 }
 
 func findFileInDir(dir, targetName string) string {
@@ -2705,4 +2747,12 @@ func countNonConflictData(dataFiles []KData, conflicts map[string]string) int {
 		}
 	}
 	return count
+}
+
+// importedTaskProducts 保留新版包的任务产品；旧包仍回退到默认产品。
+func importedTaskProducts(task KTask, fallback string) string {
+	if task.ProductList != nil {
+		return *task.ProductList
+	}
+	return fallback
 }

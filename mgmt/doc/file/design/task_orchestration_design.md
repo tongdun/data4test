@@ -107,9 +107,36 @@
 - 批量操作「批量导出」：把选中编排及去重后的共享依赖打入一个归档包；
 - 顶部按钮「导入」：进入 `/admin/task_orchestration_import`，执行上传检查、冲突选择和确认导入。
 
+**导出包结构**（实际实现，`orchestration_<yyyymmddHHMMSS>.zip`）：
+
+```text
+orchestration_<ts>.zip
+├── orchestration_info.yaml        # 编排清单：name / tasks[] / products / remark
+├── products_info.yaml             # 编排及任务使用的全部产品与应用环境配置（新增，可选，兼容旧包）
+└── bundle/
+    ├── <数据文件包>.tgz            # 由现有 ExportSchedule 生成，含 task_info.yaml、playbook_info.yaml 与数据文件
+    ├── <附件包>.tgz                # 有上传附件时存在
+    └── <SQL 导出>.sql              # 仅作参考，导入流程不执行
+```
+
+- 导出复用任务导出器生成任务/场景/数据/断言/系统参数/附件依赖，再与清单合成一个 zip；`products_info.yaml` 单独保存全部编排覆盖产品及任务产品的配置，避免原单产品 CLI 配置丢失多产品；`task_info.yaml` 新增可选 `product_list` 字段，旧包仍回退默认产品。
+- 任务导入按任务类型恢复 `data_list` 或 `scene_list`，同名依赖被跳过时仍保留关联；`skip` 保留同名产品、应用、系统参数、断言模板、附件与语料键，`overwrite` 才更新。产品和应用的冲突纳入检查结果。
+- `env_config.yaml` 始终导出，即使编排和任务均未选择产品，也迁移应用、系统参数和断言；应用可携带可选 `product` 与 `thread_number`，保留独立配置，旧包仍回退原默认值。元信息数据库写入以单次配置为事务，写入失败返回错误、回滚该次配置，编排导入状态记录为 `error`，不创建依赖该配置的编排；不增加跨编排事务。
+- 导出前做依赖校验：**任务、场景、数据文件**缺失直接终止导出并返回具体缺失项；**产品、环境配置**（按产品关联的 app 判断）缺失只写告警日志，不阻断导出；
+- 导入**不重新实现依赖解析**，而是从 `bundle/` 中挑出真正包含 `task_info.yaml` 的归档，交给现有 `ImportScheduleCheck` / `ImportScheduleConfirm` 处理。
+
+**导入两阶段与状态**：
+
+| 阶段 | 接口 | 行为 |
+|---|---|---|
+| 检查 | `POST /task_orchestration_import_check` | 解压 zip、解析清单、调用任务导入检查；返回编排同名冲突、任务映射（已存在/将导入/缺失）、缺失场景/数据文件（阻断）与缺失产品（仅提示）；**存在阻断项时返回 `blocked=true`，页面隐藏确认区** |
+| 确认 | `POST /task_orchestration_import_confirm` | 先执行 `ImportScheduleConfirm` 落依赖，再按任务名映射逐条创建/跳过/覆盖编排；同名编排在 `skip` 模式下内容不一致时返回错误、要求显式覆盖；**单个编排失败只回滚本条**，不影响其他编排 |
+| 状态 | `GET /task_orchestration_import_status?import_id=` | 状态文件 `DownloadBasePath/orchestration_import_<id>.json`，取值 `pending / processing / done / error` |
+| 文案 | `GET /task_orchestration_import_labels` | 导入页按当前 `data_locale` 取文案；静态页保留中文兜底，仅在 labels 加载失败时显示 |
+
 实现约束（沿用定时任务现有写法）：
 
-- 导入页用 `eng.HTMLFile("GET", "/admin/task_orchestration_import", "./html/task_orchestration_import.html", nil)` 注册（参照 `main.go:153-155`），不用 `r.GET`；
+- 导入页用 `r.GET` + `requireOrchestrationImport` 注册（登录 + `GET /task_orchestration_import` 权限 309），校验通过后 `c.File` 返回静态页；
 - 行操作/顶部按钮用 `info.AddActionButton` / `info.AddButton`，批量导出从 `ctx.FormValue("ids")` 取参、单条导出从 `ctx.FormValue("id")` 取参（参照 `tables/schedule.go:196-254`）；
 - 导出是 `action.Ajax` 返回可点击下载链接，不是文件流响应；导出文件必须落在 `mgmt/download` 下，filemanager 只放行路径含 `mgmt` 的下载（`main.go:232-237`）；
 - action id 使用 `task_orchestration_export` / `task_orchestration_batch_export`，不要与现有 `schedule_export` / `schedule_batch_export` 重名。
@@ -118,6 +145,7 @@
 
 - 行操作/批量操作 **「加入编排」**：弹窗选择目标任务编排，把选中任务名称按顺序追加到 `task_list` 末尾（已存在则跳过）。
 - 该入口是"基于任务组装编排"的快捷方式，编排页内的步骤编排为主入口。
+- 两个加入编排接口均要求有效登录，并校验 `POST /edit/task_orchestration` 权限；只读角色或仅有任务编辑权限的角色不可通过接口修改编排。
 
 ### 4.3 新建 / 编辑表单
 
@@ -136,7 +164,7 @@
 - 校验编排名称不重复（`deleted_at IS NULL` 范围内）；
 - 校验任务名称全部存在于 `schedule` 且未删除；
 - 校验 `task_list` 内无重复任务名；
-- 事务内写 `task_orchestration`（`task_list` 按行归一化：去空行、去首尾空格）；
+- 单条写入 `task_orchestration`（`task_list` 按行归一化：去空行、去首尾空格），单语句本身原子；校验在写入前执行，失败不落库；
 - 编排执行中（存在 `orchestration_status=running`）时禁止修改步骤，避免执行中配置漂移。
 
 ### 4.4 步骤编排
@@ -144,6 +172,7 @@
 - 表单内 TextArea，每行 `任务名称`（可带行号展示），保存后整体写入 `task_orchestration.task_list`，行序即步骤顺序。
 - 详情页解析 `task_list` 展示有序步骤表：序号、任务名称（链接到任务详情）、任务类型、关联产品、当前是否可用（任务是否被删除或改名）。
 - 执行时按行顺序逐个解析为 `schedule.id`；任一任务无法解析则该轮不执行并报错（见 6.3）。
+- 每个步骤执行前完整解析该任务配置的场景或数据文件；任一依赖缺失或软删除时，该步骤失败且不执行部分依赖，保留错误与任务报告，并沿用普通失败继续策略。空执行项或未知任务类型同样返回失败。
 - 后续增强（P1）：独立编排页、拖拽排序、步骤启用/禁用。
 
 ### 4.5 详情页
@@ -261,6 +290,10 @@ DDL 与菜单/权限种子**只追加到 `mgmt/sql/update.sql` 末尾**；`mgmt/
 - `biz/task_orchestration_run.go`：执行引擎（串行、失败继续、401 停止、互斥）；
 - `biz/task_orchestration_report.go`：编排报告数据聚合与 `dashboard` 写入；
 - `biz/task_orchestration_transfer_define.go`、`biz/task_orchestration_transfer.go`：导入/导出 DTO、依赖闭包、检查与确认；
+- `biz/archive_import.go`：归档解压与安全限额（同时被任务导入复用）；
+- `biz/task_run_dependencies.go`：任务执行前的依赖解析与校验；
+- `biz/run_errors.go`：执行错误合并工具；
+- `orchestration_join.go`：任务列表「加入编排」接口（含权限守卫）；
 - `tables/task_orchestration.go`：GoAdmin 列表/表单/详情；
 - `pages/task_orchestration_dashboard.go`：编排报告渲染与最近一次报告跳转；
 - `html/task_orchestration_import.html`：导入页。
@@ -312,6 +345,8 @@ type TaskRunOptions struct {
 	RunTag           string // 编排传入 <taskId>_<orchRunTag>_<stepOrder>；为空时沿用现有规则
 	ProductOverride  string // 编排级产品（逗号分隔），非空时覆盖任务自身 product_list
 	UpdateTaskStatus bool   // 编排步骤传 false，不改写 schedule.task_status
+	SyncReport       bool   // 编排步骤传 true，同步生成任务报告
+	StrictExecution  bool   // 编排步骤传 true：依赖强校验、data 取首产品、报告创建失败即中止
 }
 
 type TaskRunResult struct {
@@ -373,7 +408,7 @@ func RunOnceTask(id, userName string) error {
 
 判定实现（**沿用当前系统 scene 与 data 的既有实现**）：
 
-1. **统一判定方式**：用 `strings.Contains(err.Error(), biz.T("error.auth_fail_prefix"))` 判断，与 `biz/biz_task.go:408` 现有先例一致。`error.auth_fail_prefix` 取值"请求失败，返回码: 401, 返回信息: "，而 data 链路的错误文案 `error.request_failed_status_code` 也以"请求失败，返回码: "开头，两者前缀一致，同一判定可同时覆盖 scene 与 data。
+1. **统一判定方式**：优先匹配当前语种文案 `biz.T("error.auth_fail_prefix")`，并回退到**与语种无关**的正则 `(?i)(返回码|status code)\s*[:：]?\s*401`，避免异步执行期间其他请求切换全局语种导致漏判；
 2. **scene 路径**：`RunPlaybookFromMgmt` 返回的 error 已保留 401 原文，直接判定；任务内部"仅首个场景判定 401"的既有逻辑保持不变。
 3. **data 路径**：`RepeatRunDataFile` 当前会在 `result != "pass"` 时用 `test %s` 覆盖原始错误（串行分支 `biz/data_run.go:955-957`），并行分支同样丢弃 `err1`（`:900-903`）。按现有错误保留方式修正：**仅在 `err == nil` 时才写 `test %s`**，并行分支保留 `err1`，使 data 与 scene 一样能把 401 原文带回上层。
 4. **`RunTaskOnce` 返回执行错误**：当前 `biz/biz_task.go:418-419` 用 `schedule` 更新的 error 覆盖了执行错误，必须改为独立变量保存执行错误并返回，否则编排层拿不到 401 信号。
@@ -391,13 +426,14 @@ func RunOnceTask(id, userName string) error {
 - 每个步骤仍会产生一条**任务报告** `dashboard`（沿用 `CreateDashboardRecord` + 异步 `GenerateTaskReport`），这是下钻的数据来源，属于"统一数据模型"的预期行为。
 - **产品覆盖对 `data` 类型步骤的约束**：`data` 链路 `RepeatRunDataFile → RunDataFile → GetEnvConfig` 按单产品精确等值查询（`biz/app.go:55-57`），传入逗号分隔的多产品会查不到环境、丢失 host/auth。因此 `data` 步骤只取有效产品的**第一个**；`scene` 步骤由 `RunPlaybookFromMgmt` 遍历全部产品（`biz/biz_playbook.go:103-118`）。
 - `CreateDashboardRecord` 与 `GenerateTaskReport` 都从 `DbSchedule.ProductList` 读取产品（`biz/task_report.go:322`、`:34`、`:175`），因此实现时复制一份 `taskDb` 并改写其 `ProductList` 即可贯穿执行与报告，**无需修改这两个函数的签名**。
-- 现有 `RunOnceTask` 改为包装函数，行为保持不变，避免影响其他调用方。
+- 现有 `RunOnceTask` 改为包装函数，**调用方式保持不变**；新增 `StrictExecution` 选项：仅编排步骤传 `true`（依赖强校验、`data` 取首产品、报告创建失败即中止），普通任务与 CLI 保持原有行为，详见 §9 边界与限制；
 
 ### 6.6 互斥
 
 - 包级 `sync.Map` 用 `LoadOrStore` 占位（`orchestrationId -> *struct{}`），`loaded=true` 即视为已有执行，执行结束 `Delete`。
 - **不使用 `sync.Mutex.TryLock`**：该 API 要求 Go 1.18+，而当前 `go.mod` 为 `go 1.17`，新工具链下会报 `requires go1.18 or later`。
-- 服务重启后内存状态自然释放；若有编排在重启前处于 `running`，启动时把 `orchestration_status=running` 重置为 `finished`，避免状态悬挂。
+- 服务重启后内存状态自然释放；若有编排在重启前处于 `running`，启动时把 `orchestration_status=running` 重置为 `finished`，避免状态悬挂；同时把遗留的 `dashboard.status=generating` 编排报告置为 `failed`，页面显示"执行已中断"。
+- 页面「立即执行」调用 `StartOrchestrationAsync`：**同步抢锁成功后才返回"已开始"**，抢锁失败直接返回"编排正在执行"；批量执行逐个同步抢锁，任一条失败立即返回。
 
 ## 7. 报告设计
 
@@ -451,7 +487,7 @@ JSON 结构：
   - `creator = 操作人`
 - 结果报告列表：`tables/dashboard.go` 需改**三处**——列表类型展示 switch（`:31-42`）、筛选 `FieldFilterOptions`（`:43-48`）、详情页类型展示 switch（`:131-143`），新增 `orchestration → 任务编排`，并补 i18n key `schedule_report.report_type_orchestration`。
 - 展示：`pages.GetDashboardByReportId`（`pages/schedule_dashboard.go:17`）增加 `case "orchestration"`，渲染编排报告；步骤行链接到任务报告 `/admin/report_dashboard?id=<dashboard_id>`。
-- 离线导出：`pages/report_export.go:60-69` 的 `renderReportPanel` 目前只有 `case "task"`，其余类型返回 `report_type_unsupported`；编排报告会出现在 CLI `report` 列表（`biz/cli.go:1168-1184`），必须补 `case "orchestration"`。渲染函数还需识别 `offlineReportExport` 标记（`pages/report_export.go:26`），保证离线链接行为一致。
+- 离线导出：`pages/report_export.go:60-69` 的 `renderReportPanel` 已增加 `case "orchestration"`，渲染函数识别 `offlineReportExport` 标记（`pages/report_export.go:26`），离线渲染能力就绪。**本期 CLI 无编排执行入口**，编排报告不会进入 CLI 本地库，端到端导出留待后续版本。
 - GoAdmin 详情页：`tables/dashboard.go:150-153` 把 `report_data` 渲染成任务专用的 `/admin/schedule_report?report_id=`，编排报告需按报告类型分流到 `/admin/report_dashboard?id=`。
 - 编排列表「报告」：查询该编排最近一条编排报告并跳转；无执行记录时提示暂无报告。
 - 历史执行选择：在编排报告页内提供最近 20 次执行的下拉切换（按 `related_task_ids LIKE 'orch:<orchestrationId>:%'` 查询）。
@@ -463,6 +499,8 @@ JSON 结构：
 
 - `biz/task_orchestration_define.go`、`biz/task_orchestration.go`、`biz/task_orchestration_run.go`、`biz/task_orchestration_report.go`
 - `biz/task_orchestration_transfer_define.go`、`biz/task_orchestration_transfer.go`（导入/导出 DTO、依赖闭包、检查与确认）
+- `biz/archive_import.go`、`biz/task_run_dependencies.go`、`biz/run_errors.go`、`orchestration_join.go`
+- `biz/orchestration_p1_test.go`、`orchestration_join_test.go`（编排单测）
 - `tables/task_orchestration.go`
 - `pages/task_orchestration_dashboard.go`（编排报告渲染 + 最近一次报告跳转）
 - `html/task_orchestration_import.html`（上传检查、冲突选择、导入结果）
@@ -477,12 +515,14 @@ JSON 结构：
 - `main.go`：
   - `GET /admin/orchestration_dashboard`：按 orchestration_id 跳转最近一次编排报告
   - `GET /admin/task_orchestration_import`：用 `eng.HTMLFile` 注册编排导入页面
-  - `POST /task_orchestration_import_check`、`POST /task_orchestration_import_confirm`、`POST /task_orchestration_import_status`
+  - `POST /task_orchestration_import_check`、`POST /task_orchestration_import_confirm`
+  - `GET /task_orchestration_import_status`：导入状态查询
+  - `GET /task_orchestration_import_labels`：导入页文案（按当前语种）
 - `biz/biz_task.go`：抽取 `RunTaskOnce`（支持 `RunTag` / `ProductOverride` / `UpdateTaskStatus`），`Init()` 中增加编排 `running` 状态重置
 - `biz/data_run.go`：`RepeatRunDataFile` 保留原始错误（串行 `:955-957`、并行 `:900-903`）
 - `biz/task_define.go`：`TaskRunOptions` / `TaskRunResult`（或放入 `task_orchestration_define.go`）
 - `tables/schedule.go`：新增「加入编排」行操作/批量操作
-- `mgmt/sql/update.sql`：`task_orchestration` 建表 DDL + 菜单 + 权限种子（仅追加到该文件，不改动 `init_all_*.sql`）
+- `mgmt/sql/update.sql`：`task_orchestration` 建表 DDL + 菜单(2765) + 权限(301-309，含导入页) + `goadmin_role_permissions` / `goadmin_role_menu` 授权（仅追加到该文件，不改动 `init_all_*.sql`）
 - `mgmt/i18n/i18n_system/zh-CN.json`、`en-US.json`
 - `mgmt/i18n/i18n_menu/en-US.yaml`
 - 实施完成后更新 `mgmt/doc/file/update/change_log.md`
@@ -515,6 +555,8 @@ error.orchestration_save_tasks                   保存编排任务失败: %s
 
 ## 9. 边界与限制
 
+- **存量任务行为保持不变**：`StrictExecution` 仅在编排步骤为 `true`——编排步骤做依赖强校验（缺失/为空即失败）、`data` 只取首产品、任务报告创建失败即中止；普通任务与 CLI 仍沿用旧行为（缺失依赖截断执行、空列表空跑成功、报告创建失败继续执行、`data` 传完整产品列表），保证 AC-19 存量零回归。
+- **编排步骤同步生成任务报告**：编排执行时以 `SyncReport=true` 同步生成任务报告，以便汇总产品维度；普通任务执行仍为异步生成。
 - **仅串行、仅手动**：本期没有并行执行、没有 cron 调度、没有 CLI 触发；调度相关列仅预留。
 - **执行不可中断**：开始后只能等待本轮结束，不提供停止。
 - **失败继续 + 401 停止**：普通失败不阻断后续步骤；`scene` 与 `data` 步骤的 401 鉴权失败都会停止后续步骤。
@@ -524,11 +566,17 @@ error.orchestration_save_tasks                   保存编排任务失败: %s
 - **任务改名/删除**：`task_list` 存任务名称，任务改名后该步骤无法解析，编排执行前置校验失败；建议后续给任务改名/删除增加"被编排引用"提示。
 - **同名编排重建**：删除时改写 `orchestration_name` 为 `<原名>_deleted_<时间戳>`，否则同名编排无法重建。
 - **报告关联**：编排报告不写任务 id 到 `related_task_ids`，而写 `orch:<orchestrationId>:<runTag>`；任何按任务 id 解析该字段的代码必须先按 `report_type` 过滤。
-- **权限**：页面操作全部受 RBAC 控制，本期无 CLI 入口。
+- **导入依赖包选择**：导出 zip 中可能同时存在附件包与数据包，导入端按"归档内含 `task_info.yaml`"挑选，不依赖文件前缀（前缀随语种变化）。
+- **归档安全**：外层 ZIP 与内层任务依赖包均限制路径穿越、文件数（2000）与解压总大小（500MB），拒绝链接、重复文件路径与损坏条目；依赖包探测过程也受限；**未做扩展名白名单**，因为平台本身需要导入 `.py/.sh/.bat/.jmx` 等脚本文件。
+- **导入接口权限**：导入页与 `check / confirm / status / labels` 均校验登录及 `GET /task_orchestration_import` 权限（309）；`import_id` 强制 UUID，避免路径穿越。
+- **动作权限**：立即执行/复制按 `/edit/task_orchestration`、导出按 `/export/task_orchestration` 校验权限，无权限返回 403。
+- **历史功能不改造**：定时任务导入（`/schedule_import_check`、`/schedule_import_confirm`）属于历史功能，沿用既有实现（无鉴权、无 import_id 校验），**本期不做优化**；鉴权与路径加固仅覆盖任务编排导入。
+- **CLI 限制**：CLI 使用本地 `cli.db`，本期没有编排执行入口，编排报告实际不会进入 CLI 本地库；`report_export` 的 `case "orchestration"` 仅作为后续可用能力保留。
+- **权限**：页面操作全部受 RBAC 控制；导入页已补权限与角色菜单。
 
 ## 10. 验证方案
 
-1. **编译**：`make build` 或 `CGO_ENABLED=0 go build .`。
+1. **编译**：`make build` 或 `CGO_ENABLED=0 go build .`。P1 回归测试：`go test -vet=off -exec "$PWD/build/test-exec.sh" ./...`（需 CGO/SQLite；执行器让包初始化从仓库根目录读取配置）。
 2. **页面 CRUD**：新建编排（3 个步骤）、编辑、复制、删除；校验任务不存在/重复/空编排被拒绝。
 3. **串行执行**：3 个步骤按 `task_list` 行序执行，步骤之间不并发。
 4. **失败继续**：第 2 步构造普通失败，确认第 3 步仍执行，编排报告显示 1 失败 2 成功。
@@ -539,13 +587,13 @@ error.orchestration_save_tasks                   保存编排任务失败: %s
 9. **编排级产品覆盖**：编排配置产品 A、步骤任务配置产品 B，执行后请求发往 A，任务报告 `related_products` 为 A；清空编排产品后回退到 B。另验证 data 步骤只使用第一个产品且能取到环境配置。
 10. **任务状态不受影响**：编排执行后 `schedule.task_status` 保持不变。
 11. **报告统一**：编排执行完成后，「结果报告列表」出现类型为"任务编排"的报告，可筛选、打开并下钻任务报告。
-12. **离线报告导出**：`data4test report` 命令能列出并导出 `report_type=orchestration` 的报告为离线 HTML，步骤链接可正常点击。
+12. **离线渲染能力**：构造一条 `report_type=orchestration` 报告，确认 `renderReportPanel` 能正常输出 HTML（CLI 本地库入口留待后续，不在本期验收范围）。
 13. **同名编排重建**：删除编排后可用同一名称重新创建成功。
 14. **加入编排**：任务列表选中任务追加到编排末尾，重复任务被跳过。
-15. **导出完整性**：单条/批量导出后检查归档清单，确认编排、步骤任务、场景、数据、产品、配置及附件齐全，且关联不依赖源环境数据库 ID。
-16. **导入检查**：上传归档后仅返回新增、冲突、缺失及映射结果，不写业务表；分别验证 skip、overwrite、cancel。
-17. **导入原子性**：构造步骤任务缺失，确认该编排不落库；同包其他完整编排可成功导入。
-18. **归档安全**：验证路径穿越、非法类型、超限文件数/大小及损坏归档均被拒绝，临时目录被清理。
+15. **导出依赖校验**：单条/批量导出后检查 zip 结构（`orchestration_info.yaml` + `bundle/` 下含 `task_info.yaml` 的数据包），确认编排、步骤任务、场景、数据、产品、配置及附件齐全，且关联不依赖源环境数据库 ID；分别构造缺失场景、缺失数据文件、缺失产品，确认前两者终止导出、后者仅告警。
+16. **导入检查**：上传归档后返回同名冲突、任务映射（已存在 / 将导入 / 缺失）与缺失项，不写业务表；构造缺失任务时检查阶段即阻断；分别验证 skip、overwrite、cancel。
+17. **导入独立性**：构造某条编排任务缺失，确认该编排不落库，同包其他完整编排仍成功导入。
+18. **归档安全**：验证路径穿越、文件数超 2000、解压后超 500MB 及损坏归档均被拒绝，临时目录被清理。
 19. **回归**：未使用编排的既有任务执行、报告、cron 行为不变。
 
 ## 11. 实施拆分

@@ -852,6 +852,7 @@ func (dbData CommonDataBase) RunDataFile(filePath, product, source string, depOu
 }
 
 func RepeatRunDataFile(userName, id, product, source, taskId string) (err error) {
+	var concurrentErrors concurrentRunErrors
 	dataInfo, appInfo, filePath, err := GetRunTimeData(id, source)
 	var envType, maxThreadNum int
 	var isThread string
@@ -899,18 +900,24 @@ func RepeatRunDataFile(userName, id, product, source, taskId string) (err error)
 					wg.Add(1)
 
 					go func(dbData DbSceneData, taskId string) {
+						defer wg.Done()
+						defer func() {
+							if recovered := recover(); recovered != nil {
+								concurrentErrors.add(fmt.Errorf("data execution panic: %v", recovered))
+							}
+						}()
 						result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 						if err1 != nil {
-							err = err1
-							err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
+							concurrentErrors.add(err1)
+							concurrentErrors.add(WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId))
 							return
 						}
-						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
-						wg.Done()
+						concurrentErrors.add(WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId))
 					}(dataInfo, taskId)
 					count++
 				}
 				wg.Wait()
+				err = concurrentErrors.get()
 			}
 		} else {
 			wg := sync.WaitGroup{}
@@ -918,16 +925,23 @@ func RepeatRunDataFile(userName, id, product, source, taskId string) (err error)
 			for i := 0; i < dataInfo.RunTime; i++ {
 				wg.Add(1)
 				go func(dbData DbSceneData) {
+					defer wg.Done()
+					defer func() {
+						if recovered := recover(); recovered != nil {
+							concurrentErrors.add(fmt.Errorf("data execution panic: %v", recovered))
+						}
+					}()
 					result, dst, err1 := dbData.RunDataFile(filePath, product, source, nil)
 					if err1 != nil {
-						err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
+						concurrentErrors.add(err1)
+						concurrentErrors.add(WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId))
 						return
 					}
-					err = WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId)
-					wg.Done()
+					concurrentErrors.add(WriteSceneDataResult(userName, id, result, dst, product, source, envType, err1, taskId))
 				}(dataInfo)
 			}
 			wg.Wait()
+			err = concurrentErrors.get()
 		}
 	} else {
 		for i := 0; i < dataInfo.RunTime; i++ {
@@ -953,7 +967,10 @@ func RepeatRunDataFile(userName, id, product, source, taskId string) (err error)
 			}
 
 			if result != "pass" {
-				err = fmt.Errorf("test %s", result)
+				// 保留原始错误（如 401 鉴权失败），仅在无错误时才用执行结果填充
+				if err == nil {
+					err = fmt.Errorf("test %s", result)
+				}
 				return
 			}
 		}

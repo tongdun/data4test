@@ -65,6 +65,8 @@ func renderReportPanel(report biz.DashboardReport) (types.Panel, error) {
 			return renderMultiTaskReport(report, dataLocale)
 		}
 		return renderTaskReport(report, "", dataLocale)
+	case "orchestration":
+		return renderOrchestrationReport(report)
 	default:
 		return types.Panel{}, fmt.Errorf("%s: %s", biz.T("cli.report_type_unsupported"), report.ReportType)
 	}

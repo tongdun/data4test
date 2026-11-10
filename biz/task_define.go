@@ -51,6 +51,30 @@ type DbSchedule struct {
 	Schedule
 }
 
+// TaskRunOptions 任务立即执行的参数
+type TaskRunOptions struct {
+	RunTag           string // 为空时沿用 <taskId>_<lastAt 时间戳> 规则
+	ProductOverride  string // 非空时覆盖任务自身 product_list
+	UpdateTaskStatus bool   // 编排步骤传 false，不改写 schedule.task_status
+	SyncReport       bool   // 是否同步生成任务报告（编排需要步骤结果时传 true）
+	StrictExecution  bool   // 编排步骤为 true：依赖强校验、data 取首产品、报告创建失败即中止
+}
+
+// TaskRunResult 任务立即执行的结果
+type TaskRunResult struct {
+	TaskTag         string
+	DashboardId     string
+	Status          string // success / fail
+	Total           int
+	SuccessCount    int
+	FailCount       int
+	StartAt         string
+	EndAt           string
+	DurationSeconds int
+	AuthFailed      bool // 是否因 401 鉴权失败
+	Err             error
+}
+
 type Crontab struct {
 	inner *cron.Cron
 	ids   map[string]cron.EntryID
