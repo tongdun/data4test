@@ -28,6 +28,10 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	products := biz.GetCaseProducts()
 	sceneNames := biz.GetScenes()
 	caseTypes := biz.GetTestcaseType()
+	introVersions := make([]types.FieldOption, 0, 8)
+	for _, v := range biz.GetIntroVersions() {
+		introVersions = append(introVersions, types.FieldOption{Value: v, Text: v})
+	}
 	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 	userName := auth.Auth(ctx).Name
 	testCase := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
@@ -133,6 +137,8 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldWidth(120).
 		FieldHide()
 	info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar).
+		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(introVersions).
 		FieldHide()
 	info.AddField(biz.T("common.related_scene"), "scene", db.Varchar).
 		FieldWidth(120).
@@ -167,6 +173,8 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldHide()
 
 	info.AddSelectBox(biz.T("common.product_line"), products, action.FieldFilter("product"))
+
+	info.AddSelectBox(biz.T("common.intro_version"), introVersions, action.FieldFilter("intro_version"))
 
 	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
 		{Value: "pass", Text: biz.T("common.pass")},
@@ -389,6 +397,40 @@ $(function () {
 				if biz.GetExtInfoValue(r.ExtInfo, extKey, "zh-CN") == extValue {
 					ids = append(ids, strconv.Itoa(r.ID))
 				}
+			}
+			return ids, true
+		}
+		// 报告“按人员统计”下钻：按执行者 + 结果状态过滤（executed=已执行补集，untest=未执行补集）
+		if result := params.GetFieldValue("executor_result"); result != "" {
+			q := models.Orm.Table("test_case").Where("deleted_at IS NULL")
+			name := params.GetFieldValue("executor_name")
+			if name == "" {
+				q = q.Where("case_executor IS NULL OR case_executor = ''")
+			} else {
+				q = q.Where("case_executor = ?", name)
+			}
+			switch result {
+			case "executed":
+				q = q.Where("test_result IN (?)", []string{"pass", "part", "fail", "deprecated", "unmerged"})
+			case "untest":
+				q = q.Where("test_result NOT IN (?)", []string{"pass", "part", "fail", "deprecated", "unmerged"})
+			default: // pass / fail / deprecated / unmerged
+				q = q.Where("test_result = ?", result)
+			}
+			if iv := params.GetFieldValue("executor_intro_versions"); iv != "" {
+				q = q.Where("intro_version IN (?)", splitFilterValues(iv))
+			}
+			if prod := params.GetFieldValue("executor_product"); prod != "" {
+				q = q.Where("product IN (?)", splitFilterValues(prod))
+			}
+			var idInts []int
+			if err := q.Pluck("id", &idInts).Error; err != nil {
+				biz.Logger.Error("按人员下钻过滤查询失败: %v", err)
+				return nil, false
+			}
+			ids := make([]string, 0, len(idInts))
+			for _, id := range idInts {
+				ids = append(ids, strconv.Itoa(id))
 			}
 			return ids, true
 		}

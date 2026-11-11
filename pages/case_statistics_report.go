@@ -94,7 +94,7 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 	moduleTable := caseStatModuleTable(csData.ModuleStats, dataLocale)
 
 	// ===== 用例执行者统计列表 =====
-	executorTable := caseStatExecutorTable(csData.ExecutorStats)
+	executorTable := caseStatExecutorTable(csData.ExecutorStats, csData.Overview.IntroVersions, csData.Overview.Product)
 
 	// ===== 扩展信息维度 =====
 	var extHTML string
@@ -275,7 +275,8 @@ func caseStatModuleTable(items []biz.CaseStatModuleItem, dataLocale string) stri
 }
 
 // caseStatExecutorTable 按人员统计用例执行列表（总用例数/已执行/通过/失败/废弃/暂未合入/未执行/执行率）
-func caseStatExecutorTable(items []biz.CaseStatExecutorItem) string {
+// 六类结果数字可下钻到用例列表，按执行者 + 结果状态过滤，并携带报告统计口径（引入版本/产品线）
+func caseStatExecutorTable(items []biz.CaseStatExecutorItem, introVersions, product string) string {
 	headers := []string{
 		biz.T("case_statistics.by_case_executor"),
 		biz.T("case_statistics.executor_total"),
@@ -289,10 +290,39 @@ func caseStatExecutorTable(items []biz.CaseStatExecutorItem) string {
 	}
 	var rows []string
 	for _, it := range items {
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f%%</td></tr>`,
-			template.HTMLEscapeString(caseStatCountLabel(it.Name)), it.Total, it.Executed, it.Pass, it.Fail, it.Deprecated, it.Unmerged, it.Untest, it.ExecRate))
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%.1f%%</td></tr>`,
+			template.HTMLEscapeString(caseStatCountLabel(it.Name)),
+			it.Total,
+			caseStatExecutorCell(it.Executed, it.Name, "executed", introVersions, product),
+			caseStatExecutorCell(it.Pass, it.Name, "pass", introVersions, product),
+			caseStatExecutorCell(it.Fail, it.Name, "fail", introVersions, product),
+			caseStatExecutorCell(it.Deprecated, it.Name, "deprecated", introVersions, product),
+			caseStatExecutorCell(it.Unmerged, it.Name, "unmerged", introVersions, product),
+			caseStatExecutorCell(it.Untest, it.Name, "untest", introVersions, product),
+			it.ExecRate))
 	}
 	return reportCard(biz.T("case_statistics.executor_stat_title"), "", reportTable(headers, rows))
+}
+
+// caseStatExecutorCell 按人员统计的数字单元格：count>0 时渲染为下钻链接，跳转用例列表按执行者+结果状态过滤。
+// 空执行者占位符（-）转为空串，查询时匹配 case_executor 为空/NULL。
+func caseStatExecutorCell(count int, name, result, introVersions, product string) string {
+	if count <= 0 {
+		return fmt.Sprintf("%d", count)
+	}
+	executorName := name
+	if executorName == biz.ExtEmptyPlaceholder {
+		executorName = ""
+	}
+	href := "/admin/info/test_case?executor_result=" + template.URLQueryEscaper(result) +
+		"&executor_name=" + template.URLQueryEscaper(executorName)
+	if introVersions != "" {
+		href += "&executor_intro_versions=" + template.URLQueryEscaper(introVersions)
+	}
+	if product != "" {
+		href += "&executor_product=" + template.URLQueryEscaper(product)
+	}
+	return fmt.Sprintf(`<a href="%s" target="_blank">%d</a>`, href, count)
 }
 
 // caseStatCountTable 通用计数表（功能开发者/用例设计者/用例执行者/扩展字段）
