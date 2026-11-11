@@ -68,6 +68,29 @@ func embeddedHTMLPanel(name string) types.GetPanelInfoFn {
 	}
 }
 
+// likePostmanPanel 返回「控制台」面板。
+// 菜单点击走 pjax 时返回一个 iframe 外壳，SPA 在 iframe 内以整页方式加载；
+// 带 __goadmin_iframe=true 的请求返回 SPA 原始内容（无后台框架侧边栏/顶栏）。
+// 目的：避免 pjax 局部加载时脚本去重/异步乱序导致 Vue 应用无法挂载而灰屏。
+func likePostmanPanel(ctx *context.Context) (types.Panel, error) {
+	if ctx.IsIframe() {
+		b, err := embeddedAssets.ReadFile("html/index.html")
+		if err != nil {
+			return types.Panel{}, err
+		}
+		return types.Panel{Content: htmltemplate.HTML(b)}, nil
+	}
+	return types.Panel{Content: htmltemplate.HTML(
+		`<div style="position:relative;height:calc(100vh - 90px);">` +
+			`<iframe src="/admin/likePostman?__goadmin_iframe=true" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" onload="document.getElementById('lp-loading').style.display='none';"></iframe>` +
+			`<div id="lp-loading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:10;">` +
+			`<i class="fa fa-spinner fa-spin" style="font-size:28px;color:#3c8dbc;"></i>` +
+			`<div style="margin-top:12px;color:#999;font-size:13px;">` + biz.T("common.console_loading") + `</div>` +
+			`</div>` +
+			`</div>`,
+	)}, nil
+}
+
 type Args struct {
 	Config string
 	Upload string
@@ -132,6 +155,9 @@ func startServer() {
 			eff = ck
 		}
 		biz.ApplyLocale(eff)
+		// 同步前端 SPA（likePostman 等）读取的 locale cookie：与 data_locale 对齐。
+		// 注意 httpOnly 必须为 false，否则前端 document.cookie 读不到、会退化成跟随浏览器语言。
+		c.SetCookie("locale", biz.GetLocale(), 60*60*24*365, "/", "", false, false)
 		c.Next()
 	})
 	//pprof.Register(r)  // 性能查看
@@ -169,7 +195,7 @@ func startServer() {
 	r.StaticFS("/static", http.FS(staticSub))
 	r.Static("/uploads", biz.UploadBasePath)
 
-	eng.HTML("GET", "/admin/likePostman", embeddedHTMLPanel("html/index.html"))
+	eng.HTML("GET", "/admin/likePostman", likePostmanPanel)
 	eng.HTML("GET", "/admin/schedule_import", embeddedHTMLPanel("html/schedule_import.html"))
 	eng.HTML("GET", "/admin/case_import", embeddedHTMLPanel("html/case_import.html"))
 
@@ -1304,6 +1330,7 @@ func startServer() {
 			c.SetCookie("data_locale", lang, 60*60*24*365, "/", "", false, true)
 			biz.ApplyLocale(lang)
 		}
+		c.SetCookie("locale", biz.GetLocale(), 60*60*24*365, "/", "", false, false)
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("sys_parameter.data_lang_switched"), "data": map[string]string{}})
 	})
 
