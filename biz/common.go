@@ -1222,7 +1222,7 @@ func GetScriptRunEngin(filePath string) (runEngine string, err error) {
 		return
 	}
 
-	//defer fHandle.Close()
+	defer fHandle.Close()
 	scanner := bufio.NewScanner(fHandle)
 	var firstLine string
 	for scanner.Scan() {
