@@ -21,11 +21,11 @@ import (
 	htmltemplate "html/template"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	//_ "github.com/mkevac/debugcharts"
 	//_ "net/http/pprof"
@@ -2502,14 +2502,26 @@ func startServer() {
 	biz.Init()
 	listen := fmt.Sprintf(":%d", biz.SERVER_PORT)
 
-	err1 := r.Run(listen)
-	if err1 != nil {
-		panic(err1)
-	}
+	// 优雅退出：须在 r.Run 阻塞之前注册信号监听；Ctrl+C/SIGTERM 时关闭数据库连接后退出。
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	log.Print("closing database connection")
-	eng.MysqlConnection().Close()
-	eng.SqliteConnection().Close()
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// HTTP 服务在独立 goroutine 运行，主 goroutine 用 select 区分“服务报错”与“退出信号”。
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- r.Run(listen)
+	}()
+
+	select {
+	case err1 := <-serverErr:
+		// 服务自身报错：panic 触发 main() 里 defer recover → startServer() 重启
+		if err1 != nil {
+			panic(err1)
+		}
+	case <-quit:
+		// 收到 Ctrl+C/SIGTERM：优雅关闭数据库连接后正常返回，进程退出
+		biz.Logger.Info("closing database connection")
+		eng.MysqlConnection().Close()
+		eng.SqliteConnection().Close()
+	}
 }
