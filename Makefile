@@ -17,7 +17,10 @@ install:
 serve:
 	$(GOCMD) run .
 
-build:
+web:
+	yarn build:web
+
+build: web
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(TARGETDIR)/$(BINARY_NAME)_linux_x86_64 main.go
     CGO_ENABLED=0 GOOS=linux GOARCH=386 $(GOBUILD) -o $(TARGETDIR)/$(BINARY_NAME)_linux_i386 main.go
     CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GOBUILD) -o $(TARGETDIR)/$(BINARY_NAME)_darwin_x86_64 main.go
@@ -45,4 +48,4 @@ testafter:
 testrun:
 	$(GOTEST) -v ./...
 
-.PHONY: all serve build generate test black-box-test user-acceptance-test ready-for-data clean
+.PHONY: all serve web build generate test black-box-test user-acceptance-test ready-for-data clean

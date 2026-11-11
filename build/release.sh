@@ -17,7 +17,7 @@
 #   - sqlite 使用 mattn/go-sqlite3（CGO），CLI/Web 均 CGO_ENABLED=1 编译；darwin 本机用系统 clang，
 #     linux/windows 交叉编译用 zig cc（内置 musl/mingw 头文件，需先安装 zig：brew install zig 或 ziglang.org 官方二进制）。
 #   - Web 收集逻辑内联自 getDeployContent.sh（yarn build + 清理 + sed + 生产 config.json + 示例 yml），
-#     但 yarn install/build 降级为 best-effort：失败不中断，回退复用仓库中已构建好的 web/static。
+#     前端静态资源(web/static)与 html 页已通过 Go embed 内嵌进二进制，yarn build 必须成功（go build 依赖其产物）。
 #     该旧脚本与 getReleasePackage.sh 不动，待新脚本跑通后人工处理；build/cli_release.sh 已废弃删除（功能已并入本脚本）。
 #   - Web 清理沿用 getDeployContent.sh 的清单（无需 sudo）。
 set -euo pipefail
@@ -329,21 +329,19 @@ build_web() {
   echo "[web] 生成 $WEB_DIR"
   clean_dir "$WEB_DIR"
 
-  # 前端构建：尽力执行 yarn install / yarn build，失败不中断（前端工具链在当前环境可能失效，
-  # 如 package.json version "1.0" 非法 semver、statik 未安装、webpack 3 UglifyJs 无法压缩 ES6），
-  # 回退使用仓库中已构建好的 web/static。
+  # 前端构建：web/static 与 html 已通过 Go embed 内嵌进二进制，go build 前必须先产出前端，
+  # 故 yarn install / yarn build 必须成功，失败即中止（否则二进制内嵌的是旧/缺前端）。
   echo "[web] yarn install && yarn build ..."
-  yarn install || echo "[web] yarn install 失败，改用已有静态资源" >&2
-  yarn build   || echo "[web] yarn build 失败，改用已有静态资源" >&2
+  yarn install
+  yarn build
   if [ ! -f "$ROOT/web/static/js/app.min.js" ] || [ ! -f "$ROOT/web/static/js/vendor.min.js" ]; then
-    echo "[web] 警告: 未找到 web/static/js/{app,vendor}.min.js（前端未构建），web 包将缺少前端静态资源。" >&2
+    echo "[web] 错误: 未找到 web/static/js/{app,vendor}.min.js（前端未构建），无法内嵌到二进制。" >&2
+    exit 1
   fi
 
-  # 部署打包（拷贝骨架；源 mgmt 含历史运行数据，随后清理）
-  cp -rf "$ROOT/html" "$WEB_DIR/" 2>/dev/null || true
+  # 部署打包（拷贝骨架；源 mgmt 含历史运行数据，随后清理）。
+  # 注：html 与 web/static 已内嵌进二进制，无需再拷贝到部署目录。
   cp -rf "$ROOT/mgmt" "$WEB_DIR/" 2>/dev/null || true
-  mkdir -p "$WEB_DIR/web/static"
-  cp -rf "$ROOT/web/static" "$WEB_DIR/web/" 2>/dev/null || true
 
   # 清理运行时临时目录（沿用 getDeployContent.sh 的清单）。
   # 注：文件均由 cp 以当前用户复制而来，无需 sudo；改用普通 rm，避免非交互环境下 sudo 失败导致清理未生效。

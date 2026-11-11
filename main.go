@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"runtime/debug"
 	"strconv"
@@ -17,6 +18,8 @@ import (
 
 	"data4test/login"
 	"flag"
+	htmltemplate "html/template"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -49,6 +52,21 @@ import (
 	plugModels "github.com/GoAdminGroup/go-admin/plugins/admin/models"
 	"github.com/GoAdminGroup/librarian"
 )
+
+//go:embed web/static html
+var embeddedAssets embed.FS
+
+// embeddedHTMLPanel 返回一个从内嵌 FS 读取指定 html 文件并渲染成后台面板的处理器，
+// 用于替代原先 eng.HTMLFile 从磁盘读取 ./html/*.html 的方式（编译期已随二进制内嵌）。
+func embeddedHTMLPanel(name string) types.GetPanelInfoFn {
+	return func(_ *context.Context) (types.Panel, error) {
+		b, err := embeddedAssets.ReadFile(name)
+		if err != nil {
+			return types.Panel{}, err
+		}
+		return types.Panel{Content: htmltemplate.HTML(b)}, nil
+	}
+}
 
 type Args struct {
 	Config string
@@ -147,12 +165,13 @@ func startServer() {
 	biz.CacheSystemDefaultLocale()
 
 	r.Static("./upload", args.Upload)
-	r.Static("./static", "./web/static")
+	staticSub, _ := fs.Sub(embeddedAssets, "web/static")
+	r.StaticFS("/static", http.FS(staticSub))
 	r.Static("/uploads", biz.UploadBasePath)
 
-	eng.HTMLFile("GET", "/admin/likePostman", "./html/index.html", nil)
-	eng.HTMLFile("GET", "/admin/schedule_import", "./html/schedule_import.html", nil)
-	eng.HTMLFile("GET", "/admin/case_import", "./html/case_import.html", nil)
+	eng.HTML("GET", "/admin/likePostman", embeddedHTMLPanel("html/index.html"))
+	eng.HTML("GET", "/admin/schedule_import", embeddedHTMLPanel("html/schedule_import.html"))
+	eng.HTML("GET", "/admin/case_import", embeddedHTMLPanel("html/case_import.html"))
 
 	eng.Data("GET", "/admin/librarian", func(ctx *context.Context) {
 		conn := eng.SqliteConnection()
