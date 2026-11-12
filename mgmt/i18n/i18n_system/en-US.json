@@ -1371,6 +1371,8 @@
   "cli.param_input": "Please enter %s: ",
   "cli.param_written": "Written back to env_config.yaml: %s",
   "cli.param_non_tty": "placeholders detected but running non-interactively, skipped filling",
+  "cli.param_injected": "injected parameters via command line: %s",
+  "cli.param_unknown": "parameters not found as placeholders in config, ignored: %s",
   "cli.no_task": "no runnable task found",
   "cli.task_not_found": "task not found: %s (available: %s)",
   "cli.task_failed": "[%d/%d] %s (%s) ...... failed  playbooks %d/%d  data %d/%d",

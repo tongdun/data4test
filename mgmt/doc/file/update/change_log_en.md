@@ -1,4 +1,140 @@
 # Release Notes
+## 2026-11-09
+1. [Optimize] Upgraded the Go toolchain to 1.27.3 and raised the go.mod `go` directive from 1.17 to 1.23, resolving the linux/arm64 cross-packaging error ("ARM external linker must be gold", a Go ≤1.24 limitation), and cleaned up redundant dependencies.
+2. [Optimize] The release.sh packaging script now also copies the README when packaging the web bundle.
+
+## 2026-11-06
+1. [Optimize] CLI --param parameter injection adds i18n translation keys (cli.param_injected / cli.param_unknown).
+
+## 2026-11-05
+1. [Feature] CLI execution tool supports --param command-line placeholder parameter injection: multiple values comma-separated per occurrence, repeatable; injected values are written back to env_config.yaml; if all are injected, execute directly; if incomplete, interactively prompt to fill remaining variables.
+
+## 2026-11-04
+1. [Optimize] Fixed case statistics definition report view not displaying extension info in definition order.
+2. [Optimize] Case statistics report extension-info dimension layout optimization: a single field occupies a full row, two fields each half a row, at most three per row; extra fields wrap to a new row.
+3. [Feature] Case statistics report extension-info dimension statistic numbers support clicking to jump to the case list.
+
+## 2026-11-02
+1. [Feature] Web import of task data packages supports importing environment info, assertions, system parameters, etc.
+
+## 2026-10-29
+1. [Feature] Test case definition statistics report adds plan-type data display.
+
+## 2026-10-28
+1. [Feature] Added rsa_encrypt action to obtain ciphertext.
+2. [Feature] i18n sync button supports AI translation.
+3. [Feature] i18n sync AI translation uses a personal API Key.
+4. [Bug] i18n only translates selected modules that have additions/updates.
+
+## 2026-10-27
+1. [Feature] Support CLI run mode using SQLite.
+2. [Optimize] Distinguish file renaming when calling web interfaces via CLI from CLI execution.
+3. [Feature] Task export supports on-demand export of environment info, i18n corpus, etc.
+4. [Bug] Fixed issue where execution history could not be written to disk normally.
+
+## 2026-10-21
+1. [Optimize] Test case export field widths are set to be user-friendly.
+
+## 2026-10-21
+1. [Feature] Test case statistics report adds a test-time trend chart, viewable by day and by week.
+
+## 2026-10-19
+1. [Feature] Assertion type adds output2env: extracts a value from the response body (via field path) and writes it to the product-specific parameter (private_parameter); updates if it exists, appends if not, preserving the original JSON type; supports the response body (field path), ResponseHeader, and File extraction sources.
+
+## 2026-10-14
+1. [Optimize] Scenario-associated data editing adds line-number display and full-screen support.
+2. [Optimize] Task-associated scenario/data editing adds line-number display and full-screen support.
+3. [Optimize] Application config list removes product config info, making authentication a one-way dependency.
+
+## 2026-10-10
+1. [Feature] Test case list and case statistics definition list Excel export "package images" mode adds image naming, supporting "CaseNumber_Sequence.png" and "ExcelRowNumber_Sequence.png".
+2. [Feature] In Excel export "package images" mode, with multiple modules each module is exported as a separate Excel, and the "Test Process" field is filled with the renamed image names (multiple images comma-separated with line breaks).
+3. [Optimize] Data file content editing adds line-number display and full-screen support.
+
+## 2026-10-09
+1. [Feature] Standard data execution action adds a trigger field (before/after/only); when any action sets trigger: only, the entire execution skips the HTTP request.
+2. [Feature] When standard data execution generates csv/excel/txt files, field column order is changed to follow the data file definition order.
+3. [Bug] When the data file language is cn but the environment is en, the assertion takes the en value — fixed.
+4. [Bug] When body request parameters reference multi-language system parameters, the value defaults to Chinese and does not match the product environment language: fixed the dead code in GetValueFromSysParameter's tag that caused the language-selected value to be overwritten by random map iteration.
+
+## 2026-09-24
+1. [Optimize] Test case list batch modification adds product line modification.
+2. [Bug] Fixed the mismatch between the "task/data/scenario" counts in the scheduled task list i18n sync completion prompt and the actual counts.
+
+## 2026-09-23
+1. [Bug] Test case list Excel import: avoid a single abnormal image relationship from breaking the entire import.
+
+## 2026-09-20
+1. [Bug] For execution data file downloads, Content-Disposition filename parsing now uses mime.ParseMediaType and removes QueryUnescape on the whole header (which wrongly converts + in filename*=UTF-8'' values to spaces): compatible with RFC 2047 encoded words, filename* extended parameters, and unquoted non-ASCII filenames.
+2. [Bug] For execution data file downloads, when the backend response header has no filename, fall back to the manually defined respHeader: the fallback condition is changed from "response header empty" to "parsed filename empty", fixing the issue where a manually defined respHeader did not take effect when the backend returned Content-Disposition without a usable filename.
+
+## 2026-09-18
+1. [Bug] In scheduled task report execution details, when the same data file is referenced multiple times in different scenarios or the same scenario, the scenario's associated data order is scrambled: now built directly from scene_test_history.data_file_list.
+2. [Optimize] For execution data file downloads, filenames can now be correctly obtained after complex encoding.
+
+## 2026-09-16
+1. [Optimize] Test case i18n sync adds synchronization and translation of the remarks field.
+2. [Optimize] Data/scenario execution history detail adds task ID display.
+3. [Bug] Task report scenario-associated data is sorted out of order by time — changed to sort by id.
+4. [Optimize] Task reports add display of unexecuted data details for executed scenarios.
+
+## 2026-09-16
+1. [Optimize] Result report list "associated task" field adds fuzzy filtering by task ID / task tag.
+2. [Optimize] Single-task/multi-task report interaction style optimization.
+3. [Bug] Fixed the global popup sub-dialog confirming and then jumping to another page.
+
+## 2026-09-15
+1. [Feature] Case statistics definition list adds one-click export of test Excel cases.
+2. [Optimize] Unified the styles of case statistics reports and scheduled task reports.
+3. [Optimize] For execution data, fixed the empty-directory display issue when the downloaded filename is non-standard.
+
+## 2026-09-12
+1. [Bug] In the case statistics report "by module" view, the "not executed" number link drills down but filters out no data: originally filtered with test_result=untest exact value, missing empty/miscellaneous not-executed cases; changed to query-layer complement filtering (test_result not in pass/part/fail/deprecated/unmerged is treated as not executed), without changing stored values.
+
+## 2026-09-10
+1. [Bug] Test case Excel import test time mismatch: added test time normalization, compatible with Excel date serial numbers and common date formats, uniformly stored as 2006-01-02 15:04:05.
+2. [Feature] Test case import template download includes a sample data row; case type, test result, and product line columns generate dropdown options; the test time column is set as text to avoid Excel auto-converting to date serial numbers.
+3. [Optimize] Test case import sample rows (case number starting with "示例") are auto-skipped; test result normalization supports Chinese/English enums and empty defaults to "untest".
+4. [Bug] WPS "embedded cell images" show as =DISPIMG(...) formulas instead of images: added parsing of xl/cellimages.xml to reverse-lookup images, extracting WPS embedded images on import and skipping the formula text.
+5. [Bug] When the "Test Process" field is the last template column, WPS embedded images overflowing into cells to its right are lost after import: now extracting DISPIMG images from the test process column and all columns to its right.
+
+## 2026-09-08
+1. [Feature] Test case adds result history: when a result changes, the old result is appended to history (execution count/result/executor/time); the first execution does not write history, and the latest result stays in test_result.
+2. [Feature] Test case list adds batch modification: batch-modify case module/test result/introduced version/feature developer/case designer/case executor/test time (test result changes follow the result history logic; module changes auto-migrate test process images to the new module directory).
+3. [Bug] Test case Excel import test result not normalized causing empty list display; added result value mapping: PASS/Pass/通过→pass, FAIL/Fail/失败→fail, N/A/NA/已废弃/不适用→deprecated, 暂未合入→unmerged (unknown values preserved).
+4. [Optimize] Test case "associated product" data source changed from the product table to system parameter caseProduct (supports multi-select, comma-separated); Excel import page product dropdown uses the same source, wording unified as "associated product".
+
+## 2026-08-18
+1. [Optimize] Task data import in overwrite mode: if the import content matches the library (standard files ignore the version field), skip version upgrade and do not generate redundant historical versions.
+
+## 2026-08-14
+1. [Feature] Added timestamp placeholders {TimestampMinute}, {TimestampHour}, {TimestampSecond}, supporting millisecond timestamps offset by minutes/hours/seconds from the current time.
+
+## 2026-08-13
+1. [Bug] When the scenario list associated product is empty, running prompts "environment info not found" — changed to "product info not selected", and fixed the productList[0] out-of-range error from an empty product.
+2. [Bug] Task import data package did not include .sh and other script files.
+
+## 2026-08-08
+1. [Optimize] When parameter placeholders are integers like {Timestamp}, {Age}, {Int}, JSON-format requests cannot recognize them — changed to integer-type requests.
+2. [Bug] Data list test: when data has no API_ID, it shows "data not found"; non-interface data has no API_ID by design.
+3. [Bug] Task import data package: standard data interface ID and associated application have no info in the data list.
+4. [Bug] The scenario list page has a task execution ID column that should not exist.
+5. [Optimize] In scenario history and data history lists, the task_id field is moved after name.
+
+## 2026-08-06
+1. [Feature] Added an interface to obtain login TOKEN info; CLI can obtain auth TOKEN via the interface.
+2. [Bug] CLI interface calls cannot recognize execution of non-standard files — fixed.
+
+## 2026-08-05
+1. [Feature] Task data import adds a dedicated page.
+
+## 2026-08-04
+1. [Feature] Added an interface for CLI-friendly invocation, temporarily supporting data and scenario execution.
+2. [Feature] Added assertion action output2auth, auto-updating environment auth info.
+
+## 2026-08-03
+1. [Optimize] When exporting task data packages and knowledge base data, exported files become yaml, and import is synced, CLI-friendly.
+
 ## 2024-01-05
 1. Added the ability to generate test scenarios using the list of API interfaces. The feature allows users to select all associated data files with an interface for scenario creation.
 2. Fixed an issue where assertion values with expressions caused the template to be retrieved prematurely.

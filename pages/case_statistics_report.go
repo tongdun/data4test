@@ -94,14 +94,25 @@ func renderCaseStatisticsReport(ctx *gin.Context, csData biz.CaseStatisticsRepor
 	moduleTable := caseStatModuleTable(csData.ModuleStats, dataLocale)
 
 	// ===== 用例执行者统计列表 =====
-	executorTable := caseStatExecutorTable(csData.ExecutorStats)
+	executorTable := caseStatExecutorTable(csData.ExecutorStats, csData.Overview.IntroVersions, csData.Overview.Product)
 
 	// ===== 扩展信息维度 =====
 	var extHTML string
-	if len(csData.ExtInfoStats) > 0 {
+	if n := len(csData.ExtInfoStats); n > 0 {
 		extHTML += `<div class="row">`
-		for _, ext := range csData.ExtInfoStats {
-			extHTML += caseStatCountTable(biz.T("case_statistics.ext_info_dimension")+" · "+ext.Key, ext.Items)
+		for i, ext := range csData.ExtInfoStats {
+			// 每行最多 3 个字段；最后一行不足 3 个时展开铺满整行
+			remaining := n - (i/3)*3
+			if remaining > 3 {
+				remaining = 3
+			}
+			colClass := "col-md-4"
+			if remaining == 1 {
+				colClass = "col-md-12"
+			} else if remaining == 2 {
+				colClass = "col-md-6"
+			}
+			extHTML += caseStatCountTable(biz.T("case_statistics.ext_info_dimension")+" · "+ext.Key, ext.Key, ext.Items, colClass, csData.Overview.IntroVersions, csData.Overview.Product)
 		}
 		extHTML += `</div>`
 	}
@@ -264,7 +275,8 @@ func caseStatModuleTable(items []biz.CaseStatModuleItem, dataLocale string) stri
 }
 
 // caseStatExecutorTable 按人员统计用例执行列表（总用例数/已执行/通过/失败/废弃/暂未合入/未执行/执行率）
-func caseStatExecutorTable(items []biz.CaseStatExecutorItem) string {
+// 六类结果数字可下钻到用例列表，按执行者 + 结果状态过滤，并携带报告统计口径（引入版本/产品线）
+func caseStatExecutorTable(items []biz.CaseStatExecutorItem, introVersions, product string) string {
 	headers := []string{
 		biz.T("case_statistics.by_case_executor"),
 		biz.T("case_statistics.executor_total"),
@@ -278,20 +290,66 @@ func caseStatExecutorTable(items []biz.CaseStatExecutorItem) string {
 	}
 	var rows []string
 	for _, it := range items {
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%.1f%%</td></tr>`,
-			template.HTMLEscapeString(caseStatCountLabel(it.Name)), it.Total, it.Executed, it.Pass, it.Fail, it.Deprecated, it.Unmerged, it.Untest, it.ExecRate))
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%.1f%%</td></tr>`,
+			template.HTMLEscapeString(caseStatCountLabel(it.Name)),
+			it.Total,
+			caseStatExecutorCell(it.Executed, it.Name, "executed", introVersions, product),
+			caseStatExecutorCell(it.Pass, it.Name, "pass", introVersions, product),
+			caseStatExecutorCell(it.Fail, it.Name, "fail", introVersions, product),
+			caseStatExecutorCell(it.Deprecated, it.Name, "deprecated", introVersions, product),
+			caseStatExecutorCell(it.Unmerged, it.Name, "unmerged", introVersions, product),
+			caseStatExecutorCell(it.Untest, it.Name, "untest", introVersions, product),
+			it.ExecRate))
 	}
 	return reportCard(biz.T("case_statistics.executor_stat_title"), "", reportTable(headers, rows))
 }
 
+// caseStatExecutorCell 按人员统计的数字单元格：count>0 时渲染为下钻链接，跳转用例列表按执行者+结果状态过滤。
+// 空执行者占位符（-）转为空串，查询时匹配 case_executor 为空/NULL。
+func caseStatExecutorCell(count int, name, result, introVersions, product string) string {
+	if count <= 0 {
+		return fmt.Sprintf("%d", count)
+	}
+	executorName := name
+	if executorName == biz.ExtEmptyPlaceholder {
+		executorName = ""
+	}
+	href := "/admin/info/test_case?executor_result=" + template.URLQueryEscaper(result) +
+		"&executor_name=" + template.URLQueryEscaper(executorName)
+	if introVersions != "" {
+		href += "&executor_intro_versions=" + template.URLQueryEscaper(introVersions)
+	}
+	if product != "" {
+		href += "&executor_product=" + template.URLQueryEscaper(product)
+	}
+	return fmt.Sprintf(`<a href="%s" target="_blank">%d</a>`, href, count)
+}
+
 // caseStatCountTable 通用计数表（功能开发者/用例设计者/用例执行者/扩展字段）
-func caseStatCountTable(title string, items []biz.CountItem) string {
+// extKey 非空时，计数数字渲染为超链，跳转到用例列表并按扩展字段子键值过滤（携带报告统计口径的引入版本/产品线）
+func caseStatCountTable(title, extKey string, items []biz.CountItem, colClass, introVersions, product string) string {
 	headers := []string{biz.T("case_statistics.dim_name"), biz.T("case_statistics.dim_count")}
 	var rows []string
 	for _, it := range items {
-		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td></tr>`, template.HTMLEscapeString(it.Name), it.Count))
+		countCell := fmt.Sprintf("%d", it.Count)
+		if extKey != "" {
+			// 空值占位符（-）回退为空串，过滤时匹配扩展字段缺失/为空的用例
+			extValue := it.Name
+			if extValue == biz.ExtEmptyPlaceholder {
+				extValue = ""
+			}
+			href := "/admin/info/test_case?ext_key=" + template.URLQueryEscaper(extKey) + "&ext_value=" + template.URLQueryEscaper(extValue)
+			if introVersions != "" {
+				href += "&ext_intro_versions=" + template.URLQueryEscaper(introVersions)
+			}
+			if product != "" {
+				href += "&ext_product=" + template.URLQueryEscaper(product)
+			}
+			countCell = fmt.Sprintf(`<a href="%s" target="_blank">%d</a>`, href, it.Count)
+		}
+		rows = append(rows, fmt.Sprintf(`<tr><td>%s</td><td>%s</td></tr>`, template.HTMLEscapeString(it.Name), countCell))
 	}
-	return `<div class="col-md-4">` + reportCard(title, "", reportTable(headers, rows)) + `</div>`
+	return `<div class="` + colClass + `">` + reportCard(title, "", reportTable(headers, rows)) + `</div>`
 }
 
 // caseStatDrilldown 失败用例下钻（含备注）

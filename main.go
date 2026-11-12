@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"runtime/debug"
 	"strconv"
@@ -19,13 +20,15 @@ import (
 
 	"data4test/login"
 	"flag"
+	htmltemplate "html/template"
+	"io/fs"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	//_ "github.com/mkevac/debugcharts"
 	//_ "net/http/pprof"
@@ -52,6 +55,44 @@ import (
 	plugModels "github.com/GoAdminGroup/go-admin/plugins/admin/models"
 	"github.com/GoAdminGroup/librarian"
 )
+
+//go:embed web/static html
+var embeddedAssets embed.FS
+
+// embeddedHTMLPanel 返回一个从内嵌 FS 读取指定 html 文件并渲染成后台面板的处理器，
+// 用于替代原先 eng.HTMLFile 从磁盘读取 ./html/*.html 的方式（编译期已随二进制内嵌）。
+func embeddedHTMLPanel(name string) types.GetPanelInfoFn {
+	return func(_ *context.Context) (types.Panel, error) {
+		b, err := embeddedAssets.ReadFile(name)
+		if err != nil {
+			return types.Panel{}, err
+		}
+		return types.Panel{Content: htmltemplate.HTML(b)}, nil
+	}
+}
+
+// likePostmanPanel 返回「控制台」面板。
+// 菜单点击走 pjax 时返回一个 iframe 外壳，SPA 在 iframe 内以整页方式加载；
+// 带 __goadmin_iframe=true 的请求返回 SPA 原始内容（无后台框架侧边栏/顶栏）。
+// 目的：避免 pjax 局部加载时脚本去重/异步乱序导致 Vue 应用无法挂载而灰屏。
+func likePostmanPanel(ctx *context.Context) (types.Panel, error) {
+	if ctx.IsIframe() {
+		b, err := embeddedAssets.ReadFile("html/index.html")
+		if err != nil {
+			return types.Panel{}, err
+		}
+		return types.Panel{Content: htmltemplate.HTML(b)}, nil
+	}
+	return types.Panel{Content: htmltemplate.HTML(
+		`<div style="position:relative;height:calc(100vh - 90px);">` +
+			`<iframe src="/admin/likePostman?__goadmin_iframe=true" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" onload="document.getElementById('lp-loading').style.display='none';"></iframe>` +
+			`<div id="lp-loading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:10;">` +
+			`<i class="fa fa-spinner fa-spin" style="font-size:28px;color:#3c8dbc;"></i>` +
+			`<div style="margin-top:12px;color:#999;font-size:13px;">` + biz.T("common.console_loading") + `</div>` +
+			`</div>` +
+			`</div>`,
+	)}, nil
+}
 
 type Args struct {
 	Config string
@@ -131,6 +172,9 @@ func startServer() {
 			eff = ck
 		}
 		biz.ApplyLocale(eff)
+		// 同步前端 SPA（likePostman 等）读取的 locale cookie：与 data_locale 对齐。
+		// 注意 httpOnly 必须为 false，否则前端 document.cookie 读不到、会退化成跟随浏览器语言。
+		c.SetCookie("locale", biz.GetLocale(), 60*60*24*365, "/", "", false, false)
 		c.Next()
 	})
 	//pprof.Register(r)  // 性能查看
@@ -164,18 +208,25 @@ func startServer() {
 	biz.CacheSystemDefaultLocale()
 
 	r.Static("./upload", args.Upload)
-	r.Static("./static", "./web/static")
+	staticSub, _ := fs.Sub(embeddedAssets, "web/static")
+	r.StaticFS("/static", http.FS(staticSub))
 	r.Static("/uploads", biz.UploadBasePath)
 
-	eng.HTMLFile("GET", "/admin/likePostman", "./html/index.html", nil)
-	eng.HTMLFile("GET", "/admin/schedule_import", "./html/schedule_import.html", nil)
+	eng.HTML("GET", "/admin/likePostman", likePostmanPanel)
+	eng.HTML("GET", "/admin/schedule_import", embeddedHTMLPanel("html/schedule_import.html"))
+	// 任务编排导入页需要登录与权限校验，内容与其它静态页一样从内嵌 FS 读取
 	r.GET("/admin/task_orchestration_import", func(c *gin.Context) {
 		if _, ok := requireOrchestrationImport(c); !ok {
 			return
 		}
-		c.File("./html/task_orchestration_import.html")
+		b, err := embeddedAssets.ReadFile("html/task_orchestration_import.html")
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Data(http.StatusOK, "text/html; charset=utf-8", b)
 	})
-	eng.HTMLFile("GET", "/admin/case_import", "./html/case_import.html", nil)
+	eng.HTML("GET", "/admin/case_import", embeddedHTMLPanel("html/case_import.html"))
 
 	eng.Data("GET", "/admin/librarian", func(ctx *context.Context) {
 		conn := eng.SqliteConnection()
@@ -1312,6 +1363,7 @@ func startServer() {
 			c.SetCookie("data_locale", lang, 60*60*24*365, "/", "", false, true)
 			biz.ApplyLocale(lang)
 		}
+		c.SetCookie("locale", biz.GetLocale(), 60*60*24*365, "/", "", false, false)
 		c.JSON(http.StatusOK, map[string]interface{}{"code": 200, "msg": biz.T("sys_parameter.data_lang_switched"), "data": map[string]string{}})
 	})
 
@@ -2662,14 +2714,26 @@ func startServer() {
 	biz.Init()
 	listen := fmt.Sprintf(":%d", biz.SERVER_PORT)
 
-	err1 := r.Run(listen)
-	if err1 != nil {
-		panic(err1)
-	}
+	// 优雅退出：须在 r.Run 阻塞之前注册信号监听；Ctrl+C/SIGTERM 时关闭数据库连接后退出。
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	log.Print("closing database connection")
-	eng.MysqlConnection().Close()
-	eng.SqliteConnection().Close()
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// HTTP 服务在独立 goroutine 运行，主 goroutine 用 select 区分“服务报错”与“退出信号”。
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- r.Run(listen)
+	}()
+
+	select {
+	case err1 := <-serverErr:
+		// 服务自身报错：panic 触发 main() 里 defer recover → startServer() 重启
+		if err1 != nil {
+			panic(err1)
+		}
+	case <-quit:
+		// 收到 Ctrl+C/SIGTERM：优雅关闭数据库连接后正常返回，进程退出
+		biz.Logger.Info("closing database connection")
+		eng.MysqlConnection().Close()
+		eng.SqliteConnection().Close()
+	}
 }

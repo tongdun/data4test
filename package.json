@@ -1,19 +1,18 @@
 {
   "name": "Data4Test",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "UI for Console",
   "main": "web/app.min.js",
   "author": "Modified by Josing",
   "license": "MIT",
   "scripts": {
     "build:web": "webpack --config webpack.config.js",
-    "build:go": "statik -src web/static -dest go",
-    "build": "run-s build:web build:go",
+    "build": "yarn build:web",
     "dev": "cross-env NODE_ENV=dev yarn build:web"
   },
   "dependencies": {
     "axios": "^0.21.1",
-    "highlight.js": "^10.4.1",
+    "highlight.js": "^9.18.5",
     "iview": "^2.7.4",
     "lodash": "^4.17.4",
     "moment": "^2.19.3",

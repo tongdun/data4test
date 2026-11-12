@@ -42,6 +42,11 @@
 - Default access: http://127.0.0.1:9088
 - Default Username: admin / admin
 
+#### CLI Offline Execution Tool
+- No MySQL deployment required: place the task package (`*.tgz`) exported from the Web console into the local `task/` directory to run offline
+- Uses an embedded SQLite store, supports `run` / `report` commands, `--param` placeholder injection, local Mock, and more
+- See [CLI Execution Tool Guide](build/cli/README.md) for details
+
 #### System Features
 - 1. User-friendly: Visual interface console similar to Postman, easy to learn and use with no barriers.
 - 2. Easy to Write: Standardized data files in YAML format, declarative statements, quick batch writing without scripting.
@@ -80,6 +85,10 @@
   - Multilingual Interface: System copy and menu titles support switching between Chinese, English, and other languages without recompilation
   - Multilingual Business Data: Fields such as names, descriptions, and steps of test cases, data files, scenarios, and tasks are translated by language — build once, reuse across languages
   - i18n Sync: One-click export of the Chinese skeleton (zh-CN.yaml) from the database; after translation, add other language files (e.g., en-US.yaml) and they take effect automatically
+- 7. Test Management
+  - Template-based Case Management: Batch import/export test cases from templates (Excel/Xmind/Markdown), with image import, image embedding and packaged export, and per-module split-file export
+  - Full Test Process Trail: Records case execution process and historical test results, supporting multi-dimensional traceability by product/module
+  - Test Statistics Reports: Custom statistics definitions (module/priority/executor/extended-info dimensions) to generate case execution reports, including test-time trend charts (daily/weekly), plan-type data, and extended-info dimension statistics with click-through
 
 #### Applicable Test Types
 - 1. Functional Testing: Positive path functional testing, custom or automatically generated characteristic test data.
@@ -128,7 +137,8 @@
 - [Release Notes](./mgmt/doc/file/update/release_en.md)
 
 #### Production Environment
-[Production Environment Deployment](build/web/README_EN.md)
+- [Web Service Deployment](build/web/README_EN.md)
+- [CLI Offline Execution Tool](build/cli/README.md)
 
 #### Development Environment
 [Development Environment Deployment](./mgmt/doc/file/development/dev_env_en.md)

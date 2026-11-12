@@ -16,7 +16,7 @@ export HOST_IP="127.0.0.1"
 export USER_NAME="root"
 export DB_PORT="3306"
 export DATABASE="data4test"
-export BAK_FILE_NAME="data4test_init_$(date +%Y%m%d).sql"
+export BAK_FILE_NAME="./mgmt/sql/init_all_$(date +%Y%m%d).sql"
 
 # ===== 框架数据表：整表导出（全表均为内置数据）=====
 FRAMEWORK_TABLES="filemanager_setting goadmin_menu goadmin_permissions goadmin_site goadmin_role_menu goadmin_role_permissions goadmin_role_users goadmin_roles goadmin_users goadmin_user_permissions"

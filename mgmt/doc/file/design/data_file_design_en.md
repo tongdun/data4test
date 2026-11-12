@@ -39,6 +39,7 @@
 - Assertion Relationships: Defined by the user, supporting checks for empty, not empty, equal, not equal, contains, does not contain, keywords, etc.
 - Test Results: Judged based on assertion relationships, PASS if criteria are met, PASS if no assertions are defined and the API request is successful, multiple values and multiple results
 - Response Information: Records the information returned by the API, multiple values and multiple responses
+- Editing Experience: Data file content editing supports line-number display and full-screen editing
 
 #### Header Settings
 - Header: Authentication data, request type, etc., such as application/json, form/data, files, etc.
@@ -87,6 +88,7 @@ is_run_pre_apis: "no"     # Whether to run pre-cases, options: yes / no, default
 is_run_post_apis: "no"    # Whether to run post-cases, options: yes / no, default no, feature not developed
 is_parallel: "no"         # Whether to run data in parallel, options: yes / no, default no
 is_use_env_config: "yes"  # Whether to use public environment, options: yes / no, default yes
+is_var_strong_check: "yes"  # Whether to enable variable strong validation, options: yes / no, default yes
 
 # Environment Information
 env:
@@ -119,7 +121,6 @@ single:
     vaLue: '{FlowType}'   # Define parameters under the "System Parameters" menu, supporting multi-language
     name: '*{Name}*'      # Reference the Name variable from above, as a whole, JSON format
     name2: '**{Name}**'   # Reference the Name variable from above, as a whole, string format
-    XXName: '{self}'      # Reference the value of the XXName variable from above, [{self} value variables will be gradually deprecated, do not use them anymore, replace existing ones with specific variable names as soon as possible
   bodyList:              # When the request body is directly a List, related request parameters are placed under bodyList
     - name: '{Name}'
       sex: '{Sex}'
@@ -182,6 +183,9 @@ assert:
 - type: output_re  # Define an output variable, assign the value matched by ([a-zA-Z0-9]+) to taskId, for use by other interfaces
   source: '\\"taskId\\":\\"([a-zA-Z0-9]+)\\"'
   value: taskId
+- type: output2env  # Extract a value from the response and write it to product-specific parameter private_parameter; update if it exists, append if not, preserving the original JSON type; supports the response body (via field path)/ResponseHeader/File
+  source: data.XXXName
+  value: XXXName
 - type: output  # When the return value is a file, take the value in the first row and first column and assign it to taskId
   source: File:TXT:1:1:,
   value: taskId
@@ -233,7 +237,7 @@ actions:
       ...
       -----END PUBLIC KEY-----
 
-# Dependent data output for other interfaces, automatically generated from 'output' type assertions, retrieved using '{self}' or '{uuid}'  
+# Dependent data output for other interfaces, automatically generated from 'output' / 'output2env' / 'output2auth' type assertions, retrieved using '{uuid}'  
 output_dependencies:
   uuid:
     - XXX

@@ -28,6 +28,10 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 	products := biz.GetCaseProducts()
 	sceneNames := biz.GetScenes()
 	caseTypes := biz.GetTestcaseType()
+	introVersions := make([]types.FieldOption, 0, 8)
+	for _, v := range biz.GetIntroVersions() {
+		introVersions = append(introVersions, types.FieldOption{Value: v, Text: v})
+	}
 	dataLocale := biz.GetDataLocale(ctx.Cookie("data_locale"), biz.GetLocale())
 	userName := auth.Auth(ctx).Name
 	testCase := table.NewDefaultTable(table.DefaultConfigWithDriver("mysql"))
@@ -133,6 +137,8 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldWidth(120).
 		FieldHide()
 	info.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar).
+		FieldFilterable(types.FilterType{FormType: form.Select}).
+		FieldFilterOptions(introVersions).
 		FieldHide()
 	info.AddField(biz.T("common.related_scene"), "scene", db.Varchar).
 		FieldWidth(120).
@@ -167,6 +173,8 @@ func GetTestCaseTable(ctx *context.Context) table.Table {
 		FieldHide()
 
 	info.AddSelectBox(biz.T("common.product_line"), products, action.FieldFilter("product"))
+
+	info.AddSelectBox(biz.T("common.intro_version"), introVersions, action.FieldFilter("intro_version"))
 
 	info.AddSelectBox(biz.T("common.test_result"), types.FieldOptions{
 		{Value: "pass", Text: biz.T("common.pass")},
@@ -365,6 +373,67 @@ $(function () {
 
 	// 报告“未执行”下钻：test_result 非 pass/part/fail/deprecated/unmerged 均视为未执行（不改库内值，查询层做补集过滤）
 	info.SetQueryFilterFn(func(params parameter.Parameters, conn db.Connection) ([]string, bool) {
+		// 报告扩展信息维度下钻：按 ext_key 精确匹配 ext_info 中的子键值（空值占位符匹配缺失/为空）
+		if extKey := params.GetFieldValue("ext_key"); extKey != "" {
+			extValue := params.GetFieldValue("ext_value")
+			q := models.Orm.Table("test_case").Where("deleted_at IS NULL")
+			// 与报告统计口径保持一致：限定引入版本与产品线
+			if iv := params.GetFieldValue("ext_intro_versions"); iv != "" {
+				q = q.Where("intro_version IN (?)", splitFilterValues(iv))
+			}
+			if prod := params.GetFieldValue("ext_product"); prod != "" {
+				q = q.Where("product IN (?)", splitFilterValues(prod))
+			}
+			var rows []struct {
+				ID      int    `gorm:"column:id"`
+				ExtInfo string `gorm:"column:ext_info"`
+			}
+			if err := q.Select("id, ext_info").Find(&rows).Error; err != nil {
+				biz.Logger.Error("扩展信息过滤查询失败: %v", err)
+				return nil, false
+			}
+			ids := make([]string, 0, len(rows))
+			for _, r := range rows {
+				if biz.GetExtInfoValue(r.ExtInfo, extKey, "zh-CN") == extValue {
+					ids = append(ids, strconv.Itoa(r.ID))
+				}
+			}
+			return ids, true
+		}
+		// 报告“按人员统计”下钻：按执行者 + 结果状态过滤（executed=已执行补集，untest=未执行补集）
+		if result := params.GetFieldValue("executor_result"); result != "" {
+			q := models.Orm.Table("test_case").Where("deleted_at IS NULL")
+			name := params.GetFieldValue("executor_name")
+			if name == "" {
+				q = q.Where("case_executor IS NULL OR case_executor = ''")
+			} else {
+				q = q.Where("case_executor = ?", name)
+			}
+			switch result {
+			case "executed":
+				q = q.Where("test_result IN (?)", []string{"pass", "part", "fail", "deprecated", "unmerged"})
+			case "untest":
+				q = q.Where("test_result NOT IN (?)", []string{"pass", "part", "fail", "deprecated", "unmerged"})
+			default: // pass / fail / deprecated / unmerged
+				q = q.Where("test_result = ?", result)
+			}
+			if iv := params.GetFieldValue("executor_intro_versions"); iv != "" {
+				q = q.Where("intro_version IN (?)", splitFilterValues(iv))
+			}
+			if prod := params.GetFieldValue("executor_product"); prod != "" {
+				q = q.Where("product IN (?)", splitFilterValues(prod))
+			}
+			var idInts []int
+			if err := q.Pluck("id", &idInts).Error; err != nil {
+				biz.Logger.Error("按人员下钻过滤查询失败: %v", err)
+				return nil, false
+			}
+			ids := make([]string, 0, len(idInts))
+			for _, id := range idInts {
+				ids = append(ids, strconv.Itoa(id))
+			}
+			return ids, true
+		}
 		if params.GetFieldValue("untest_broad") != "1" {
 			return nil, false
 		}
@@ -639,4 +708,15 @@ func testResultLabel(v string) string {
 		return biz.T("test_case.result_unmerged")
 	}
 	return v
+}
+
+// splitFilterValues 拆分逗号分隔的过滤值并去空（用于扩展信息下钻的引入版本/产品线范围）
+func splitFilterValues(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

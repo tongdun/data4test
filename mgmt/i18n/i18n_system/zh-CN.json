@@ -1371,6 +1371,8 @@
   "cli.param_input": "请输入 %s: ",
   "cli.param_written": "已写回 env_config.yaml：%s",
   "cli.param_non_tty": "检测到待填写变量，但当前为非交互环境，已跳过填写",
+  "cli.param_injected": "已通过命令行注入参数：%s",
+  "cli.param_unknown": "以下参数未作为占位符出现在配置中，已忽略：%s",
   "cli.no_task": "未找到可执行的任务",
   "cli.task_not_found": "任务不存在：%s（可选：%s）",
   "cli.task_failed": "[%d/%d] %s (%s) ...... 失败  场景 %d/%d  数据 %d/%d",

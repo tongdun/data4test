@@ -26,7 +26,7 @@ export default class RunList extends Vue {
   isDisableOptions: boolean[] = []
   paramTypeOptions: string[] = ["string", "boolean", "integer", "object", "array"]
   isMustOptions: string[] = ["yes", "no"]
-  inValueTypeOptions: string[] = ["{self}", "{Time}", "{Date}", "{Timestamp(-3)}", "{Timestamp(1)}", "{Int(0,10)}", "{Int(16,120)}", "{Str(8)}", "{Str(64)}", "{Rune(8)}","{Rune(64)}", "{Name}", "{BankNo}", "{Address}", "{Email}", "{IDNo}", "{Mobile}", "{Province}", "{City}", "{DeviceType}", "{QQ}", "{Sex}", "{Age}", "{Diploma}", "{IntStr10}", "{Int}", "{Result}", "{Income}", "{YorN}", "{Level}", "{DayBegin}","{MonthBegin}","{YearBegin}","{DayEnd}","{MonthEnd}","{YearEnd}","{DayBegin(-10)}","{DayEnd(-7)}"]
+  inValueTypeOptions: string[] = ["{Time}", "{Date}", "{Timestamp(-3)}", "{Timestamp(1)}", "{Int(0,10)}", "{Int(16,120)}", "{Str(8)}", "{Str(64)}", "{Rune(8)}","{Rune(64)}", "{Name}", "{BankNo}", "{Address}", "{Email}", "{IDNo}", "{Mobile}", "{Province}", "{City}", "{DeviceType}", "{QQ}", "{Sex}", "{Age}", "{Diploma}", "{IntStr10}", "{Int}", "{Result}", "{Income}", "{YorN}", "{Level}", "{DayBegin}","{MonthBegin}","{YearBegin}","{DayEnd}","{MonthEnd}","{YearEnd}","{DayBegin(-10)}","{DayEnd(-7)}"]
 
   runTableData: any[] = []
   runTableColumns: any[] = [

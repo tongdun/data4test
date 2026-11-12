@@ -39,7 +39,6 @@ single:
     vaLue: '{FlowType}'   # 在'系统参数'菜单下，进行参数定义定义，支持多语种定
     name: '*{Name}*'      # 引用上文Name变量，当做一个整体，JSON格式
     name2: '**{Name}**'   # 引用上文Name变量，当做一个整体，字符串格式
-    XXName: '{self}'      # 引用上文XXName变量的值，{self}值变量将逐步废弃，不要再使用，已有的，尽快替换为具体的变量名
   bodyList:               # 当请求body直接是List时，相关请求参数放到bodyList下; bodyList存在时, 优先级更高, 如果无值时，该参数直接删除
     - name: '{Name}'
       sex: '{Sex}'
@@ -158,7 +157,7 @@ action:
   - type: modify_output            // todo
     value: data[1]:str1:str2:-1    // output参数名称[索引]:原值:新值:替换个数，索引中-N，表示从后往前，替换个数-1替换全部，
 
-# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为'{self}'或 '{uuid}' 从此处取值
+# 输出其他接口需要的依赖数据, 由断言中类型为 ouput 定义，自动生成, 定义为 '{uuid}' 从此处取值
 output:
   uuid:
     - XXX
