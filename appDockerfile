@@ -14,7 +14,7 @@
 # docker-compose up
 # You can visit Data4Test by http://127.0.0.1:9088 admin / admin to use it ~
 
-FROM centos:latest
+FROM rockylinux:9
 MAINTAINER josingcjx
 # Start it after get the ./release/data4test-web content finish
 # 只拷贝 centos(linux/amd64) 需要的发行版：裸 data4test 二进制 + config.json + mgmt 运行时目录
