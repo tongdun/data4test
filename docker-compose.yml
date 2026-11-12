@@ -11,9 +11,10 @@ services:
     networks:
       - data4test
     environment:
-      - MYSQL_ROOT_PASSWORD:password
-      - MYSQL_USER:admin
-      - MYSQL_PASSWORD:data4test
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=data4test
+      - MYSQL_DATABASE=data4test
   data4test:
     image: josingcjx/data4test:6.0
     container_name: data4test
@@ -25,9 +26,9 @@ services:
     networks:
       - data4test
     environment:
-      - MYSQL_PORT:3306
-      - MYSQL_HOST:db
-      - MYSQL_PASSWORD:password
+      - MYSQL_PORT=3306
+      - MYSQL_HOST=db
+      - MYSQL_PASSWORD=password
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - data4test:/data
