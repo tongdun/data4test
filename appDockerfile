@@ -1,14 +1,14 @@
 # This file describes the standard way to build Data4Test on trial env image, and using container
 #
-# When build it, please prepare the all content of deploy directory
-# you can read ci/getInitPackage.sh, to get the all content of deploy dirctory
+# When build it, please prepare the all content of release/data4test-web directory
+# you can read build/release.sh, to get the all content of release directory
 #
 # Usage:
 #
 # # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
-# docker build -f appDockerfile -t data4test:5.0 .
-# docker tag data4test:5.0 josingcjx/data4test:5.0
-# docker push josingcjx/data4test:5.0
+# docker build -f appDockerfile -t data4test:6.0 .
+# docker tag data4test:6.0 josingcjx/data4test:6.0
+# docker push josingcjx/data4test:6.0
 # use this image in docker-compose.yml
 # docker-compose up -d
 # docker-compose up
@@ -16,8 +16,12 @@
 
 FROM centos:latest
 MAINTAINER josingcjx
-# Start it after get the ./deploy content finish
-COPY ./deploy/ /home/data4test
+# Start it after get the ./release/data4test-web content finish
+# 只拷贝 centos(linux/amd64) 需要的发行版：裸 data4test 二进制 + config.json + mgmt 运行时目录
+# （html/web 已内嵌进二进制，其余平台二进制 / start.sh / README 无需拷入镜像）
+COPY release/data4test-web/data4test  /home/data4test/data4test
+COPY release/data4test-web/config.json /home/data4test/config.json
+COPY release/data4test-web/mgmt/       /home/data4test/mgmt/
 WORKDIR /home/data4test
 RUN cd /home/data4test && \
     chmod +x data4test

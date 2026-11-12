@@ -1,0 +1,10 @@
+# 构建上下文白名单：只保留两个 Dockerfile 构建所需内容，避免把大文件发给 Docker 拖慢 build。
+#   appDockerfile 需要 release/data4test-web/（web 发行版）
+#   dbDockerfile   需要 release/data4test-web/mgmt/sql/（初始化 SQL）
+# 规则：先排除全部，再逐级放行（Docker 要求父目录先于子目录被放行）。
+*
+!appDockerfile
+!dbDockerfile
+!release
+!release/data4test-web
+!release/data4test-web/**
