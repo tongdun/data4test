@@ -254,12 +254,22 @@ func extractImgSrcs(raw string) []string {
 	return srcs
 }
 
-// resolveUploadFilePath 将图片引用解析为本地绝对路径：/uploads/xxx 映射到 UploadBasePath 下，其余按相对路径兜底。
+// resolveUploadFilePath 将图片引用解析为本地绝对路径：/case-images/xxx 映射到 CaseImageBasePath、/uploads/xxx 映射到 UploadBasePath，其余按相对路径兜底。
 // 保存时 src 经 url.PathEscape 编码，磁盘文件名为未编码形式，需反向解码后才能定位。
 func resolveUploadFilePath(ref string) string {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return ""
+	}
+	if strings.HasPrefix(ref, caseImageURLPrefix) {
+		rest := strings.TrimPrefix(ref, caseImageURLPrefix)
+		if q := strings.IndexByte(rest, '?'); q >= 0 {
+			rest = rest[:q]
+		}
+		if decoded, err := url.PathUnescape(rest); err == nil {
+			return filepath.Join(CaseImageBasePath, decoded)
+		}
+		return filepath.Join(CaseImageBasePath, rest)
 	}
 	if strings.HasPrefix(ref, "/uploads/") {
 		rest := strings.TrimPrefix(ref, "/uploads/")

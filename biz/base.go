@@ -29,6 +29,7 @@ var (
 	CommonFilePath    string
 	ApiFilePath       string
 	CaseFilePath      string
+	CaseImageBasePath string
 	AiDataBasePath    string
 	KnowledgeBasePath string
 )
@@ -83,6 +84,7 @@ func init() {
 	CommonFilePath = fmt.Sprintf("%s/common", BASEPATH)
 	ApiFilePath = fmt.Sprintf("%s/api", BASEPATH)
 	CaseFilePath = fmt.Sprintf("%s/case", BASEPATH)
+	CaseImageBasePath = fmt.Sprintf("%s/case/images", BASEPATH)
 	AiDataBasePath = fmt.Sprintf("%s/ai_data", BASEPATH)
 	KnowledgeBasePath = fmt.Sprintf("%s/knowledge", BASEPATH)
 	_, err = os.Stat(BASEPATH)

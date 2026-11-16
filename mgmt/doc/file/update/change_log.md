@@ -1,3 +1,23 @@
+#### 2026年11月16日
+1、[Optimize] 测试用例过程图片独立目录化：新增 mgmt/case/images/<模块>/ 存储目录与 /case-images/ 访问前缀，图片的保存/读取/导入/导出全部迁移到新路径
+#### 2026年11月13日
+1、[Bug] 修复导入测试用例时图片包不生效：写图片前未创建模块目录，因父目录不存在而失败、图片被静默跳过，导致导入后用例测试过程无图片
+
+#### 2026年11月12日
+1、[Optimize] Docker 构建优化
+2、[Optimize] appDockerfile 基础镜像由 centos:latest 更换为 rockylinux:9
+3、[Bug] 修正 init_all SQL 导出文件头中的 Database 名称（data4test_1 / data4test_20261109 → data4test），避免初始化库名不一致
+4、[Bug] docker-compose.yml 环境变量写法由 `KEY:value` 修正为 `KEY=value`，并补充 MYSQL_DATABASE=data4test
+
+#### 2026年11月11日
+1、[Bug] 修复 Web 静态资源编译内嵌进 Go 二进制的问题，同步调整 Makefile、build/release.sh、package.json 与 yarn.lock
+2、[Bug] 修复控制台加载灰屏：SPA 改为 iframe 整页加载，规避 pjax 局部加载脚本乱序导致 Vue 无法挂载，并同步 locale cookie 与 data_locale 对齐
+3、[Optimize] 用例统计报告扩展信息维度下钻优化：按 ext_key 精确匹配 ext_info 子键值，并限定引入版本/产品线统计口径
+4、[Bug] 修复用例导入、任务导入页面未铺满全屏的问题
+5、[Feature] 用例统计报告按人员统计的六类结果数字支持下钻到用例列表（按执行者+结果状态过滤），用例列表新增引入版本筛选
+6、[Optimize] 服务优雅退出：r.Run 阻塞前注册信号监听，Ctrl+C/SIGTERM 时关闭数据库连接后正常退出，区分「服务报错（panic 重启）」与「退出信号（正常返回）」
+7、[Bug] 回退代码：恢复 biz/common.go GetScriptRunEngin 中被注释的 defer fHandle.Close()，避免脚本文件句柄泄漏
+
 #### 2026年11月9日
 1、[Optimize] 升级 Go 工具链至 1.27.3，go.mod 的 go 指令由 1.17 提升至 1.23，解决 linux/arm64 交叉打包报错（ARM external linker must be gold，Go ≤1.24 限制），并同步清理冗余依赖
 2、[Optimize] 发布脚本 release.sh 打包 Web 包时补充 README 拷贝

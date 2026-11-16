@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -845,7 +844,7 @@ func importImagesFromPackage(imagePkgPath string, items []TestCaseImportItem) (e
 		}
 		sort.Strings(names)
 		moduleDir := sanitizeDirName(items[i].Module)
-		dir := filepath.Join(UploadBasePath, moduleDir)
+		dir := caseImageDir(items[i].Module)
 		if merr := os.MkdirAll(dir, os.ModePerm); merr != nil {
 			Logger.Error("create import image dir failed: %s, %s", dir, merr)
 			continue
@@ -858,7 +857,7 @@ func importImagesFromPackage(imagePkgPath string, items []TestCaseImportItem) (e
 				continue
 			}
 			items[i].ImageFiles = append(items[i].ImageFiles, name)
-			imgURL := "/uploads/" + url.PathEscape(moduleDir) + "/" + url.PathEscape(name)
+			imgURL := caseImageURL(moduleDir, name)
 			parts = append(parts, fmt.Sprintf(`<img src="%s">`, imgURL))
 		}
 		items[i].TestProcess = strings.Join(parts, "\n")
