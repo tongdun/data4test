@@ -598,7 +598,6 @@ $(function () {
 	detail.AddField(biz.T("case.func_devleoper"), "fun_developer", db.Varchar)
 	detail.AddField(biz.T("common.case_designer"), "case_designer", db.Varchar)
 	detail.AddField(biz.T("test_case.case_executor"), "case_executor", db.Varchar)
-	detail.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar)
 	detail.AddField(biz.T("common.test_result"), "test_result", db.Enum).
 		FieldDisplay(func(model types.FieldModel) interface{} {
 			if model.Value == "pass" {
@@ -614,6 +613,9 @@ $(function () {
 			}
 			return biz.T("common.yes")
 		})
+	detail.AddField(biz.T("test_case.test_time"), "test_time", db.Varchar)
+	detail.AddField(biz.T("test_case.result_history"), "result_history", db.Longtext).
+		FieldDisplay(resultHistoryDisplay)
 	detail.AddField(biz.T("common.intro_version"), "intro_version", db.Varchar)
 	detail.AddField(biz.T("common.related_scene"), "scene", db.Varchar)
 	detail.AddField(biz.T("common.product_line"), "product", db.Varchar)
@@ -622,8 +624,6 @@ $(function () {
 	detail.AddField(biz.T("test_case.test_process"), "test_process", db.Longtext)
 	detail.AddField(biz.T("test_case.ext_info"), "ext_info", db.Longtext).
 		FieldDisplay(multilineDisplay)
-	detail.AddField(biz.T("test_case.result_history"), "result_history", db.Longtext).
-		FieldDisplay(resultHistoryDisplay)
 
 	detail.SetTable("test_case").SetTitle(biz.T("test_case.title")).SetDescription(biz.T("test_case.description"))
 
