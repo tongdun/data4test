@@ -845,9 +845,14 @@ func importImagesFromPackage(imagePkgPath string, items []TestCaseImportItem) (e
 		}
 		sort.Strings(names)
 		moduleDir := sanitizeDirName(items[i].Module)
+		dir := filepath.Join(UploadBasePath, moduleDir)
+		if merr := os.MkdirAll(dir, os.ModePerm); merr != nil {
+			Logger.Error("create import image dir failed: %s, %s", dir, merr)
+			continue
+		}
 		var parts []string
 		for _, name := range names {
-			dst := filepath.Join(UploadBasePath, moduleDir, name)
+			dst := filepath.Join(dir, name)
 			if werr := os.WriteFile(dst, files[name], 0644); werr != nil {
 				Logger.Error("save import image failed: %s, %s", name, werr)
 				continue
