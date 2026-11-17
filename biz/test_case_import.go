@@ -351,6 +351,9 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 
 	caseNumCol, hasCaseNum := fieldCol["case_number"]
 
+	// 统计被跳过的模板示例行数，供空数据时给出更精确的提示
+	skippedSample := 0
+
 	// 逐行解析
 	for r := 1; r < len(rows); r++ {
 		row := rows[r]
@@ -372,6 +375,7 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 
 		// 跳过模板附带的示例行（用例编号以「示例」开头）
 		if strings.HasPrefix(item.CaseNumber, sampleCaseNumberPrefix) {
+			skippedSample++
 			continue
 		}
 
@@ -432,7 +436,12 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 	}
 
 	if len(result.Cases) == 0 {
-		err = fmt.Errorf(T("test_case.import_no_data"))
+		if skippedSample > 0 {
+			// 模板只有示例行、无真实数据：明确告知示例行已被跳过
+			err = fmt.Errorf(T("test_case.import_only_sample"), skippedSample)
+		} else {
+			err = fmt.Errorf(T("test_case.import_no_data"))
+		}
 		return
 	}
 
