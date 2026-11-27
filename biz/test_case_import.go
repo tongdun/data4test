@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -352,6 +351,9 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 
 	caseNumCol, hasCaseNum := fieldCol["case_number"]
 
+	// 统计被跳过的模板示例行数，供空数据时给出更精确的提示
+	skippedSample := 0
+
 	// 逐行解析
 	for r := 1; r < len(rows); r++ {
 		row := rows[r]
@@ -373,6 +375,7 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 
 		// 跳过模板附带的示例行（用例编号以「示例」开头）
 		if strings.HasPrefix(item.CaseNumber, sampleCaseNumberPrefix) {
+			skippedSample++
 			continue
 		}
 
@@ -433,7 +436,12 @@ func TestCaseImportCheck(excelPath, imagePkgPath, templateName, defaultsJSON, us
 	}
 
 	if len(result.Cases) == 0 {
-		err = fmt.Errorf(T("test_case.import_no_data"))
+		if skippedSample > 0 {
+			// 模板只有示例行、无真实数据：明确告知示例行已被跳过
+			err = fmt.Errorf(T("test_case.import_only_sample"), skippedSample)
+		} else {
+			err = fmt.Errorf(T("test_case.import_no_data"))
+		}
 		return
 	}
 
@@ -845,15 +853,20 @@ func importImagesFromPackage(imagePkgPath string, items []TestCaseImportItem) (e
 		}
 		sort.Strings(names)
 		moduleDir := sanitizeDirName(items[i].Module)
+		dir := caseImageDir(items[i].Module)
+		if merr := os.MkdirAll(dir, os.ModePerm); merr != nil {
+			Logger.Error("create import image dir failed: %s, %s", dir, merr)
+			continue
+		}
 		var parts []string
 		for _, name := range names {
-			dst := filepath.Join(UploadBasePath, moduleDir, name)
+			dst := filepath.Join(dir, name)
 			if werr := os.WriteFile(dst, files[name], 0644); werr != nil {
 				Logger.Error("save import image failed: %s, %s", name, werr)
 				continue
 			}
 			items[i].ImageFiles = append(items[i].ImageFiles, name)
-			imgURL := "/uploads/" + url.PathEscape(moduleDir) + "/" + url.PathEscape(name)
+			imgURL := caseImageURL(moduleDir, name)
 			parts = append(parts, fmt.Sprintf(`<img src="%s">`, imgURL))
 		}
 		items[i].TestProcess = strings.Join(parts, "\n")

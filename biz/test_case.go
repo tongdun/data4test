@@ -478,7 +478,7 @@ func ExportTestCase2XmindByCondition(product, introVersion, module, caseDesigner
 }
 
 // AutoFillCaseExecutorTime 根据测试结果/测试时间变更返回需要自动填充的字段。
-// isSingleUpdate 为 true 表示列表内联编辑（仅更新执行者）；false 表示编辑页保存。
+// isSingleUpdate 为 true 表示列表内联编辑；false 表示编辑页保存。
 func AutoFillCaseExecutorTime(id, testResult, testTime, userName string, isSingleUpdate bool) map[string]string {
 	var orig struct {
 		TestResult    string `gorm:"column:test_result"`
@@ -491,8 +491,9 @@ func AutoFillCaseExecutorTime(id, testResult, testTime, userName string, isSingl
 
 	updates := map[string]string{}
 	if isSingleUpdate {
-		// 列表内联编辑：操作测试结果 → 自动更新用例执行者
+		// 列表内联编辑：操作测试结果 → 自动更新测试时间 + 用例执行者
 		if testResult != "" && testResult != orig.TestResult {
+			updates["test_time"] = time.Now().Format(baseFormat)
 			updates["case_executor"] = userName
 		}
 	} else {
@@ -515,9 +516,9 @@ func AutoFillCaseExecutorTime(id, testResult, testTime, userName string, isSingl
 	return updates
 }
 
-// appendTestCaseResultHistory 追加一条历史记录；首次执行（旧结果为空或默认未测试且无执行人）返回 false。
+// appendTestCaseResultHistory 追加一条历史记录；首次执行（旧结果为空或初始未测试且无历史）返回 false。
 func appendTestCaseResultHistory(history, oldResult, oldExecutor, oldTime string) (string, bool) {
-	if oldResult == "" || (oldResult == "untest" && oldExecutor == "") {
+	if oldResult == "" || (oldResult == "untest" && history == "") {
 		return "", false
 	}
 	seq := 1
@@ -638,7 +639,7 @@ var TestCaseImageUploadHandler context.Handler = func(ctx *context.Context) {
 	ctx.JSON(200, map[string]interface{}{"errno": 0, "data": []string{imgURL}})
 }
 
-// saveTestCaseProcessImage 保存图片到模块目录，命名为 用例编号_N.ext，返回可访问 URL
+// saveTestCaseProcessImage 保存图片到 case/images/<模块> 目录，命名为 用例编号_N.ext，返回可访问 URL
 func saveTestCaseProcessImage(caseNumber, module, ext string, data []byte) (string, error) {
 	moduleDir := sanitizeDirName(module)
 	caseNo := sanitizeFileName(caseNumber)
@@ -646,7 +647,7 @@ func saveTestCaseProcessImage(caseNumber, module, ext string, data []byte) (stri
 		caseNo = "case"
 	}
 
-	dir := filepath.Join(UploadBasePath, moduleDir)
+	dir := caseImageDir(module)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return "", err
 	}
@@ -657,7 +658,7 @@ func saveTestCaseProcessImage(caseNumber, module, ext string, data []byte) (stri
 		return "", err
 	}
 
-	return "/uploads/" + url.PathEscape(moduleDir) + "/" + url.PathEscape(filename), nil
+	return caseImageURL(moduleDir, filename), nil
 }
 
 // sanitizeDirName 清洗模块名为安全目录名
@@ -698,6 +699,19 @@ func sanitizeFileName(s string) string {
 	s = strings.TrimSpace(s)
 	r := strings.NewReplacer("/", "_", "\\", "_", ":", "_", "*", "_", "?", "_", "\"", "_", "<", "_", ">", "_", "|", "_")
 	return r.Replace(s)
+}
+
+// caseImageURLPrefix 测试过程图片的访问 URL 前缀（对应 main.go 中 /case-images 静态路由）
+const caseImageURLPrefix = "/case-images/"
+
+// caseImageDir 返回指定模块的测试过程图片存储目录（mgmt/case/images/<模块>）
+func caseImageDir(module string) string {
+	return filepath.Join(CaseImageBasePath, sanitizeDirName(module))
+}
+
+// caseImageURL 返回图片的可访问 URL（/case-images/<模块>/<文件名>）
+func caseImageURL(moduleDir, filename string) string {
+	return caseImageURLPrefix + url.PathEscape(moduleDir) + "/" + url.PathEscape(filename)
 }
 
 // nextImageIndex 计算下一个图片序号（模块目录内 用例编号_N 的最大 N + 1）
@@ -741,11 +755,11 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 
 	srcMatches := imgSrcRe.FindAllStringSubmatch(html, -1)
 
-	// 受管图片：文件名形如 用例编号_N.ext，位于 /uploads/<目录>/ 下
+	// 受管图片：文件名形如 用例编号_N.ext，位于 /case-images/<目录>/ 下
 	type imgRef struct{ dir, name, src string }
 	var managed []imgRef
 	for _, m := range srcMatches {
-		dir, name, ok := parseUploadSrc(m[1])
+		dir, name, ok := parseCaseImageSrc(m[1])
 		if !ok || !isManagedImage(name, caseNo) {
 			continue
 		}
@@ -767,7 +781,7 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 	for dir := range dirs {
 		for _, name := range caseImageFiles(dir, caseNo) {
 			if !surviveSet[dir][name] {
-				if err := os.Remove(filepath.Join(UploadBasePath, dir, name)); err != nil {
+				if err := os.Remove(filepath.Join(CaseImageBasePath, dir, name)); err != nil {
 					Logger.Error("删除测试过程图片失败 %s/%s: %s", dir, name, err)
 				}
 			}
@@ -807,7 +821,7 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 				continue
 			}
 			tmp := fmt.Sprintf("%s__tmp_%d%s", caseNo, i, filepath.Ext(name))
-			if err := os.Rename(filepath.Join(UploadBasePath, dir, name), filepath.Join(UploadBasePath, dir, tmp)); err != nil {
+			if err := os.Rename(filepath.Join(CaseImageBasePath, dir, name), filepath.Join(CaseImageBasePath, dir, tmp)); err != nil {
 				Logger.Error("重命名测试过程图片失败 %s/%s: %s", dir, name, err)
 			}
 		}
@@ -816,7 +830,7 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 				continue
 			}
 			tmp := fmt.Sprintf("%s__tmp_%d%s", caseNo, i, filepath.Ext(name))
-			if err := os.Rename(filepath.Join(UploadBasePath, dir, tmp), filepath.Join(UploadBasePath, dir, targets[i])); err != nil {
+			if err := os.Rename(filepath.Join(CaseImageBasePath, dir, tmp), filepath.Join(CaseImageBasePath, dir, targets[i])); err != nil {
 				Logger.Error("重命名测试过程图片失败 %s/%s: %s", dir, name, err)
 			}
 		}
@@ -827,7 +841,7 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 			}
 			for _, r := range managed {
 				if r.dir == dir && r.name == name {
-					replace[r.src] = "/uploads/" + url.PathEscape(dir) + "/" + url.PathEscape(targets[i])
+					replace[r.src] = caseImageURL(dir, targets[i])
 				}
 			}
 		}
@@ -842,14 +856,14 @@ func SyncTestCaseProcessImages(html, caseNumber, module string) string {
 	return html
 }
 
-// parseUploadSrc 解析图片 src，返回去转义后的目录名与文件名。
-// 仅处理 /uploads/<目录>/<文件名> 形式的引用（旧版 uuid 图片直接位于 upload 根目录，返回 false）。
-func parseUploadSrc(src string) (dir, name string, ok bool) {
-	i := strings.Index(src, "/uploads/")
+// parseCaseImageSrc 解析图片 src，返回去转义后的目录名与文件名。
+// 仅处理 /case-images/<目录>/<文件名> 形式的引用（旧版 uuid 图片直接位于 upload 根目录，返回 false）。
+func parseCaseImageSrc(src string) (dir, name string, ok bool) {
+	i := strings.Index(src, caseImageURLPrefix)
 	if i < 0 {
 		return "", "", false
 	}
-	rest := strings.TrimPrefix(src[i:], "/uploads/")
+	rest := strings.TrimPrefix(src[i:], caseImageURLPrefix)
 	if q := strings.IndexByte(rest, '?'); q >= 0 {
 		rest = rest[:q]
 	}
@@ -885,7 +899,7 @@ func isManagedImage(filename, caseNo string) bool {
 
 // caseImageFiles 列出目录下属于指定用例编号的图片文件（文件名形如 用例编号_N.ext）
 func caseImageFiles(dir, caseNo string) []string {
-	entries, err := os.ReadDir(filepath.Join(UploadBasePath, dir))
+	entries, err := os.ReadDir(filepath.Join(CaseImageBasePath, dir))
 	if err != nil {
 		return nil
 	}
@@ -902,7 +916,7 @@ func caseImageFiles(dir, caseNo string) []string {
 }
 
 // MigrateTestCaseProcessImages 迁移测试过程图片：用例模块变化时，把旧模块目录下属于该用例的图片文件移动到新模块目录，
-// 并重写富文本中的 /uploads/<旧目录>/ 引用为 /uploads/<新目录>/。返回新的富文本；无变化则原样返回。
+// 并重写富文本中的 /case-images/<旧目录>/ 引用为 /case-images/<新目录>/。返回新的富文本；无变化则原样返回。
 func MigrateTestCaseProcessImages(caseNumber, oldModule, newModule, html string) (newHTML string, err error) {
 	if html == "" || oldModule == newModule {
 		return html, nil
@@ -917,19 +931,19 @@ func MigrateTestCaseProcessImages(caseNumber, oldModule, newModule, html string)
 		return html, nil
 	}
 
-	newDirPath := filepath.Join(UploadBasePath, newDir)
+	newDirPath := filepath.Join(CaseImageBasePath, newDir)
 	if err := os.MkdirAll(newDirPath, os.ModePerm); err != nil {
 		return html, err
 	}
 
-	oldDirPath := filepath.Join(UploadBasePath, oldDir)
+	oldDirPath := filepath.Join(CaseImageBasePath, oldDir)
 	for _, name := range caseImageFiles(oldDir, caseNo) {
 		if err := os.Rename(filepath.Join(oldDirPath, name), filepath.Join(newDirPath, name)); err != nil {
 			Logger.Error("迁移测试过程图片失败 %s/%s -> %s/%s: %s", oldDir, name, newDir, name, err)
 		}
 	}
 
-	oldPrefix := "/uploads/" + url.PathEscape(oldDir) + "/"
-	newPrefix := "/uploads/" + url.PathEscape(newDir) + "/"
+	oldPrefix := caseImageURLPrefix + url.PathEscape(oldDir) + "/"
+	newPrefix := caseImageURLPrefix + url.PathEscape(newDir) + "/"
 	return strings.ReplaceAll(html, oldPrefix, newPrefix), nil
 }

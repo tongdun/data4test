@@ -210,6 +210,7 @@ func startServer() {
 	staticSub, _ := fs.Sub(embeddedAssets, "web/static")
 	r.StaticFS("/static", http.FS(staticSub))
 	r.Static("/uploads", biz.UploadBasePath)
+	r.Static("/case-images", biz.CaseImageBasePath)
 
 	eng.HTML("GET", "/admin/likePostman", likePostmanPanel)
 	eng.HTML("GET", "/admin/schedule_import", embeddedHTMLPanel("html/schedule_import.html"))

@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 5.7.24, for osx10.9 (x86_64)
 --
--- Host: 127.0.0.1    Database: data4test_1
+-- Host: 127.0.0.1    Database: data4test
 -- ------------------------------------------------------
 -- Server version	8.0.23
 

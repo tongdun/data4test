@@ -1,28 +1,28 @@
 # This file describes the standard way to build Data4Test on trial env image, and using container
 #
-# When build it, please prepare the all content of deploy directory
-# you can read ci/getInitPackage.sh, to get the all content of deploy dirctory
+# When build it, please prepare the all content of release/data4test-web directory
+# you can read build/release.sh, to get the all content of release directory
 #
 # Usage:
 #
 # # Assemble the all environment, get related database tools in docker-compose.yml, It is slow the first time.
-# docker build -f dbDockerfile -t db-data4test:5.0 .
-# docker tag db-data4test:5.0 josingcjx/db-data4test:5.0
-# docker push josingcjx/db-data4test:5.0
+# docker build -f dbDockerfile -t db-data4test:6.0 .
+# docker tag db-data4test:6.0 josingcjx/db-data4test:6.0
+# docker push josingcjx/db-data4test:6.0
 # use this image in docker-compose.yml
 
 # use office image
 FROM mysql:5.7
 # FROM josingcjx/db-data4tes:1.0
 MAINTAINER josingcjx
-# import init sql to container
-COPY ./mgmt/sql /docker-entrypoint-initdb.d/
+# import init sql to container（统一从 release/data4test-web 拷贝，仅含最新 init_all + update.sql）
+COPY release/data4test-web/mgmt/sql /docker-entrypoint-initdb.d/
 # set env for mysql
 ENV MYSQL_ROOT_PASSWORD=password
 RUN cd /docker-entrypoint-initdb.d/ && \
-    cat init_all_20250702.sql > init.sql && \
+    cat init_all_20261109.sql > init.sql && \
     rm -f update.sql && \
-    rm -f init_all_20250702.sql && \
+    rm -f init_all_*.sql && \
     cd -
 # expose port for mysql
 EXPOSE 3306
