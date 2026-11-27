@@ -28,6 +28,8 @@ type OrchestrationCheckDetail struct {
 
 // OrchestrationImportState 编排导入检查结果（confirm 阶段使用）
 type OrchestrationImportState struct {
+	Blocked          bool             `json:"blocked"`
+	DependencyError  string           `json:"dependency_error,omitempty"`
 	ProductConfigs   []CliConfig      `json:"product_configs,omitempty"`
 	ImportId         string           `json:"import_id"`
 	UserName         string           `json:"user_name"`

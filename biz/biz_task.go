@@ -617,6 +617,11 @@ func ExportSchedule(id, userName string) (fileName string, err error) {
 }
 
 func exportSchedule(id, userName string, extraProducts []string, allowMissingEnvironment bool) (fileName string, err error) {
+	// 首次导出时下载目录可能尚不存在，先创建，避免后续 SQL 文件静默写入失败
+	if err = os.MkdirAll(DownloadBasePath, 0755); err != nil {
+		return
+	}
+
 	sqlRule1 := T("sql.gen_rule")
 	sqlRule2 := T("sql.rule1")
 	sqlRule3 := T("sql.rule2")
@@ -1166,10 +1171,16 @@ func GetSysParameterSQL(filePath string, systemParameterMap map[string]bool) (er
 
 func GetImportFilePackage(filePath string, fileNameImportMap map[string]bool) (isExist bool, err error) {
 	count := 0
+	// 首次导出时下载目录可能尚不存在，先创建，避免 os.Create 返回 nil 文件
+	if err = os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
 	fw, err := os.Create(filePath)
 	if err != nil {
 		Logger.Debug("filePath: %v", filePath)
 		Logger.Error("%s", err)
+		return
 	}
 	defer fw.Close()
 	// gzip write
@@ -1479,10 +1490,16 @@ func ExportDataFilePackage(filePath, taskId, productName string, fileNameImportM
 	}
 
 	count := 0
+	// 首次导出时下载目录可能尚不存在，先创建，避免 os.Create 返回 nil 文件
+	if err = os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		Logger.Error("%s", err)
+		return
+	}
 	fw, err := os.Create(filePath)
 	if err != nil {
 		Logger.Debug("filePath: %v", filePath)
 		Logger.Error("%s", err)
+		return
 	}
 	defer fw.Close()
 	// gzip write

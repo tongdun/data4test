@@ -415,6 +415,41 @@ func TestP1OrchestrationPackageRoundTrip(t *testing.T) {
 	}
 }
 
+// 首次导出时下载目录尚不存在，导出应自动创建目录并成功，而不是写入 nil 文件。
+func TestP1ExportCreatesMissingDownloadDir(t *testing.T) {
+	db := p1Database(t)
+	p1Exec(t, db, "INSERT INTO product (product,ip,apps) VALUES ('A','source-A','api')")
+	p1Exec(t, db, "INSERT INTO env_config (app,ip) VALUES ('api','source-app')")
+	p1Exec(t, db, "INSERT INTO scene_data (file_name,name,content,app,file_type,run_time) VALUES ('one.yaml','one','name: one','api',1,1)")
+	p1Exec(t, db, "INSERT INTO schedule (task_name,task_type,task_mode,data_list,product_list) VALUES ('data-task','data','once','one.yaml','A')")
+	p1Exec(t, db, "INSERT INTO task_orchestration (orchestration_name,task_list,product_list) VALUES ('missing-dir','data-task','')")
+
+	if err := os.RemoveAll(DownloadBasePath); err != nil {
+		t.Fatal(err)
+	}
+	name, err := ExportTaskOrchestration("1", "tester")
+	if err != nil {
+		t.Fatalf("export failed when download dir missing: %v", err)
+	}
+	zr, err := zip.OpenReader(filepath.Join(DownloadBasePath, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	var hasSQL, hasBundle bool
+	for _, f := range zr.File {
+		if strings.HasPrefix(f.Name, "bundle/"+T("file.data_sql_prefix")) {
+			hasSQL = true
+		}
+		if strings.HasPrefix(f.Name, "bundle/"+T("file.data_file_package_prefix")) {
+			hasBundle = true
+		}
+	}
+	if !hasSQL || !hasBundle {
+		t.Fatalf("archive incomplete: sql=%v bundle=%v", hasSQL, hasBundle)
+	}
+}
+
 func TestP1AuthFailureSkipsRemainingSteps(t *testing.T) {
 	db := p1Database(t)
 	p1Exec(t, db, "INSERT INTO schedule (task_name,task_type) VALUES ('auth','data'),('after','scene')")

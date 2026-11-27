@@ -124,6 +124,8 @@ orchestration_<ts>.zip
 - `env_config.yaml` 始终导出，即使编排和任务均未选择产品，也迁移应用、系统参数和断言；应用可携带可选 `product` 与 `thread_number`，保留独立配置，旧包仍回退原默认值。元信息数据库写入以单次配置为事务，写入失败返回错误、回滚该次配置，编排导入状态记录为 `error`，不创建依赖该配置的编排；不增加跨编排事务。
 - 导出前做依赖校验：**任务、场景、数据文件**缺失直接终止导出并返回具体缺失项；**产品、环境配置**（按产品关联的 app 判断）缺失只写告警日志，不阻断导出；
 - 导入**不重新实现依赖解析**，而是从 `bundle/` 中挑出真正包含 `task_info.yaml` 的归档，交给现有 `ImportScheduleCheck` / `ImportScheduleConfirm` 处理。
+- 原始上传包存入 `DownloadBasePath` 下随机 `orch_upload_` 临时目录，使用服务端固定文件名并限制大小；检查结束无论成功或失败均清理，不使用客户端文件名写入附件目录。
+- 编排依赖预检覆盖任务→场景→数据文件及 data 任务→数据文件；缺失项和 `blocked` 原因写入导入状态。确认阶段在业务写入前拒绝已阻断的包，并重新按所选模式解析依赖（`skip` 使用目标已有定义，`overwrite` 使用包内定义），防止绕过页面或检查后依赖被删除。
 
 **导入两阶段与状态**：
 
@@ -535,7 +537,7 @@ task_orchestration.description                   将多个定时任务组装为�
 task_orchestration.detail_title                  任务编排详情
 task_orchestration.orchestration_name            编排名称
 task_orchestration.task_list                     关联任务
-task_orchestration.step_count                    步骤数
+task_orchestration.step_count                    任务总数
 task_orchestration.product_list                  产品配置
 task_orchestration.last_at                       上次执行时间
 task_orchestration.btn_run                       立即执行
@@ -560,6 +562,7 @@ error.orchestration_save_tasks                   保存编排任务失败: %s
 - **仅串行、仅手动**：本期没有并行执行、没有 cron 调度、没有 CLI 触发；调度相关列仅预留。
 - **执行不可中断**：开始后只能等待本轮结束，不提供停止。
 - **失败继续 + 401 停止**：普通失败不阻断后续步骤；`scene` 与 `data` 步骤的 401 鉴权失败都会停止后续步骤。
+- **场景内部并发重复**：每个 worker 延迟执行收尾并捕获异常，隔离可变场景切片；所有 worker 结束后按执行序号汇总结果和错误，成功结果不能覆盖失败或 401，避免编排永久停留在执行中。
 - **401 判定与现有实现对齐**：`scene` 沿用 `biz/biz_task.go:408` 的文案前缀判断；`data` 需修正 `RepeatRunDataFile` 覆盖原始错误的问题，二者使用同一判定方式。
 - **执行错误不能被覆盖**：`RunOnceTask` 末尾用 `schedule` 更新的 error 覆盖执行错误，抽取 `RunTaskOnce` 时必须拆分变量，否则编排层无法判断 401。
 - **编排级产品优先**：编排配置了产品时，步骤执行与任务报告均使用编排产品；未配置时才使用任务自身产品。`data` 步骤只取第一个产品，多产品完整生效仅限 `scene` 步骤。

@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -2250,10 +2249,13 @@ func startServer() {
 			})
 			return
 		}
-		uploadFilePath := fmt.Sprintf("%s/%s", biz.UploadBasePath, filepath.Base(uploadFile.Filename))
-		c.SaveUploadedFile(uploadFile, uploadFilePath)
-
-		result, err := biz.ImportTaskOrchestrationCheck(uploadFilePath, user.Name)
+		source, err := uploadFile.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": fmt.Sprintf(biz.T("task_orchestration.import_parse_error"), err)})
+			return
+		}
+		defer source.Close()
+		result, err := biz.CheckTaskOrchestrationUpload(source, user.Name)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
@@ -2268,21 +2270,34 @@ func startServer() {
 				hasConflict = true
 			}
 		}
-		// 缺失任务/场景/数据文件直接阻断确认
-		if blocked, ok := result["blocked"].(bool); ok && blocked {
+		// 全部编排都缺失任务/场景/数据文件时阻断确认；部分缺失仅提示并在确认时跳过
+		blocked := false
+		if b, ok := result["blocked"].(bool); ok && b {
+			blocked = true
 			hasConflict = true
 		}
 		if hasConflict {
+			msg := biz.T("task_orchestration.import_conflict_title")
+			if blocked {
+				msg = biz.T("task_orchestration.import_blocked_missing")
+			} else if missing, ok := result["missing_count"].(int); ok && missing > 0 {
+				// 同名冲突与部分缺失可同时存在，一并提示；确认导入时会跳过缺失的编排
+				msg = fmt.Sprintf("%s %s", msg, fmt.Sprintf(biz.T("task_orchestration.import_partial_missing"), missing))
+			}
 			c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"code": 400,
-				"msg":  biz.T("task_orchestration.import_conflict_title"),
+				"msg":  msg,
 				"data": result,
 			})
 			return
 		}
+		msg := biz.T("task_orchestration.import_check_ok")
+		if missing, ok := result["missing_count"].(int); ok && missing > 0 {
+			msg = fmt.Sprintf(biz.T("task_orchestration.import_partial_missing"), missing)
+		}
 		c.JSON(http.StatusOK, map[string]interface{}{
 			"code": 200,
-			"msg":  biz.T("task_orchestration.import_check_ok"),
+			"msg":  msg,
 			"data": result,
 		})
 	})

@@ -207,6 +207,63 @@ func GetOrchestrationDisplayProducts(id, productList, taskList string) string {
 	return GetOrchestrationEffectiveProducts(&orch, tasks)
 }
 
+// SearchOrchestrationIdsByProduct 按产品关键字匹配编排，口径与列表「产品配置」列展示一致：
+// 配置了编排级产品时按编排产品匹配；未配置时按步骤任务的产品并集匹配；
+// 任务缺失时列表展示为空，也不参与匹配。
+func SearchOrchestrationIdsByProduct(keyword string) (ids []string, err error) {
+	keyword = strings.TrimSpace(keyword)
+	if len(keyword) == 0 {
+		return
+	}
+	var orchs []DbTaskOrchestration
+	if err = models.Orm.Table("task_orchestration").Where("deleted_at is null").Find(&orchs).Error; err != nil {
+		return
+	}
+	nameSet := make(map[string]bool)
+	for _, orch := range orchs {
+		for _, name := range ParseTaskList(orch.TaskList) {
+			nameSet[name] = true
+		}
+	}
+	names := make([]string, 0, len(nameSet))
+	for name := range nameSet {
+		names = append(names, name)
+	}
+	byName := make(map[string]DbSchedule, len(names))
+	if len(names) > 0 {
+		var rows []DbSchedule
+		if err = models.Orm.Table("schedule").Where("task_name in (?) and deleted_at is null", names).Find(&rows).Error; err != nil {
+			return
+		}
+		for _, row := range rows {
+			byName[row.TaskName] = row
+		}
+	}
+	lowered := strings.ToLower(keyword)
+	for i := range orchs {
+		if strings.Contains(strings.ToLower(orchestrationDisplayProducts(&orchs[i], byName)), lowered) {
+			ids = append(ids, orchs[i].Id)
+		}
+	}
+	return
+}
+
+// orchestrationDisplayProducts 与 GetOrchestrationDisplayProducts 同口径，复用已加载的任务，避免逐行查库
+func orchestrationDisplayProducts(orch *DbTaskOrchestration, byName map[string]DbSchedule) string {
+	if len(strings.TrimSpace(orch.ProductList)) > 0 {
+		return strings.TrimSpace(orch.ProductList)
+	}
+	var tasks []DbSchedule
+	for _, name := range ParseTaskList(orch.TaskList) {
+		task, ok := byName[name]
+		if !ok {
+			return ""
+		}
+		tasks = append(tasks, task)
+	}
+	return GetOrchestrationEffectiveProducts(orch, tasks)
+}
+
 // CopyTaskOrchestration 复制编排，名称追加"_副本"，状态重置为未执行
 func CopyTaskOrchestration(id, userName string) (err error) {
 	orch, err := GetTaskOrchestrationById(id)

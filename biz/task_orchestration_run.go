@@ -121,6 +121,7 @@ func runOrchestration(orchestrationId, operator string, runner func(string, stri
 		step.EndAt = result.EndAt
 		step.DurationSeconds = result.DurationSeconds
 		step.DashboardId = result.DashboardId
+		step.TaskTag = result.TaskTag
 		step.Total = result.Total
 		step.Success = result.SuccessCount
 		step.Fail = result.FailCount

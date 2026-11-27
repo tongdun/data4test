@@ -113,6 +113,9 @@ func ExportTaskOrchestration(ids, userName string) (fileName string, err error) 
 
 	fileName = fmt.Sprintf("orchestration_%s.zip", time.Now().Format("20060102150405"))
 	zipPath := filepath.Join(DownloadBasePath, fileName)
+	if err = os.MkdirAll(DownloadBasePath, 0755); err != nil {
+		return "", err
+	}
 	zf, err := os.Create(zipPath)
 	if err != nil {
 		return "", err
@@ -168,9 +171,14 @@ func ExportTaskOrchestration(ids, userName string) (fileName string, err error) 
 func ImportTaskOrchestrationCheck(zipPath, userName string) (data map[string]interface{}, err error) {
 	importId := uuid.NewV4().String()
 	tempDir := filepath.Join(DownloadBasePath, "orch_import_"+importId)
+	var scheduleImportId string
 	defer func() {
 		if err != nil {
 			os.RemoveAll(tempDir)
+			if scheduleImportId != "" {
+				os.Remove(filepath.Join(DownloadBasePath, "import_"+scheduleImportId+".json"))
+				os.RemoveAll(filepath.Join(DownloadBasePath, "import_stage_"+scheduleImportId))
+			}
 		}
 	}()
 
@@ -200,6 +208,8 @@ func ImportTaskOrchestrationCheck(zipPath, userName string) (data map[string]int
 	if err != nil {
 		return nil, err
 	}
+
+	scheduleImportId = scheduleResult.ImportId
 
 	var productConfigs []CliConfig
 	if raw, readErr := ioutil.ReadFile(filepath.Join(tempDir, "products_info.yaml")); readErr == nil {
@@ -236,9 +246,6 @@ func ImportTaskOrchestrationCheck(zipPath, userName string) (data map[string]int
 		Status:           "pending",
 		ProductConfigs:   productConfigs,
 	}
-	if err = saveOrchestrationImportState(state); err != nil {
-		return nil, err
-	}
 
 	var conflictHtml []string
 	for _, orch := range orchestrations {
@@ -258,107 +265,38 @@ func ImportTaskOrchestrationCheck(zipPath, userName string) (data map[string]int
 	metaConflicts := orchestrationMetaConflicts(checkConfigs)
 	conflictHtml = append(conflictHtml, metaConflicts...)
 
-	// 任务映射与缺失项
-	importedNames := make(map[string]bool, len(scheduleResult.Tasks))
-	taskByName := make(map[string]KTask, len(scheduleResult.Tasks))
-	for _, task := range scheduleResult.Tasks {
-		importedNames[task.Name] = true
-		taskByName[task.Name] = task
+	// 同一依赖解析器用于检查和确认，包含场景引用的数据文件。
+	details, err := checkOrchestrationImportDependencies(orchestrations, scheduleResult, "")
+	if err != nil {
+		return nil, err
 	}
-	importedPlaybooks := make(map[string]bool, len(scheduleResult.Playbooks))
-	for _, item := range scheduleResult.Playbooks {
-		importedPlaybooks[item.Name] = true
-	}
-	importedData := make(map[string]bool, len(scheduleResult.DataFiles))
-	for _, item := range scheduleResult.DataFiles {
-		if len(item.FileName) > 0 {
-			importedData[item.FileName] = true
-		}
-		if len(item.Name) > 0 {
-			importedData[item.Name] = true
+	dependencyErr := orchestrationDependencyError(details)
+	// 多条编排互相独立：仅当全部编排都缺失依赖时才整体阻断；
+	// 部分缺失时仍允许导入，确认阶段跳过缺失的编排。
+	missingCount := 0
+	for _, detail := range details {
+		if orchestrationDetailMissing(detail) {
+			missingCount++
 		}
 	}
-
-	details := make([]OrchestrationCheckDetail, 0, len(orchestrations))
+	blocked := len(details) > 0 && missingCount == len(details)
+	state.Blocked = blocked
+	if dependencyErr != nil {
+		state.DependencyError = dependencyErr.Error()
+	}
+	if err = saveOrchestrationImportState(state); err != nil {
+		return nil, err
+	}
+	// 全部编排都缺失依赖时不允许确认导入，检查阶段即清理解压与暂存目录，避免残留
+	if blocked {
+		os.RemoveAll(tempDir)
+		if scheduleImportId != "" {
+			os.Remove(filepath.Join(DownloadBasePath, "import_"+scheduleImportId+".json"))
+			os.RemoveAll(filepath.Join(DownloadBasePath, "import_stage_"+scheduleImportId))
+		}
+	}
 	var detailHtml strings.Builder
-	blocked := false
-	for _, orch := range orchestrations {
-		detail := OrchestrationCheckDetail{Name: orch.Name}
-		if _, ok := conflicts[orch.Name]; ok {
-			detail.Exists = true
-		}
-		for _, name := range orch.Tasks {
-			mapping := OrchestrationTaskMapping{TaskName: name}
-			var rows []struct {
-				Id        string
-				DeletedAt string
-			}
-			models.Orm.Table("schedule").
-				Select("id, deleted_at").
-				Where("task_name = ?", name).
-				Find(&rows)
-			switch {
-			case len(rows) > 0 && len(rows[0].DeletedAt) == 0:
-				mapping.Source = "existing"
-				mapping.TaskId = rows[0].Id
-			case importedNames[name] && len(rows) == 0:
-				mapping.Source = "import"
-			default:
-				// 既不在包内、又无可用同号任务（或同名任务已被软删除占用唯一键）
-				mapping.Source = "missing"
-				detail.Missing = append(detail.Missing, name)
-			}
-			detail.Tasks = append(detail.Tasks, mapping)
-
-			task, ok := taskByName[name]
-			if !ok {
-				continue
-			}
-			for _, ref := range task.PlaybookList {
-				ref = strings.TrimSpace(ref)
-				if len(ref) == 0 {
-					continue
-				}
-				if task.TaskType == "playbook" || task.TaskType == "scene" {
-					if importedPlaybooks[ref] {
-						continue
-					}
-					var count int64
-					models.Orm.Table("playbook").Where("name = ? and deleted_at is null", ref).Count(&count)
-					if count == 0 {
-						detail.MissingScenes = append(detail.MissingScenes, ref)
-					}
-				} else {
-					if importedData[ref] {
-						continue
-					}
-					var count int64
-					models.Orm.Table("scene_data").
-						Where("(file_name = ? or name = ?) and deleted_at is null", ref, ref).
-						Count(&count)
-					if count == 0 {
-						detail.MissingData = append(detail.MissingData, ref)
-					}
-				}
-			}
-		}
-
-		// 产品缺失只提示，不阻断（导入会按包内配置创建）
-		productRefs := splitDependencyNames(orch.Products)
-		productRefs = append(productRefs, taskProductRefs(taskByName, orch.Tasks)...)
-		for _, product := range productRefs {
-			var count int64
-			models.Orm.Table("product").Where("product = ?", product).Count(&count)
-			if count == 0 {
-				detail.MissingProducts = append(detail.MissingProducts, product)
-			}
-		}
-
-		if len(detail.Missing) > 0 || len(detail.MissingScenes) > 0 || len(detail.MissingData) > 0 {
-			blocked = true
-		}
-		details = append(details, detail)
-
+	for _, detail := range details {
 		detailHtml.WriteString(`<div class="conflict-item" style="padding:8px 0">`)
 		detailHtml.WriteString(`<div style="font-weight:600;margin-bottom:4px">` + html.EscapeString(detail.Name))
 		if detail.Exists {
@@ -397,28 +335,10 @@ func ImportTaskOrchestrationCheck(zipPath, userName string) (data map[string]int
 		"orchestration_details":        details,
 		"orchestration_details_html":   detailHtml.String(),
 		"blocked":                      blocked,
+		"missing_count":                missingCount,
+		"importable_count":             len(details) - missingCount,
 		"schedule":                     BuildImportCheckResult(scheduleResult),
 	}, nil
-}
-
-// taskProductRefs 收集编排内各任务引用的产品
-func taskProductRefs(taskByName map[string]KTask, taskNames []string) []string {
-	seen := make(map[string]bool)
-	var refs []string
-	for _, name := range taskNames {
-		task, ok := taskByName[name]
-		if !ok || task.ProductList == nil {
-			continue
-		}
-		for _, product := range splitDependencyNames(*task.ProductList) {
-			if seen[product] {
-				continue
-			}
-			seen[product] = true
-			refs = append(refs, product)
-		}
-	}
-	return refs
 }
 
 // ImportTaskOrchestrationConfirm 确认导入：先落任务依赖，再按名称映射创建/更新编排
@@ -434,6 +354,8 @@ func ImportTaskOrchestrationConfirm(importId, mode, userName string) (err error)
 	if !withinDownloadBase(state.TempDir) {
 		return fmt.Errorf(T("error.orchestration_archive_unsafe"))
 	}
+	// 确认流程无论成功失败都清理解压目录（blocked / 依赖复核失败等早退路径同样生效）
+	defer os.RemoveAll(state.TempDir)
 	defer func() {
 		if err == nil {
 			state.Status = "done"
@@ -446,7 +368,41 @@ func ImportTaskOrchestrationConfirm(importId, mode, userName string) (err error)
 	state.Status = "processing"
 	state.Message = ""
 	_ = saveOrchestrationImportState(state)
-	defer os.RemoveAll(state.TempDir)
+
+	orchestrationsToImport := state.Orchestrations
+	if mode != "cancel" {
+		if state.Blocked {
+			return fmt.Errorf("%s", state.DependencyError)
+		}
+		raw, readErr := ioutil.ReadFile(filepath.Join(DownloadBasePath, "import_"+state.ScheduleImportId+".json"))
+		if readErr != nil {
+			return readErr
+		}
+		var imported ImportResult
+		if err = json.Unmarshal(raw, &imported); err != nil {
+			return err
+		}
+		details, checkErr := checkOrchestrationImportDependencies(state.Orchestrations, imported, mode)
+		if checkErr != nil {
+			return checkErr
+		}
+		// 编排之间互相独立：跳过缺失依赖的编排，其余完整编排继续导入
+		orchestrationsToImport = nil
+		var skipped []string
+		for i, k := range state.Orchestrations {
+			if i < len(details) && orchestrationDetailMissing(details[i]) {
+				skipped = append(skipped, k.Name)
+				continue
+			}
+			orchestrationsToImport = append(orchestrationsToImport, k)
+		}
+		if len(orchestrationsToImport) == 0 {
+			return orchestrationDependencyError(details)
+		}
+		if len(skipped) > 0 {
+			state.Message = fmt.Sprintf(T("task_orchestration.import_skipped_missing"), strings.Join(skipped, ", "))
+		}
+	}
 
 	if err = ImportScheduleConfirm(state.ScheduleImportId, mode, userName); err != nil {
 		return err
@@ -463,7 +419,7 @@ func ImportTaskOrchestrationConfirm(importId, mode, userName string) (err error)
 
 	// 多个编排互相独立：单个失败只回滚本条，不影响其他编排
 	var failures []string
-	for _, k := range state.Orchestrations {
+	for _, k := range orchestrationsToImport {
 		if e := importSingleOrchestration(k, mode, userName); e != nil {
 			failures = append(failures, fmt.Sprintf("%s: %s", k.Name, e))
 		}

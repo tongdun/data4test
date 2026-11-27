@@ -13,58 +13,14 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
 func RepeatRunPlaybook(productInfo DbProduct, playbook Playbook, runNum int, mode, source, dbId, userName, taskId string) (result, lastFile string, err error) {
 	if productInfo.Threading == "yes" && runNum > 1 && productInfo.ThreadNumber > 1 {
-		if runNum > productInfo.ThreadNumber {
-			loopNum := runNum/productInfo.ThreadNumber + 1
-			count := 1
-			for i := 0; i < loopNum; i++ {
-				Logger.Info(T("info.concurrent_mode_stats"), productInfo.ThreadNumber, loopNum, i+1)
-				wg := sync.WaitGroup{}
-				for j := 0; j < productInfo.ThreadNumber; j++ {
-					if count > runNum {
-						break
-					}
-					Logger.Info(T("info.concurrent_mode_count"), count)
-					wg.Add(1)
-					go func(playbook Playbook, dbId string) {
-						subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
-						result = subResult
-						lastFile = subLastFile
-						if err1 != nil {
-							err = err1
-							Logger.Error("%s", err)
-							return
-						}
-						wg.Done()
-					}(playbook, dbId)
-					count++
-				}
-				wg.Wait()
-			}
-		} else {
-			wg := sync.WaitGroup{}
-			for i := 0; i < runNum; i++ {
-				Logger.Info(T("info.concurrent_mode_count"), i+1)
-				wg.Add(1)
-				go func(playbook Playbook, dbId string) {
-					subResult, subLastFile, err1 := playbook.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
-					result = subResult
-					lastFile = subLastFile
-					if err1 != nil {
-						err = err1
-						Logger.Error("%s", err)
-						return
-					}
-					wg.Done()
-				}(playbook, dbId)
-			}
-			wg.Wait()
-		}
+		return runConcurrentPlaybookRepeats(playbook, runNum, productInfo.ThreadNumber, func(item Playbook) (string, string, error) {
+			return item.RunPlaybook(userName, dbId, mode, source, productInfo, taskId)
+		})
 	} else {
 		for i := 0; i < runNum; i++ {
 			if runNum > 1 {

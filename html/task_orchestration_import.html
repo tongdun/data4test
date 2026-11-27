@@ -154,7 +154,8 @@
                 .then(function (json) {
                     var data = json.data || {};
                     if (data.status === 'done') {
-                        showMsg(T('task_orchestration.import_completed', '导入完成'), true);
+                        var doneText = T('task_orchestration.import_completed', '导入完成');
+                        showMsg(data.message ? doneText + ' • ' + data.message : doneText, true);
                         return;
                     }
                     if (data.status === 'error') {
